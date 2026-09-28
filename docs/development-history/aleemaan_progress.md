@@ -17,6 +17,12 @@ checked against the real repo, not what a plan says should exist.
   Security & Compliance, Rollout Plan, Open Risks). Not yet synced to this repo as `docs/PRD.md` —
   tracked below.
 - **`docs/legacy-feature-inventory.md`**: done, 308 lines, factual inventory of all 5 legacy repos.
+- **`docs/feature-reconciliation-audit.md`**: done 2026-09-28 — a full line-by-line re-read of the
+  inventory against the PRD §5 table, found 15 real gaps (features §5 never mentioned at all: the
+  online admissions form, the fee-structure browser, report-card PDF export, `AssessmentConfig` as
+  its own model, forgot-password flow, admin force-delete, and more) plus 2 corrections to existing
+  rows. **Not yet merged into the canonical PRD** — the Claude Doc's §5 is stale by these rows until
+  Claude Docs is reachable again.
 - **Phase 0 — Foundation**: **100% Complete.** Next.js 16 + TypeScript + Tailwind scaffold,
   Prisma 6.19.3 + PostgreSQL with Auth.js's tables plus `Branch`/`Role`/`Permission`/`Membership`,
   local dev `docker-compose.yml` (ports 5434/6381). `pnpm build` clean, first migration applied
@@ -35,9 +41,11 @@ checked against the real repo, not what a plan says should exist.
 
 ## Known gaps (tracked, not lost)
 
-- **`docs/PRD.md` not synced.** The Claude Docs MCP connection this was drafted through is currently
-  disconnected in this session — sync it the next time it's reachable, the same way Octalve Edu's
-  PRD was transcribed.
+- **`docs/PRD.md` not synced, and now also stale by 15 rows.** The Claude Docs MCP connection this
+  was drafted through is currently disconnected in this session — next time it's reachable: (1) sync
+  `docs/PRD.md` the same way Octalve Edu's PRD was transcribed, and (2) merge
+  `docs/feature-reconciliation-audit.md`'s findings into the canonical §5 table, both in the Claude
+  Doc and the local sync.
 - ~~No git repository yet.~~ **Resolved 2026-09-28**: `git init`, committed, pushed to
   `github.com/roji-tech/AlEemaan` (public). `out/` (the 5 legacy repos) is deliberately not tracked
   — see `docs/legacy-repos.md` for why and how to check them out locally; README and

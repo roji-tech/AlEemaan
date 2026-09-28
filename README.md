@@ -42,6 +42,9 @@ for the current, honest state (most of the app doesn't exist yet).
   of all 5 legacy repos.
 - [`docs/legacy-repos.md`](docs/legacy-repos.md) — how to check out `out/` locally (not tracked
   here).
+- [`docs/feature-reconciliation-audit.md`](docs/feature-reconciliation-audit.md) — a second-pass
+  audit of the legacy inventory against the PRD's MVP feature-reconciliation table; found 15 gaps
+  not yet merged into the canonical PRD.
 - The PRD lives in a Claude Doc (not yet synced to this repo as `docs/PRD.md` — tracked as an open
   item in the progress tracker).
 - [`docs/development-history/`](docs/development-history/) — the build plan and what's actually
