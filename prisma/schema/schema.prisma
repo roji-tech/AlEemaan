@@ -1,0 +1,26 @@
+// AlEemaan — Prisma schema, split across prisma/schema/*.prisma (Prisma's
+// multi-file "schema folder" mode, stable since Prisma 6.7 — no
+// previewFeatures flag needed on the installed 6.19.3). This file holds only
+// the generator/datasource; every model lives in a domain-named sibling file.
+// Prisma merges all *.prisma files in this folder as if concatenated — models
+// in different files can reference each other freely (e.g. Membership in
+// branch.prisma referencing User in auth.prisma).
+//
+// Same architecture as Octalve Edu (Auth.js database sessions, Prisma/
+// Postgres) but single-tenant: no Tenant model, no [code] URL routing, no
+// RLS — there's exactly one school (PRD §9). Business domain models
+// (students, staff records, results, invoices) are added once the PRD's
+// feature-reconciliation matrix (§5) is worked through phase by phase, per
+// docs/development-history/domain-implementation-plan.md — deliberately not
+// invented here ahead of a phase's own design pass.
+//
+// Run: pnpm prisma generate (after schema changes).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

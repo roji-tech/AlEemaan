@@ -1,0 +1,28 @@
+// --- First-run setup wizard & audit trail ---
+
+/// Singleton row (id is always "global") guarding the one-time bootstrap:
+/// seeds the four Branch rows and creates the first ADMIN. Same
+/// atomic-conditional-update pattern as Octalve Edu / proplity.
+model SystemSettings {
+  id            String  @id @default("global")
+  setupComplete Boolean @default(false)
+}
+
+/// Same shape as Octalve Edu's AuditLog, minus tenantId (nothing to scope by
+/// here) — brought forward at the setup wizard since it needs a real audit
+/// trail, same as every sensitive action after it.
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorUserId   String
+  action        String
+  targetType    String
+  targetId      String
+  beforeValue   Json?
+  afterValue    Json?
+  reason        String?
+  correlationId String?
+  createdAt     DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

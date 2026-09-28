@@ -160,10 +160,139 @@ confirmation that the replacement is already complete, not an open item.
 
 ---
 
+## Roadmap: Phase 1 → 7 (+ 0.5.3)
+
+"Phase 1 (Core SIS + Finance)" was a placeholder label, not a real scope — it would have bundled at
+least four independent, differently-dependent pieces of work under one name. Broken out below into
+phases that each ship something real, ordered by actual dependency (not by PRD section number).
+`docs/feature-reconciliation-audit.md`'s own "Sequencing note" observation is the reason this split
+exists at all — it caught forgot-password and the admissions/CMS forms being about to get lumped into
+a single "Core SIS" phase where neither belongs. Each phase still gets its *own* full design pass
+(models, API shape, verification plan) written here immediately before it's built — this section is
+the map, not the design; writing full schemas for phases 3–7 now would be designing ahead of a need,
+same mistake this document exists to prevent.
+
+**Dependency shape, and a correction to how this was first ordered:** schema comes first. Phase 1
+(Academic Structure) is the actual dependency root — `ClassGroup`/`Subject`/`AssessmentConfig`/
+session-term are what Phase 2's `Student`, Phase 3's `Result`, and Phase 4's `Invoice` all reference by
+name; nothing past this document's Phase 0.5 work can be built without it. An earlier draft of this
+roadmap put "0.5.3 — Auth completion" first, reasoning it was cheap and independent — true, but
+independence cuts both ways: nothing here depends on 0.5.3 either, so being cheap and unblocking
+nothing is exactly the profile of work that shouldn't sit on the critical path. It's moved below, right
+before Phase 6, which is where its urgency actually comes from (forgot-password and rate-limiting start
+mattering once family/student self-service accounts exist at real scale — not before schema does).
+Phase 5 (Public Site/CMS) depends only on Phase 1 data and could in principle build in parallel with
+Phases 2–4; kept sequential here since one person is doing the building. Phase 7 (migration) depends on
+everything above being schema-stable, for obvious reasons.
+
+- **Phase 1 — Academic Structure (the shared foundation every later phase reads — build this
+  first).** Pure configuration, no student data yet: `AcademicSession`/`Term` (per-branch — the
+  audit's finding that Arabic branches run two terms and English branches run three means this is
+  branch-scoped, not global), `ClassGroup` (admin-configurable uniformly on every branch — fixing the
+  legacy primary-only-had-this inconsistency), `Subject` (per branch, tied to a class group),
+  `AssessmentConfig` (per-branch CA test components + max scores + exam max, with the
+  `assessmentConfig` snapshot pattern captured onto each `Result` at save time — one of the few things
+  the legacy system got right, per the audit, worth carrying forward exactly), and `GradeScale`
+  (band → letter grade → remark, e.g. 75–100 → A1 → "Excellent" — see the research note below for why
+  this is a model here and not a hardcoded legend like the legacy system had it). Adapted from Octalve
+  Edu's own Phase 1 `sis.prisma` where the shape overlaps, single-tenant simplified where AlEemaan
+  doesn't need Octalve's multi-campus version.
+
+  **Research note (2026-09-28):** before finalizing this phase's actual schema, compared our shape
+  against [1EdTech's OneRoster](https://www.1edtech.org/standards/oneroster) — the standard schema
+  vendors like PowerSchool and Google Classroom use to exchange SIS/LMS data — not to adopt it
+  wholesale (it's built for cross-vendor interop between separate systems, which doesn't apply to one
+  in-house app), but to sanity-check our model boundaries against a schema that's absorbed a lot of
+  real-world SIS edge cases already. Two things worth taking from it, one thing worth deliberately not
+  taking:
+  - **Take: `Enrollment` as its own model, not a field on `Student`.** OneRoster never lets a `class`
+    membership be a bare foreign key on `user` — it's always a separate `enrollment` row
+    (user + class + session + role + status). Applied here, that means Phase 2's `Student` shouldn't
+    carry a single `classGroupId` field the way the legacy system's `students.class` did; a separate
+    `Enrollment` (studentId, classGroupId, academicSessionId, status) gives a real per-session
+    enrollment history natively. This directly replaces the legacy's `promotionHistory` array-append
+    hack (§4.6) with a queryable table instead of an opaque JSON blob on the student doc — cleaner than
+    what either the legacy system or the original Phase 2 draft above had.
+  - **Take: grade bands as data, not a hardcoded legend.** OneRoster's gradebook service models score
+    scales as actual records, not a UI constant. The legacy system's WAEC-style A1–F9 scale (§2.1) was
+    a static legend baked into the report-card template. Since `AssessmentConfig` already makes CA/exam
+    structure admin-editable data, leaving the grade bands as a hardcoded constant would be an
+    inconsistency in the same schema — `GradeScale` fixes that, and happens to also make the "A1–F9"
+    scale swappable per branch later if the Arabic branches ever wanted a different one (they don't
+    today, per the inventory — just no longer a code change if that ever comes up).
+  - **Deliberately not taking: OneRoster's `course`/`class` split.** OneRoster separates a `course`
+    (shared curriculum) from a `class` (one taught instance/section of it, with its own teacher and
+    roster) because a real course catalog can have multiple sections of the same course. Nothing in
+    the legacy inventory or the audit shows AlEemaan ever having more than one section per class per
+    branch — adding that split now would be modeling a scenario that doesn't exist, the same mistake
+    this document's design-first rule exists to prevent. `ClassGroup` + `Subject` (already planned)
+    cover the real shape; revisit only if a real multi-section need shows up.
+
+- **Phase 2 — Student & Staff Records.** Depends on Phase 1's `ClassGroup` and `Enrollment` existing.
+  `Student` (name, gender, admission number — **not** reusing Firebase UID as the human-facing ID, a
+  real gap the legacy system had — guardian contact; current class comes from the student's active
+  `Enrollment` row, not a field on `Student` itself, per the research note above), staff profile fields
+  beyond what `Membership` already carries (subjects taught). Carries forward the legacy
+  class-consistency guard (§2.1) and CSV export (§4.4/§4.5) as real, used features, not nice-to-haves.
+
+- **Phase 3 — Results & Assessment Workflow.** Depends on Phases 1 and 2 both being real. Teacher
+  score-entry API, replacing the legacy shared-password subject/remark unlock scheme with the
+  `Permission` model already built (`CAN_APPROVE_RESULTS` etc. — one fix for three legacy findings, per
+  the audit's observations). Class position/ranking computed server-side (the legacy client-side
+  "count who's strictly higher, +1" doesn't handle ties correctly). Server-rendered report-card PDF
+  export, not client-side rasterization. Bulk promotion carrying forward the *exact* legacy rule the
+  audit's correction preserved: Third-Term-only, average-of-per-term-averages ≥ 50%, idempotent — but
+  implemented as closing the student's current `Enrollment` row and opening a new one in the next
+  `ClassGroup`/session (Phase 1's research note), not the legacy's `promotionHistory` array-append,
+  since idempotency ("already-promoted students are no longer in the source class query") falls out
+  naturally from querying active enrollments rather than needing a separate history field to check
+  against.
+
+- **Phase 4 — Finance & Payments.** Depends on Phase 2 (`Student` must exist to have a payment
+  status). `Invoice`/`Payment` records replacing the legacy bare `hasPaid` boolean the result-checker
+  gates on, manual/no-gateway confirmed as the right MVP scope (PRD §7) — no payment-gateway
+  integration invented here that wasn't asked for. Bulk "reset payment per class" carried forward as a
+  real, used admin action.
+
+- **Phase 5 — Public Site & CMS.** Depends only on Phase 1 data (branches, session dates) being
+  queryable for display; independent of Phases 3–4. This is where the admissions inquiry form finally
+  gets a real backend (currently 100% cosmetic — the legacy system's single biggest missed
+  opportunity, per the audit), the fee-structure browser becomes CMS-editable content instead of a
+  hardcoded `fees-data.js`, and the contact/tour/vacancy-application forms (already fully built
+  client-side in the legacy system, just commented out) get wired to something real. Explicitly not
+  Core SIS work, despite touching "admissions" — the audit's sequencing note exists specifically to
+  keep this out of Phase 1–3.
+
+- **0.5.3 — Auth completion (forgot-password, admin force-delete, persistent rate limiting).**
+  Repositioned here, right before Phase 6, from an earlier draft that put it first — see the
+  dependency-shape note above for why. The audit flagged all three as real, currently-missing gaps in
+  the legacy system (`§2.1/§4.3/§6.7`), not cosmetic ones, but their urgency tracks user count, and
+  admin-only usage (Phases 1–5) stays small: a handful of admin/staff accounts, manageable by hand if
+  one gets locked out. That changes the moment Phase 6 opens login to every family. Reset-token email
+  flow against `passwordHash`; `CAN_MANAGE_USERS`-gated delete that doesn't require re-authenticating as
+  the account being removed (the legacy system's actual undeletable-account bug); a
+  `LoginAttempt`-backed limiter replacing the legacy client-side-only 30-second lockout (trivially
+  bypassable — it's just a disabled button). No new domain models besides `LoginAttempt`; everything
+  else touches existing `User`/`Membership`.
+
+- **Phase 6 — Family/Student Self-Service Portal.** Depends on Phases 1–3 (needs sessions, students,
+  and results to exist) and on 0.5.3 landing first (see above). Unifies the legacy system's 4 separate,
+  per-branch result-checker logins into one `PARENT`/`STUDENT` login against the single `Membership`
+  model — fixing the "family with children in two branches has two unrelated logins" problem the
+  audit's observations called out as a consequence of the 4-Firebase-project split, not just a UX
+  inconvenience.
+
+- **Phase 7 — Data Migration & Cutover.** Depends on every schema above being stable. Maps the 4
+  separate Firestore projects' data into one Postgres database. Blocked on a real answer to the
+  audit's open question first: what's actually populating the two Arabic branches' data today, since
+  no admin/teacher portal exists for them in any of the 5 repos read — that changes how much of this
+  phase is "migrate real records" versus "start those two branches from zero." Ask the school before
+  this phase's design pass gets written, not during it.
+
 ## Next action
 
-Two Phase 0.5.2 School Settings model + its (thin) API/audit trail is small enough to implement next
-directly from the design above. Separately, and larger: Phase 1 (Core SIS + Finance) needs its own
-full design pass — `AcademicSession`/`Term`, `ClassGroup`, `Subject`, `AssessmentConfig` all belong
-there, adapted from Octalve Edu's own Phase 1 `sis.prisma` per the PRD's §5 reconciliation matrix —
-before any of that gets built, not invented mid-implementation.
+Phase 0.5.2 (School Settings) is designed and ready to implement directly from its section above —
+still waiting on confirmation before writing code, per the design-first rule. Next in sequence after
+that: **Phase 1 (Academic Structure)**, since it's the actual dependency root every later phase reads
+from — schema modelling comes before the auth-completion slice (0.5.3), which was originally placed
+first but doesn't belong on the critical path (see the roadmap's dependency-shape note).

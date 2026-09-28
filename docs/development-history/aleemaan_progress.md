@@ -71,9 +71,35 @@ checked against the real repo, not what a plan says should exist.
 
 ## Next action
 
-Phase 0.5.2 (School Settings) is now designed in `domain-implementation-plan.md` — **not
-implemented yet**, waiting on confirmation before any code, per the design-first rule this document
-now follows. That design pass also found that most of the legacy "Settings" panel isn't a setting at
-all — active session/term, classes, subjects, and `AssessmentConfig` are core SIS domain data,
-scoped out to their own Phase 1 design pass instead of being bolted onto Settings. Separately: sync
-`docs/PRD.md` once Claude Docs is reachable again.
+Phase 0.5.2 (School Settings) is designed in `domain-implementation-plan.md` — **not implemented
+yet**, waiting on confirmation before any code, per the design-first rule this document now follows.
+
+`domain-implementation-plan.md` now also has a full **Phase 1 → 7 (+ 0.5.3) roadmap** (2026-09-28,
+revised same day), breaking what was one vague "Phase 1 (Core SIS + Finance)" bullet into 7
+dependency-ordered phases: 1 (Academic Structure), 2 (Student & Staff Records), 3 (Results & Assessment
+Workflow), 4 (Finance & Payments), 5 (Public Site & CMS), 0.5.3 (auth completion — forgot-password,
+admin force-delete, persistent rate limiting — repositioned right before Phase 6, not first, once it
+became clear it sits on no one's critical path), 6 (Family/Student Self-Service Portal), 7 (Data
+Migration & Cutover). Full model-level design is still deferred to each phase's own pass, written
+immediately before that phase is built — the roadmap is the map, not 7 designs at once. Next up in
+sequence: **Phase 1 (Academic Structure)**, the actual dependency root.
+
+Phase 1's design was also cross-checked against [1EdTech's OneRoster](https://www.1edtech.org/standards/oneroster)
+standard (2026-09-28) — not adopted wholesale, but two real improvements taken from it: `Enrollment`
+becomes its own model (replacing a `classGroupId` field on `Student` and the legacy system's
+`promotionHistory` array-append with a queryable per-session enrollment history), and grade bands
+become a `GradeScale` model instead of a hardcoded WAEC-legend constant, consistent with
+`AssessmentConfig` already being admin-editable data. OneRoster's `course`/`class` split was
+deliberately *not* adopted — nothing in the legacy inventory shows more than one section per class,
+so modeling for it now would be designing ahead of a real need.
+
+**Prisma schema is now multi-file** (2026-09-28): `prisma/schema.prisma` split into
+`prisma/schema/{schema,auth,branch,setup}.prisma` (Prisma's "schema folder" mode, stable since 6.7, no
+preview flag needed on the installed 6.19.3), with a new `prisma.config.ts` pointing the CLI at the
+folder — same convention already used by `octalve-ims`. `pnpm prisma validate` and `pnpm prisma
+generate` both verified clean against the split. Every future phase's models get their own file
+(`academics.prisma`, `students.prisma`, `results.prisma`, `finance.prisma`, `cms.prisma`) rather than
+growing one large file.
+
+Separately: sync `docs/PRD.md` once Claude Docs is reachable again, and merge
+`feature-reconciliation-audit.md`'s findings into its canonical §5.
