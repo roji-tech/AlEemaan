@@ -30,12 +30,19 @@ checked against the real repo, not what a plan says should exist.
 - **Phase 0.5.0 — First-run superadmin setup wizard**: **100% Complete.** Seeds all four branches +
   creates the first `ADMIN`, verified live end-to-end including the idempotency guard. See
   `docs/development-history/phases/phase-0.5.0-setup-wizard.md`.
-- **Everything else** (Auth.js wiring beyond the schema, the rest of Core SIS + Finance per the
-  PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4 Firestore
-  projects): **0% — not started.** No phase-by-phase implementation plan like Octalve Edu's
-  `domain-implementation-plan.md` exists yet for AlEemaan — this repo has gone straight from PRD to
-  Phase 0/0.5.0 without that intermediate planning document. Worth doing before Phase 1 starts, same
-  way Octalve Edu did it, so schema decisions aren't invented ad hoc mid-build.
+- **`domain-implementation-plan.md`**: created 2026-09-28 — design-first from here on, not
+  code-first. Already caught one real correction before it shipped silently: Auth.js v5 refuses
+  `Credentials` + database sessions outright, recorded in the plan alongside the fix.
+- **Phase 0.5.1 — Minimal auth (login/logout) & branch management**: **100% Complete.** Hand-rolled
+  login/logout against Auth.js's own `Session` table (Credentials provider isn't usable with
+  database sessions — see the plan doc), `requireAdmin()`, and admin-only `GET`/`POST
+  /api/v1/branches`. Verified live end-to-end: login sets the cookie, branches list/create both
+  work authenticated and 401 unauthenticated, duplicate names 409, logout actually deletes the
+  session row. See `docs/development-history/phases/phase-0.5.1-auth-and-branches.md`.
+- **Everything else** (TOTP MFA, forgot-password, the Settings model, the rest of Core SIS + Finance
+  per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
+  Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
+  `domain-implementation-plan.md`'s Phase 0.5.2 once it's written.
 
 ---
 
@@ -51,17 +58,20 @@ checked against the real repo, not what a plan says should exist.
   — see `docs/legacy-repos.md` for why and how to check them out locally; README and
   `legacy-feature-inventory.md` both link to it now so a fresh clone from GitHub doesn't silently
   reference a directory that isn't there.
-- **No `domain-implementation-plan.md`.** Phase 1 (Core SIS + Finance, adapted from Octalve Edu's
-  own Phase 1 per the PRD's reconciliation matrix) needs one before it starts.
+- ~~No `domain-implementation-plan.md`.~~ **Resolved 2026-09-28**: created, Phase 0.5.1 designed and
+  built against it. Phase 1 (Core SIS + Finance) and Phase 0.5.2 (Settings) still need their own
+  design passes before any code, per the same document.
 - **No branches-and-environments convention.** Octalve Edu has one
   (`octalve-edu/docs/branches-and-environments.md`, `dev`/`main`/`prod`); AlEemaan doesn't have a
   CI/CD or branching decision made yet, and inventing one here would be getting ahead of a real
   decision — add it once there's an actual answer, not before.
-- **Phase 1's open authorization question**: how `ADMIN` reaches across every branch when its own
-  `Membership` row only anchors to one (see `prisma/schema.prisma`'s comment on `Membership`).
+- ~~Phase 1's open authorization question (how `ADMIN` reaches across every branch).~~ **Resolved
+  2026-09-28**: any `Membership` with `role: ADMIN` grants access regardless of which branch it
+  anchors to (`src/lib/auth/require-admin.ts`).
 
 ## Next action
 
-Either sync `docs/PRD.md` once Claude Docs is reachable again, or write
-`domain-implementation-plan.md` for Phase 1 (Core SIS + Finance) directly from the PRD's §5
-reconciliation matrix — whichever the next session is asked to do first.
+Design Phase 0.5.2 (Settings — School Info, active session/term, per-branch class lists,
+`AssessmentConfig`) in `domain-implementation-plan.md` before writing any code for it, per the
+design-first rule this document now follows. Separately: sync `docs/PRD.md` once Claude Docs is
+reachable again, and write Phase 1's (Core SIS + Finance) own design pass.

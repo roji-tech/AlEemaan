@@ -57,3 +57,33 @@ Sections already thoroughly covered by the original §5 table and confirmed accu
 CRUD (§1–4), the four separate result checkers (§2), the shared-password unlock scheme (§3.3),
 manual/no-gateway payment status (§4.4), the public marketing pages and their content-quality issues
 (§1.1–1.9, §6.5), `vvv.html`/orphaned `footer.js` (§6.4–6.5), and PWA/offline behavior (§6.6).
+
+---
+
+## Observations & recommendations (beyond the table)
+
+Judgment calls this audit surfaced that don't fit a Carry/Adapt/Defer/Drop row:
+
+- **Open question for the school, not just an engineering one: what's actually happening for the two
+  Arabic branches today?** There's no admin or teacher portal at all for either Arabic section (§6.1)
+  — only a result checker exists, reading from Firestore projects nothing in these 5 repos ever
+  writes to. Either someone populates that data through a process outside this codebase, or those two
+  branches' results/records are stale or empty right now. Not answerable from the code — ask the
+  school directly before Phase 1 scoping locks in, since it changes how much real data migration
+  those two branches actually need.
+- **Sequencing note for `domain-implementation-plan.md` (not yet written):** the "Carry, finally for
+  real" items above split across two different phases, not one. Forgot-password belongs in Phase
+  0.5 (auth), while the admissions/contact/tour/job forms belong under Public Site & CMS (PRD §8),
+  not Core SIS — worth keeping them from getting lumped into Phase 1 by default when that plan is
+  written.
+- The subject-unlock password, remark password, and admin-registration key (§3.3, §4.7, §4.8) are
+  one repeated pattern — a static shared secret standing in for a real per-user permission check —
+  not three unrelated findings. The `Permission` model (PRD §4) fixes all three at once.
+- Unifying into one `Branch` model fixes more than the "four logins" problem the PRD credits it for.
+  Most of the legacy system's *inconsistency* (primary having a Classes tab secondary lacks, only
+  primary loading dynamic config) comes from being 4 independently-maintained forks, not a deliberate
+  design choice — one codebase structurally prevents that drift from recurring.
+- The legacy system is structurally thin, not bloated: only 4 items landed as Drop/Defer across this
+  whole audit (`vvv.html`, orphaned `footer.js`, client-side rate limiting, PWA). The rebuild is
+  fighting fragmentation (4 Firebase projects) and a handful of unfinished features, not years of
+  accumulated cruft.
