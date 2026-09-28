@@ -99,9 +99,71 @@ Same standard as every previous phase — actually run, not claimed:
 
 ---
 
+## Phase 0.5.2 — School Settings (design only — not implemented yet)
+
+Design pass for the legacy admin panel's "Settings" area (`legacy-feature-inventory.md` §4.7), before
+any code, per the rule this document exists to enforce. This pass's main finding: "Settings" isn't
+one feature — the legacy panel bundled a genuine global setting together with core academic-structure
+data that just happened to live under the same sidebar tab. Splitting that apart now, before schema
+gets written, is the actual design work here.
+
+### What's really a Setting (global, one row, this phase's actual scope)
+
+Only the legacy "School Info" tab qualifies — name, principal/head-teacher name, phone, motto,
+address. One school, one row. Proposed model, matching Octalve Edu's own `SchoolSettings` naming
+(PRD §14) for consistency, even though AlEemaan's version is far smaller (no per-tenant toggles —
+there's only one tenant):
+
+```prisma
+model SchoolSettings {
+  id        String   @id @default("global")
+  name      String
+  principal String?
+  phone     String?
+  motto     String?
+  address   String?
+  updatedAt DateTime @updatedAt
+}
+```
+
+Auto-created (all-defaults-or-blank) the same way Octalve Edu's plan describes for its own
+`SchoolSettings` — never a nullable "not configured yet" state. A `SettingsChangeAudit`-equivalent
+(Octalve Edu PRD §14) is worth carrying forward too, once there's an admin UI to actually change
+these fields through (not yet — no dashboard exists beyond the setup wizard).
+
+### What's NOT a Setting — real academic-structure data, not modeled here
+
+The rest of the legacy Settings tab (Session/active-term, Classes, Assessment, Subjects) is core SIS
+domain data that `Result`/`Enrollment`/future models will reference directly, not a toggle a school
+occasionally flips. Each needs its own Phase 1 design pass (mirroring Octalve Edu's own `sis.prisma`,
+adapted), **not** invented here as an afterthought to "Settings":
+
+- **Academic session/term, per branch** — the audit already flagged this as branch-level, not
+  global: both Arabic branches run two terms, both English branches run three. A `Branch` needs its
+  own active-session/term state, not a shared global one.
+- **Classes, per branch** — the legacy inconsistency (only primary branches got a configurable class
+  list; secondary had it hardcoded) is being fixed by making every branch's class list
+  admin-configurable uniformly (already decided in `feature-reconciliation-audit.md`) — but the
+  `ClassGroup`/`Arm` shape itself belongs in Phase 1's schema, not sketched ad hoc here.
+- **Subjects, per branch** — same reasoning; a `Subject` model tied to a branch (and eventually a
+  class group), not a `Settings` field.
+- **`AssessmentConfig`, per branch** — already flagged in the audit as needing its own model (CA test
+  components + max scores, the `assessmentConfig` snapshot pattern worth keeping on each `Result`).
+  Belongs beside `Subject`/`ClassGroup` in the same Phase 1 pass, not here.
+
+### What's dropped, not carried forward at all
+
+`settings/subjectPasswords` and `settings/remarkPasswords` (the plaintext shared-password unlock
+scheme) have no schema equivalent — already fully replaced by the `Permission` model
+(`CAN_APPROVE_RESULTS` etc., built in Phase 0.5.0/0.5.1). Nothing to design here; this is a
+confirmation that the replacement is already complete, not an open item.
+
+---
+
 ## Next action
 
-Implement 0.5.1 as designed above, verify per 0.5.1.4, write its phase completion record, update the
-progress tracker. After that: still no `domain-implementation-plan.md` entry exists yet for Phase 1
-(Core SIS + Finance) — write that as its own phase-design pass before any Phase 1 code, per the same
-"design first" rule this document itself exists to establish.
+Two Phase 0.5.2 School Settings model + its (thin) API/audit trail is small enough to implement next
+directly from the design above. Separately, and larger: Phase 1 (Core SIS + Finance) needs its own
+full design pass — `AcademicSession`/`Term`, `ClassGroup`, `Subject`, `AssessmentConfig` all belong
+there, adapted from Octalve Edu's own Phase 1 `sis.prisma` per the PRD's §5 reconciliation matrix —
+before any of that gets built, not invented mid-implementation.

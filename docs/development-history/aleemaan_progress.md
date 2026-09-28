@@ -71,7 +71,9 @@ checked against the real repo, not what a plan says should exist.
 
 ## Next action
 
-Design Phase 0.5.2 (Settings — School Info, active session/term, per-branch class lists,
-`AssessmentConfig`) in `domain-implementation-plan.md` before writing any code for it, per the
-design-first rule this document now follows. Separately: sync `docs/PRD.md` once Claude Docs is
-reachable again, and write Phase 1's (Core SIS + Finance) own design pass.
+Phase 0.5.2 (School Settings) is now designed in `domain-implementation-plan.md` — **not
+implemented yet**, waiting on confirmation before any code, per the design-first rule this document
+now follows. That design pass also found that most of the legacy "Settings" panel isn't a setting at
+all — active session/term, classes, subjects, and `AssessmentConfig` are core SIS domain data,
+scoped out to their own Phase 1 design pass instead of being bolted onto Settings. Separately: sync
+`docs/PRD.md` once Claude Docs is reachable again.
