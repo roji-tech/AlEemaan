@@ -1,6 +1,6 @@
 # AlEemaan — Legacy System Feature Inventory
 
-This document catalogs the exact current feature set of the AlEemaan School legacy system — every page, form, action, Firestore call, and role/permission rule — extracted directly from the code across all 5 repos in `out/`, as factual input to the AlEemaan/Octalve Edu PRD and rebuild. No recommendations are included; this is a snapshot of what exists today.
+This document catalogs the exact current feature set of the AlEemaan School legacy system — every page, form, action, Firestore call, and role/permission rule — extracted directly from the code across all 5 repos in `out/` (not tracked in this repo — see [`legacy-repos.md`](legacy-repos.md) to check them out locally before following any file reference below), as factual input to the AlEemaan/Octalve Edu PRD and rebuild. No recommendations are included; this is a snapshot of what exists today.
 
 ---
 

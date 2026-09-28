@@ -7,8 +7,11 @@ The current live system is 5 separate vanilla HTML/JS repos, each its own Fireba
 (`docs/legacy-feature-inventory.md` has the full factual inventory). This repo is the replacement,
 being built alongside the live system — see the standing decision in
 [`docs/development-history/aleemaan_progress.md`](docs/development-history/aleemaan_progress.md):
-the legacy repos are not patched, only referenced (`out/` holds them, read-only, for migration
-purposes).
+the legacy repos are not patched, only referenced.
+
+They're checked out locally at `out/`, but **not tracked in this repo** — see
+[`docs/legacy-repos.md`](docs/legacy-repos.md) for why and the exact clone commands. Run those
+first if `docs/legacy-feature-inventory.md`'s file references need to resolve to something real.
 
 ## Stack
 
@@ -37,6 +40,8 @@ for the current, honest state (most of the app doesn't exist yet).
 
 - [`docs/legacy-feature-inventory.md`](docs/legacy-feature-inventory.md) — factual feature inventory
   of all 5 legacy repos.
+- [`docs/legacy-repos.md`](docs/legacy-repos.md) — how to check out `out/` locally (not tracked
+  here).
 - The PRD lives in a Claude Doc (not yet synced to this repo as `docs/PRD.md` — tracked as an open
   item in the progress tracker).
 - [`docs/development-history/`](docs/development-history/) — the build plan and what's actually

@@ -1,6 +1,6 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-09-28
+Last Updated: 2026-09-28 (repo pushed to https://github.com/roji-tech/AlEemaan, public)
 
 Companion to `docs/development-history/phases/*.md` (one completion record per finished phase) and
 the PRD (currently only a Claude Doc — see "Known gaps" below). Mirrors the structure of Octalve
@@ -38,8 +38,11 @@ checked against the real repo, not what a plan says should exist.
 - **`docs/PRD.md` not synced.** The Claude Docs MCP connection this was drafted through is currently
   disconnected in this session — sync it the next time it's reachable, the same way Octalve Edu's
   PRD was transcribed.
-- **No git repository yet.** `pnpm create next-app`'s own temp `.git` was deliberately left behind,
-  not copied in — this directory has never been committed.
+- ~~No git repository yet.~~ **Resolved 2026-09-28**: `git init`, committed, pushed to
+  `github.com/roji-tech/AlEemaan` (public). `out/` (the 5 legacy repos) is deliberately not tracked
+  — see `docs/legacy-repos.md` for why and how to check them out locally; README and
+  `legacy-feature-inventory.md` both link to it now so a fresh clone from GitHub doesn't silently
+  reference a directory that isn't there.
 - **No `domain-implementation-plan.md`.** Phase 1 (Core SIS + Finance, adapted from Octalve Edu's
   own Phase 1 per the PRD's reconciliation matrix) needs one before it starts.
 - **No branches-and-environments convention.** Octalve Edu has one
