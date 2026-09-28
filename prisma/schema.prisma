@@ -1,0 +1,156 @@
+// AlEemaan — foundational schema. Same architecture as Octalve Edu (Auth.js
+// database sessions, Prisma/Postgres) but single-tenant: no Tenant model, no
+// [code] URL routing, no RLS — there's exactly one school (PRD §9). Business
+// domain models (students, staff records, results, invoices) are added once
+// the PRD's feature-reconciliation matrix (§5) is worked through phase by
+// phase, deliberately not invented here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth.js (NextAuth v5) required models, database session strategy ---
+// same reasoning as Octalve Edu: a session can be revoked by deleting its row.
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  /// Nullable — an OAuth-only or not-yet-activated user has none.
+  passwordHash  String?
+
+  accounts    Account[]
+  sessions    Session[]
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- School structure (PRD §3): one school, four branches ---
+
+/// The four legacy sections, unified: Secondary (English), Primary (English),
+/// Secondary (Arabic), Primary (Arabic) — seeded once, at setup. No `code`
+/// field: unlike Octalve Edu's Tenant, nothing ever routes on it.
+model Branch {
+  id   String @id @default(cuid())
+  name String @unique
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  TEACHING_STAFF
+  NON_TEACHING_STAFF
+  STUDENT
+  PARENT
+}
+
+/// Same fixed, deliberately small permission set as Octalve Edu (shared
+/// design — see octalve-edu's domain-implementation-plan.md §1.7). ADMIN
+/// implicitly has every permission; this only grants a non-admin extra
+/// capability without making them a full admin.
+enum Permission {
+  CAN_APPROVE_RESULTS
+  CAN_MANAGE_FINANCE
+  CAN_PUBLISH_CONTENT
+  CAN_MANAGE_USERS
+}
+
+/// A person's standing in the school. Every membership is branch-scoped,
+/// including ADMIN's — an admin's own membership row anchors to one branch
+/// (whichever the setup wizard or an invite assigned), but the ADMIN role
+/// itself is authorized across every branch at the application layer, not by
+/// this row's branchId. That authorization rule is Phase 1 work, not built
+/// yet — noted here so it isn't lost (see phase-0-foundation.md).
+model Membership {
+  id       String @id @default(cuid())
+  userId   String
+  branchId String
+  role     Role
+
+  permissions Permission[] @default([])
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, branchId])
+  @@index([branchId])
+}
+
+// --- First-run setup wizard ---
+
+/// Singleton row (id is always "global") guarding the one-time bootstrap:
+/// seeds the four Branch rows and creates the first ADMIN. Same
+/// atomic-conditional-update pattern as Octalve Edu / proplity.
+model SystemSettings {
+  id            String  @id @default("global")
+  setupComplete Boolean @default(false)
+}
+
+/// Same shape as Octalve Edu's AuditLog, minus tenantId (nothing to scope by
+/// here) — brought forward now because the setup wizard needs a real audit
+/// trail, same as every sensitive action after it will.
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorUserId   String
+  action        String
+  targetType    String
+  targetId      String
+  beforeValue   Json?
+  afterValue    Json?
+  reason        String?
+  correlationId String?
+  createdAt     DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

@@ -1,0 +1,35 @@
+# Local development only. AlEemaan is single-tenant, self-hosted for one
+# school — this is the production shape too (no separate Solo/SaaS split
+# like Octalve Edu), just with real secrets instead of these fixed ones.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aleemaan
+      POSTGRES_PASSWORD: aleemaan
+      POSTGRES_DB: aleemaan
+    ports:
+      # Host 5434 — 5432/5433 are already taken on this machine (5433 is
+      # octalve-edu's own local Postgres).
+      - "5434:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aleemaan -d aleemaan"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      # Host 6381 — 6379/6380 are already taken (6380 is octalve-edu's).
+      - "6381:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  db-data:
+  redis-data:
