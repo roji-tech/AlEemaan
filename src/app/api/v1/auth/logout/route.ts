@@ -1,14 +1,12 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
 import { ok } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import { SESSION_COOKIE_NAME } from "@/auth";
+import { deleteSessionByToken, clearSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
 /**
  * POST /api/v1/auth/logout
- * Deletes the Session row (not just the cookie) — the whole point of
- * database sessions is that a session ends when its row is gone, not just
- * when the client stops sending the cookie.
+ * Deletes the Session row (not just the cookie) — a session is over when
+ * its row is gone, that's the whole point of the database strategy.
  */
 export async function POST(req: NextRequest) {
   if (!validateCSRF(req)) {
@@ -16,11 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (token) {
-    await prisma.session.deleteMany({ where: { sessionToken: token } });
-  }
+  if (token) await deleteSessionByToken(token);
 
-  const response = ok({ loggedOut: true });
-  response.cookies.delete(SESSION_COOKIE_NAME);
-  return response;
+  return clearSessionCookie(ok({ loggedOut: true }));
 }

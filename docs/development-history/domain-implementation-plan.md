@@ -97,6 +97,79 @@ Same standard as every previous phase — actually run, not claimed:
    name returns `409`, and both routes return `401` with no session cookie at all.
 4. Test data truncated afterward, same as every previous phase.
 
+### 0.5.1.5 — Auth realigned to Octalve Edu's design (2026-09-30): what changes and why
+
+**Decision: Octalve Edu's `domain-implementation-plan.md` §0.5.1–0.5.3 is now the canonical auth
+design for both projects — not two independently-maintained descriptions that happen to agree.**
+This section replaces AlEemaan's own descriptions with pointers, plus the concrete delta between
+what's already shipped here and what the canonical design now specifies. It reverses the direction
+0.5.1.1 was originally written in: that section is AlEemaan-first, with Octalve Edu's plan following
+along ("Octalve Edu's own Phase 0.5.1 plans the identical mechanism... doing it the same way here
+avoids redoing it later"). Octalve Edu's plan has since had a full two-AI security review applied to
+it (`octalve-edu/docs/auth-review-2026-09-29.md`) that AlEemaan's shipped code has not — so Octalve
+Edu's plan is now the more-hardened of the two, and the sensible direction is AlEemaan adopting *its*
+fixes, not the reverse.
+
+**What carries over unchanged — the mechanism itself.** Both projects share the identical
+justification for hand-rolling login/logout (Auth.js v5's `Credentials`+database-session
+incompatibility — AlEemaan discovered this first; Octalve Edu's plan cites AlEemaan's fix by name).
+Nothing about *that* decision changes here.
+
+**What AlEemaan explicitly does not adopt from Octalve Edu's design — the tenant-trust-boundary
+layer (§0.5.2 there in full: `resolve-tenant.ts`, `forTenant()`, `set_config`/RLS, the `app_user`
+database role, the branded `VerifiedTenantId` type).** That entire layer exists because Octalve Edu
+holds many schools' data in one database; AlEemaan has exactly one school and nothing to isolate.
+Importing RLS/tenant-context machinery here would be real complexity defending against a threat that
+structurally cannot occur in a single-tenant schema. `requireAdmin()`'s existing rule (§0.5.1.2 above
+— any `ADMIN` membership grants cross-branch access, `branchId` is bookkeeping only) is already the
+exact same rule Octalve Edu's plan adopted for its own `campusId` (stated there explicitly, citing
+this file) — no change needed on this point, the two are already aligned by construction.
+
+**What AlEemaan's shipped code needs to change to match the canonical design** (not yet applied —
+this is the design update the code changes still need to catch up to, per this project's own
+design-first rule):
+
+1. **Rate limiter**: `getClientIp()` currently trusts client-suppliable `X-Forwarded-For` as-is —
+   needs to read only a header the reverse proxy itself sets (`X-Real-IP`, or the Nth-from-the-right
+   entry for N trusted hops), never the raw client-controlled header. The check-then-record ordering
+   needs to become reserve-then-refund, moved before the first `await` in the login handler — for
+   AlEemaan's confirmed single-process deployment this is a pure in-process fix (reorder the existing
+   `Map` operations), **no Redis needed**, unlike Octalve Edu's SaaS mode where Redis is the right
+   call. Add a hard size cap on the `attempts` Map (unbounded growth from spoofed one-off
+   identifiers otherwise). Key on all three layers Octalve Edu's plan now specifies (per-IP,
+   per-`ip+email`, per-account with a soft response), not `ip+email` alone.
+2. **Session tokens**: hash before storing (`Session.sessionToken` currently stores the plaintext
+   cookie value) — `auth()`'s adapter-based lookup needs either a wrapper that hashes the incoming
+   cookie before querying, or replacing with a small hand-written `getSession()` (see point 6).
+3. **Timing side-channel**: dummy-hash `bcrypt.compare` on every login failure path, including when
+   `passwordHash` is null, using a hash generated at boot at the real cost factor — not a malformed
+   placeholder.
+4. **Cookie**: upgrade from `__Secure-` to `__Host-` in production; derive `secure` from the actual
+   configured scheme, not `NODE_ENV`; delete the cookie on logout with the exact same attributes it
+   was set with (current bare `cookies.delete(name)` may silently fail against a real
+   `__Host-`/`__Secure-` cookie in production — needs an HTTPS end-to-end test, not just the
+   dev-mode check this route was originally verified against); add `Cache-Control: no-store` to auth
+   responses.
+5. **Email**: enforce case-insensitivity at the database level (Postgres `citext` or a `CHECK`
+   constraint), not just the existing `toLowerCase()` in the login route's Zod schema.
+6. **Password max length**: add a 128-character cap to the login/setup-wizard Zod schemas (72-byte
+   bcrypt truncation currently has no guard).
+7. **Session lifecycle**: none of this exists yet — rotate-at-login, cap sessions per user,
+   `revokeUserSessions()` called on password change, absolute expiry, a purge job, and the
+   `createdAt`/`lastUsedAt`/`userAgent` columns an eventual "active devices" page would need. Lower
+   priority than 1–6 (no session-revocation UI exists yet to need the columns), but the schema
+   columns are cheap to add now rather than retrofitted later.
+8. **Auth.js's role** — Octalve Edu's plan now has an open, unresolved question about evaluating
+   Better Auth instead of hand-rolling around Auth.js, given Auth.js's confirmed maintenance-mode
+   status (see that project's §0.5.1). AlEemaan is further ahead (already shipped) so switching
+   frameworks now is a bigger lift than it is for Octalve Edu — not recommended to chase that switch
+   here just because it's under discussion there. If Octalve Edu's spike concludes Better Auth is the
+   right call, revisit AlEemaan's own Auth.js dependency then, as a deliberate follow-up, not a
+   same-week change.
+
+None of the above is applied to the live code yet — this section is the design update; the code
+changes are the next actual work, tracked in `aleemaan_progress.md`.
+
 ---
 
 ## Phase 0.5.2 — School Settings (design only — not implemented yet)

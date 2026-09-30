@@ -1,8 +1,22 @@
-// --- Auth.js (NextAuth v5) required models, database session strategy ---
-// A session can be revoked by deleting its row — see src/auth.ts and
-// docs/development-history/domain-implementation-plan.md §0.5.1.1 for why
-// this project hand-rolls login/logout instead of using Auth.js's own
-// Credentials flow (incompatible with database sessions in Auth.js v5).
+// --- Auth, rebuilt from scratch 2026-09-30 against the hardened design in
+// docs/development-history/domain-implementation-plan.md §0.5.1.5. ---
+//
+// Auth.js is no longer used at all (previously kept only for its Prisma
+// adapter / auth() helper). Dropped here, not just unmounted, because the
+// hardened design requires storing a HASH of the session token
+// (Session.tokenHash below) while the client's cookie holds the plaintext —
+// Auth.js's PrismaAdapter looks sessions up by the raw cookie value, so it
+// can never find a hashed row without being patched. Writing this project's
+// own ~40-line session helper (src/lib/auth/session.ts) instead of
+// monkey-patching a third-party adapter was the option both an internal
+// two-AI security review and this project's own plan doc called viable for
+// AlEemaan specifically (unlike Octalve Edu, which still has an open,
+// undecided "evaluate Better Auth" question — this project isn't blocked on
+// that decision being made first).
+//
+// No `Account` model: it only ever existed for Auth.js's OAuth provider
+// flow, which was never used (email+password only) and is now moot with
+// Auth.js gone entirely.
 
 model User {
   id            String    @id @default(cuid())
@@ -10,10 +24,9 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  /// Nullable — an OAuth-only or not-yet-activated user has none.
+  /// Nullable — an invited-but-not-yet-activated user has none.
   passwordHash  String?
 
-  accounts    Account[]
   sessions    Session[]
   memberships Membership[]
 
@@ -21,34 +34,31 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
+/// tokenHash, not the plaintext token — the client's cookie holds the
+/// plaintext 256-bit random value; only its SHA-256 hash is ever written
+/// here, so a leaked database (backup, a read-only SQL injection elsewhere)
+/// yields no directly-replayable session. createdAt/lastUsedAt/userAgent
+/// exist for the eventual "active devices" revocation UI (not built yet) —
+/// added now since it's cheap to add alongside this model's other changes
+/// and expensive to retrofit once real session rows exist.
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expires   DateTime
+
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  userAgent  String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
+/// Not used yet — kept for a future password-reset flow (identifier+token
+/// pattern is generic enough to reuse), not Auth.js's original email-signin
+/// use case, which this project never used.
 model VerificationToken {
   identifier String
   token      String   @unique

@@ -14,8 +14,8 @@ const createBranchSchema = z.object({
  * GET /api/v1/branches
  * Admin-only. Lists every branch.
  */
-export async function GET() {
-  const admin = await requireAdmin();
+export async function GET(req: NextRequest) {
+  const admin = await requireAdmin(req);
   if (!admin) {
     return fail("Authentication required", 401, "UNAUTHENTICATED");
   }
@@ -31,7 +31,7 @@ export async function GET() {
  * scope for this phase.
  */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin(req);
   if (!admin) {
     return fail("Authentication required", 401, "UNAUTHENTICATED");
   }

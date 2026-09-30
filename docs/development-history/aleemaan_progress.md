@@ -1,6 +1,7 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-09-28 (repo pushed to https://github.com/roji-tech/AlEemaan, public)
+Last Updated: 2026-09-30 (auth rebuilt against the hardened shared design — see "Auth realigned to
+Octalve Edu's design" below; repo pushed to https://github.com/roji-tech/AlEemaan, public)
 
 Companion to `docs/development-history/phases/*.md` (one completion record per finished phase) and
 the PRD (currently only a Claude Doc — see "Known gaps" below). Mirrors the structure of Octalve
@@ -24,21 +25,30 @@ checked against the real repo, not what a plan says should exist.
   rows. **Not yet merged into the canonical PRD** — the Claude Doc's §5 is stale by these rows until
   Claude Docs is reachable again.
 - **Phase 0 — Foundation**: **100% Complete.** Next.js 16 + TypeScript + Tailwind scaffold,
-  Prisma 6.19.3 + PostgreSQL with Auth.js's tables plus `Branch`/`Role`/`Permission`/`Membership`,
-  local dev `docker-compose.yml` (ports 5434/6381). `pnpm build` clean, first migration applied
-  against a real local Postgres. See `docs/development-history/phases/phase-0-foundation.md`.
+  Prisma 6.19.3 + PostgreSQL (originally scaffolded with Auth.js's standard tables; `Account` was
+  later dropped and `Session` reshaped in the 2026-09-30 auth rebuild, see below) plus
+  `Branch`/`Role`/`Permission`/`Membership`, local dev `docker-compose.yml` (ports 5434/6381).
+  `pnpm build` clean, first migration applied against a real local Postgres. See
+  `docs/development-history/phases/phase-0-foundation.md`.
 - **Phase 0.5.0 — First-run superadmin setup wizard**: **100% Complete.** Seeds all four branches +
   creates the first `ADMIN`, verified live end-to-end including the idempotency guard. See
   `docs/development-history/phases/phase-0.5.0-setup-wizard.md`.
 - **`domain-implementation-plan.md`**: created 2026-09-28 — design-first from here on, not
   code-first. Already caught one real correction before it shipped silently: Auth.js v5 refuses
   `Credentials` + database sessions outright, recorded in the plan alongside the fix.
-- **Phase 0.5.1 — Minimal auth (login/logout) & branch management**: **100% Complete.** Hand-rolled
-  login/logout against Auth.js's own `Session` table (Credentials provider isn't usable with
-  database sessions — see the plan doc), `requireAdmin()`, and admin-only `GET`/`POST
-  /api/v1/branches`. Verified live end-to-end: login sets the cookie, branches list/create both
-  work authenticated and 401 unauthenticated, duplicate names 409, logout actually deletes the
-  session row. See `docs/development-history/phases/phase-0.5.1-auth-and-branches.md`.
+- **Phase 0.5.1 — Minimal auth (login/logout) & branch management**: **100% Complete, then fully
+  rebuilt 2026-09-30 — see Phase 0.5.1.5 below, which supersedes the original build described
+  here.** Originally: hand-rolled login/logout against Auth.js's own `Session` table, `requireAdmin()`,
+  and admin-only `GET`/`POST /api/v1/branches`. See
+  `docs/development-history/phases/phase-0.5.1-auth-and-branches.md` for that original record (now
+  historical — the code it describes no longer exists as written).
+- **Phase 0.5.1.5 — Auth rebuilt against the hardened, Octalve-Edu-shared design**: **100%
+  Complete, verified live 2026-09-30.** Auth.js dropped entirely (`next-auth`/`@auth/prisma-adapter`
+  removed); replaced with a hand-written `src/lib/auth/session.ts` storing hashed (SHA-256) session
+  tokens, a timing-safe login compare (`src/lib/auth/password.ts`), and a rate limiter fixed against
+  three real bugs (untrusted IP header, check-then-record race, unbounded memory growth). Full
+  record, including the exact live verification sequence run: 
+  `docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md`.
 - **Everything else** (TOTP MFA, forgot-password, the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
@@ -103,3 +113,39 @@ growing one large file.
 
 Separately: sync `docs/PRD.md` once Claude Docs is reachable again, and merge
 `feature-reconciliation-audit.md`'s findings into its canonical §5.
+
+## Auth realigned to Octalve Edu's (now more-hardened) design (2026-09-30)
+
+`domain-implementation-plan.md` §0.5.1.5 (new): Octalve Edu's auth plan is now canonical for both
+projects, after a two-AI security review found real issues in AlEemaan's shipped login/session code
+(`octalve-edu/docs/auth-review-2026-09-29.md` has the full record) that got fixed in Octalve Edu's
+*plan* before AlEemaan's *code* was patched to match. Eight concrete changes are now specified for
+AlEemaan's shipped code — not yet applied:
+
+1. Rate limiter: trust only a proxy-set IP header (not client-suppliable `X-Forwarded-For`), fix the
+   check-then-record race (reorder to reserve-before-await — no Redis needed for AlEemaan's
+   single-process deployment), cap the `attempts` Map's size, layer three rate-limit keys instead of
+   one.
+2. Hash `Session.sessionToken` before storing it (currently plaintext).
+3. Dummy-hash `bcrypt.compare` on every login failure path (real timing side-channel currently
+   present).
+4. Cookie: `__Host-` instead of `__Secure-`, scheme-aware `secure` flag instead of `NODE_ENV`-tied,
+   logout deletes with matching attributes (current version may silently fail in production HTTPS).
+5. Email case-insensitivity enforced at the database level, not just in application code.
+6. Password max length (128 chars) to guard the 72-byte bcrypt truncation point.
+7. Session lifecycle: rotation, per-user cap, revoke-on-change, absolute expiry, purge job, plus
+   schema columns for an eventual devices page.
+8. Auth.js's own maintenance status (now under Better Auth, security-patches-only) is an open
+   question for Octalve Edu's still-unbuilt auth, not an urgent one for AlEemaan's already-shipped
+   code — explicitly deferred, not ignored.
+
+**Applied 2026-09-30 — done, verified live, not a patch but a full rebuild.** All 8 items above are
+built: hashed session tokens, the timing-safe dummy-hash compare, the fixed rate limiter (trusted
+`X-Real-IP` only, reserve-then-refund, size-capped), `__Host-`/scheme-aware cookies, password max
+length, and the `Session` lifecycle columns. Auth.js (`next-auth`, `@auth/prisma-adapter`) was
+**dropped entirely**, not just unmounted — the hashed-token requirement has no clean path through
+Auth.js's Prisma adapter, which looks sessions up by the raw cookie value. Replaced with a
+~90-line `src/lib/auth/session.ts`. Full record: `docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md`.
+Still not done (deliberately, not forgotten): DB-level email case-insensitivity, absolute
+session-timeout + purge job, the active-devices UI, MFA, and the still-undecided Better Auth
+question (Octalve Edu's to answer first).

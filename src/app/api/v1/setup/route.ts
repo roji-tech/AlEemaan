@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import { checkRateLimit, recordAttempt, getClientIp } from "@/lib/auth/rate-limit";
+import { reserveAttempt, getClientIp } from "@/lib/auth/rate-limit";
+import { hashPassword } from "@/lib/auth/password";
 
 // The four legacy sections, unified into one school (PRD §3). Seeded once,
 // here, rather than asked for in the form — this is a known, fixed fact
@@ -24,6 +24,7 @@ const setupSchema = z.object({
   password: z
     .string()
     .min(8, "Password must be at least 8 characters long")
+    .max(128, "Password must be at most 128 characters long")
     .regex(/[a-zA-Z]/, "Password must contain at least one letter")
     .regex(/\d/, "Password must contain at least one number"),
   setupToken: z.string().optional(),
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
   }
 
   const clientIp = getClientIp(req);
-  if (!checkRateLimit(`setup:${clientIp}`)) {
+  if (!reserveAttempt(`setup:${clientIp}`)) {
     return fail(
       "Too many setup attempts from this IP. Please try again later.",
       429,
@@ -103,7 +104,6 @@ export async function POST(req: NextRequest) {
       crypto.timingSafeEqual(expectedBuf, providedBuf);
 
     if (!isValidToken) {
-      recordAttempt(`setup:${clientIp}`);
       return fail(
         "Invalid or missing setup token. Check your server environment settings.",
         401,
@@ -122,11 +122,10 @@ export async function POST(req: NextRequest) {
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      recordAttempt(`setup:${clientIp}`);
       return fail("An account with this email address already exists", 409, "DUPLICATE_EMAIL");
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password);
     const userAgent = req.headers.get("user-agent") || "unknown";
 
     const result = await prisma.$transaction(async (tx) => {
