@@ -120,7 +120,22 @@ one-off pattern sources, referenced once for a specific technique and then done:
    disables the limit — TypeScript won't flag it).
 7. **Keep the sibling in sync.** Auth/session/limiter/password/`withAuth`/UI-primitive files share names
    and behaviour with Octalve Edu on purpose (table in the plan doc, §0.5.1.6). A change to one gets
-   ported to — or explicitly logged as a divergence from — the other.
+   ported to — or explicitly logged as a divergence from — the other. **But product-specific constants are
+   not shared:** the cookie names in `session.ts`, the brand files, the membership model's name. Copying a
+   "shared" file wholesale once carried Octalve's cookie name into this repo (58 tests failed at once; on the
+   live school it would have signed everyone out) — and the normalised drift comparison had hidden it. After
+   porting, read the *raw* diff.
+8. **UI is tokens, not colours.** Components name semantic tokens (`bg-surface`, `text-fg-muted`,
+   `border-line`, `bg-brand-strong`, `text-brand-fg`, …) and never palette classes (`slate-400`,
+   `emerald-600`). Exactly two files are brand-specific — `src/app/brand.css` (colours) and
+   `src/lib/brand.ts` (words) — and everything in `src/components/ui` and `src/components/auth` stays
+   **code-identical with Octalve Edu's**. Light/dark is a `theme` cookie read on the server
+   (`<html data-theme>`), not an inline script — the nonce-based CSP (plan §0.5.B) depends on there being
+   none. New UI must pass axe in **both** themes, be ≥ 44 px on phones, and be added to
+   `responsive-and-a11y.spec.ts`. Signed-in pages live in the `(app)` route group inside the shell; **every
+   page calls `requirePageSession()` itself** (a layout isn't re-run on client-side navigation, so it is
+   display, never the guard). Navigation is one list, `components/shell/nav.ts`. Design and numbers: plan
+   §0.5.A; work log: `docs/development-history/phases/phase-0.5.A-design-language.md`.
 
 ## Current state, as of 2026-09-30 (verify against `aleemaan_progress.md` — it may have moved since)
 
@@ -136,6 +151,15 @@ one-off pattern sources, referenced once for a specific technique and then done:
   replacing `requireAdmin()`, `GET /api/v1/auth/me`, security headers, `/login` + `/dashboard` + `/setup`
   screens, and a real test suite. **Read `docs/development-history/phases/phase-0.5.1.6-octalve-sync.md`
   and `tests/README.md` before touching auth or those screens.**
+- **Phase 0.5.A (AlEemaan's own look + the admin shell + a real "Keep me signed in") is BUILT AND VERIFIED,
+  on branch `claude/design-tokens-shell`, stacked on the sync branch above (merge that first).** Sea-green
+  brand from the design artifact on the shared token system, a server-rendered light/dark theme, the app
+  shell (sidebar + top bar; phone tab bar + "More" sheet), `/dashboard` with real figures, `/branches` with
+  live member counts and a working "New branch" form, `/account`. *Behaviour change on the live school:* the
+  default session is now a browser-session cookie with a 12-hour server cap; ticking "Keep me signed in"
+  gives the old 30 d / 90 d policy (7 d for admins). **Read
+  `docs/development-history/phases/phase-0.5.A-design-language.md` before touching the shell, the pages or
+  the sign-in screen.**
 - **There is a test suite: `pnpm test`** (build + Playwright: unit, integration, API, browser at desktop
   and phone sizes, axe accessibility, and a real-HTTPS cookie run). It needs a Postgres
   (`docker compose up -d db`), Chromium (`pnpm exec playwright install chromium`) and `openssl`; it uses
@@ -143,9 +167,10 @@ one-off pattern sources, referenced once for a specific technique and then done:
 - Phase 0.5.2 (School Settings) is designed, not built — waiting on a go-ahead.
 - Phase 1 (Academic Structure) is next in the roadmap after 0.5.2, and is the real dependency root
   for everything after it (see the plan doc's roadmap section).
-- A Figma-like UI design (Login, Branches, Settings, Mobile dashboard, both landing pages) exists as
-  a private Claude Artifact, not yet reflected in real frontend code — ask the user for the link if
-  you need to reference it; it is not saved anywhere in this repo.
+- The UI design (Login, Branches, Settings, Mobile dashboard, both landing pages) is a private Claude
+  Artifact, "Octalve Edu & AlEemaan — UI Design" (`https://claude.ai/artifact/8wGBA2trirEDaTQq1sUf74`). The
+  login, shell, Branches and mobile screens are now built (0.5.A); Settings is Phase 0.5.2 and the landing
+  pages are Phase 5.
 
 ## Known open items (not forgotten, deliberately not yet done)
 
@@ -154,8 +179,10 @@ one-off pattern sources, referenced once for a specific technique and then done:
 - A real open question for the school, not an engineering one: what's actually populating the two
   Arabic branches' data today (no admin/teacher portal exists for them in any of the 5 legacy repos)
   — ask before Phase 7 (migration) gets designed.
-- Active-devices UI, MFA, password reset, a nonce-based script CSP — deliberately deferred (listed in
-  `phase-0.5.1.6-octalve-sync.md`'s "Explicitly not done"). DB-level email case-insensitivity and absolute
-  session expiry + purge were deferred by 0.5.1.5 and are now done (0.5.1.6).
-- AlEemaan's own visual identity (from the Figma-like artifact) — the shipped screens use Octalve Edu's
-  palette and shared primitives; a re-skin, not yet decided.
+- MFA, password reset, a nonce-based script CSP, the active-devices UI — deliberately deferred; **designed
+  next as plan §0.5.B (CSP), §0.5.C (password reset/change), §0.5.D (TOTP MFA)** and built in both repos
+  together. DB-level email case-insensitivity and absolute session expiry + purge were deferred by 0.5.1.5
+  and are done (0.5.1.6).
+- ~~AlEemaan's own visual identity — a re-skin, not yet decided.~~ **Decided and done (0.5.A).** The
+  artifact's search box and notification bell are omitted (nothing behind them), Settings and Users show as
+  "Soon" until Phase 0.5.2 / 1.7 build them, and the marketing sites are Phase 5.

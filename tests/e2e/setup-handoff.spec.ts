@@ -132,7 +132,7 @@ test.describe("setup -> sign in -> dashboard", () => {
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByRole("heading", { name: "Welcome, Amina" })).toBeVisible();
     await expect(page.getByText("Secondary (English)")).toBeVisible();
-    await expect(page.getByText("Administrator", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Totals" }).getByText("Administrator", { exact: true })).toBeVisible();
 
     // What the wizard wrote is exactly what the UI showed.
     const admin = await db.user.findUniqueOrThrow({ where: { email: "amina@brightfuture.test" } });
