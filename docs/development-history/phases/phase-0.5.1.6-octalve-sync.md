@@ -130,7 +130,7 @@ database.
 
 ### Mutation testing — the port was shown to be able to fail
 
-The unit- and integration-level assertions are byte-identical to Octalve Edu's, whose 39 injected bugs
+The unit- and integration-level assertions are byte-identical to Octalve Edu's, whose 40 injected bugs
 were all caught (see its phase record). Here the port itself is attacked — the wiring, the
 AlEemaan-specific rules, and the sync→async hazard above:
 
@@ -182,7 +182,7 @@ non-zero exit if a must-match file drifts) is a tracked idea, not built.
 | `withAuth` | session + CSRF; `roles`/`permissions` refused until §0.5.2 | session + CSRF + `roles`; `permissions` refused until §1.7 |
 | Security headers | built, verified | built, verified |
 | `/login`, `/dashboard`, `/setup` | built, verified | built, verified |
-| Test suite, mutation-checked | 232 tests, 39 mutations caught | 250 tests, 13 mutations caught (+ the shared assertions above) |
+| Test suite, mutation-checked | 234 tests, 40 mutations caught | 250 tests, 13 mutations caught (+ the shared assertions above) |
 | Real-HTTPS `__Host-` cookie set **and cleared** | verified | verified |
 
 Differences that remain **on purpose**: tenancy (`Tenant`/`Campus`/RLS/tenant resolution in Octalve

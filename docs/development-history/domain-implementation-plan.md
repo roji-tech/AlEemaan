@@ -132,9 +132,9 @@ structurally cannot occur in a single-tenant schema. `requireAdmin()`'s existing
 exact same rule Octalve Edu's plan adopted for its own `campusId` (stated there explicitly, citing
 this file) — no change needed on this point, the two are already aligned by construction.
 
-**What AlEemaan's shipped code needs to change to match the canonical design** (not yet applied —
-this is the design update the code changes still need to catch up to, per this project's own
-design-first rule):
+**What AlEemaan's shipped code needs to change to match the canonical design** (written as a to-do
+on 2026-09-30, per this project's design-first rule; items 1–4, 6 and 8 were applied later that same
+day, and 5 and 7 in §0.5.1.6 — see the update at the end of this section):
 
 1. **Rate limiter**: `getClientIp()` currently trusts client-suppliable `X-Forwarded-For` as-is —
    needs to read only a header the reverse proxy itself sets (`X-Real-IP`, or the Nth-from-the-right
