@@ -69,6 +69,13 @@ returns the user if any membership has `role: ADMIN`, otherwise `null`. Every ad
 this first and returns `401`/`403` before touching anything else — same shape as the setup wizard's
 own guard-first structure.
 
+> **Superseded 2026-09-30 (§0.5.1.6):** `requireAdmin()` and `require-admin.ts` no longer exist. The
+> *rule* above is unchanged and is now `withAuth(handler, { roles: [Role.ADMIN] })`
+> (`src/lib/auth/with-auth.ts`, the same guard Octalve Edu uses): any ADMIN membership crosses every
+> branch. What changed is the mechanics — the wrapper also enforces CSRF for non-GET methods and
+> `no-store`, and reports "not signed in" as `401` but "signed in, not an admin" as `403 FORBIDDEN`
+> (this section's guard returned `401` for both).
+
 ### 0.5.1.3 — Branch management API
 
 `src/app/api/v1/branches/route.ts`:
@@ -125,9 +132,9 @@ structurally cannot occur in a single-tenant schema. `requireAdmin()`'s existing
 exact same rule Octalve Edu's plan adopted for its own `campusId` (stated there explicitly, citing
 this file) — no change needed on this point, the two are already aligned by construction.
 
-**What AlEemaan's shipped code needs to change to match the canonical design** (not yet applied —
-this is the design update the code changes still need to catch up to, per this project's own
-design-first rule):
+**What AlEemaan's shipped code needs to change to match the canonical design** (written as a to-do
+on 2026-09-30, per this project's design-first rule; items 1–4, 6 and 8 were applied later that same
+day, and 5 and 7 in §0.5.1.6 — see the update at the end of this section):
 
 1. **Rate limiter**: `getClientIp()` currently trusts client-suppliable `X-Forwarded-For` as-is —
    needs to read only a header the reverse proxy itself sets (`X-Real-IP`, or the Nth-from-the-right
@@ -167,8 +174,104 @@ design-first rule):
    right call, revisit AlEemaan's own Auth.js dependency then, as a deliberate follow-up, not a
    same-week change.
 
-None of the above is applied to the live code yet — this section is the design update; the code
-changes are the next actual work, tracked in `aleemaan_progress.md`.
+**Update 2026-09-30 (same day):** items 1–4, 6 and 8 above *were* applied — see
+`phases/phase-0.5.1.5-auth-rebuild.md` (Auth.js dropped entirely, hashed session tokens, the fixed
+limiter, `__Host-` cookies). Items 5 (database-level email case-insensitivity) and 7 (absolute expiry,
+purge) were deferred then and are closed in §0.5.1.6 below. (This paragraph replaces the original
+closing line, "None of the above is applied to the live code yet", which was true when written and
+stale by the end of the day.)
+
+### 0.5.1.6 — Synced to Octalve Edu's built-and-verified implementation (2026-09-30)
+
+Octalve Edu's §0.5.1 is now *built* (branch `claude/auth-0.5.1-port` on
+`roji-tech/octalve-edu-fork`, awaiting merge) and verified by a repeatable suite that AlEemaan does
+not have. That verification found defects — several of which apply here — and built things beyond what
+AlEemaan shipped. This section is the design for closing the gap **so the two repos hold one
+implementation of the shared mechanism, with the smallest possible list of documented differences**.
+Written before any code, per this document's rule.
+
+**Shared names (identical in both repos, on purpose).** Octalve Edu's plan holds the same table; a
+fix or review finding in one maps 1:1 onto the other.
+
+| Concern | Name (both repos) | AlEemaan-specific |
+| :--- | :--- | :--- |
+| Session helpers | `lib/auth/session.ts` — `createSession`, `getSession`, `getSessionFromRequest`, `deleteSessionByToken`, `revokeUserSessions`, `purgeExpiredSessions`, `setSessionCookie`, `clearSessionCookie`, `SESSION_COOKIE_NAME` | cookie `aleemaan.session-token` / `__Host-aleemaan.session-token` |
+| Passwords | `lib/auth/password.ts` (`hashPassword`, `verifyPassword`, `BCRYPT_COST`), `lib/auth/password-policy.ts` (`PASSWORD_MAX_LENGTH`, `PASSWORD_MAX_BYTES`, `passwordByteLength`) | — |
+| Rate limiting | `lib/auth/rate-limit.ts` — `reserveAttempt`, `refundAttempt`, `checkRateLimit`, `getClientIp` (all `async`) | in-memory is *sufficient* here (one process, ever) |
+| Route guard | `lib/auth/with-auth.ts` — `withAuth(handler, options)` | **replaces `requireAdmin()`**; `roles` is real here (see below) |
+| CSRF / envelope / db | `lib/auth/csrf.ts`, `lib/api/envelope.ts` (`ok`, `fail`, `noStore`), `lib/db.ts` | — |
+| Routes | `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` | `me` is new here |
+| Error codes | `INVALID_CREDENTIALS`, `RATE_LIMITED`, `CSRF`, `INVALID_BODY`, `UNAUTHENTICATED` | adds `FORBIDDEN` (403) |
+| Screens | `/login`, `/dashboard`, `/` (router), `/setup`; `components/ui/*`, `components/auth/*` | brand text only |
+| Tests | `tests/{setup,unit,integration,api,e2e,https}`, `playwright.config.ts`, `pnpm test` | own ports (3200 / 3201 / 3543), DB `aleemaan_test` |
+
+Deliberately **not** synced (different concepts, not drift): `Branch`/`Membership` here vs
+`Campus`/`TenantMembership` there (no tenant above a branch here), and the cookie's product prefix.
+
+**What changes in AlEemaan, and why** (every item is something Octalve Edu built or found; the
+Octalve plan's "Decisions made during implementation" #1–#15 has the full reasoning):
+
+1. **`requireAdmin()` → `withAuth(handler, { roles: [Role.ADMIN] })`.** Same call shape as Octalve
+   Edu. The wrapper owns session + CSRF (for every non-GET method — no more per-route
+   `validateCSRF()` to forget) + `Cache-Control: no-store` on *every* response it emits. `roles` means
+   "the user holds a membership with any of these roles", and because AlEemaan is single-tenant that
+   is exactly the existing rule ("any `ADMIN` membership crosses every branch") — the very thing that
+   would be a cross-tenant escalation in Octalve Edu is correct here. `permissions` stays typed
+   `never` (and throws at module load) **in both repos** until §1.7's permission design is built
+   there and here together — nothing consumes it yet, and shipping untested speculative code helps
+   neither. *Behaviour change worth naming:* `requireAdmin()` returned `401` both for "not signed in"
+   and "signed in but not an admin"; `withAuth` returns `401 UNAUTHENTICATED` for the first and
+   `403 FORBIDDEN` for the second (no client depends on the old conflation — there is no UI yet).
+   `branches/route.ts` migrates; `require-admin.ts` is deleted.
+2. **Two-level session expiry.** New `Session.absoluteExpires` (hard cap, never extended: 90 days;
+   **7 days for anyone holding an ADMIN membership**); `Session.expires` becomes a *sliding* idle
+   expiry (30 days, at most one write per 5 minutes); `purgeExpiredSessions()`; the cookie lives to
+   the absolute expiry. Closes deferred item 7.
+3. **`CHECK ("email" = lower("email"))`** on `User`. Closes deferred item 5.
+   *Live-data safety:* existing sessions are **kept** (`absoluteExpires` is backfilled from each row's
+   existing `expires`, so nobody is signed out and nobody's session is lengthened); emails are
+   normalised first and the migration **aborts loudly** if two accounts differ only by case rather than
+   silently merging or failing half-way. Verified against a database seeded with legacy-shaped rows.
+4. **Limiter parity:** configurable trusted client-IP header (`CLIENT_IP_HEADER`, default `x-real-ip`,
+   or the Nth-from-the-right `x-forwarded-for` via `TRUSTED_PROXY_HOPS` — Caddy, the planned proxy,
+   appends to `X-Forwarded-For` but does not set `X-Real-IP` unless told to), a warning once in
+   production when no header arrives (the per-IP limit would silently become school-wide), true LRU
+   eviction, async signatures. **Per-IP login limit 30 (was 5)**; per-`ip+email` stays 5; per-account
+   soft 10. A hard 5-per-IP gate lets one person's typos lock out everyone sharing an address — and a
+   school's single egress IP is exactly that case.
+5. **Password policy, corrected.** Verified empirically that bcrypt silently ignores everything after
+   byte 72, so the 128-*character* cap did not protect against truncation. New passwords (setup now;
+   change/reset later) are limited to **72 bytes and rejected past it**, never truncated. **Login keeps
+   accepting up to 128**: this repo has live accounts whose passwords were set under the old rule, and
+   bcrypt truncates identically at verify time — tightening login could lock a real person out.
+6. **Auth responses:** `noStore()` on every auth response (login/logout/me and `withAuth`'s own
+   refusals); logout's CSRF refusal becomes a proper `fail(… 403 CSRF)` (it was `ok({loggedOut:false},
+   {}, 403)` — an *error* status wrapped in a *success* envelope with `error: null`); login's
+   schema-invalid path stays enumeration-safe and consumes only the IP budget.
+7. **Baseline security headers** (`next.config.ts`): `X-Frame-Options: DENY` + CSP
+   `frame-ancestors 'none'` (the setup form is frameable today), `nosniff`, `Referrer-Policy`,
+   `poweredByHeader: false`. HSTS is the reverse proxy's job (build-time config vs runtime scheme).
+8. **New `GET /api/v1/auth/me`** — session introspection (user + branch memberships), and the route
+   that makes `withAuth` testable over HTTP.
+9. **Screens.** AlEemaan has *no sign-in screen at all*, and its setup wizard redirects to `/login`,
+   which does not exist — the same dead end Octalve Edu had. Ported: `/login`, `/dashboard`, `/` as a
+   pure router, the setup wizard retrofitted onto the shared accessible primitives — including the
+   findings from Octalve's verification that apply to the wizard as it stands: **a native (no-JS /
+   pre-hydration) submit is a `GET`, which would put the administrator's password in the URL**
+   (`method="post"` fixes it), no timed auto-redirect (WCAG 2.2.1), 72-byte feedback, ≥ 4.5:1 contrast.
+   Brand text is "AlEemaan"; the palette is Octalve's for now — **AlEemaan's own visual identity
+   (from its design artifact) is a re-skin of the shared primitives, tracked, not decided here.**
+10. **The test suite** (`pnpm test`): unit, integration, API, browser (desktop + phone, axe WCAG 2.2),
+    and the real-HTTPS `__Host-` cookie run (auth-review P0 #4 — verified for Octalve Edu, *never
+    verified here* until now). Every security assertion is mutation-checked, as in Octalve Edu; the
+    port itself is attacked too (including the sync→async hazard: `if (!reserveAttempt(k))` without
+    `await` is `!Promise`, always false, and would silently disable a limit). Because item 9 ports
+    the real sign-in screens, the HTTPS run drives them exactly as Octalve Edu's does — Chromium's own
+    cookie rules decide whether the `__Host-` cookie sticks and whether logout removes it.
+
+**Deferred, unchanged:** TOTP MFA (needs the Settings UI), password reset, active-devices page,
+breached-password check, a nonce-based script CSP. **Not applicable here:** Redis-backed limiter
+(single process), everything in Octalve Edu's §0.5.2 (RLS / tenant trust boundary).
 
 ---
 
@@ -364,8 +467,14 @@ everything above being schema-stable, for obvious reasons.
 
 ## Next action
 
-Phase 0.5.2 (School Settings) is designed and ready to implement directly from its section above —
+**Phase 0.5.1.6 (the sync to Octalve Edu's verified auth) is built and verified — hand it to the
+maintainer for review and merge** (`claude/octalve-auth-sync`; see
+`phases/phase-0.5.1.6-octalve-sync.md`). Nothing else depends on it being merged first.
+
+Then: Phase 0.5.2 (School Settings) is designed and ready to implement directly from its section above —
 still waiting on confirmation before writing code, per the design-first rule. Next in sequence after
 that: **Phase 1 (Academic Structure)**, since it's the actual dependency root every later phase reads
 from — schema modelling comes before the auth-completion slice (0.5.3), which was originally placed
-first but doesn't belong on the critical path (see the roadmap's dependency-shape note).
+first but doesn't belong on the critical path (see the roadmap's dependency-shape note). Any new
+`withAuth` route ships with API tests (401 / 403 / CSRF) — `tests/README.md` says how; TOTP MFA and
+`permissions` gating (§1.7) must be built in **both** repos together.

@@ -1,7 +1,8 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-09-30 (auth rebuilt against the hardened shared design — see "Auth realigned to
-Octalve Edu's design" below; repo pushed to https://github.com/roji-tech/AlEemaan, public)
+Last Updated: 2026-09-30 (auth rebuilt against the hardened shared design, then synced to Octalve Edu's
+built-and-verified implementation — see "Synced to Octalve Edu's verified auth" below; repo
+https://github.com/roji-tech/AlEemaan, public)
 
 Companion to `docs/development-history/phases/*.md` (one completion record per finished phase) and
 the PRD (currently only a Claude Doc — see "Known gaps" below). Mirrors the structure of Octalve
@@ -49,6 +50,15 @@ checked against the real repo, not what a plan says should exist.
   three real bugs (untrusted IP header, check-then-record race, unbounded memory growth). Full
   record, including the exact live verification sequence run: 
   `docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md`.
+- **Phase 0.5.1.6 — Synced to Octalve Edu's built-and-verified auth**: **built and verified
+  2026-09-30, awaiting the maintainer's review/merge** (branch `claude/octalve-auth-sync`). Two-level
+  session expiry + purge, DB-enforced lowercase emails (a migration that is safe on live data),
+  limiter parity (configurable trusted IP header, LRU, async), the 72-byte password policy at every set
+  path, `withAuth()` replacing `requireAdmin()` (401 vs 403, CSRF by the wrapper, `no-store`),
+  `GET /api/v1/auth/me`, baseline security headers, the `/login`, `/dashboard` and `/setup` screens
+  (there was no way to sign in before), and a repeatable Playwright suite (`pnpm test`) including the
+  real-HTTPS `__Host-` cookie run that had never been done here. Record:
+  `docs/development-history/phases/phase-0.5.1.6-octalve-sync.md`.
 - **Everything else** (TOTP MFA, forgot-password, the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
@@ -77,11 +87,35 @@ checked against the real repo, not what a plan says should exist.
   decision — add it once there's an actual answer, not before.
 - ~~Phase 1's open authorization question (how `ADMIN` reaches across every branch).~~ **Resolved
   2026-09-28**: any `Membership` with `role: ADMIN` grants access regardless of which branch it
-  anchors to (`src/lib/auth/require-admin.ts`).
+  anchors to (originally `src/lib/auth/require-admin.ts`; since 2026-09-30 it is
+  `withAuth(handler, { roles: [Role.ADMIN] })` in `src/lib/auth/with-auth.ts` — same rule).
+
+## Synced to Octalve Edu's verified auth (2026-09-30)
+
+Octalve Edu built and verified the shared auth design and its verification found defects that also
+lived here; `domain-implementation-plan.md` §0.5.1.6 is the design, `phases/phase-0.5.1.6-octalve-sync.md`
+the record. In short:
+
+- **Closed what 0.5.1.5 deferred:** database-level email case-insensitivity and absolute session
+  expiry + purge — via a migration verified on a database holding legacy-shaped rows (sessions kept,
+  emails normalised, a case-collision aborts cleanly before touching anything).
+- **Findings that applied here:** bcrypt silently ignores bytes past 72, so the old 128-*character*
+  password cap never prevented truncation (now 72 *bytes* at every set path; login stays 128 — live
+  accounts); the guard's own refusals were cacheable; nothing set a framing policy; the setup form was
+  a native `GET` if ever submitted without JavaScript; logout's CSRF refusal was an error status in a
+  success envelope.
+- **Naming synced:** `requireAdmin()` → `withAuth(handler, { roles })`, plus the shared-names table in
+  both plan docs. Behaviour change: 401 = not signed in, **403 `FORBIDDEN`** = signed in but not an
+  admin (was 401 for both).
+- **New:** `/login`, `/dashboard`, `/` router, retrofitted `/setup`; the test suite.
+- **Read `tests/README.md` before touching auth or these screens, and run `pnpm test` before a PR.**
 
 ## Next action
 
-Phase 0.5.2 (School Settings) is designed in `domain-implementation-plan.md` — **not implemented
+**Hand Phase 0.5.1.6 (the sync above) to the maintainer for review and merge** — nothing else depends
+on it being merged first.
+
+Then: Phase 0.5.2 (School Settings) is designed in `domain-implementation-plan.md` — **not implemented
 yet**, waiting on confirmation before any code, per the design-first rule this document now follows.
 
 `domain-implementation-plan.md` now also has a full **Phase 1 → 7 (+ 0.5.3) roadmap** (2026-09-28,
@@ -146,6 +180,8 @@ length, and the `Session` lifecycle columns. Auth.js (`next-auth`, `@auth/prisma
 **dropped entirely**, not just unmounted — the hashed-token requirement has no clean path through
 Auth.js's Prisma adapter, which looks sessions up by the raw cookie value. Replaced with a
 ~90-line `src/lib/auth/session.ts`. Full record: `docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md`.
-Still not done (deliberately, not forgotten): DB-level email case-insensitivity, absolute
+Still not done then (deliberately, not forgotten): DB-level email case-insensitivity, absolute
 session-timeout + purge job, the active-devices UI, MFA, and the still-undecided Better Auth
-question (Octalve Edu's to answer first).
+question. **Update 2026-09-30 (later the same day):** email case-insensitivity and absolute expiry +
+purge are done (Phase 0.5.1.6); Octalve Edu's spike resolved Better Auth as *not adopted* (hashed
+tokens at rest aren't shipped there); the active-devices UI and MFA remain deferred.

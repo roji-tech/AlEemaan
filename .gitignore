@@ -48,3 +48,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /.design-tmp/
+
+# playwright
+/test-results/
+/playwright-report/
+/tests/.tmp/

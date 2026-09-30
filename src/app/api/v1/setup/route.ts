@@ -5,8 +5,9 @@ import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import { reserveAttempt, getClientIp } from "@/lib/auth/rate-limit";
-import { hashPassword } from "@/lib/auth/password";
+import { reserveAttempt, refundAttempt, getClientIp } from "@/lib/auth/rate-limit";
+import { hashPassword, PASSWORD_MAX_LENGTH, PASSWORD_MAX_BYTES } from "@/lib/auth/password";
+import { passwordByteLength } from "@/lib/auth/password-policy";
 
 // The four legacy sections, unified into one school (PRD §3). Seeded once,
 // here, rather than asked for in the form — this is a known, fixed fact
@@ -24,7 +25,12 @@ const setupSchema = z.object({
   password: z
     .string()
     .min(8, "Password must be at least 8 characters long")
-    .max(128, "Password must be at most 128 characters long")
+    .max(PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} characters long`)
+    // bcrypt ignores everything past byte 72 — reject rather than silently truncate
+    // (§0.5.1.6). Login is NOT tightened: it must keep accepting what existing accounts were set to.
+    .refine((value) => passwordByteLength(value) <= PASSWORD_MAX_BYTES, {
+      message: `Password must be at most ${PASSWORD_MAX_BYTES} bytes long (${PASSWORD_MAX_BYTES} characters; fewer if it contains emoji or non-Latin letters)`,
+    })
     .regex(/[a-zA-Z]/, "Password must contain at least one letter")
     .regex(/\d/, "Password must contain at least one number"),
   setupToken: z.string().optional(),
@@ -70,8 +76,13 @@ export async function POST(req: NextRequest) {
     return fail("Cross-origin request blocked", 403, "CSRF");
   }
 
+  // Reserve-then-refund: the slot is taken now, before any slow work, and handed
+  // back only on success (so failed attempts are what count). `await` is mandatory —
+  // the limiter is async so a Redis backend stays a drop-in; `!reserveAttempt(...)`
+  // without it is `!Promise` (always false) and would silently disable the limit.
   const clientIp = getClientIp(req);
-  if (!reserveAttempt(`setup:${clientIp}`)) {
+  const limitKey = `setup:${clientIp}`;
+  if (!(await reserveAttempt(limitKey))) {
     return fail(
       "Too many setup attempts from this IP. Please try again later.",
       429,
@@ -185,6 +196,8 @@ export async function POST(req: NextRequest) {
     console.log(
       `[FIRST_RUN_SETUP] Administrator created: ${result.admin.email} from IP ${clientIp}, ${result.branches.length} branches seeded`,
     );
+
+    await refundAttempt(limitKey);
 
     return ok(
       {

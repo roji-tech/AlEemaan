@@ -1,35 +1,43 @@
-// In-memory, single-process rate limiter. AlEemaan always runs as one
-// long-lived process (Docker Compose / a single VPS), never serverless or
-// multi-instance, so in-memory state can't be bypassed by hitting a
-// different instance, and no external store (Redis etc.) is needed to fix
-// the race below — it only requires the accounting to happen synchronously
-// within this one process. Revisit if that deployment assumption changes.
+// In-memory rate limiter — reserve-then-refund, trusted-proxy-header IP, size-capped.
+// Synced to Octalve Edu's built-and-verified version (domain-implementation-plan.md §0.5.1.6).
 //
-// Rewritten 2026-09-30 against docs/auth-review-2026-09-29.md's findings:
-// the original version (a) trusted the client-suppliable X-Forwarded-For
-// header as-is, letting an attacker bypass every limit with a fresh spoofed
-// IP per request while also leaking one Map entry per spoofed value forever;
-// (b) checked the limit before the slow async login work and only recorded
-// after, so concurrent requests could all pass the check before any of them
-// recorded anything (a check-then-record race, not fixed by "more RAM" —
-// fixed by reordering); (c) keyed only on IP, so one shared IP (an office,
-// a school's network) could exhaust the limit for everyone behind it after
-// five failures by any one person.
+// SCOPE: state lives in this process's memory. That is CORRECT for AlEemaan, which is one
+// school served by one long-lived process (Docker Compose / a single VPS) — never serverless,
+// never multi-instance — so a request can't land on an instance with a different Map, and no
+// external store is needed. (Octalve Edu's multi-instance SaaS mode is the case that needs
+// Redis; the functions are `async` in both repos so that swap changes no call site. Revisit
+// here only if the single-process deployment assumption ever changes.)
+//
+// INVARIANT: the bodies below must stay synchronous (no `await`). An async function runs
+// synchronously until its first await, which is what makes each reservation atomic in a
+// single-threaded process — the actual fix for the check-then-record race (concurrent
+// requests all passing a check before any of them recorded anything). Adding an await inside
+// reserveAttempt would silently reintroduce that race; tests/unit/rate-limit.spec.ts guards it.
 
 const WINDOW_MS = 5 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-const MAX_TRACKED_IDENTIFIERS = 10_000; // hard cap — see sweep() below
+export const DEFAULT_MAX_ATTEMPTS = 5;
+export const MAX_TRACKED_IDENTIFIERS = 10_000; // hard cap — see sweep()
 
 const attempts = new Map<string, number[]>();
 
-/// Evicts the oldest-touched identifiers once the map grows past the cap —
-/// without this, an attacker cycling through unique spoofed identifiers
-/// (see getClientIp's trust boundary below) grows this Map forever.
+/// Evicts the least-recently-touched identifiers once the map grows past the
+/// cap. Without a cap an attacker cycling through unique identifiers grows the
+/// Map forever. `touch()` re-inserts a key on every write, so Map insertion
+/// order == last-touched order and the first keys are the stalest — a hot
+/// legitimate key is never evicted ahead of a one-off attacker key.
 function sweep() {
   if (attempts.size <= MAX_TRACKED_IDENTIFIERS) return;
   const overflow = attempts.size - MAX_TRACKED_IDENTIFIERS;
-  const oldest = [...attempts.keys()].slice(0, overflow);
-  for (const key of oldest) attempts.delete(key);
+  let removed = 0;
+  for (const key of attempts.keys()) {
+    attempts.delete(key);
+    if (++removed >= overflow) break;
+  }
+}
+
+function touch(identifier: string, recent: number[]) {
+  attempts.delete(identifier); // delete-then-set moves the key to the end
+  attempts.set(identifier, recent);
 }
 
 function recentCount(identifier: string): number {
@@ -40,46 +48,100 @@ function recentCount(identifier: string): number {
   return recent.length;
 }
 
-/// Reserve-then-refund: call this SYNCHRONOUSLY, before any `await` in the
-/// handler, for every key that should gate the request. Returns false (and
-/// reserves nothing further) the moment any key is already at its limit.
-/// Node is single-threaded, so as long as nothing awaits between the
-/// recentCount() read and the attempts.set() write below, no other request
-/// can interleave and see stale state — that's what actually closes the
-/// race, not an external atomic store.
-export function reserveAttempt(identifier: string, limit: number = MAX_ATTEMPTS): boolean {
+/// Reserve-then-refund: call this at the very start of the handler, before
+/// any slow async work, for every key that should gate the request. Returns
+/// false (reserving nothing further) the moment a key is already at its limit.
+export async function reserveAttempt(
+  identifier: string,
+  limit: number = DEFAULT_MAX_ATTEMPTS,
+): Promise<boolean> {
   const count = recentCount(identifier);
   if (count >= limit) return false;
   const recent = attempts.get(identifier) ?? [];
   recent.push(Date.now());
-  attempts.set(identifier, recent);
+  touch(identifier, recent);
   sweep();
   return true;
 }
 
-/// Call on a SUCCESSFUL login to refund the reservation this request made —
-/// keeps a legitimate user's own successful attempt from permanently
-/// counting against their own future attempts.
-export function refundAttempt(identifier: string): void {
+/// Call on a SUCCESSFUL attempt to hand back the reservation this request
+/// made, so a correct login never counts against the user's own future tries.
+export async function refundAttempt(identifier: string): Promise<void> {
   const recent = attempts.get(identifier);
   if (!recent || recent.length === 0) return;
   recent.pop();
   if (recent.length === 0) attempts.delete(identifier);
 }
 
-export function checkRateLimit(identifier: string, limit: number = MAX_ATTEMPTS): boolean {
+/// Read-only check (does not reserve). Used for the soft per-account signal.
+export async function checkRateLimit(
+  identifier: string,
+  limit: number = DEFAULT_MAX_ATTEMPTS,
+): Promise<boolean> {
   return recentCount(identifier) < limit;
 }
 
-/// Only trusts a header the reverse proxy itself is configured to set
-/// (X-Real-IP — nginx's `proxy_set_header X-Real-IP $remote_addr` is the
-/// standard convention). Deliberately does NOT fall back to the raw
-/// X-Forwarded-For header's client-controlled leftmost entry, since that
-/// value costs an attacker nothing to spoof and is exactly what let the
-/// previous version's limiter be bypassed per-request. No trusted proxy
-/// configured (e.g. plain local dev with no reverse proxy) falls back to a
-/// single shared bucket — correct for that case (there's only ever one real
-/// client), not a bypass.
-export function getClientIp(req: { headers: { get(name: string): string | null } }): string {
-  return req.headers.get("x-real-ip")?.trim() || "unproxied";
+// --- Client IP -------------------------------------------------------------
+//
+// Only ever reads a header the reverse proxy itself sets, never the
+// client-controlled leftmost X-Forwarded-For entry — that value costs an
+// attacker nothing to spoof and is exactly what let the previous limiter be
+// bypassed with a fresh fake IP per request (docs/auth-review-2026-09-29.md).
+//
+// Configure to match the deployment (both default to the nginx convention):
+//   CLIENT_IP_HEADER    "x-real-ip" (default) — proxy overwrites it with the
+//                       real peer address, e.g. nginx `proxy_set_header
+//                       X-Real-IP $remote_addr`, or Caddy `header_up X-Real-IP
+//                       {remote_host}`.
+//                       "x-forwarded-for" — take the Nth entry from the RIGHT,
+//                       where N = TRUSTED_PROXY_HOPS (default 1). Entries to
+//                       the left of the trusted proxies' own are client-
+//                       controlled and are never read.
+//   TRUSTED_PROXY_HOPS  number of trusted proxies appending to
+//                       X-Forwarded-For (default 1).
+//
+// No usable header (plain local dev, or a misconfigured proxy) falls back to
+// ONE shared bucket. That is correct for local dev (one client) but in a
+// deployment that really has many clients it turns the per-IP limit into a
+// school-wide limit — so it warns once in production.
+
+const MAX_IP_LENGTH = 64;
+let warnedNoProxy = false;
+
+function nthFromRight(value: string, hops: number): string | null {
+  const parts = value
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const index = parts.length - hops;
+  return index >= 0 && index < parts.length ? parts[index] : null;
+}
+
+export function getClientIp(req: {
+  headers: { get(name: string): string | null };
+}): string {
+  const header = (process.env.CLIENT_IP_HEADER ?? "x-real-ip").toLowerCase();
+  const raw = req.headers.get(header);
+
+  let ip: string | null = null;
+  if (raw) {
+    if (header === "x-forwarded-for") {
+      const hops = Math.max(1, Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "1", 10) || 1);
+      ip = nthFromRight(raw, hops);
+    } else {
+      ip = raw.trim();
+    }
+  }
+
+  if (!ip) {
+    if (!warnedNoProxy && process.env.NODE_ENV === "production") {
+      warnedNoProxy = true;
+      console.warn(
+        `[RATE_LIMIT] No client IP in "${header}" — per-IP limits collapse into one shared bucket. ` +
+          "Configure the reverse proxy to set it (see CLIENT_IP_HEADER in .env.example).",
+      );
+    }
+    return "unproxied";
+  }
+  return ip.slice(0, MAX_IP_LENGTH);
 }

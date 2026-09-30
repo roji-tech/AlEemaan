@@ -1,29 +1,26 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { isSetupComplete } from "@/lib/setup/status";
 import { SetupWizardForm } from "./SetupWizardForm";
 
+export const metadata: Metadata = { title: "Set up AlEemaan" };
 export const dynamic = "force-dynamic";
 
 export default async function SetupPage() {
-  try {
-    const settings = await prisma.systemSettings.findUnique({
-      where: { id: "global" },
-    });
-
-    if (settings?.setupComplete) {
-      redirect("/login");
-    }
-  } catch (err) {
-    if (err && typeof err === "object" && "digest" in err) {
-      const digest = (err as { digest?: string }).digest;
-      if (digest?.startsWith("NEXT_REDIRECT")) throw err;
-    }
-    // Fail open on a DB blip — don't lock a deployer out of their own
-    // bootstrap step because of a transient connection error.
-    console.error("[SETUP_SERVER_CHECK_ERROR]", err);
+  // Already done: this wizard is permanently disabled. Unknown (DB blip) falls
+  // through and shows the form — never lock a deployer out of their own
+  // bootstrap step because of a transient connection error.
+  if ((await isSetupComplete()) === true) {
+    redirect("/login");
   }
 
   const requiresToken = Boolean(process.env.SETUP_TOKEN);
 
-  return <SetupWizardForm requiresToken={requiresToken} />;
+  // Warn if a *production* build is configured for plain HTTP. The session
+  // cookie's `Secure` flag follows the APP_URL scheme, so sign-in still works on
+  // a trusted LAN — but nothing protects the session in transit.
+  const insecureBaseUrl =
+    process.env.NODE_ENV === "production" && !(process.env.APP_URL ?? "").startsWith("https://");
+
+  return <SetupWizardForm requiresToken={requiresToken} insecureBaseUrl={insecureBaseUrl} />;
 }
