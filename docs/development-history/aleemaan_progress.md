@@ -59,6 +59,15 @@ checked against the real repo, not what a plan says should exist.
   (there was no way to sign in before), and a repeatable Playwright suite (`pnpm test`) including the
   real-HTTPS `__Host-` cookie run that had never been done here. Record:
   `docs/development-history/phases/phase-0.5.1.6-octalve-sync.md`.
+- **Phase 0.5.A — AlEemaan's own look, the admin shell, and a real "Keep me signed in"**: **built and
+  verified 2026-09-30, awaiting the maintainer's review/merge** (branch `claude/design-tokens-shell`,
+  stacked on `claude/octalve-auth-sync`). The design artifact's sea-green brand on a semantic-token system
+  shared with Octalve Edu (only `brand.css` / `brand.ts` differ), a server-rendered light/dark theme, the
+  app shell (sidebar + top bar on a desktop; tab bar + "More" sheet on a phone), `/dashboard` with real
+  figures, `/branches` with live member counts and a working "New branch" form, `/account`, and the
+  remember-me pair (unchecked → browser-session cookie + 12-hour server cap; ticked → 30 d / 90 d, 7 d for
+  admins — **a shorter default than before, deliberately**). Record:
+  `docs/development-history/phases/phase-0.5.A-design-language.md`.
 - **Everything else** (TOTP MFA, forgot-password, the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
@@ -112,11 +121,15 @@ the record. In short:
 
 ## Next action
 
-**Hand Phase 0.5.1.6 (the sync above) to the maintainer for review and merge** — nothing else depends
-on it being merged first.
+**Hand Phase 0.5.1.6 (the sync above) and then Phase 0.5.A (the design language and shell) to the
+maintainer for review and merge** — the second is stacked on the first.
 
-Then: Phase 0.5.2 (School Settings) is designed in `domain-implementation-plan.md` — **not implemented
-yet**, waiting on confirmation before any code, per the design-first rule this document now follows.
+Then, in order: the rest of the **Phase 0.5 addenda** — each designed in `domain-implementation-plan.md`
+first and built in *both* repos — **0.5.B** the nonce-based script CSP, **0.5.C** password reset and
+change, **0.5.D** TOTP MFA (the account page already has a place for the last two); then Phase 0.5.2
+(School Settings), which is designed in the plan — **not implemented yet**, waiting on confirmation before
+any code, per the design-first rule this document follows. (The shell's *Settings* entry is a visible
+"Soon" until then.)
 
 `domain-implementation-plan.md` now also has a full **Phase 1 → 7 (+ 0.5.3) roadmap** (2026-09-28,
 revised same day), breaking what was one vague "Phase 1 (Core SIS + Finance)" bullet into 7

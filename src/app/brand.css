@@ -1,0 +1,22 @@
+/* AlEemaan's brand tokens — one of only TWO per-repo brand files (the other is
+   lib/brand.ts, the strings). Everything else in the UI is shared, code-identical,
+   with Octalve Edu, and reads these variables through the Tailwind theme in globals.css.
+
+   Values are the design artifact's ("Octalve Edu & AlEemaan — UI Design"): sea green.
+   domain-implementation-plan.md §0.5.A records the contrast maths behind each one — in
+   particular why FILLED buttons use --brand-strong (#2A7F4F, 4.94:1 with white) and not the
+   artifact's #2E8B57 (4.25:1, under WCAG AA's 4.5:1 for 14px text). */
+
+:root {
+  --brand: #2e8b57; /* logo mark, accents — the artifact's green (non-text needs 3:1: 4.21:1 on --surface) */
+  --brand-strong: #2a7f4f; /* filled buttons with WHITE text: 4.94:1 */
+  --brand-strong-hover: #267349; /* 5.78:1 */
+  --brand-deep: #0b3d24; /* the sign-in brand panel (white text 12.3:1) */
+  --brand-fg: #6ee7b7; /* brand-coloured TEXT on dark surfaces (11.71:1 on --surface) */
+  --brand-tint: #052e22; /* active nav / badge background on dark */
+}
+
+:root[data-theme="light"] {
+  --brand-fg: #1a5c3e; /* brand-coloured text on light surfaces (7.94:1 on white) */
+  --brand-tint: #f0fdf4;
+}

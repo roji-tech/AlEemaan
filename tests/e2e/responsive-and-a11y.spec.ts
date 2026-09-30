@@ -52,9 +52,37 @@ async function expectComfortableTapTargets(page: Page, what: string, isMobile: b
   expect(tooSmall, `controls smaller than 44x44 CSS px on ${what}`).toEqual([]);
 }
 
+/// Colours *transition* (`transition-colors`) when the theme flips, and axe would sample the in-between
+/// values — once it measured #565c6a on #a8acb4, which is neither theme's colour. So wait for every
+/// running CSS transition to finish first. (Only transitions: an infinite animation such as the
+/// loading spinner never "finishes" and would hang this.)
+async function settled(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
+
+/// Both themes, every time: the light theme is the same DOM with different token values, so a
+/// contrast failure can hide in either. (Flipping `data-theme` directly is what the toggle
+/// does too; it needs no reload because the colours are CSS variables.)
 async function checkScreen(page: Page, what: string, isMobile: boolean) {
-  await expectAccessible(page, what);
-  await expectNoHorizontalScroll(page, what);
+  // Next.js applies a page's <title> a beat after a client-side navigation, and axe's `document-title`
+  // rule saw the gap once. Scan the settled page: wait until it has a title.
+  await expect(page).toHaveTitle(/\S/);
+  const initial = await page.evaluate(() => document.documentElement.dataset.theme ?? "dark");
+  for (const theme of ["dark", "light"]) {
+    await page.evaluate((t) => void (document.documentElement.dataset.theme = t), theme);
+    await settled(page);
+    await expectAccessible(page, `${what} [${theme} theme]`);
+    await expectNoHorizontalScroll(page, `${what} [${theme} theme]`);
+  }
+  await page.evaluate((t) => void (document.documentElement.dataset.theme = t), initial);
+  await settled(page);
   await expectComfortableTapTargets(page, what, isMobile);
 }
 
@@ -97,32 +125,99 @@ test.describe("sign-in screen", () => {
   });
 });
 
-test.describe("dashboard", () => {
+// The signed-in screens all live inside the app shell (sidebar + top bar on a desktop; top bar + floating
+// tab bar on a phone), so every one of them is also a check of the shell in that state.
+test.describe("signed-in screens (inside the app shell)", () => {
   test.beforeAll(async () => {
     await seedInstance();
   });
 
-  test("with a branch", async ({ page, isMobile }) => {
-    const withBranch = await createUser({ role: Role.ADMIN });
-    await signInThroughUi(page, withBranch);
-    await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
-    await checkScreen(page, "/dashboard (with a branch)", isMobile);
+  test("Overview — an administrator", async ({ page, isMobile }) => {
+    const admin = await createUser({ role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await expect(page.getByRole("heading", { level: 1, name: /Welcome/ })).toBeVisible();
+    await checkScreen(page, "/dashboard (administrator)", isMobile);
   });
 
-  test("a member of no branch sees an honest empty state", async ({ page, isMobile }) => {
+  test("Overview — a member of no branch sees an honest empty state", async ({ page, isMobile }) => {
     const loner = await createUser({ name: "Chidi Okafor" });
     await signInThroughUi(page, loner);
     await expect(page.getByText("You're signed in, but you aren't a member of any branch yet.")).toBeVisible();
-    await expect(page.getByText("Ask your school administrator to invite you.")).toBeVisible();
+    await expect(page.getByText("Ask your school administrator to add you to a branch.")).toBeVisible();
     await checkScreen(page, "/dashboard (no branch)", isMobile);
   });
 
-  test("a long name doesn't break the layout", async ({ page, isMobile }) => {
+  test("Overview — a teacher sees only their own branches", async ({ page, isMobile }) => {
+    const teacher = await createUser({ role: Role.TEACHING_STAFF, name: "Zainab Bello" });
+    await signInThroughUi(page, teacher);
+    await expect(page.getByRole("heading", { level: 1, name: "Welcome, Zainab" })).toBeVisible();
+    await checkScreen(page, "/dashboard (teacher)", isMobile);
+  });
+
+  test("Overview — a long name doesn't break the layout", async ({ page, isMobile }) => {
     const user = await createUser({ role: Role.ADMIN, name: "Oluwatobiloba Adebayo-Ogunleye-Nwosu-Abdulrahman" });
     await signInThroughUi(page, user);
-    await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
-    await expectNoHorizontalScroll(page, "/dashboard (long name)");
+    await expect(page.getByRole("heading", { level: 1, name: /Welcome/ })).toBeVisible();
     await checkScreen(page, "/dashboard (long name)", isMobile);
+  });
+
+  test("Branches — the list, the New branch form, and its error states", async ({ page, isMobile }) => {
+    const admin = await createUser({ role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.goto("/branches");
+    await expect(page.getByRole("heading", { level: 1, name: "Branches" })).toBeVisible();
+    await checkScreen(page, "/branches (list)", isMobile);
+
+    await page.getByRole("button", { name: "New branch" }).click();
+    await expect(page.getByLabel("Branch name")).toBeFocused();
+    await checkScreen(page, "/branches (form open)", isMobile);
+
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(page.getByText("Enter a branch name.")).toBeVisible();
+    await checkScreen(page, "/branches (validation error)", isMobile);
+
+    await page.getByLabel("Branch name").fill("Secondary (English)"); // already exists
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(page.getByText("A branch with this name already exists.")).toBeVisible();
+    await checkScreen(page, "/branches (duplicate name)", isMobile);
+
+    await page.getByLabel("Branch name").fill(`Accessible branch ${Date.now()}`);
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("was created");
+    await checkScreen(page, "/branches (just created)", isMobile);
+  });
+
+  test("Branches — someone who is not an administrator is told they have no access", async ({ page, isMobile }) => {
+    const teacher = await createUser({ role: Role.TEACHING_STAFF });
+    await signInThroughUi(page, teacher);
+    await page.goto("/branches");
+    await expect(page.getByText("You don't have access to this page")).toBeVisible();
+    await checkScreen(page, "/branches (no access)", isMobile);
+  });
+
+  test("Account", async ({ page, isMobile }) => {
+    const admin = await createUser({ role: Role.ADMIN, name: "Amina Yusuf" });
+    await signInThroughUi(page, admin);
+    await page.goto("/account");
+    await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible();
+    await checkScreen(page, "/account", isMobile);
+  });
+
+  test("the account menu, open", async ({ page, isMobile }) => {
+    const admin = await createUser({ role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.getByRole("button", { name: /^Account menu for/ }).click();
+    await expect(page.getByRole("link", { name: "Profile" })).toBeVisible();
+    await checkScreen(page, "the account menu (open)", isMobile);
+  });
+
+  test("the More sheet, open (phone)", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "the More sheet is the phone layout");
+    const admin = await createUser({ role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "More" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await checkScreen(page, "the More sheet (open)", isMobile);
   });
 });
 

@@ -39,10 +39,10 @@ re-checks `current_database()` and refuses to run against anything else.
 | :--- | :--- | :--- | :--- |
 | `setup` | `setup/` | Postgres | The test database exists, is migrated, and is empty. Everything else depends on it. |
 | `unit` | `unit/` | nothing | The rate limiter (reserve-then-refund, sliding window, LRU bound, atomicity under concurrency, which IP header is trusted), password hashing (constant-time path, bcrypt's 72-byte limit), and that `withAuth` refuses `roles`/`permissions` until §0.5.2. |
-| `integration` | `integration/` | modules + Postgres | Session lifecycle: only a hash is stored, two-level expiry, sliding, per-user cap, purge, revoke, cookie attributes; `withAuth`'s CSRF-before-session ordering and cache headers. |
-| `api` | `api/` | `next start` over HTTP | Login/logout/me/setup/**branches** end to end (`branches.spec.ts` is this repo's consumer of `withAuth`'s `roles`: 401 vs 403, every non-admin role, admin anchored to another branch, demotion effective on the next request, audit trail): guard order, CSRF variants, enumeration-safe errors, timing parity, all three rate-limit layers, spoofed `X-Forwarded-For` ignored, hash-at-rest checked in the database, rotation, fixation, `Set-Cookie` attributes, security headers, `no-store` everywhere. |
-| `e2e-desktop`, `e2e-mobile` | `e2e/` | Chromium, 1280×720 and a Pixel 7 | Real user flows: sign-in ok/fail, focus management, validation, the paused state (fake clock), keyboard-only use, show/hide password, double-submit, reload persistence, sign-out + Back, cross-tab sign-out, revoked/expired sessions, credentials never in the URL, the whole setup → sign-in → dashboard journey; axe-core WCAG 2.2 A/AA on every screen **and state**; no horizontal scroll; ≥ 44 px tap targets on phones. |
-| `https` | `https/` | Chromium over TLS | The production cookie shape: `__Host-` accepted on login (Chromium only accepts it if Secure + `Path=/` + no Domain) and **actually removed on logout** — the auth review's P0 #4. |
+| `integration` | `integration/` | modules + Postgres | Session lifecycle: only a hash is stored, two-level expiry, the two modes ("Keep me signed in" → 30 d idle / 90 d absolute; not remembered → a 12-hour cap held by the server), sliding clamped to the cap, per-user cap, purge, revoke, cookie attributes (persistent vs browser-session); `withAuth`'s CSRF-before-session ordering and cache headers. |
+| `api` | `api/` | `next start` over HTTP | Login/logout/me/setup/**branches** end to end (`branches.spec.ts` is this repo's consumer of `withAuth`'s `roles`: 401 vs 403, every non-admin role, admin anchored to another branch, demotion effective on the next request, audit trail): guard order, CSRF variants, enumeration-safe errors, timing parity, all three rate-limit layers, spoofed `X-Forwarded-For` ignored, hash-at-rest checked in the database, rotation, fixation, `Set-Cookie` attributes, security headers, `no-store` everywhere; `remember` is a strict boolean whose default (not remembered) yields a session cookie **and** a 12-hour row. |
+| `e2e-desktop`, `e2e-mobile` | `e2e/` | Chromium, 1280×720 and a Pixel 7 | Real user flows: sign-in ok/fail, focus management, validation, the paused state (fake clock), keyboard-only use, show/hide password, "Keep me signed in" (unchecked by default, persistent vs session cookie, survives a failed attempt), double-submit, reload persistence, sign-out + Back, cross-tab sign-out, revoked/expired sessions, credentials never in the URL, the whole setup → sign-in → dashboard journey; **the light/dark theme** (`theme.spec.ts`: server-rendered from a cookie, no flash, toggle by mouse and keyboard, survives reload and navigation, hostile cookie values ignored); **the brand** (`brand.spec.ts` — the one spec that differs between the two repos); **the app shell** (`shell.spec.ts`: sidebar and top bar on a desktop; tab bar and the modal "More" sheet on a phone — current-page marking, skip link, the account menu's open/Escape/outside-click/focus behaviour, sign-out from either, a non-administrator's reduced navigation and the refused `/branches`, revoked sessions on every page); **the Branches page** (`branches-page.spec.ts`: real member counts, creating a branch end to end — announced, listed, focus returned, audited — and every failure path: blank, duplicate, too long, double-click, server error, offline, refused, session ended); axe-core WCAG 2.2 A/AA on every screen **and state, in both themes**; no horizontal scroll; ≥ 44 px tap targets on phones. |
+| `https` | `https/` | Chromium over TLS | The production cookie shape: `__Host-` accepted on login (Chromium only accepts it if Secure + `Path=/` + no Domain) — as a persistent cookie when remembered and a browser-session cookie when not — and **actually removed on logout** — the auth review's P0 #4. |
 
 The `https` project runs the *same build* a second time with `APP_URL=https://localhost:<TLS_PORT>`
 behind `tests/support/tls-proxy.mjs`, a small TLS-terminating reverse proxy with a throwaway
@@ -67,7 +67,24 @@ in the app.
   *unmutated* first: a test that fails both ways proves nothing (the `pageshow` test once looked
   "caught" only because it always failed). The record is in the phase doc.
 - **Selectors: role and label first.** Next.js renders its own `<next-route-announcer role="alert">`,
-  so scope alerts to `<main>` (`alerts(page)` in `e2e/helpers.ts`).
+  so scope alerts to `<main>` (`alerts(page)` in `e2e/helpers.ts`). The sign-in brand panel is
+  `aria-hidden` and repeats the product name, so a bare `getByText("AlEemaan")` is a strict-mode
+  violation on a phone — scope it (`getByRole("main")`). Inside the app shell the same page has a
+  sidebar (or tab bar), a breadcrumb and an account menu: name the landmark (`getByRole("navigation",
+  { name: "Main" })`) rather than searching the whole page.
+- **Both themes, every time.** `checkScreen()` in `responsive-and-a11y.spec.ts` runs axe and the
+  overflow check in the dark *and* the light theme (flipping `data-theme` — the colours are CSS
+  variables, so that is exactly what the toggle changes), after waiting for CSS transitions and the page
+  `<title>` to settle (two flakes were exactly those races); the toggle itself is covered by `theme.spec.ts`.
+- **`test.skip(fn)` is only valid at `describe` level.** Inside a test body use the boolean form with
+  the fixture: `async ({ page, isMobile }) => { test.skip(isMobile, "…"); … }`.
+- **Sign-in and sign-out helpers.** `signInThroughUi(page, user, { remember: true })` and
+  `loginAs(user, { remember: true })` take the "Keep me signed in" choice explicitly — left out they
+  exercise the default (not remembered), so a test that asserts a long cookie lifetime has to ask for it.
+  `signOut(page)` uses whatever the screen offers (here: the account menu).
+- **Testing "the API says no" from a browser test:** send `Origin` (`headers: { origin: HTTP_URL }`) —
+  Playwright's request context doesn't, and without it the CSRF guard refuses first, so the test would
+  pass for the wrong reason. Assert the error *code* (`FORBIDDEN`, not just 403).
 - Adding a route that uses `withAuth`? Add API tests for 401/403 and an integration test for any
   new behaviour; adding a screen? Add it to `responsive-and-a11y.spec.ts` (every state that changes
   the DOM, not just first paint).
