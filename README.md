@@ -37,14 +37,27 @@ pnpm prisma migrate dev
 pnpm dev
 ```
 
+## Tests
+
+```bash
+pnpm exec playwright install chromium   # once
+pnpm test                                # production build + every suite (unit, integration, API, browser, HTTPS)
+pnpm typecheck && pnpm lint
+```
+
+Needs the Postgres above (tests use their own `aleemaan_test`, created and migrated automatically) and
+`openssl` on the PATH. What each suite proves, and how to add to them: [`tests/README.md`](tests/README.md).
+
 ## Status
 
-Foundation, the first-run setup wizard, and auth (login/logout/branch management) are done — see
+Foundation, the first-run setup wizard, and auth (login/logout/branch management, the `/login`,
+`/dashboard` and `/setup` screens) are done and verified — see
 [`docs/development-history/phases/`](docs/development-history/phases/) for the completion records
 and [`docs/development-history/aleemaan_progress.md`](docs/development-history/aleemaan_progress.md)
-for the current, honest state (most of the app doesn't exist yet). Auth was fully rebuilt 2026-09-30
-against a hardened design shared with Octalve Edu — see
-[`phases/phase-0.5.1.5-auth-rebuild.md`](docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md).
+for the current, honest state (most of the app doesn't exist yet). Auth was rebuilt 2026-09-30 against a
+hardened design shared with Octalve Edu ([`phase-0.5.1.5`](docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md)),
+then synced to Octalve Edu's built-and-verified implementation, with a repeatable test suite
+([`phase-0.5.1.6`](docs/development-history/phases/phase-0.5.1.6-octalve-sync.md), awaiting merge).
 
 ## Docs
 

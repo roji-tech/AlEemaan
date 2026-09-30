@@ -35,7 +35,8 @@ enum Permission {
 /// including ADMIN's — an admin's own membership row anchors to one branch
 /// (whichever the setup wizard or an invite assigned), but the ADMIN role
 /// itself is authorized across every branch at the application layer via
-/// requireAdmin() (src/lib/auth/require-admin.ts), not by this row's
+/// withAuth(handler, { roles: [Role.ADMIN] }) (src/lib/auth/with-auth.ts —
+/// it replaced requireAdmin() in phase 0.5.1.6), not by this row's
 /// branchId — resolved in phase-0.5.1-auth-and-branches.md.
 model Membership {
   id       String @id @default(cuid())

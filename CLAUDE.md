@@ -112,17 +112,34 @@ one-off pattern sources, referenced once for a specific technique and then done:
    was already made once.
 5. **Multi-file Prisma schema** (`prisma/schema/*.prisma`, `prisma.config.ts` points the CLI at the
    folder) — add new files per domain area, don't grow one file indefinitely.
+6. **Tests ship with the change, and a security test must be seen to fail.** Every security-relevant
+   assertion in `tests/` was mutation-checked: inject the bug it claims to catch, confirm the suite goes
+   red, restore — and run it *unmutated* first, since a test that fails both ways proves nothing. Drive UI
+   changes in a real browser and read the screenshots. The limiter functions are `async`: every call
+   must be `await`ed (`if (!reserveAttempt(k))` without it is `!Promise`, always false, and silently
+   disables the limit — TypeScript won't flag it).
+7. **Keep the sibling in sync.** Auth/session/limiter/password/`withAuth`/UI-primitive files share names
+   and behaviour with Octalve Edu on purpose (table in the plan doc, §0.5.1.6). A change to one gets
+   ported to — or explicitly logged as a divergence from — the other.
 
 ## Current state, as of 2026-09-30 (verify against `aleemaan_progress.md` — it may have moved since)
 
 - Phase 0 (scaffold), 0.5.0 (setup wizard), 0.5.1 (auth + branch management) are built.
 - **Auth was fully rebuilt 2026-09-30** against a hardened design (session tokens hashed at rest,
   timing-safe login compare, a fixed rate limiter, `__Host-` cookies) — Auth.js was dropped entirely
-  (`next-auth`/`@auth/prisma-adapter` removed). Full record:
-  `docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md`.
-  **⚠ As of this writing this rebuild is verified live but not yet committed to git** — run
-  `git status` before doing anything else; if these changes are still uncommitted, that's real,
-  finished, verified work sitting in the working tree, not a false start to discard.
+  (`next-auth`/`@auth/prisma-adapter` removed). Record:
+  `docs/development-history/phases/phase-0.5.1.5-auth-rebuild.md` (committed — `b3ddbcd`; an earlier
+  version of this file warned it was still uncommitted, which stopped being true the same day).
+- **Then synced to Octalve Edu's built-and-verified implementation (Phase 0.5.1.6) — built and verified,
+  on branch `claude/octalve-auth-sync`, awaiting the maintainer's review/merge.** Two-level session
+  expiry, DB-enforced lowercase emails, limiter parity, the 72-byte password policy, `withAuth()`
+  replacing `requireAdmin()`, `GET /api/v1/auth/me`, security headers, `/login` + `/dashboard` + `/setup`
+  screens, and a real test suite. **Read `docs/development-history/phases/phase-0.5.1.6-octalve-sync.md`
+  and `tests/README.md` before touching auth or those screens.**
+- **There is a test suite: `pnpm test`** (build + Playwright: unit, integration, API, browser at desktop
+  and phone sizes, axe accessibility, and a real-HTTPS cookie run). It needs a Postgres
+  (`docker compose up -d db`), Chromium (`pnpm exec playwright install chromium`) and `openssl`; it uses
+  its own `aleemaan_test` database. Run it before opening a PR.
 - Phase 0.5.2 (School Settings) is designed, not built — waiting on a go-ahead.
 - Phase 1 (Academic Structure) is next in the roadmap after 0.5.2, and is the real dependency root
   for everything after it (see the plan doc's roadmap section).
@@ -137,5 +154,8 @@ one-off pattern sources, referenced once for a specific technique and then done:
 - A real open question for the school, not an engineering one: what's actually populating the two
   Arabic branches' data today (no admin/teacher portal exists for them in any of the 5 legacy repos)
   — ask before Phase 7 (migration) gets designed.
-- DB-level email case-insensitivity, absolute session timeout + purge job, active-devices UI, MFA —
-  all deliberately deferred, listed in `phase-0.5.1.5-auth-rebuild.md`'s "Explicitly not done" section.
+- Active-devices UI, MFA, password reset, a nonce-based script CSP — deliberately deferred (listed in
+  `phase-0.5.1.6-octalve-sync.md`'s "Explicitly not done"). DB-level email case-insensitivity and absolute
+  session expiry + purge were deferred by 0.5.1.5 and are now done (0.5.1.6).
+- AlEemaan's own visual identity (from the Figma-like artifact) — the shipped screens use Octalve Edu's
+  palette and shared primitives; a re-skin, not yet decided.

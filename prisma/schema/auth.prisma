@@ -18,6 +18,12 @@
 // flow, which was never used (email+password only) and is now moot with
 // Auth.js gone entirely.
 
+// NOT expressible in Prisma's schema language, applied in the migration SQL
+// instead: CHECK ("email" = lower("email")) on User — email case-insensitivity
+// enforced in Postgres itself, so a seed script or direct SQL import can't
+// bypass the app-layer normalization (migration
+// 20260930100000_two_level_sessions_and_email_check).
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -37,15 +43,23 @@ model User {
 /// tokenHash, not the plaintext token — the client's cookie holds the
 /// plaintext 256-bit random value; only its SHA-256 hash is ever written
 /// here, so a leaked database (backup, a read-only SQL injection elsewhere)
-/// yields no directly-replayable session. createdAt/lastUsedAt/userAgent
-/// exist for the eventual "active devices" revocation UI (not built yet) —
-/// added now since it's cheap to add alongside this model's other changes
-/// and expensive to retrofit once real session rows exist.
+/// yields no directly-replayable session.
+///
+/// Two expiries, deliberately (synced from Octalve Edu, §0.5.1.6): `expires`
+/// is the IDLE expiry (slides forward on use, throttled), `absoluteExpires` is
+/// a hard cap set at login and never extended (shorter for ADMIN) — so a
+/// stolen-but-kept-alive session still dies.
+///
+/// createdAt/lastUsedAt/userAgent exist for the eventual "active devices"
+/// revocation UI (not built yet) — added now since it's cheap to add alongside
+/// this model's other changes and expensive to retrofit once real session rows
+/// exist.
 model Session {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
-  userId    String
-  expires   DateTime
+  id              String   @id @default(cuid())
+  tokenHash       String   @unique
+  userId          String
+  expires         DateTime
+  absoluteExpires DateTime
 
   createdAt  DateTime @default(now())
   lastUsedAt DateTime @default(now())
