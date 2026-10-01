@@ -164,6 +164,12 @@ one-off pattern sources, referenced once for a specific technique and then done:
   and phone sizes, axe accessibility, and a real-HTTPS cookie run). It needs a Postgres
   (`docker compose up -d db`), Chromium (`pnpm exec playwright install chromium`) and `openssl`; it uses
   its own `aleemaan_test` database. Run it before opening a PR.
+- **Phase 0.5.B (nonce-based script CSP) is BUILT AND VERIFIED** — branch `claude/csp-nonce`, stacked on the
+  0.5.A branch. `src/proxy.ts` mints a nonce per page request and sets the policy (`src/lib/security/csp.ts`);
+  `CSP_REPORT_ONLY=true` is the live-deployment valve; the API has a static `default-src 'none'` policy. **Rules
+  that follow:** no inline `<script>` and no `style=""`/`<style>` in our markup; every page stays dynamic; new
+  third-party origins are a CSP change, not a convenience. The `csp` test fixture fails any browser test that
+  triggers a violation. Record: `docs/development-history/phases/phase-0.5.B-csp.md`.
 - Phase 0.5.2 (School Settings) is designed, not built — waiting on a go-ahead.
 - Phase 1 (Academic Structure) is next in the roadmap after 0.5.2, and is the real dependency root
   for everything after it (see the plan doc's roadmap section).

@@ -78,6 +78,7 @@ async function checkScreen(page: Page, what: string, isMobile: boolean) {
   for (const theme of ["dark", "light"]) {
     await page.evaluate((t) => void (document.documentElement.dataset.theme = t), theme);
     await settled(page);
+    await expect(page).toHaveTitle(/\S/); // a router.refresh() re-renders the <title> too; scan the settled page
     await expectAccessible(page, `${what} [${theme} theme]`);
     await expectNoHorizontalScroll(page, `${what} [${theme} theme]`);
   }
@@ -181,9 +182,11 @@ test.describe("signed-in screens (inside the app shell)", () => {
     await expect(page.getByText("A branch with this name already exists.")).toBeVisible();
     await checkScreen(page, "/branches (duplicate name)", isMobile);
 
-    await page.getByLabel("Branch name").fill(`Accessible branch ${Date.now()}`);
+    const created = `Accessible branch ${Date.now()}`;
+    await page.getByLabel("Branch name").fill(created);
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("was created");
+    await expect(page.getByRole("list", { name: "Branches" })).toContainText(created); // the refresh has landed
     await checkScreen(page, "/branches (just created)", isMobile);
   });
 
