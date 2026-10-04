@@ -68,7 +68,21 @@ checked against the real repo, not what a plan says should exist.
   remember-me pair (unchecked → browser-session cookie + 12-hour server cap; ticked → 30 d / 90 d, 7 d for
   admins — **a shorter default than before, deliberately**). Record:
   `docs/development-history/phases/phase-0.5.A-design-language.md`.
-- **Everything else** (TOTP MFA, forgot-password, the Settings model, the rest of Core SIS + Finance
+- **Phase 0.5.B — Nonce-based script CSP**: **built and verified 2026-10-01, awaiting the maintainer's
+  review/merge** (branch `claude/csp-nonce`, stacked on `claude/design-tokens-shell`). `src/proxy.ts` gives
+  every page a fresh nonce and a strict policy (`script-src 'self' 'nonce-…' 'strict-dynamic'`, no
+  `unsafe-inline`; `upgrade-insecure-requests` only when `APP_URL` is https); the API gets a static
+  `default-src 'none'`; `CSP_REPORT_ONLY=true` is the live-deployment valve. A new auto test fixture fails any
+  browser test during which the browser reports a violation — so the whole suite is a CSP test. 11 injected
+  bugs all caught. Record: `docs/development-history/phases/phase-0.5.B-csp.md`.
+- **Phase 0.5.C — Password reset and change**: **built and verified 2026-10-04, awaiting review/merge** (branch
+  `claude/password-reset`, stacked on `claude/csp-nonce`). Forgot-password (identical answer whether or not the
+  account exists; link in the URL fragment, hashed, single-use, 30 min), reset (signs out everywhere, never signs
+  in), change-password on the Account page (current password re-verified, other devices signed out), one shared
+  password rule, email via Resend/console/file, the sign-in screen's "Forgot password?" link. 18 injected bugs all
+  caught. Record: `docs/development-history/phases/phase-0.5.C-password-reset.md`. **Ops note:** set
+  `RESEND_API_KEY` and `EMAIL_FROM` (a Resend-verified domain) before relying on it in production.
+- **Everything else** (TOTP MFA, the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
   `domain-implementation-plan.md`'s Phase 0.5.2 once it's written.
@@ -121,11 +135,11 @@ the record. In short:
 
 ## Next action
 
-**Hand Phase 0.5.1.6 (the sync above) and then Phase 0.5.A (the design language and shell) to the
-maintainer for review and merge** — the second is stacked on the first.
+**Hand Phase 0.5.1.6 (the sync above), then 0.5.A (the design language and shell), then 0.5.B (the CSP) to the
+maintainer for review and merge** — each is stacked on the one before.
 
 Then, in order: the rest of the **Phase 0.5 addenda** — each designed in `domain-implementation-plan.md`
-first and built in *both* repos — **0.5.B** the nonce-based script CSP, **0.5.C** password reset and
+first and built in *both* repos — ~~**0.5.B** the nonce-based script CSP~~ (done), **0.5.C** password reset and
 change, **0.5.D** TOTP MFA (the account page already has a place for the last two); then Phase 0.5.2
 (School Settings), which is designed in the plan — **not implemented yet**, waiting on confirmation before
 any code, per the design-first rule this document follows. (The shell's *Settings* entry is a visible
