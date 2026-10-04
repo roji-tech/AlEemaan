@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { ROLE_LABELS } from "@/lib/roles";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { Card } from "@/components/ui/Card";
 
 export const metadata: Metadata = { title: "Account" };
 export const dynamic = "force-dynamic";
 
 // "Profile" in the account menu leads here. It shows what the system knows about the signed-in person —
-// read-only for now. The security controls (change password, two-step verification, active devices) get
-// their own cards on this page as they are built (plan §0.5.C / §0.5.D).
+// plus the Password card (§0.5.C). Two-step verification (§0.5.D) and active devices get their own cards
+// as they are built.
 export default async function AccountPage() {
   const { session, memberships } = await requirePageSession();
   const { name, email } = session.user;
@@ -46,6 +47,12 @@ export default async function AccountPage() {
             ))}
           </ul>
         )}
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-semibold text-fg">Password</h2>
+        <p className="mt-1 text-sm text-fg-muted">Changing it signs you out of every other device.</p>
+        <ChangePasswordForm />
       </Card>
     </div>
   );

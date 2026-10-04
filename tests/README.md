@@ -72,6 +72,7 @@ in the app.
   violation on a phone — scope it (`getByRole("main")`). Inside the app shell the same page has a
   sidebar (or tab bar), a breadcrumb and an account menu: name the landmark (`getByRole("navigation",
   { name: "Main" })`) rather than searching the whole page.
+- **The inbox.** The servers run with `EMAIL_TRANSPORT=file`; every message they send is a JSON line in `tests/.tmp/outbox.jsonl`. `support/outbox.ts` reads it (`waitForMail(to)`, `mailAfterGrace(to)` for "nothing was sent", `tokenFrom`/`linkFrom`). Mail goes out *after* the HTTP response, so poll; use a unique address per test and tests never see each other's mail.
 - **Every browser test is a CSP test.** The auto `csp` fixture (`support/fixtures.ts`) records every `securitypolicyviolation` and fails the test if any occurred. A test that *provokes* one calls `csp.take()`, which returns and clears them. To test markup injection, splice the payload into the real server response with `page.route` — not `page.evaluate(createElement("script"))`: `'strict-dynamic'` trusts script made by trusted script and DevTools-evaluated code is exempt, so that "attack" simply runs.
 - **Both themes, every time.** `checkScreen()` in `responsive-and-a11y.spec.ts` runs axe and the
   overflow check in the dark *and* the light theme (flipping `data-theme` — the colours are CSS

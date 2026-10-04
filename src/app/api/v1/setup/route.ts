@@ -6,8 +6,8 @@ import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
 import { reserveAttempt, refundAttempt, getClientIp } from "@/lib/auth/rate-limit";
-import { hashPassword, PASSWORD_MAX_LENGTH, PASSWORD_MAX_BYTES } from "@/lib/auth/password";
-import { passwordByteLength } from "@/lib/auth/password-policy";
+import { hashPassword } from "@/lib/auth/password";
+import { checkNewPassword } from "@/lib/auth/password-policy";
 
 // The four legacy sections, unified into one school (PRD §3). Seeded once,
 // here, rather than asked for in the form — this is a known, fixed fact
@@ -22,17 +22,10 @@ const INITIAL_BRANCHES = [
 const setupSchema = z.object({
   name: z.string().trim().min(1, "Administrator name is required"),
   email: z.string().trim().email("Valid email address is required").toLowerCase(),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters long")
-    .max(PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} characters long`)
-    // bcrypt ignores everything past byte 72 — reject rather than silently truncate
-    // (§0.5.1.6). Login is NOT tightened: it must keep accepting what existing accounts were set to.
-    .refine((value) => passwordByteLength(value) <= PASSWORD_MAX_BYTES, {
-      message: `Password must be at most ${PASSWORD_MAX_BYTES} bytes long (${PASSWORD_MAX_BYTES} characters; fewer if it contains emoji or non-Latin letters)`,
-    })
-    .regex(/[a-zA-Z]/, "Password must contain at least one letter")
-    .regex(/\d/, "Password must contain at least one number"),
+  password: z.string().superRefine((value, ctx) => {
+    const problem = checkNewPassword(value); // the one shared rule (setup, reset, change)
+    if (problem) ctx.addIssue({ code: "custom", message: problem });
+  }),
   setupToken: z.string().optional(),
 });
 
