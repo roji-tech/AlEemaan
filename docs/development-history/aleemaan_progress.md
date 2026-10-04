@@ -75,7 +75,14 @@ checked against the real repo, not what a plan says should exist.
   `default-src 'none'`; `CSP_REPORT_ONLY=true` is the live-deployment valve. A new auto test fixture fails any
   browser test during which the browser reports a violation — so the whole suite is a CSP test. 11 injected
   bugs all caught. Record: `docs/development-history/phases/phase-0.5.B-csp.md`.
-- **Everything else** (TOTP MFA, forgot-password, the Settings model, the rest of Core SIS + Finance
+- **Phase 0.5.C — Password reset and change**: **built and verified 2026-10-04, awaiting review/merge** (branch
+  `claude/password-reset`, stacked on `claude/csp-nonce`). Forgot-password (identical answer whether or not the
+  account exists; link in the URL fragment, hashed, single-use, 30 min), reset (signs out everywhere, never signs
+  in), change-password on the Account page (current password re-verified, other devices signed out), one shared
+  password rule, email via Resend/console/file, the sign-in screen's "Forgot password?" link. 18 injected bugs all
+  caught. Record: `docs/development-history/phases/phase-0.5.C-password-reset.md`. **Ops note:** set
+  `RESEND_API_KEY` and `EMAIL_FROM` (a Resend-verified domain) before relying on it in production.
+- **Everything else** (TOTP MFA, the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
   `domain-implementation-plan.md`'s Phase 0.5.2 once it's written.
