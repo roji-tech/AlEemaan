@@ -3,17 +3,21 @@ import { requirePageSession } from "@/lib/auth/page-session";
 import { ROLE_LABELS } from "@/lib/roles";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
+import { TwoStepPanel } from "@/components/auth/TwoStepPanel";
+import { mfaConfigured } from "@/lib/auth/mfa/secret-box";
+import { getMfaStatus } from "@/lib/auth/mfa/service";
 import { Card } from "@/components/ui/Card";
 
 export const metadata: Metadata = { title: "Account" };
 export const dynamic = "force-dynamic";
 
 // "Profile" in the account menu leads here. It shows what the system knows about the signed-in person —
-// plus the Password card (§0.5.C). Two-step verification (§0.5.D) and active devices get their own cards
-// as they are built.
+// plus the Password card (§0.5.C) and the Two-step verification card (§0.5.D). Active devices gets its own
+// card when it is built.
 export default async function AccountPage() {
   const { session, memberships } = await requirePageSession();
   const { name, email } = session.user;
+  const mfa = await getMfaStatus(session.userId);
 
   return (
     <div className="space-y-8">
@@ -53,6 +57,18 @@ export default async function AccountPage() {
         <h2 className="text-lg font-semibold text-fg">Password</h2>
         <p className="mt-1 text-sm text-fg-muted">Changing it signs you out of every other device.</p>
         <ChangePasswordForm />
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-semibold text-fg">Two-step verification</h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          Protect your account with a code from an authenticator app, as well as your password.
+        </p>
+        <TwoStepPanel
+          available={mfaConfigured()}
+          enabled={mfa.enabled}
+          recoveryCodesRemaining={mfa.recoveryCodesRemaining}
+        />
       </Card>
     </div>
   );
