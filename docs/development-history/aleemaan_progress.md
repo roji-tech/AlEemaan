@@ -92,6 +92,15 @@ checked against the real repo, not what a plan says should exist.
   `pnpm mfa:reset -- <email>` is the operator's way back in. 641 tests pass; 49 injected bugs, all caught. Record:
   `docs/development-history/phases/phase-0.5.D-totp-mfa.md`. **Ops note:** set `MFA_ENCRYPTION_KEY`
   (`openssl rand -base64 32`) on the live server before deploying, and keep a copy outside the database backups.
+- **Phase 0.5.F — Dev email inbox**: **built and verified 2026-10-05, awaiting review/merge** (branch
+  `claude/dev-email-inbox`, stacked on `claude/totp-mfa`). A fourth email transport, `inbox`, keeps the last 50
+  messages in process memory and an in-app widget (bottom-right launcher, unread badge, text bodies, clickable
+  links) shows them — reset links and security notices become readable locally and on a staging deploy with no mail
+  provider. One fail-closed gate, `devToolsAccess()` (`APP_ENV` + `DEV_TOOLS` + a staging token; **never in
+  production** — the maintainer's guide used `VERCEL_ENV`, which would have been open on this self-hosted
+  deployment). 715 tests pass; 30 injected bugs, all caught. Record:
+  `docs/development-history/phases/phase-0.5.F-dev-email-inbox.md`. **Ops note:** nothing to set for the live
+  school; for a staging deploy set `APP_ENV=staging`, `DEV_TOOLS=true` and a long random `DEV_TOOLS_TOKEN`.
 - **Everything else** (the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
@@ -146,12 +155,11 @@ the record. In short:
 ## Next action
 
 **Phases 0.5.1.6 (the sync) and 0.5.A (design language and shell) are merged** (`roji-tech/AlEemaan` #2, #3).
-**#4 (0.5.B, the CSP) and #5 (0.5.C, password reset) are open**, stacked; **0.5.D is pushed on `claude/totp-mfa`**
-(based on 0.5.C) with no PR yet.
+**#4 (0.5.B, the CSP), #5 (0.5.C, password reset) and #6 (0.5.D, TOTP) are open**, stacked; **0.5.F is pushed on
+`claude/dev-email-inbox`** (based on 0.5.D), no PR yet.
 
-Then, in order: **0.5.F** the dev email inbox (planned in the plan doc, adapted from the maintainer's guide — its
-`VERCEL_ENV` gate would be *open* on this self-hosted deployment, so ours fails closed), **0.5.E** the
-account-lifecycle extras (planned), then Phase 0.5.2 (School Settings), which is designed in the plan —
+Then, in order: **0.5.E** the account-lifecycle extras (planned; the dev email inbox, 0.5.F, is built — the Paystack
+half of the maintainer's guide waits for Finance), then Phase 0.5.2 (School Settings), which is designed in the plan —
 **not implemented yet**, waiting on confirmation before any code, per the design-first rule this document follows.
 (The shell's *Settings* entry is a visible "Soon" until then.)
 
