@@ -82,7 +82,26 @@ checked against the real repo, not what a plan says should exist.
   password rule, email via Resend/console/file, the sign-in screen's "Forgot password?" link. 18 injected bugs all
   caught. Record: `docs/development-history/phases/phase-0.5.C-password-reset.md`. **Ops note:** set
   `RESEND_API_KEY` and `EMAIL_FROM` (a Resend-verified domain) before relying on it in production.
-- **Everything else** (TOTP MFA, the Settings model, the rest of Core SIS + Finance
+- **Phase 0.5.D — TOTP two-step verification**: **built and verified 2026-10-05, awaiting review/merge** (branch
+  `claude/totp-mfa`, stacked on `claude/password-reset`). Sign-in is two steps for anyone with an *active* second
+  factor: the password yields a short-lived, attempt-limited challenge and **no session**; a code (RFC 6238, our own
+  implementation, checked against the RFCs' vectors) or a recovery code at `POST /api/v1/auth/login/mfa` is the only
+  thing that then creates one. Secrets are AES-256-GCM-encrypted under `MFA_ENCRYPTION_KEY`, recovery codes
+  keyed-hashed, every "use it once" rule a conditional update (ten simultaneous uses of one code: one winner). The
+  Account page has the Two-step verification card (QR drawn in the browser; recovery codes with Copy/Download);
+  `pnpm mfa:reset -- <email>` is the operator's way back in. 641 tests pass; 49 injected bugs, all caught. Record:
+  `docs/development-history/phases/phase-0.5.D-totp-mfa.md`. **Ops note:** set `MFA_ENCRYPTION_KEY`
+  (`openssl rand -base64 32`) on the live server before deploying, and keep a copy outside the database backups.
+- **Phase 0.5.F — Dev email inbox**: **built and verified 2026-10-05, awaiting review/merge** (branch
+  `claude/dev-email-inbox`, stacked on `claude/totp-mfa`). A fourth email transport, `inbox`, keeps the last 50
+  messages in process memory and an in-app widget (bottom-right launcher, unread badge, text bodies, clickable
+  links) shows them — reset links and security notices become readable locally and on a staging deploy with no mail
+  provider. One fail-closed gate, `devToolsAccess()` (`APP_ENV` + `DEV_TOOLS` + a staging token; **never in
+  production** — the maintainer's guide used `VERCEL_ENV`, which would have been open on this self-hosted
+  deployment). 715 tests pass; 30 injected bugs, all caught. Record:
+  `docs/development-history/phases/phase-0.5.F-dev-email-inbox.md`. **Ops note:** nothing to set for the live
+  school; for a staging deploy set `APP_ENV=staging`, `DEV_TOOLS=true` and a long random `DEV_TOOLS_TOKEN`.
+- **Everything else** (the Settings model, the rest of Core SIS + Finance
   per the PRD's MVP feature-reconciliation matrix, the public-site CMS, data migration from the 4
   Firestore projects): **0% — not started.** Settings is being designed next (not built) — see
   `domain-implementation-plan.md`'s Phase 0.5.2 once it's written.
@@ -135,15 +154,14 @@ the record. In short:
 
 ## Next action
 
-**Hand Phase 0.5.1.6 (the sync above), then 0.5.A (the design language and shell), then 0.5.B (the CSP) to the
-maintainer for review and merge** — each is stacked on the one before.
+**Phases 0.5.1.6 (the sync) and 0.5.A (design language and shell) are merged** (`roji-tech/AlEemaan` #2, #3).
+**#4 (0.5.B, the CSP), #5 (0.5.C, password reset) and #6 (0.5.D, TOTP) are open**, stacked; **0.5.F is pushed on
+`claude/dev-email-inbox`** (based on 0.5.D), no PR yet.
 
-Then, in order: the rest of the **Phase 0.5 addenda** — each designed in `domain-implementation-plan.md`
-first and built in *both* repos — ~~**0.5.B** the nonce-based script CSP~~ (done), **0.5.C** password reset and
-change, **0.5.D** TOTP MFA (the account page already has a place for the last two); then Phase 0.5.2
-(School Settings), which is designed in the plan — **not implemented yet**, waiting on confirmation before
-any code, per the design-first rule this document follows. (The shell's *Settings* entry is a visible
-"Soon" until then.)
+Then, in order: **0.5.E** the account-lifecycle extras (planned; the dev email inbox, 0.5.F, is built — the Paystack
+half of the maintainer's guide waits for Finance), then Phase 0.5.2 (School Settings), which is designed in the plan —
+**not implemented yet**, waiting on confirmation before any code, per the design-first rule this document follows.
+(The shell's *Settings* entry is a visible "Soon" until then.)
 
 `domain-implementation-plan.md` now also has a full **Phase 1 → 7 (+ 0.5.3) roadmap** (2026-09-28,
 revised same day), breaking what was one vague "Phase 1 (Core SIS + Finance)" bullet into 7
