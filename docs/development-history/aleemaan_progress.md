@@ -166,11 +166,9 @@ email (`RESEND_API_KEY` + `EMAIL_FROM`) for an address change.
 
 ## Next action
 
-**Phases 0.5.1.6 (the sync), 0.5.A (design language and shell), 0.5.B (CSP) and 0.5.C (password reset) are merged.** What is
-still open is **[#7](https://github.com/roji-tech/AlEemaan/pull/7)** (base `master`, head `claude/dev-email-inbox`), which carries
-0.5.D (TOTP) and 0.5.F (dev email inbox) — the earlier stacked PRs #4–#6 were merged into their stack bases and never reached
-`master`, so they were closed and consolidated. **0.5.E (self-service) is pushed on `claude/account-self-service`** (based on
-0.5.F), no PR yet.
+**Phases 0.5.1.6 (the sync) and 0.5.A–0.5.F are merged to `master`** (the stacked PRs #4–#6 were merged into their stack bases rather
+than `master`, so they were consolidated into #7, which landed). **0.5.E (self-service) is open as
+[#8](https://github.com/roji-tech/AlEemaan/pull/8)** (base `master`, head `claude/account-self-service`).
 
 Then, in order: Phase 0.5.2 (School Settings), which is designed in the plan — **not implemented yet**, waiting on confirmation
 before any code, per the design-first rule this document follows — and the Users pages that finish 0.5.E (invite & activate,
