@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { ROLE_LABELS } from "@/lib/roles";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { ChangeEmailPanel } from "@/components/auth/ChangeEmailPanel";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
+import { ProfileDetails } from "@/components/auth/ProfileDetails";
+import { SessionsPanel } from "@/components/auth/SessionsPanel";
 import { TwoStepPanel } from "@/components/auth/TwoStepPanel";
 import { mfaConfigured } from "@/lib/auth/mfa/secret-box";
 import { getMfaStatus } from "@/lib/auth/mfa/service";
@@ -11,9 +14,9 @@ import { Card } from "@/components/ui/Card";
 export const metadata: Metadata = { title: "Account" };
 export const dynamic = "force-dynamic";
 
-// "Profile" in the account menu leads here. It shows what the system knows about the signed-in person —
-// plus the Password card (§0.5.C) and the Two-step verification card (§0.5.D). Active devices gets its own
-// card when it is built.
+// "Profile" in the account menu leads here. It shows what the system knows about the signed-in person and lets
+// them change it: the Profile card (editable name), Email address (§0.5.E), Password (§0.5.C), Two-step
+// verification (§0.5.D) and Active sessions (§0.5.E).
 export default async function AccountPage() {
   const { session, memberships } = await requirePageSession();
   const { name, email } = session.user;
@@ -25,16 +28,7 @@ export default async function AccountPage() {
 
       <Card>
         <h2 className="text-lg font-semibold text-fg">Profile</h2>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="min-w-0">
-            <dt className="text-xs font-semibold tracking-wide text-fg-muted uppercase">Name</dt>
-            <dd className="mt-1 truncate text-sm text-fg">{name?.trim() || "—"}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-xs font-semibold tracking-wide text-fg-muted uppercase">Email</dt>
-            <dd className="mt-1 truncate text-sm text-fg">{email ?? "—"}</dd>
-          </div>
-        </dl>
+        <ProfileDetails name={name} email={email} />
       </Card>
 
       <Card>
@@ -54,6 +48,12 @@ export default async function AccountPage() {
       </Card>
 
       <Card>
+        <h2 className="text-lg font-semibold text-fg">Email address</h2>
+        <p className="mt-1 text-sm text-fg-muted">It&apos;s what you sign in with, and where password reset links go.</p>
+        <ChangeEmailPanel email={email} />
+      </Card>
+
+      <Card>
         <h2 className="text-lg font-semibold text-fg">Password</h2>
         <p className="mt-1 text-sm text-fg-muted">Changing it signs you out of every other device.</p>
         <ChangePasswordForm />
@@ -69,6 +69,14 @@ export default async function AccountPage() {
           enabled={mfa.enabled}
           recoveryCodesRemaining={mfa.recoveryCodesRemaining}
         />
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-semibold text-fg">Active sessions</h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          Where you&apos;re signed in. If you don&apos;t recognise one, sign it out and change your password.
+        </p>
+        <SessionsPanel />
       </Card>
     </div>
   );

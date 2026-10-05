@@ -1,6 +1,6 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-09-30 (auth rebuilt against the hardened shared design, then synced to Octalve Edu's
+Last Updated: 2026-10-05 (auth rebuilt against the hardened shared design, then synced to Octalve Edu's
 built-and-verified implementation — see "Synced to Octalve Edu's verified auth" below; repo
 https://github.com/roji-tech/AlEemaan, public)
 
@@ -152,16 +152,29 @@ the record. In short:
 - **New:** `/login`, `/dashboard`, `/` router, retrofitted `/setup`; the test suite.
 - **Read `tests/README.md` before touching auth or these screens, and run `pnpm test` before a PR.**
 
+## Account self-service build (2026-10-05) — built and verified, stacked again
+
+Design: plan §0.5.E ("Design for the self-service half" + "As built"). Record: `phases/phase-0.5.E-account-self-service.md`.
+Branch `claude/account-self-service`, **based on `claude/dev-email-inbox`**. Ported from Octalve Edu by reading the raw diff
+(the shared files apply byte-for-byte; the differences are the audit — one row per event — the account page inside the app
+shell, and the cookie name). A signed-in person can **edit their name**, **change their email address** (current password
+re-checked; a single-use, hashed, one-hour link to the *new* address, the old one told; confirming switches the address in one
+transaction and signs the person out everywhere) and **see and end their active sessions**. The request answers identically for
+a free and a taken address, and the emailed page waits for a click. 833 tests pass; a 25-bug subset of Octalve Edu's 78 injected
+bugs was re-run here, all caught. One additive migration (`EmailChangeToken`) — safe for the live school's database. Needs working
+email (`RESEND_API_KEY` + `EMAIL_FROM`) for an address change.
+
 ## Next action
 
-**Phases 0.5.1.6 (the sync) and 0.5.A (design language and shell) are merged** (`roji-tech/AlEemaan` #2, #3).
-**#4 (0.5.B, the CSP), #5 (0.5.C, password reset) and #6 (0.5.D, TOTP) are open**, stacked; **0.5.F is pushed on
-`claude/dev-email-inbox`** (based on 0.5.D), no PR yet.
+**Phases 0.5.1.6 (the sync), 0.5.A (design language and shell), 0.5.B (CSP) and 0.5.C (password reset) are merged.** What is
+still open is **[#7](https://github.com/roji-tech/AlEemaan/pull/7)** (base `master`, head `claude/dev-email-inbox`), which carries
+0.5.D (TOTP) and 0.5.F (dev email inbox) — the earlier stacked PRs #4–#6 were merged into their stack bases and never reached
+`master`, so they were closed and consolidated. **0.5.E (self-service) is pushed on `claude/account-self-service`** (based on
+0.5.F), no PR yet.
 
-Then, in order: **0.5.E** the account-lifecycle extras (planned; the dev email inbox, 0.5.F, is built — the Paystack
-half of the maintainer's guide waits for Finance), then Phase 0.5.2 (School Settings), which is designed in the plan —
-**not implemented yet**, waiting on confirmation before any code, per the design-first rule this document follows.
-(The shell's *Settings* entry is a visible "Soon" until then.)
+Then, in order: Phase 0.5.2 (School Settings), which is designed in the plan — **not implemented yet**, waiting on confirmation
+before any code, per the design-first rule this document follows — and the Users pages that finish 0.5.E (invite & activate,
+deactivation). (The shell's *Settings* entry is a visible "Soon" until then.)
 
 `domain-implementation-plan.md` now also has a full **Phase 1 → 7 (+ 0.5.3) roadmap** (2026-09-28,
 revised same day), breaking what was one vague "Phase 1 (Core SIS + Finance)" bullet into 7
