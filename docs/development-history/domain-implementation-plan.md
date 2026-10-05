@@ -17,6 +17,11 @@ which is itself the gap this file starts closing: from here on, a phase gets des
 
 ## Phase 0.5.1 — Minimal Auth (Credentials + Database Sessions) & Branch Management
 
+> **HISTORICAL — read §0.5.1.5 and §0.5.1.6 below for what exists now.** §0.5.1.1–0.5.1.4 describe the *first* build, which used
+> Auth.js (`next-auth`, `@auth/prisma-adapter`, `src/auth.ts`, `src/app/api/auth/[...nextauth]`). All of that was **deleted** on
+> 2026-09-30: auth is hand-rolled (`src/lib/auth/session.ts`, hashed session tokens). Nothing in this repo imports Auth.js any more. The
+> text is kept because it records *why* (Auth.js v5 refuses `Credentials` + database sessions), not because it describes the code.
+
 Two things forced together into one phase: branch management needs *some* way to know "is this
 caller an admin," and nothing beyond the setup wizard's one-time bootstrap currently authenticates
 anyone at all. Building a real login is the smallest correct prerequisite — not a throwaway stand-in,
@@ -1012,14 +1017,42 @@ everything above being schema-stable, for obvious reasons.
 
 ## Next action
 
-**Phase 0.5.1.6 (the sync to Octalve Edu's verified auth) is built and verified — hand it to the
-maintainer for review and merge** (`claude/octalve-auth-sync`; see
-`phases/phase-0.5.1.6-octalve-sync.md`). Nothing else depends on it being merged first.
+**State (2026-10-05):** everything through **0.5.F is merged to `master`** — the auth sync (0.5.1.6), 0.5.A–0.5.D, 0.5.E
+(account self-service, PR #8) and 0.5.F (dev inbox). Nothing is awaiting merge. `aleemaan_progress.md` is the live tracker.
 
-Then: Phase 0.5.2 (School Settings) is designed and ready to implement directly from its section above —
-still waiting on confirmation before writing code, per the design-first rule. Next in sequence after
-that: **Phase 1 (Academic Structure)**, since it's the actual dependency root every later phase reads
-from — schema modelling comes before the auth-completion slice (0.5.3), which was originally placed
-first but doesn't belong on the critical path (see the roadmap's dependency-shape note). Any new
-`withAuth` route ships with API tests (401 / 403 / CSRF) — `tests/README.md` says how; TOTP MFA and
-`permissions` gating (§1.7) must be built in **both** repos together.
+**Remaining in Phase 0.5, in this order:**
+1. **0.5.G — Shared API infrastructure, ported from Octalve Edu** (new — see "Cross-repo review" below): pagination helpers, the `validate()`
+   wrapper, the breached-password check, and the `Dialog` / `SelectField` primitives. A prerequisite of the next item, not a feature.
+2. **Users pages and invitations** (finishes 0.5.E: invite & activate, change role / branch / permissions, deactivate) — a port of
+   Octalve Edu's 0.5.4, read from the raw diff, **after** that phase has had its mutation pass there.
+3. **0.5.2 School Settings** — designed above, **not implemented, waiting on the maintainer's go-ahead** (do not start it unprompted).
+
+Then **Phase 1 (Academic Structure)**, the dependency root every later phase reads from. Any new `withAuth` route ships with API tests
+(401 / 403 / CSRF) — `tests/README.md` says how. `permissions` gating (§1.7): AlEemaan already has the `Permission` enum and
+`Membership.permissions`; Octalve Edu wires `withAuth` to them first (its Phase 1.0), and this repo ports that straight after — the earlier
+"built in both repos together" promise (§0.5.1.6 item 1) is honoured by porting immediately, not by waiting.
+
+### Cross-repo review (2026-10-05) — what is shared, what is not, and open points
+
+**The rule behind every divergence:** Octalve Edu is a *product* (generic, multi-tenant, many kinds of school: configurable models,
+tenant isolation is the core risk). AlEemaan is *one live school replacing a real legacy system* (four branches, Arabic two-term and
+English three-term calendars, the WAEC scale, real records to migrate; the core risk is live data and legacy behaviour staff rely on).
+**Share mechanisms** (auth, session, shell, CSRF, validation, pagination, the Users/invitation flow). **Do not share domain models**
+(`SchoolType`, billing-cycle toggles, per-tenant settings) — AlEemaan's come from `legacy-feature-inventory.md`.
+
+| Piece | Octalve Edu | AlEemaan | Why |
+| :-- | :-- | :-- | :-- |
+| Tenant boundary, RLS, `app_user` role, SaaS server | yes | **no** | one school; an optional later hardening is a restricted runtime DB role and an append-only `AuditLog` |
+| Redis rate-limit store | yes (multi-instance) | **no** — in-memory is sufficient (one process) | "persistent" limiting here means *surviving a restart*, a different need (see below) |
+| Finance | gateway + mock Paystack | **manual**, no gateway (PRD §7) | legacy gates results on a bare `hasPaid` boolean |
+| `SchoolSettings` | per tenant, with toggles, `tenantId` PK | one row `id = "global"`, school info only | one school |
+| Phase / sub-phase numbers | "Phase 1" = Core SIS + Finance (1.0–1.8) | "Phase 1" = Academic Structure only (1.1–1.6) | **the same label means different things — always say which repo** |
+
+**Open design points** (to settle in the relevant phase's design pass, before its code):
+- **0.5.2 seed has no source.** The roadmap says the migration "seeds the row from the setup wizard's school name", but the wizard stores no
+  school name (`SystemSettings` holds only `setupComplete`; it seeds four `Branch` rows). `SchoolSettings.name` is non-null, so the design
+  must name the seed value explicitly — confirm the school's official name with the school rather than invent one.
+- **The roadmap's "0.5.3 — Auth completion" is partly done and partly contradictory.** Forgot-password shipped as 0.5.C. Its `LoginAttempt`
+  DB-backed limiter conflicts with §0.5.1.6 ("in-memory is sufficient"); decide whether *surviving a restart* matters before building it.
+  "Admin force-delete" overlaps the Users pages' *deactivate*: reconcile the two, with the legacy bug (accounts that could not be removed)
+  as the tiebreaker. Who may manage users (`ADMIN` only, as in Octalve Edu, or `CAN_MANAGE_USERS`) is also open.
