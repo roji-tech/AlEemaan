@@ -96,6 +96,12 @@ export function serverEnv(appUrl: string): Record<string, string> {
   };
 }
 
+/// The TLS-proxy deployment: the proxy sets X-Forwarded-Host, so the operator says to trust it (CSRF otherwise compares
+/// Origin with the internal Host and refuses every write — see src/lib/auth/csrf.ts).
+export function httpsServerEnv(): Record<string, string> {
+  return { ...serverEnv(HTTPS_URL), TRUST_FORWARDED_HOST: "true" };
+}
+
 /// The dev-tools server: staging mode, the token required, and NO EMAIL_TRANSPORT / RESEND_API_KEY — so mail
 /// goes where the app sends it by default in that mode: the in-memory dev inbox.
 export function devToolsServerEnv(): Record<string, string> {

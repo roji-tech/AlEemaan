@@ -8,6 +8,7 @@ import {
   HTTPS_URL,
   TLS_PORT,
   devToolsServerEnv,
+  httpsServerEnv,
   serverEnv,
 } from "./tests/support/env";
 
@@ -59,7 +60,7 @@ export default defineConfig({
       // The same build, told it is served over HTTPS (=> `__Host-` + Secure cookie)…
       command: `pnpm exec next start -p ${HTTPS_APP_PORT}`,
       url: `http://localhost:${HTTPS_APP_PORT}/favicon.ico`,
-      env: serverEnv(HTTPS_URL),
+      env: httpsServerEnv(),
       reuseExistingServer: false,
       timeout: 60_000,
     },
