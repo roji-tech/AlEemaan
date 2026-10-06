@@ -32,9 +32,7 @@ test.describe("GET /api/v1/auth/me", () => {
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect(res.json.error).toBeNull();
     expect(res.json.data.user).toEqual({ id: user.id, name: user.name, email: user.email });
-    expect(res.json.data.memberships).toEqual([
-      { branchId: user.branchId, branchName: "Secondary (English)", role: "ADMIN" },
-    ]);
+    expect(res.json.data.memberships).toEqual([{ branchId: user.branchId, branchName: "Secondary (English)", role: "ADMIN" }]);
     expect(res.text).not.toMatch(/passwordHash|tokenHash/);
   });
 

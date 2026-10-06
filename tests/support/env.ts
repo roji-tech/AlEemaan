@@ -57,9 +57,7 @@ function resolveTestDatabaseUrl(): string {
 }
 
 export const TEST_DATABASE_URL = resolveTestDatabaseUrl();
-export const TEST_DATABASE_NAME = decodeURIComponent(
-  new URL(TEST_DATABASE_URL).pathname.replace(/^\//, ""),
-);
+export const TEST_DATABASE_NAME = decodeURIComponent(new URL(TEST_DATABASE_URL).pathname.replace(/^\//, ""));
 
 // From here on, anything in this process that reads DATABASE_URL gets the test DB.
 process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -85,9 +83,7 @@ process.env.MFA_ENCRYPTION_KEY = TEST_MFA_KEY;
 /// Environment for the Next.js servers under test. Explicit and complete on
 /// purpose: nothing from a developer's shell or .env may change what is tested.
 export function serverEnv(appUrl: string): Record<string, string> {
-  const inherited = Object.fromEntries(
-    Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
-  );
+  const inherited = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   return {
     ...inherited,
     NODE_ENV: "production",

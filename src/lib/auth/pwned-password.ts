@@ -20,7 +20,10 @@ export const BREACHED_MESSAGE = "That password has appeared in a data breach. Ch
 const DEFAULT_URL = "https://api.pwnedpasswords.com/range/";
 const TIMEOUT_MS = 2_000;
 
-type Fetcher = (url: string, init: { headers: Record<string, string>; signal: AbortSignal }) => Promise<{ ok: boolean; text(): Promise<string> }>;
+type Fetcher = (
+  url: string,
+  init: { headers: Record<string, string>; signal: AbortSignal },
+) => Promise<{ ok: boolean; text(): Promise<string> }>;
 
 export async function isBreachedPassword(
   password: string,
@@ -36,7 +39,10 @@ export async function isBreachedPassword(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
   try {
-    const res = await fetcher(`${base}${prefix}`, { headers: { "Add-Padding": "true", "User-Agent": "aleemaan-password-check" }, signal: controller.signal });
+    const res = await fetcher(`${base}${prefix}`, {
+      headers: { "Add-Padding": "true", "User-Agent": "aleemaan-password-check" },
+      signal: controller.signal,
+    });
     if (!res.ok) return false;
     for (const line of (await res.text()).split(/\r?\n/)) {
       const [candidate, count] = line.trim().split(":");

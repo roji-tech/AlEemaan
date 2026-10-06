@@ -51,10 +51,7 @@ function recentCount(identifier: string): number {
 /// Reserve-then-refund: call this at the very start of the handler, before
 /// any slow async work, for every key that should gate the request. Returns
 /// false (reserving nothing further) the moment a key is already at its limit.
-export async function reserveAttempt(
-  identifier: string,
-  limit: number = DEFAULT_MAX_ATTEMPTS,
-): Promise<boolean> {
+export async function reserveAttempt(identifier: string, limit: number = DEFAULT_MAX_ATTEMPTS): Promise<boolean> {
   const count = recentCount(identifier);
   if (count >= limit) return false;
   const recent = attempts.get(identifier) ?? [];
@@ -74,10 +71,7 @@ export async function refundAttempt(identifier: string): Promise<void> {
 }
 
 /// Read-only check (does not reserve). Used for the soft per-account signal.
-export async function checkRateLimit(
-  identifier: string,
-  limit: number = DEFAULT_MAX_ATTEMPTS,
-): Promise<boolean> {
+export async function checkRateLimit(identifier: string, limit: number = DEFAULT_MAX_ATTEMPTS): Promise<boolean> {
   return recentCount(identifier) < limit;
 }
 
@@ -117,9 +111,7 @@ function nthFromRight(value: string, hops: number): string | null {
   return index >= 0 && index < parts.length ? parts[index] : null;
 }
 
-export function getClientIp(req: {
-  headers: { get(name: string): string | null };
-}): string {
+export function getClientIp(req: { headers: { get(name: string): string | null } }): string {
   const header = (process.env.CLIENT_IP_HEADER ?? "x-real-ip").toLowerCase();
   const raw = req.headers.get(header);
 

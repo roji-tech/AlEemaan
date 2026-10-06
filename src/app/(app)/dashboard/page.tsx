@@ -13,21 +13,10 @@ export const dynamic = "force-dynamic";
 
 const TILE = "rounded-2xl border border-line bg-surface p-5 shadow-card";
 
-function Stat({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string | number;
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-}) {
+function Stat({ label, value, icon: Icon }: { label: string; value: string | number; icon: ComponentType<SVGProps<SVGSVGElement>> }) {
   return (
     <li className={`${TILE} flex items-center gap-4`}>
-      <span
-        aria-hidden="true"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-fg"
-      >
+      <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-fg">
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
@@ -52,9 +41,7 @@ export default async function OverviewPage() {
         <PageHeader
           title={`Welcome, ${firstName}`}
           description={
-            memberships.length > 0
-              ? "Here are the branches you belong to."
-              : "You're signed in, but you aren't a member of any branch yet."
+            memberships.length > 0 ? "Here are the branches you belong to." : "You're signed in, but you aren't a member of any branch yet."
           }
         />
         {memberships.length === 0 ? (
@@ -119,9 +106,7 @@ export default async function OverviewPage() {
         </div>
 
         {branches.length === 0 ? (
-          <p className="mt-4 rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-            No branches yet.
-          </p>
+          <p className="mt-4 rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">No branches yet.</p>
         ) : (
           <ul className="mt-4 grid gap-4 sm:grid-cols-2">
             {branches.map((branch) => (

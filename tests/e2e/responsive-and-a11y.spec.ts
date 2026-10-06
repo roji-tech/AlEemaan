@@ -6,7 +6,17 @@ import { DEVTOOLS_URL, DEV_TOOLS_TEST_TOKEN } from "../support/env";
 import { linkFrom, waitForMail } from "../support/outbox";
 import { createEmailChangeToken } from "@/lib/auth/email-change";
 import { base32Decode } from "@/lib/auth/mfa/base32";
-import { alerts, codeField, fillCredentials, mfaHeading, passwordField, recoveryField, signInButton, signInThroughUi, verifyButton } from "./helpers";
+import {
+  alerts,
+  codeField,
+  fillCredentials,
+  mfaHeading,
+  passwordField,
+  recoveryField,
+  signInButton,
+  signInThroughUi,
+  verifyButton,
+} from "./helpers";
 
 // Runs on the desktop AND the phone project (see playwright.config.ts).
 //  - axe-core, WCAG 2.2 A/AA rules, on every screen and on the STATES that
@@ -49,7 +59,11 @@ async function expectComfortableTapTargets(page: Page, what: string, isMobile: b
       .filter(visible)
       .map((el) => {
         const r = el.getBoundingClientRect();
-        return { el: `${el.tagName.toLowerCase()}[${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.textContent?.trim().slice(0, 20)}]`, w: Math.round(r.width), h: Math.round(r.height) };
+        return {
+          el: `${el.tagName.toLowerCase()}[${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.textContent?.trim().slice(0, 20)}]`,
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        };
       })
       .filter((t) => t.w < 44 || t.h < 44);
   });
@@ -422,7 +436,11 @@ test.describe("account self-service screens (profile, email, sessions)", () => {
   const IPHONE_UA =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
-  test("/account: profile editor (idle, editing, error), email card (form, errors, sent), sessions (alone, with others)", async ({ page, isMobile, browser }) => {
+  test("/account: profile editor (idle, editing, error), email card (form, errors, sent), sessions (alone, with others)", async ({
+    page,
+    isMobile,
+    browser,
+  }) => {
     const user = await createUser({ role: Role.ADMIN, name: "Amina Yusuf" });
     await signInThroughUi(page, user);
     await page.goto("/account");
@@ -521,9 +539,27 @@ test.describe("dev email inbox widget (the staging-mode server)", () => {
     // A list and a message, with awkward lengths: a long address, a long subject, an unbroken link.
     const now = Date.now();
     const emails = [
-      { id: "a", to: "a-rather-long-address-for-a-person@some-school-with-a-long-domain-name.example.com", subject: "Reset your Octalve Edu password — and a subject long enough to need truncating in the list", text: "Someone asked to reset the password.\n\nOpen this link within 30 minutes:\nhttps://school.example.com/reset-password#token=aVeryLongTokenWithoutAnyBreaksInItAtAllAbcdefghijklmnopqrstuvwxyz0123456789\n\nIf you didn't ask, ignore this.", sentAt: new Date(now).toISOString() },
-      { id: "b", to: "teacher@school.example", subject: "Two-step verification is on for your account", text: "Two-step verification was just turned on.", sentAt: new Date(now - 60_000).toISOString() },
-      { id: "c", to: "admin@school.example", subject: "Your password was changed", text: "The password was changed.", sentAt: new Date(now - 120_000).toISOString() },
+      {
+        id: "a",
+        to: "a-rather-long-address-for-a-person@some-school-with-a-long-domain-name.example.com",
+        subject: "Reset your Octalve Edu password — and a subject long enough to need truncating in the list",
+        text: "Someone asked to reset the password.\n\nOpen this link within 30 minutes:\nhttps://school.example.com/reset-password#token=aVeryLongTokenWithoutAnyBreaksInItAtAllAbcdefghijklmnopqrstuvwxyz0123456789\n\nIf you didn't ask, ignore this.",
+        sentAt: new Date(now).toISOString(),
+      },
+      {
+        id: "b",
+        to: "teacher@school.example",
+        subject: "Two-step verification is on for your account",
+        text: "Two-step verification was just turned on.",
+        sentAt: new Date(now - 60_000).toISOString(),
+      },
+      {
+        id: "c",
+        to: "admin@school.example",
+        subject: "Your password was changed",
+        text: "The password was changed.",
+        sentAt: new Date(now - 120_000).toISOString(),
+      },
     ];
     await page.route("**/api/v1/dev/email-inbox", (route) =>
       route.request().method() === "GET"

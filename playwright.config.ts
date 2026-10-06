@@ -38,9 +38,7 @@ export default defineConfig({
   workers: 1,
   retries: 0, // a flaky test is a bug to fix, not to retry away
   forbidOnly: !!process.env.CI,
-  reporter: process.env.CI
-    ? [["list"], ["github"], ["html", { open: "never" }]]
-    : [["list"], ["html", { open: "never" }]],
+  reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : [["list"], ["html", { open: "never" }]],
   use: { trace: "retain-on-failure", screenshot: "only-on-failure" },
 
   webServer: [
