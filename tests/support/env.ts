@@ -25,7 +25,7 @@ export const DEVTOOLS_PORT = 3202;
 /// A FIFTH server, the only one with the breached-password check ON — pointed at a local stand-in for the public service
 /// (tests/support/pwned-stub.mjs), because nothing in the suite may talk to the real one.
 export const BREACH_PORT = 3203;
-export const PWNED_STUB_PORT = 3104;
+export const PWNED_STUB_PORT = 3204;
 export const DEV_TOOLS_TEST_TOKEN = "test-dev-tools-token-0123456789";
 
 export const HTTP_URL = `http://localhost:${HTTP_PORT}`;

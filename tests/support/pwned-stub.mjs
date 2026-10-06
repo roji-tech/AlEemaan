@@ -5,7 +5,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
 
-const port = Number(process.argv[2] ?? 3104);
+const port = Number(process.argv[2] ?? 3204);
 const BREACHED = ["Tr0ub4dor&3-but-leaked", "password1234!", "letmein-2024-school"];
 const sha1 = (v) => crypto.createHash("sha1").update(v).digest("hex").toUpperCase();
 const seen = [];
