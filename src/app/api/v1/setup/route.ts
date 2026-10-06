@@ -8,6 +8,7 @@ import { validateCSRF } from "@/lib/auth/csrf";
 import { reserveAttempt, refundAttempt, getClientIp } from "@/lib/auth/rate-limit";
 import { hashPassword } from "@/lib/auth/password";
 import { checkNewPassword } from "@/lib/auth/password-policy";
+import { isBreachedPassword, BREACHED_MESSAGE } from "@/lib/auth/pwned-password";
 
 // The four legacy sections, unified into one school (PRD §3). Seeded once,
 // here, rather than asked for in the form — this is a known, fixed fact
@@ -114,6 +115,12 @@ export async function POST(req: NextRequest) {
         "BAD_SETUP_TOKEN",
       );
     }
+  }
+
+  // The first administrator's password is the most valuable one on the install. (After the token check: an
+  // unauthenticated request with a wrong token must not make this server call out.)
+  if (await isBreachedPassword(password)) {
+    return fail(BREACHED_MESSAGE, 400, "VALIDATION");
   }
 
   try {

@@ -1,12 +1,16 @@
 import { defineConfig, devices } from "@playwright/test";
 import {
+  BREACH_PORT,
+  BREACH_URL,
   DEVTOOLS_PORT,
   DEVTOOLS_URL,
   HTTP_PORT,
   HTTP_URL,
   HTTPS_APP_PORT,
   HTTPS_URL,
+  PWNED_STUB_PORT,
   TLS_PORT,
+  breachServerEnv,
   devToolsServerEnv,
   httpsServerEnv,
   serverEnv,
@@ -53,6 +57,20 @@ export default defineConfig({
       command: `pnpm exec next start -p ${DEVTOOLS_PORT}`,
       url: `${DEVTOOLS_URL}/favicon.ico`,
       env: devToolsServerEnv(),
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      // The breached-password stand-in (see tests/support/pwned-stub.mjs), then the one server that asks it.
+      command: `node tests/support/pwned-stub.mjs ${PWNED_STUB_PORT}`,
+      url: `http://127.0.0.1:${PWNED_STUB_PORT}/__requests`,
+      reuseExistingServer: false,
+      timeout: 20_000,
+    },
+    {
+      command: `pnpm exec next start -p ${BREACH_PORT}`,
+      url: `${BREACH_URL}/favicon.ico`,
+      env: breachServerEnv(),
       reuseExistingServer: false,
       timeout: 60_000,
     },
