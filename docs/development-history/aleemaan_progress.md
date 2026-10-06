@@ -171,7 +171,7 @@ than `master`, so they were consolidated into #7, which landed). **0.5.E (self-s
 ([#9](https://github.com/roji-tech/AlEemaan/pull/9)). Nothing is awaiting merge.
 
 Then, in order (2026-10-05, after a cross-repo plan review — see the plan's "Cross-repo review"): **(1)** the shared API infrastructure
-ported from Octalve Edu (pagination, `validate()`, breached-password check, `Dialog`/`SelectField`) — a prerequisite, not a feature;
+ported from Octalve Edu (**0.5.G**: pagination, `validate()`, breached-password check, plus a CSRF hardening fix — `Dialog`/`SelectField` move with the Users pages that use them) — a prerequisite, not a feature;
 **(2)** the Users pages that finish 0.5.E (invite & activate, deactivation), ported from Octalve Edu's 0.5.4 after it has had its mutation
 pass; **(3)** Phase 0.5.2 (School Settings), designed in the plan — **not implemented yet**, waiting on the maintainer's go-ahead before
 any code, per the design-first rule this document follows. (The shell's *Settings* entry is a visible "Soon" until then.) The Redis rate-limit
