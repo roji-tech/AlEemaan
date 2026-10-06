@@ -58,6 +58,10 @@ const server = https.createServer(
     headers["x-forwarded-for"] = peer;
     headers["x-forwarded-proto"] = "https";
     headers["x-forwarded-host"] = req.headers.host ?? "";
+    // A proxy that REWRITES Host to the upstream's own address (nginx's default `proxy_set_header Host $proxy_host`) — the very
+    // deployment CSRF's TRUST_FORWARDED_HOST exists for. Passing Host through untouched made that setting dead weight in the test
+    // (found by mutation C10): the HTTPS server survived without it.
+    headers.host = `127.0.0.1:${upstreamPort}`;
 
     const upstream = http.request(
       { host: "127.0.0.1", port: upstreamPort, method: req.method, path: req.url, headers },

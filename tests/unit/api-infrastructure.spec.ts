@@ -6,6 +6,7 @@ import {
   DEFAULT_LIMIT, MAX_LIMIT, MAX_PAGE, cursorMeta, decodeCursor, encodeCursor, offsetMeta, parseCursorPagination, parseOffsetPagination,
 } from "@/lib/api/pagination";
 import { MAX_BODY_BYTES, validate } from "@/lib/api/validate";
+import { fail } from "@/lib/api/envelope";
 
 // Pagination and validation helpers (plan §0.5.G, ported from Octalve Edu §0.5.3 A): strict on purpose — a malformed parameter is a 400 that names
 // the field, never silently clamped or "first value wins".
@@ -94,6 +95,10 @@ test.describe("cursor pagination", () => {
     expect(parseCursorPagination(q("after=garbage"))).toMatchObject({ ok: false, issues: [{ path: "after" }] });
     expect(parseCursorPagination(q(`after=${after}&after=${after}`))).toMatchObject({ ok: false, issues: [{ path: "after" }] });
     expect(parseCursorPagination(q("limit=0"))).toMatchObject({ ok: false, issues: [{ path: "limit" }] });
+    // the cap, at its edge and over it, and a route-specific cap (found by mutation P15: the cursor form had lost its ceiling)
+    expect(parseCursorPagination(q(`limit=${MAX_LIMIT}`))).toMatchObject({ ok: true, limit: MAX_LIMIT });
+    expect(parseCursorPagination(q(`limit=${MAX_LIMIT + 1}`))).toMatchObject({ ok: false, issues: [{ path: "limit" }] });
+    expect(parseCursorPagination(q("limit=21"), { defaultLimit: 10, maxLimit: 20 })).toMatchObject({ ok: false });
   });
 
   test("cursorMeta: the extra row says 'there is more' and is not returned; the last page has no cursor", () => {
@@ -190,5 +195,15 @@ test.describe("validate()", () => {
     expect((await run(onlyQuery as never, request({ query: "q=a" }))).json).toEqual({ query: { q: "a" } });
     const onlyBody = validate({ body: bodySchema }, async (_r, _a: unknown, _c: unknown, input) => Response.json(input));
     expect((await run(onlyBody as never, request({ body: JSON.stringify({ name: "n" }), query: "q=whatever&evil=1" }))).json).toEqual({ body: { name: "n" } });
+  });
+});
+
+test.describe("fail() — the error envelope", () => {
+  test("`details` appear only when there is at least one (found by mutation V8: an empty list was emitted)", async () => {
+    const body = async (res: Response) => (await res.json()).error as Record<string, unknown>;
+    expect(await body(fail("No.", 400, "X"))).toEqual({ code: "X", message: "No." });
+    expect(await body(fail("No.", 400, "X", []))).toEqual({ code: "X", message: "No." });
+    expect(await body(fail("No.", 400, "X", [{ path: "a", message: "bad" }]))).toEqual({ code: "X", message: "No.", details: [{ path: "a", message: "bad" }] });
+    expect(await body(fail("No.", 418))).toEqual({ code: "418", message: "No." }); // the status is the default code
   });
 });
