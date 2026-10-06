@@ -21,7 +21,7 @@ branches not tenants) — recorded as a divergence; its roles/audit-append-only 
 | 0 Foundation · 0.5.0 Setup wizard · 0.5.1 Auth + branches (+ rebuild, + sync to Octalve) | ✅ |
 | 0.5.A design language + shell · 0.5.B CSP · 0.5.C password reset · 0.5.D TOTP · 0.5.F dev inbox | ✅ merged |
 | 0.5.E account self-service | ✅ merged (PR #8) |
-| **0.5.G shared API infrastructure** (pagination, `validate()`, breached-password check, CSRF hardening; `Dialog`/`SelectField` move with the Users pages) — ported from Octalve Edu; prerequisite of the Users pages | 🟡 designed in the plan ("0.5.G"), build in progress on `claude/aleemaan-0.5.G` |
+| **0.5.G shared API infrastructure** (pagination, `validate()`, breached-password check, CSRF hardening; `Dialog`/`SelectField` move with the Users pages) — ported from Octalve Edu; prerequisite of the Users pages | ✅ built and verified (`claude/aleemaan-0.5.G`; record `phases/phase-0.5.G-api-infrastructure.md`; 51 mutations, all caught) |
 | **0.5.2 School Settings** | ⬜ designed, **awaiting go-ahead** |
 | 1 Academic Structure → 2 Student & Staff → 3 Results → 4 Finance → 5 Public site/CMS | ⬜ |
 | 0.5.3 Auth completion (force-delete, persistent rate limiting) → 6 Family portal → 7 Migration & cutover | ⬜ |

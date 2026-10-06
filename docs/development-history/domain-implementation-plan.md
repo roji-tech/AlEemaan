@@ -864,6 +864,11 @@ AlEemaan has none of it, and that its CSRF check is weaker than Octalve Edu's. P
    lint, build, one-lane `pnpm test` green → mutation pass → docs (phase record `phases/phase-0.5.G-api-infrastructure.md`, plan "As built", `CLAUDE.md`, `tests/README.md`,
    trackers, and the divergence logged in **both** plans) → push the branch. No PR unless asked.
 
+**As built — 0.5.G (2026-10-06)** — record: `phases/phase-0.5.G-api-infrastructure.md`, branch `claude/aleemaan-0.5.G`. Items 1–8 are built as designed, with: (a) the setup route's breach check sits **after** the setup-token check (an unauthenticated
+request with a wrong token must not make this server call out) — Octalve Edu checks before; (b) the test TLS proxy now **rewrites `Host`** (found by mutation C10: passing it through made `TRUST_FORWARDED_HOST` dead weight in the HTTPS test); (c) the breach-check test
+server uses fixed ports (`BREACH_PORT` 3203, `PWNED_STUB_PORT` 3104) — no lanes here. 51 mutations: 48 caught first time, 3 survivors (P15, V8, C10) fixed with tests, then all caught. **Rollout risk on the live school, named in the record and `.env.example`:**
+a proxy that rewrites `Host` makes every write fail the Origin check until it passes `Host` through or `TRUST_FORWARDED_HOST=true` is set. **Divergence log:** the matching entry is in Octalve Edu's plan (§0.5.3 "As built"), including that *its* HTTPS test proxy still passes `Host` through.
+
 ## Phase 0.5.2 — School Settings (design only — not implemented yet)
 
 Design pass for the legacy admin panel's "Settings" area (`legacy-feature-inventory.md` §4.7), before

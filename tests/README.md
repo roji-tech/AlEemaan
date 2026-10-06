@@ -58,6 +58,10 @@ in the app.
   parallelism, because the suites share a database and `setup-handoff.spec.ts` deliberately starts
   from an empty one.
 - **No retries.** A flaky test is a bug to fix (`retries: 0`), not something to retry away.
+- **The breached-password check is OFF on every server except one.** `support/env.ts` sets `PWNED_PASSWORD_CHECK=off` for the in-process tests and all test servers; the **fifth server** (`BREACH_PORT`, `breachServerEnv()`) has it ON and asks a local stand-in
+  (`support/pwned-stub.mjs`, `PWNED_STUB_PORT`) that also records the range requests, so a test can prove only the five-character prefix was ever sent. Nothing in the suite may call the public service. In-process breach tests replace `globalThis.fetch` and use `withEnv({ PWNED_PASSWORD_CHECK: "on" }, …)`.
+- **CSRF and the proxy.** The HTTPS server runs with `TRUST_FORWARDED_HOST=true` (`httpsServerEnv()`), and `support/tls-proxy.mjs` **rewrites `Host`** to the upstream's address and sets `X-Forwarded-Host` to the browser's — the deployment that setting exists for. Do not make the proxy pass `Host` through again: the HTTPS tests would no longer need the setting and could not notice it breaking.
+- **Mutation runner.** `python3 scripts/mutations/run-mutations.py scripts/mutations/0.5.G-mutations.py <results.jsonl> [--baseline] [ids…]` (needs `TEST_DATABASE_URL` naming a `_test` database and a clean tracked tree); results of the 0.5.G pass are in `phases/phase-0.5.G-api-infrastructure.md`.
 - **API tests use plain `fetch`**, not Playwright's request context: that keeps a cookie jar which
   would silently attach a session to a request meant to be anonymous.
 - **Prove the test can fail.** Every security-relevant assertion here was *mutation-checked*: inject
