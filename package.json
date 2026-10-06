@@ -20,7 +20,9 @@
     "test:unit": "playwright test --project=unit",
     "test:api": "playwright test --project=api",
     "test:e2e": "playwright test --project=e2e-desktop --project=e2e-mobile",
-    "test:https": "playwright test --project=https"
+    "test:https": "playwright test --project=https",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -49,6 +51,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "jsqr": "1.4.0",
+    "prettier": "^3.9.9",
     "prisma": "6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
