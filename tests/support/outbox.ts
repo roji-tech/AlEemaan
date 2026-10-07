@@ -9,10 +9,7 @@ export type SentEmail = { to: string; subject: string; text: string; at: string 
 export async function readOutbox(): Promise<SentEmail[]> {
   try {
     const raw = await fs.readFile(EMAIL_FILE, "utf8");
-    return raw
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as SentEmail);
+    return raw.split("\n").filter(Boolean).map((line) => JSON.parse(line) as SentEmail);
   } catch {
     return []; // nothing sent yet
   }

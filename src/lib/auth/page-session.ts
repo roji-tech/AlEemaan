@@ -6,7 +6,13 @@ import { getUserMemberships } from "./memberships";
 import { getSession } from "./session";
 
 /// Most senior first: the role shown under a person's name when they hold several.
-const ROLE_PRECEDENCE: readonly Role[] = [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF, Role.PARENT, Role.STUDENT];
+const ROLE_PRECEDENCE: readonly Role[] = [
+  Role.ADMIN,
+  Role.TEACHING_STAFF,
+  Role.NON_TEACHING_STAFF,
+  Role.PARENT,
+  Role.STUDENT,
+];
 
 /// The session guard for PAGES (the API's is `withAuth`). Not signed in → /login. Wrapped in React's
 /// `cache`, so the layout that draws the shell and the page inside it ask in the same request and

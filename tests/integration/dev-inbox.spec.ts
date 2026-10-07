@@ -31,27 +31,9 @@ async function withEnv<T>(vars: Vars, fn: () => Promise<T> | T): Promise<T> {
   }
 }
 
-const DEVELOPMENT: Vars = {
-  APP_ENV: "development",
-  DEV_TOOLS: "",
-  DEV_TOOLS_TOKEN: "",
-  EMAIL_TRANSPORT: undefined,
-  RESEND_API_KEY: undefined,
-};
-const STAGING: Vars = {
-  APP_ENV: "staging",
-  DEV_TOOLS: "true",
-  DEV_TOOLS_TOKEN: "staging-secret-token",
-  EMAIL_TRANSPORT: undefined,
-  RESEND_API_KEY: undefined,
-};
-const PRODUCTION: Vars = {
-  APP_ENV: "production",
-  DEV_TOOLS: "true",
-  DEV_TOOLS_TOKEN: "staging-secret-token",
-  EMAIL_TRANSPORT: undefined,
-  RESEND_API_KEY: undefined,
-};
+const DEVELOPMENT: Vars = { APP_ENV: "development", DEV_TOOLS: "", DEV_TOOLS_TOKEN: "", EMAIL_TRANSPORT: undefined, RESEND_API_KEY: undefined };
+const STAGING: Vars = { APP_ENV: "staging", DEV_TOOLS: "true", DEV_TOOLS_TOKEN: "staging-secret-token", EMAIL_TRANSPORT: undefined, RESEND_API_KEY: undefined };
+const PRODUCTION: Vars = { APP_ENV: "production", DEV_TOOLS: "true", DEV_TOOLS_TOKEN: "staging-secret-token", EMAIL_TRANSPORT: undefined, RESEND_API_KEY: undefined };
 
 const message = { to: "amina@school.test", subject: "Hello", text: "Body with a link https://example.test/x#token=SECRET-LINK" };
 
@@ -191,11 +173,7 @@ test.describe("GET / DELETE /api/v1/dev/email-inbox — where the dev tools are 
   });
 
   test("staging without a token configured, and development with DEV_TOOLS=false: 404 too", async () => {
-    for (const env of [
-      { ...STAGING, DEV_TOOLS_TOKEN: "" },
-      { ...STAGING, DEV_TOOLS: "false" },
-      { ...DEVELOPMENT, DEV_TOOLS: "false" },
-    ]) {
+    for (const env of [{ ...STAGING, DEV_TOOLS_TOKEN: "" }, { ...STAGING, DEV_TOOLS: "false" }, { ...DEVELOPMENT, DEV_TOOLS: "false" }]) {
       await withEnv(env, async () => {
         expect((await call(GET, { token: "staging-secret-token" })).status).toBe(404);
       });

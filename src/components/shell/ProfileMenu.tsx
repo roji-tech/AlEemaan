@@ -87,11 +87,16 @@ export function ProfileMenu({ name, email, roleLabel, isAdmin }: ProfileMenuProp
         <span aria-hidden="true" className="hidden max-w-40 truncate text-sm font-medium text-fg sm:block">
           {displayName}
         </span>
-        <ChevronDownIcon className={`hidden h-4 w-4 text-fg-muted transition-transform sm:block ${open ? "rotate-180" : ""}`} />
+        <ChevronDownIcon
+          className={`hidden h-4 w-4 text-fg-muted transition-transform sm:block ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
-        <div id={panelId} className="absolute top-full right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-surface p-1.5 shadow-menu">
+        <div
+          id={panelId}
+          className="absolute top-full right-0 z-30 mt-2 w-72 rounded-2xl border border-line bg-surface p-1.5 shadow-menu"
+        >
           <div className="px-3 py-2.5">
             <p className="truncate text-sm font-semibold text-fg">{displayName}</p>
             {name?.trim() && email && <p className="truncate text-xs text-fg-muted">{email}</p>}

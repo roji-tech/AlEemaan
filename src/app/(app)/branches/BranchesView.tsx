@@ -121,7 +121,12 @@ export function BranchesView({ branches }: { branches: BranchRow[] }) {
         title="Branches"
         description="Every branch a student, staff member or class belongs to."
         actions={
-          <Button ref={newButtonRef} aria-expanded={creating} aria-controls={creating ? formId : undefined} onClick={openForm}>
+          <Button
+            ref={newButtonRef}
+            aria-expanded={creating}
+            aria-controls={creating ? formId : undefined}
+            onClick={openForm}
+          >
             <PlusIcon className="h-4 w-4" />
             New branch
           </Button>
@@ -165,7 +170,10 @@ export function BranchesView({ branches }: { branches: BranchRow[] }) {
 
       {branches.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong p-10 text-center">
-          <span aria-hidden="true" className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-tint text-brand-fg">
+          <span
+            aria-hidden="true"
+            className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-tint text-brand-fg"
+          >
             <BuildingIcon className="h-6 w-6" />
           </span>
           <p className="mt-4 font-semibold text-fg">No branches yet</p>
@@ -174,7 +182,10 @@ export function BranchesView({ branches }: { branches: BranchRow[] }) {
       ) : (
         <ul aria-label="Branches" className="space-y-3">
           {branches.map((branch) => (
-            <li key={branch.id} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card">
+            <li
+              key={branch.id}
+              className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card"
+            >
               <span
                 aria-hidden="true"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-fg"

@@ -13,7 +13,8 @@ test.beforeAll(async () => {
 const GREEN = "rgb(42, 127, 79)"; //      #2A7F4F — filled buttons (4.94 : 1 with white; the artifact's #2E8B57 is 4.25 : 1)
 const DEEP_GREEN = "rgb(11, 61, 36)"; //  #0b3d24 — the sign-in brand panel
 
-const backgroundOf = (locator: import("@playwright/test").Locator) => locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+const backgroundOf = (locator: import("@playwright/test").Locator) =>
+  locator.evaluate((el) => getComputedStyle(el).backgroundColor);
 
 test.describe("AlEemaan's brand", () => {
   test("the tab title carries the product name", async ({ page }) => {
@@ -39,7 +40,11 @@ test.describe("AlEemaan's brand", () => {
     expect(await backgroundOf(panel)).toBe(DEEP_GREEN);
     await expect(panel).toContainText("One school, four branches, one login.");
     await expect(panel).toContainText("Secondary & Primary, English & Arabic — every branch's records in one place.");
-    for (const point of ["Secondary & Primary, English & Arabic", "Branch-level academic terms", "One admin account, every branch"]) {
+    for (const point of [
+      "Secondary & Primary, English & Arabic",
+      "Branch-level academic terms",
+      "One admin account, every branch",
+    ]) {
       await expect(panel.getByText(point, { exact: true })).toBeVisible(); // the blurb starts with the same words
     }
   });

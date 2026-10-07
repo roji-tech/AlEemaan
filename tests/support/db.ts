@@ -59,7 +59,12 @@ export function uniqueIp(): string {
 export const DEFAULT_PASSWORD = "correct-horse-battery-9";
 
 /// The four legacy sections, seeded once by the real setup wizard (PRD §3).
-export const BRANCH_NAMES = ["Secondary (English)", "Primary (English)", "Secondary (Arabic)", "Primary (Arabic)"] as const;
+export const BRANCH_NAMES = [
+  "Secondary (English)",
+  "Primary (English)",
+  "Secondary (Arabic)",
+  "Primary (Arabic)",
+] as const;
 
 /// Marks the instance as set up (so /login stops redirecting to /setup) and seeds
 /// the four branches exactly as the wizard does. Returns the first branch — the
@@ -82,7 +87,9 @@ export type TestUser = { id: string; email: string; name: string; password: stri
 /// Creates a user with a real bcrypt hash. `role` adds a membership in a
 /// (seeded) branch; omit it for a user with no branch. `password: null` makes
 /// an invited-but-not-activated account (no passwordHash).
-export async function createUser(opts: { email?: string; name?: string; password?: string | null; role?: Role } = {}): Promise<TestUser> {
+export async function createUser(
+  opts: { email?: string; name?: string; password?: string | null; role?: Role } = {},
+): Promise<TestUser> {
   const email = opts.email ?? uniqueEmail();
   const password = opts.password === undefined ? DEFAULT_PASSWORD : opts.password;
   const name = opts.name ?? "Amina Yusuf";
@@ -120,6 +127,7 @@ export const codeFor = (secret: Buffer, offsetSteps = 0): string => totpAt(secre
 
 /// Simulates time passing between sign-ins: forgets which step was last accepted, so the same current code
 /// is acceptable again. (Tests about replay itself must NOT call this.)
-export const rewindMfa = (userId: string) => db.mfaCredential.update({ where: { userId }, data: { lastUsedStep: null } });
+export const rewindMfa = (userId: string) =>
+  db.mfaCredential.update({ where: { userId }, data: { lastUsedStep: null } });
 
 export { Role };

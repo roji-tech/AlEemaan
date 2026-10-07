@@ -69,9 +69,7 @@ export function MfaStep({
 
     const payload = factorPayload(mode, value);
     if (!payload) {
-      setFieldError(
-        value.trim() ? FACTOR_FORMAT_ERROR[mode] : mode === "code" ? "Enter your authentication code." : "Enter a recovery code.",
-      );
+      setFieldError(value.trim() ? FACTOR_FORMAT_ERROR[mode] : mode === "code" ? "Enter your authentication code." : "Enter a recovery code.");
       return inputRef.current?.focus();
     }
     setFieldError(null);
@@ -151,13 +149,20 @@ export function MfaStep({
           {status === "paused" && (
             <Alert variant="warning" title="Verification is paused for a moment">
               <span className="sr-only">Too many unsuccessful attempts. Please wait a moment and try again.</span>
-              <span aria-hidden="true">Too many unsuccessful attempts. For your security, please wait {secondsLeft}s and try again.</span>
+              <span aria-hidden="true">
+                Too many unsuccessful attempts. For your security, please wait {secondsLeft}s and try again.
+              </span>
             </Alert>
           )}
           {status === "success" && <Alert variant="success">Signed in. Taking you to your dashboard…</Alert>}
         </div>
 
-        <Button type="submit" className="w-full" loading={status === "submitting"} disabled={status === "paused" || status === "success"}>
+        <Button
+          type="submit"
+          className="w-full"
+          loading={status === "submitting"}
+          disabled={status === "paused" || status === "success"}
+        >
           {status === "submitting"
             ? "Verifying…"
             : status === "success"

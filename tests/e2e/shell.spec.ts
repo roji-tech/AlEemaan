@@ -260,10 +260,7 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(150);
-    const lastRowBottom = await page
-      .locator("ul[aria-label='Branches'] > li")
-      .last()
-      .evaluate((el) => el.getBoundingClientRect().bottom);
+    const lastRowBottom = await page.locator("ul[aria-label='Branches'] > li").last().evaluate((el) => el.getBoundingClientRect().bottom);
     const barTop = await tabBar(page).evaluate((el) => el.getBoundingClientRect().top);
     expect(lastRowBottom).toBeLessThanOrEqual(barTop);
   });

@@ -21,7 +21,8 @@ export default async function BranchesPage() {
         <div role="alert" className="rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-7">
           <h2 className="text-lg font-semibold text-fg">You don&apos;t have access to this page</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            Only administrators can view and manage branches. If you think you should have access, ask your school administrator.
+            Only administrators can view and manage branches. If you think you should have access, ask
+            your school administrator.
           </p>
           <Link
             href="/dashboard"
@@ -39,5 +40,9 @@ export default async function BranchesPage() {
     select: { id: true, name: true, _count: { select: { memberships: true } } },
   });
 
-  return <BranchesView branches={branches.map((b) => ({ id: b.id, name: b.name, members: b._count.memberships }))} />;
+  return (
+    <BranchesView
+      branches={branches.map((b) => ({ id: b.id, name: b.name, members: b._count.memberships }))}
+    />
+  );
 }

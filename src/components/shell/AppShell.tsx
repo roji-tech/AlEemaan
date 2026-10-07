@@ -21,7 +21,9 @@ function BrandMark({ size }: { size: "sm" | "md" }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center rounded-xl bg-brand text-white ${size === "md" ? "h-10 w-10" : "h-9 w-9"}`}
+      className={`flex shrink-0 items-center justify-center rounded-xl bg-brand text-white ${
+        size === "md" ? "h-10 w-10" : "h-9 w-9"
+      }`}
     >
       <GraduationCapIcon className="h-5 w-5" />
     </span>
@@ -83,18 +85,32 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <ProfileMenu name={user.name} email={user.email} roleLabel={user.roleLabel} isAdmin={user.isAdmin} />
+            <ProfileMenu
+              name={user.name}
+              email={user.email}
+              roleLabel={user.roleLabel}
+              isAdmin={user.isAdmin}
+            />
           </div>
         </header>
 
         {/* pb-32 on phones: the floating tab bar (~72 px + its 12 px gap + the safe area) must never
             cover the last thing on the page. */}
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl px-4 py-8 pb-32 focus:outline-none sm:px-6 lg:py-10 lg:pb-12">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-5xl px-4 py-8 pb-32 focus:outline-none sm:px-6 lg:py-10 lg:pb-12"
+        >
           {children}
         </main>
       </div>
 
-      <MobileNav name={user.name} email={user.email} roleLabel={user.roleLabel} isAdmin={user.isAdmin} />
+      <MobileNav
+        name={user.name}
+        email={user.email}
+        roleLabel={user.roleLabel}
+        isAdmin={user.isAdmin}
+      />
     </div>
   );
 }

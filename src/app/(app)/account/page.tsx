@@ -61,8 +61,14 @@ export default async function AccountPage() {
 
       <Card>
         <h2 className="text-lg font-semibold text-fg">Two-step verification</h2>
-        <p className="mt-1 text-sm text-fg-muted">Protect your account with a code from an authenticator app, as well as your password.</p>
-        <TwoStepPanel available={mfaConfigured()} enabled={mfa.enabled} recoveryCodesRemaining={mfa.recoveryCodesRemaining} />
+        <p className="mt-1 text-sm text-fg-muted">
+          Protect your account with a code from an authenticator app, as well as your password.
+        </p>
+        <TwoStepPanel
+          available={mfaConfigured()}
+          enabled={mfa.enabled}
+          recoveryCodesRemaining={mfa.recoveryCodesRemaining}
+        />
       </Card>
 
       <Card>
