@@ -40,7 +40,7 @@ Design: plan §0.5.2. One global row; nothing academic lives here.
 - **D Where it shows** — T1 header/shell name from settings; T2 report-card/letterhead use later (Phase 3); T3 public site (Phase 5).
 - **E Verification** — mutations (non-admin can write; audit missing; unvalidated length; seed overwrites an existing value).
 
-## Users pages and invitations (finishes 0.5.E) ⬜
+## Users pages and invitations (finishes 0.5.E) ✅ built (0.5.H, 2026-10-07) — items 1, 2, 4, 6, 7, 8 and role/branch of 3; **permissions (rest of 3) and admin-initiated email change (5) are separate later ports**; mutation pass pending
 (1) Member list per branch (paged; role/branch filters). (2) **Invite**: hashed single-use link → invitee proves the email and
 sets their own password; an existing account attaches only when the invitee accepts while signed in as themselves.
 (3) Change role / branch / permissions (`CAN_APPROVE_RESULTS`, `CAN_MANAGE_FINANCE`, `CAN_PUBLISH_CONTENT`, `CAN_MANAGE_USERS`);

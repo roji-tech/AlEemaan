@@ -23,7 +23,7 @@ export async function completeSignIn(
 
   const holdsAdmin = Boolean(
     await prisma.membership.findFirst({
-      where: { userId: user.id, role: Role.ADMIN },
+      where: { userId: user.id, role: Role.ADMIN, deactivatedAt: null },
       select: { id: true },
     }),
   );

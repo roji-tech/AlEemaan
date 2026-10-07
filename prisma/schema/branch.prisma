@@ -8,6 +8,7 @@ model Branch {
   name String @unique
 
   memberships Membership[]
+  invitations Invitation[]
 
   createdAt DateTime @default(now())
 }
@@ -46,6 +47,11 @@ model Membership {
 
   permissions Permission[] @default([])
 
+  /// Set when an administrator deactivates the person. The row stays (history, a way back) but it is no longer a membership: every reader
+  /// treats a deactivated one as absent — `getUserMemberships`, `withAuth({ roles })`, the sign-in admin check, the member counts. Null for
+  /// every row that existed before this column did, so nobody is deactivated by the migration.
+  deactivatedAt DateTime?
+
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
@@ -53,4 +59,31 @@ model Membership {
 
   @@unique([userId, branchId])
   @@index([branchId])
+}
+
+/// An invitation to join the school (the Users pages, a port of Octalve Edu's 0.5.4). The link carries a 256-bit random token in the URL
+/// FRAGMENT; only its SHA-256 hash is stored here — a leaked database yields no usable link. Single-use (acceptedAt), revocable (revokedAt),
+/// expiring (expiresAt). One OPEN invitation per address is a partial unique index in the migration SQL (Prisma cannot express it).
+model Invitation {
+  id       String @id @default(cuid())
+  /// Lower-cased. The invitation is for whoever controls this address; opening the link is the proof.
+  email    String
+  role     Role
+  branchId String
+
+  tokenHash String @unique
+
+  invitedById  String?
+  acceptedById String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+
+  branch     Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invitedBy  User?  @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: SetNull)
+  acceptedBy User?  @relation("InvitationsAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([createdAt])
 }
