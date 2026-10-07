@@ -17,7 +17,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: HomeIcon },
   { label: "Branches", href: "/branches", icon: BuildingIcon, adminOnly: true },
   { label: "Settings", href: null, icon: SlidersIcon, adminOnly: true },
-  { label: "Users", href: null, icon: UsersIcon, adminOnly: true },
+  { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
 export const navFor = (isAdmin: boolean): NavItem[] => NAV.filter((item) => isAdmin || !item.adminOnly);
@@ -26,6 +26,7 @@ export const navFor = (isAdmin: boolean): NavItem[] => NAV.filter((item) => isAd
 export const PAGE_LABELS: Record<string, string> = {
   "/dashboard": "Overview",
   "/branches": "Branches",
+  "/users": "Users",
   "/account": "Account",
 };
 
