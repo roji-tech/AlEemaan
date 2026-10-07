@@ -37,9 +37,7 @@ export function withAuth<C = unknown>(
   // Misconfiguration fails at module load (=> `next build` fails), never as a
   // route that quietly lets everyone through.
   if ("permissions" in options) {
-    throw new Error(
-      "withAuth: `permissions` is not available until the lightweight-permissions design (§1.7) is built.",
-    );
+    throw new Error("withAuth: `permissions` is not available until the lightweight-permissions design (§1.7) is built.");
   }
   if (options.roles !== undefined && options.roles.length === 0) {
     throw new Error("withAuth: `roles` must list at least one role (an empty list would refuse everyone).");

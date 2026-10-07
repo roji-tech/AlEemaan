@@ -9,9 +9,5 @@ import { requirePageSession } from "@/lib/auth/page-session";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { session, roleLabel, isAdmin } = await requirePageSession();
 
-  return (
-    <AppShell user={{ name: session.user.name, email: session.user.email, roleLabel, isAdmin }}>
-      {children}
-    </AppShell>
-  );
+  return <AppShell user={{ name: session.user.name, email: session.user.email, roleLabel, isAdmin }}>{children}</AppShell>;
 }

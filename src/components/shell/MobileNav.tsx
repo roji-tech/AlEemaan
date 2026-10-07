@@ -43,18 +43,11 @@ export function MobileNav({ name, email, roleLabel, isAdmin }: MobileNavProps) {
 
   return (
     <>
-      <nav
-        aria-label="Main"
-        className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden"
-      >
+      <nav aria-label="Main" className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden">
         <ul className="flex gap-1 rounded-2xl border border-line bg-surface p-1.5 shadow-menu">
           {tabs.map(({ label, href, icon: Icon }) => (
             <li key={label} className="flex-1">
-              <Link
-                href={href!}
-                aria-current={isActive(pathname, href!) ? "page" : undefined}
-                className={`${TAB} ${FOCUS_RING}`}
-              >
+              <Link href={href!} aria-current={isActive(pathname, href!) ? "page" : undefined} className={`${TAB} ${FOCUS_RING}`}>
                 <Icon className="h-5 w-5" />
                 {label}
               </Link>

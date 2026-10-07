@@ -167,12 +167,13 @@ email (`RESEND_API_KEY` + `EMAIL_FROM`) for an address change.
 ## Next action
 
 **Phases 0.5.1.6 (the sync) and 0.5.A–0.5.F are merged to `master`** (the stacked PRs #4–#6 were merged into their stack bases rather
-than `master`, so they were consolidated into #7, which landed). **0.5.E (self-service) is open as
-[#8](https://github.com/roji-tech/AlEemaan/pull/8)** (base `master`, head `claude/account-self-service`).
-
-Then, in order: Phase 0.5.2 (School Settings), which is designed in the plan — **not implemented yet**, waiting on confirmation
-before any code, per the design-first rule this document follows — and the Users pages that finish 0.5.E (invite & activate,
-deactivation). (The shell's *Settings* entry is a visible "Soon" until then.)
+than `master`, so they were consolidated into #7, which landed). **0.5.E (self-service) is merged too** ([#8](https://github.com/roji-tech/AlEemaan/pull/8), 2026-10-05), as is the roadmap doc
+([#9](https://github.com/roji-tech/AlEemaan/pull/9)). Then, in order (2026-10-05, after a cross-repo plan review — see the plan's "Cross-repo review"): **(1)** ~~the shared API infrastructure ported from Octalve Edu~~ (**0.5.G**: pagination, `validate()`, breached-password check, plus a CSRF hardening fix — built,
+verified, 51 mutations all caught; branch `claude/aleemaan-0.5.G`, PR open — **deploy note: the reverse proxy must pass `Host` through, or set `TRUST_FORWARDED_HOST=true`**; `Dialog`/`SelectField` move with the Users pages that use them);
+**(2)** the Users pages that finish 0.5.E (invite & activate, deactivation), ported from Octalve Edu's 0.5.4 after it has had its mutation
+pass; **(3)** Phase 0.5.2 (School Settings), designed in the plan — **not implemented yet**, waiting on the maintainer's go-ahead before
+any code, per the design-first rule this document follows. (The shell's *Settings* entry is a visible "Soon" until then.) The Redis rate-limit
+store and everything in Octalve Edu's §0.5.2 (RLS) are deliberately **not** ported — AlEemaan is one school in one process.
 
 `domain-implementation-plan.md` now also has a full **Phase 1 → 7 (+ 0.5.3) roadmap** (2026-09-28,
 revised same day), breaking what was one vague "Phase 1 (Core SIS + Finance)" bullet into 7

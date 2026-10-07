@@ -164,6 +164,14 @@ one-off pattern sources, referenced once for a specific technique and then done:
   and phone sizes, axe accessibility, and a real-HTTPS cookie run). It needs a Postgres
   (`docker compose up -d db`), Chromium (`pnpm exec playwright install chromium`) and `openssl`; it uses
   its own `aleemaan_test` database. Run it before opening a PR.
+- **Phase 0.5.G (shared API infrastructure, ported from Octalve Edu §0.5.3) is BUILT AND VERIFIED** — branch `claude/aleemaan-0.5.G`. **Rules that follow:** (1) new routes use `ok`/`fail(message, status, code, details?)`,
+  `parseOffsetPagination` / `parseCursorPagination` and `validate({ body, query }, …)` *inside* `withAuth` — a bad parameter is a **400 naming the field**, never clamped, never first-wins; unknown body keys are
+  stripped, never passed on; (2) **`X-Forwarded-Host` is never trusted unless `TRUST_FORWARDED_HOST=true`** — set only behind a proxy that *overwrites* it; the default is to compare `Origin` with the `Host` header, so a reverse
+  proxy must pass `Host` through (nginx: `proxy_set_header Host $host;`) — **check this before deploying 0.5.G on the live school or every write is refused**; CSRF also refuses `Sec-Fetch-Site: cross-site|same-site`;
+  (3) a NEW password is checked with `checkNewPasswordOnServer` (shape, then breach — k-anonymity, fail-open, `PWNED_PASSWORD_CHECK=off` for an air-gapped install); it runs only when a password is *set*, so no existing
+  account is affected; (4) the test servers run with the breach check OFF except the one `BREACH_PORT` server pointed at `tests/support/pwned-stub.mjs` — nothing in the suite may call the public service; (5) the TLS test proxy
+  rewrites `Host` on purpose (it is the deployment `TRUST_FORWARDED_HOST` exists for). `Dialog`/`SelectField` were deliberately **not** ported here — they arrive with the Users pages. Record:
+  `docs/development-history/phases/phase-0.5.G-api-infrastructure.md`.
 - **Phase 0.5.E (account self-service) is BUILT AND VERIFIED** — branch `claude/account-self-service`, stacked on the
   dev-inbox branch. A signed-in person can edit their name, change their email (confirmed by a link to the **new**
   address) and see / end the places they are signed in. **Rules that follow:** (1) the change-email request gives the

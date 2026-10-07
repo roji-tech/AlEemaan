@@ -12,11 +12,7 @@ export const brand = {
   login: {
     headline: "One school, four branches, one login.",
     blurb: "Secondary & Primary, English & Arabic — every branch's records in one place.",
-    points: [
-      "Secondary & Primary, English & Arabic",
-      "Branch-level academic terms",
-      "One admin account, every branch",
-    ],
+    points: ["Secondary & Primary, English & Arabic", "Branch-level academic terms", "One admin account, every branch"],
   },
   /// This product's own word for what the artifact draws as "Branches".
   place: { singular: "branch", plural: "branches", Singular: "Branch", Plural: "Branches" },

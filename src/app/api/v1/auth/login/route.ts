@@ -3,12 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ok, fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import {
-  reserveAttempt,
-  refundAttempt,
-  checkRateLimit,
-  getClientIp,
-} from "@/lib/auth/rate-limit";
+import { reserveAttempt, refundAttempt, checkRateLimit, getClientIp } from "@/lib/auth/rate-limit";
 import { verifyPassword, PASSWORD_MAX_LENGTH } from "@/lib/auth/password";
 import { completeSignIn } from "@/lib/auth/complete-sign-in";
 import { createChallenge } from "@/lib/auth/mfa/challenge";
