@@ -6,6 +6,7 @@ import { api, cookieHeader, loginAs } from "../support/http";
 // The members API over real HTTP (domain-implementation-plan.md, "Build design — Users pages and invitations"): who may list and change
 // whom, the authority rules (self, last administrator, branch), strict bodies, and that a change takes effect on the person's NEXT request.
 
+const unique = (label: string) => `${label}-${Math.random().toString(36).slice(2, 8)}@invite.test`;
 const NO_PERMISSION = { data: null, meta: {}, error: { code: "FORBIDDEN", message: "You don't have permission to do that" } };
 
 let admin: TestUser; // ADMIN
@@ -212,6 +213,42 @@ test.describe("PATCH /members/[id]", () => {
     expect(res.status).toBe(403);
     expect(res.json.error.code).toBe("CSRF");
     expect((await membershipOf(target.id)).role).toBe("TEACHING_STAFF");
+  });
+});
+
+test.describe("a deactivated administrator", () => {
+  test("is a 403 on EVERY administrator route — the role is read live, so a session that survived grants nothing, and nothing happens", async () => {
+    const ghost = await newMember(Role.ADMIN, "Ghost Admin");
+    const ghostCookie = await cookieFor(ghost);
+    // deactivated behind the API's back, so the session survives
+    await db.membership.update({ where: { id: ghost.membershipId }, data: { deactivatedAt: new Date() } });
+    const target = await newMember(Role.TEACHING_STAFF, "Untouched");
+    const invitation = await db.invitation.create({
+      data: {
+        email: unique("ghost"),
+        role: Role.PARENT,
+        branchId: branches[0].id,
+        tokenHash: "e".repeat(64),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    const calls: [string, string, unknown?][] = [
+      ["GET", members],
+      ["PATCH", member(target.membershipId), { role: "PARENT" }],
+      ["POST", `${member(target.membershipId)}/deactivate`, {}],
+      ["POST", `${member(target.membershipId)}/reactivate`, {}],
+      ["GET", "/api/v1/invitations"],
+      ["POST", "/api/v1/invitations", { email: unique("x"), role: "PARENT", branchId: branches[0].id }],
+      ["POST", `/api/v1/invitations/${invitation.id}/resend`, {}],
+      ["DELETE", `/api/v1/invitations/${invitation.id}`],
+    ];
+    for (const [method, path, body] of calls) {
+      const res = await api(path, { cookie: ghostCookie, method, ...(body === undefined ? {} : { body }) });
+      expect(res.status, `${method} ${path}`).toBe(403);
+      expect(res.json, `${method} ${path}`).toEqual(NO_PERMISSION);
+    }
+    expect(await membershipOf(target.id)).toMatchObject({ role: "TEACHING_STAFF", deactivatedAt: null }); // none of it happened
+    expect(await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).toMatchObject({ revokedAt: null });
   });
 });
 
