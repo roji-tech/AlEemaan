@@ -1,0 +1,537 @@
+import crypto from "node:crypto";
+import { test, expect } from "@playwright/test";
+import type { Prisma } from "@prisma/client";
+import { Role as R, BRANCH_NAMES, createUser, db, seedInstance } from "../support/db";
+import { hashPassword } from "@/lib/auth/password";
+import { brand } from "@/lib/brand";
+import {
+  acceptInvitation,
+  createInvitation,
+  listOpenInvitations,
+  previewInvitation,
+  resendInvitation,
+  revokeInvitation,
+} from "@/lib/invitations/service";
+import {
+  hashInvitationToken,
+  INVITATION_TTL_DAYS,
+  INVITATION_TTL_MS,
+  isInvitationToken,
+  newInvitationToken,
+} from "@/lib/invitations/token";
+import { invitationStatus } from "@/lib/invitations/status";
+import { invitationEmail } from "@/lib/email/messages";
+
+// The lifetime is a product rule (plan: seven days), so it is spelled out HERE, not read back from the module under test — comparing a
+// result with the very constant that produced it passes whatever the constant is.
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+// The invitation library in-process (domain-implementation-plan.md, "Build design — Users pages and invitations"): the whole lifecycle
+// against the real test database, and the cases that matter most — an existing account attached only by its owner, a lost race, a rollback.
+
+let north: { id: string }; // the first branch
+let south: { id: string }; // another one
+let admin: { id: string };
+
+const email = (label: string) => `${label}-${crypto.randomBytes(3).toString("hex")}@invite.test`;
+const strongHash = () => hashPassword("a-Strong-passphrase-2026");
+
+test.beforeAll(async () => {
+  north = await seedInstance();
+  south = await db.branch.findUniqueOrThrow({ where: { name: BRANCH_NAMES[1] } });
+  admin = await createUser({ name: "Ada Admin", role: R.ADMIN });
+});
+
+async function invite(to: string, opts: { role?: R; branchId?: string } = {}) {
+  const result = await createInvitation(admin.id, { email: to, role: opts.role ?? R.TEACHING_STAFF, branchId: opts.branchId ?? north.id });
+  if (!result.ok) throw new Error(`invite failed: ${result.reason}`);
+  return result;
+}
+
+test.describe("the token", () => {
+  test("is 256 random bits as 43 base64url characters; only the SHA-256 hash is ever stored", async () => {
+    const tokens = new Set(Array.from({ length: 200 }, () => newInvitationToken()));
+    expect(tokens.size).toBe(200);
+    for (const token of tokens) expect(isInvitationToken(token)).toBe(true);
+    expect(hashInvitationToken("x")).toMatch(/^[0-9a-f]{64}$/);
+    for (const bad of ["", "short", "a".repeat(42), "a".repeat(44), `${"a".repeat(42)}=`, `${"a".repeat(42)}/`, 42, null, undefined])
+      expect(isInvitationToken(bad)).toBe(false);
+  });
+
+  test("an invitation lives seven days — the constants are pinned to the plan, not to each other", () => {
+    expect(INVITATION_TTL_DAYS).toBe(7);
+    expect(INVITATION_TTL_MS).toBe(SEVEN_DAYS_MS);
+  });
+
+  test("status is derived from the three timestamps, in order of precedence", () => {
+    const now = new Date("2026-10-05T12:00:00Z");
+    const future = new Date(now.getTime() + 1000);
+    const past = new Date(now.getTime() - 1000);
+    expect(invitationStatus({ acceptedAt: null, revokedAt: null, expiresAt: future }, now)).toBe("pending");
+    expect(invitationStatus({ acceptedAt: null, revokedAt: null, expiresAt: past }, now)).toBe("expired");
+    expect(invitationStatus({ acceptedAt: null, revokedAt: null, expiresAt: now }, now)).toBe("expired"); // expiry is exclusive
+    expect(invitationStatus({ acceptedAt: null, revokedAt: past, expiresAt: future }, now)).toBe("revoked");
+    expect(invitationStatus({ acceptedAt: past, revokedAt: past, expiresAt: past }, now)).toBe("accepted"); // accepted wins
+  });
+
+  test("the invitation email names the branch and role, carries the link in the FRAGMENT, and a hostile name cannot break its header", () => {
+    const message = invitationEmail({
+      to: "x@y.test",
+      token: "T".repeat(43),
+      branchName: "Primary\r\nBcc: evil@x.test\u2028(English)",
+      roleLabel: "Teaching staff",
+      inviterName: "Ada\nAdmin",
+      days: 7,
+    });
+    expect(message.subject).not.toMatch(/[\r\n\u2028\u2029]/);
+    expect(message.text).not.toMatch(/Bcc: evil@x\.test\u2028|\nBcc:/); // flattened onto one line, not a header
+    expect(message.text).toContain("Primary Bcc: evil@x.test (English)");
+    expect(message.text).toContain("Ada Admin invited you");
+    expect(message.text).toContain("/accept-invite#token=" + "T".repeat(43));
+    expect(message.text).not.toContain("/accept-invite?token");
+    expect(message.text).toContain("Teaching staff");
+    expect(message.text).toContain("within 7 days");
+  });
+});
+
+test.describe("creating", () => {
+  test("stores the HASH, a seven-day expiry and the inviter — and the audit row carries no secret", async () => {
+    const to = email("new");
+    const { invitation, token } = await invite(to, { role: R.TEACHING_STAFF });
+    const row = await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } });
+    expect(row.tokenHash).toBe(hashInvitationToken(token));
+    expect(row.tokenHash).not.toContain(token);
+    expect(Math.abs(row.expiresAt.getTime() - (Date.now() + SEVEN_DAYS_MS))).toBeLessThan(60_000);
+    expect(row).toMatchObject({
+      email: to,
+      role: "TEACHING_STAFF",
+      branchId: north.id,
+      invitedById: admin.id,
+      acceptedAt: null,
+      revokedAt: null,
+    });
+    const audit = await db.auditLog.findMany({ where: { targetId: invitation.id } });
+    expect(audit.map((r) => r.action)).toEqual(["INVITATION_CREATED"]);
+    expect(audit[0]).toMatchObject({ actorUserId: admin.id, afterValue: { email: to, role: "TEACHING_STAFF", branchId: north.id } });
+    const dump = JSON.stringify(audit);
+    expect(dump).not.toContain(token);
+    expect(dump).not.toContain(row.tokenHash);
+    expect(JSON.stringify(invitation)).not.toMatch(/tokenHash|token/i); // and neither does what the API would return
+  });
+
+  test("ONE live invitation per address: a new one revokes — and audits — the earlier, whose link then fails", async () => {
+    const to = email("twice");
+    const first = await invite(to);
+    const second = await invite(to);
+    expect(first.token).not.toBe(second.token);
+    const rows = await db.invitation.findMany({ where: { email: to }, orderBy: { createdAt: "asc" } });
+    expect(rows.map((r) => [r.revokedAt !== null, r.acceptedAt])).toEqual([
+      [true, null],
+      [false, null],
+    ]);
+    expect(await previewInvitation(first.token)).toBeNull();
+    expect(await previewInvitation(second.token)).toMatchObject({ schoolName: brand.name });
+    const revoked = await db.auditLog.findFirstOrThrow({ where: { action: "INVITATION_REVOKED", targetId: first.invitation.id } });
+    expect(revoked.reason).toMatch(/replaced/);
+  });
+
+  test("two administrators inviting the same person at the same instant: both succeed, exactly ONE link stays live (repeated, so lucky timing cannot hide a missing lock)", async () => {
+    for (let round = 0; round < 6; round++) {
+      const to = email(`race${round}`);
+      const results = await Promise.all([
+        createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id }),
+        createInvitation(admin.id, { email: to, role: R.STUDENT, branchId: south.id }),
+      ]);
+      expect(
+        results.every((r) => r.ok),
+        `round ${round}`,
+      ).toBe(true);
+      const live = await db.invitation.findMany({ where: { email: to, acceptedAt: null, revokedAt: null } });
+      expect(live, `round ${round}`).toHaveLength(1);
+      const liveTokens = results.flatMap((r) => (r.ok ? [r.token] : []));
+      const working = (await Promise.all(liveTokens.map((t) => previewInvitation(t)))).filter(Boolean);
+      expect(working, `round ${round}`).toHaveLength(1);
+    }
+  });
+
+  test("an address that is already a member is named as such — in ANY branch; a deactivated one says to reactivate; nothing is created either time", async () => {
+    const member = await createUser({ role: R.TEACHING_STAFF }); // a member of the first branch
+    const gone = await createUser({ role: R.TEACHING_STAFF });
+    await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
+    const before = await db.invitation.count();
+    // One active membership per person: inviting the member to a DIFFERENT branch is refused too.
+    for (const branchId of [north.id, south.id]) {
+      expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId })).toEqual({
+        ok: false,
+        reason: "ALREADY_MEMBER",
+      });
+    }
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: south.id })).toEqual({
+      ok: false,
+      reason: "DEACTIVATED_MEMBER",
+    });
+    expect(await db.invitation.count()).toBe(before);
+  });
+
+  test("a branch that does not exist is refused", async () => {
+    expect(await createInvitation(admin.id, { email: email("branch"), role: R.TEACHING_STAFF, branchId: "no-such-branch" })).toEqual({
+      ok: false,
+      reason: "INVALID_BRANCH",
+    });
+    const ok = await invite(email("branch-ok"), { branchId: south.id });
+    expect(ok.invitation).toMatchObject({ branchId: south.id, branchName: BRANCH_NAMES[1] });
+  });
+
+  test("an address with an account but no membership is invitable, and nothing in the answer marks that it has one", async () => {
+    const account = await createUser(); // no role: an account with no membership
+    const stranger = email("nobody");
+    const known = await createInvitation(admin.id, { email: account.email, role: R.PARENT, branchId: north.id });
+    const unknown = await createInvitation(admin.id, { email: stranger, role: R.PARENT, branchId: north.id });
+    expect(known.ok).toBe(true);
+    expect(unknown.ok).toBe(true);
+    if (known.ok && unknown.ok) {
+      expect(Object.keys(known).sort()).toEqual(Object.keys(unknown).sort());
+      expect(Object.keys(known.invitation).sort()).toEqual(Object.keys(unknown.invitation).sort());
+    }
+  });
+});
+
+test.describe("resend, revoke, list", () => {
+  test("resend: a NEW link and a fresh seven days; the old link stops working at once; an expired invitation is revived", async () => {
+    const { invitation, token } = await invite(email("resend"));
+    await db.invitation.update({ where: { id: invitation.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    expect(await previewInvitation(token)).toBeNull(); // expired
+    const resent = await resendInvitation(admin.id, invitation.id);
+    expect(resent).not.toBeNull();
+    expect(resent!.token).not.toBe(token);
+    expect(await previewInvitation(token)).toBeNull();
+    expect(await previewInvitation(resent!.token)).not.toBeNull();
+    expect(Math.abs(resent!.invitation.expiresAt.getTime() - (Date.now() + SEVEN_DAYS_MS))).toBeLessThan(60_000);
+    expect((await db.auditLog.findMany({ where: { targetId: invitation.id, action: "INVITATION_RESENT" } })).length).toBe(1);
+  });
+
+  test("resend and revoke refuse — with the one 'no such open invitation' answer — for an accepted, a revoked and an unknown id", async () => {
+    const accepted = await invite(email("done"));
+    await acceptInvitation({
+      token: accepted.token,
+      viewerUserId: null,
+      newAccount: { name: "Done Person", passwordHash: await strongHash() },
+    });
+    const revoked = await invite(email("revoked"));
+    expect(await revokeInvitation(admin.id, revoked.invitation.id)).toBe(true);
+    for (const id of [accepted.invitation.id, revoked.invitation.id, "no-such-invitation"]) {
+      expect(await resendInvitation(admin.id, id), id).toBeNull();
+      expect(await revokeInvitation(admin.id, id), id).toBe(false);
+    }
+  });
+
+  test("revoke ends the link, audits once, and a second revoke is 'no such open invitation'", async () => {
+    const { invitation, token } = await invite(email("revoke"));
+    expect(await revokeInvitation(admin.id, invitation.id)).toBe(true);
+    expect(await revokeInvitation(admin.id, invitation.id)).toBe(false);
+    expect(await previewInvitation(token)).toBeNull();
+    expect(await acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Late", passwordHash: await strongHash() } })).toEqual({
+      ok: false,
+      reason: "INVALID",
+    });
+    expect((await db.auditLog.findMany({ where: { targetId: invitation.id, action: "INVITATION_REVOKED" } })).length).toBe(1);
+  });
+
+  test("the list holds the OPEN invitations only (pending and expired), newest first, with derived status and no secret", async () => {
+    // Every invitation made so far is cleared away, so the list holds exactly this test's four.
+    await db.invitation.deleteMany({});
+    const run = (to: string) => createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id });
+    const old = await run(email("l1"));
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    const mid = await run(email("l2"));
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    const fresh = await run(email("l3"));
+    const used = await run(email("l4"));
+    if (!old.ok || !mid.ok || !fresh.ok || !used.ok) throw new Error("setup");
+    await db.invitation.update({ where: { id: old.invitation.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    await revokeInvitation(admin.id, mid.invitation.id);
+    // An ACCEPTED invitation is not "open": it must not be listed (it would offer a Resend/Revoke on a link that is spent).
+    expect(
+      await acceptInvitation({
+        token: used.token,
+        viewerUserId: null,
+        newAccount: { name: "List Person", passwordHash: await strongHash() },
+      }),
+    ).toMatchObject({ ok: true });
+    const { invitations, total } = await listOpenInvitations({ skip: 0, take: 10 });
+    expect(total).toBe(2);
+    expect(invitations.map((i) => [i.id, i.status])).toEqual([
+      [fresh.invitation.id, "pending"],
+      [old.invitation.id, "expired"],
+    ]);
+    expect(JSON.stringify(invitations)).not.toMatch(/tokenHash|"token"/);
+    expect((await listOpenInvitations({ skip: 1, take: 1 })).invitations.map((i) => i.id)).toEqual([old.invitation.id]); // paged
+  });
+});
+
+test.describe("previewing", () => {
+  test("shows the school, the branch, the role and a MASKED address, and whether an account already exists for it", async () => {
+    const fresh = await invite(email("fresh"), { role: R.PARENT, branchId: south.id });
+    expect(await previewInvitation(fresh.token)).toEqual({
+      schoolName: brand.name,
+      branchName: BRANCH_NAMES[1],
+      role: "PARENT",
+      maskedEmail: expect.stringMatching(/^f\*\*\*@invite\.test$/),
+      accountExists: false,
+      viewer: "none",
+    });
+    const existing = await createUser();
+    const hers = await invite(existing.email);
+    expect(await previewInvitation(hers.token)).toMatchObject({ accountExists: true, viewer: "none" });
+    expect(await previewInvitation(hers.token, existing.id)).toMatchObject({ viewer: "invitee" }); // signed in as that very account
+    expect(await previewInvitation(hers.token, (await createUser()).id)).toMatchObject({ viewer: "other" }); // signed in as someone else
+  });
+
+  test("unknown, malformed, revoked, expired and accepted links all give the SAME answer: nothing", async () => {
+    const gone = await invite(email("gone"));
+    await revokeInvitation(admin.id, gone.invitation.id);
+    const late = await invite(email("late"));
+    await db.invitation.update({ where: { id: late.invitation.id }, data: { expiresAt: new Date(Date.now() - 1) } });
+    const used = await invite(email("used"));
+    await acceptInvitation({
+      token: used.token,
+      viewerUserId: null,
+      newAccount: { name: "Used Person", passwordHash: await strongHash() },
+    });
+    for (const token of [gone.token, late.token, used.token, newInvitationToken(), "x".repeat(43)])
+      expect(await previewInvitation(token)).toBeNull();
+  });
+});
+
+test.describe("accepting — a person with no account", () => {
+  test("creates the user (address verified), the membership with the invited role and branch, spends the link, audits", async () => {
+    const to = email("newbie");
+    const { invitation, token } = await invite(to, { role: R.TEACHING_STAFF, branchId: south.id });
+    const result = await acceptInvitation({
+      token,
+      viewerUserId: null,
+      newAccount: { name: "Nia Newbie", passwordHash: await strongHash() },
+    });
+    expect(result).toMatchObject({ ok: true, newAccount: true });
+    const user = await db.user.findUniqueOrThrow({ where: { email: to } });
+    expect(user).toMatchObject({ name: "Nia Newbie" });
+    expect(user.emailVerified).not.toBeNull(); // the link proved the address
+    expect(user.passwordHash).toMatch(/^\$2[aby]\$/); // a bcrypt hash, never the password
+    expect(await db.membership.findUniqueOrThrow({ where: { userId_branchId: { userId: user.id, branchId: south.id } } })).toMatchObject({
+      role: "TEACHING_STAFF",
+      deactivatedAt: null,
+    });
+    expect(await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).toMatchObject({ acceptedById: user.id });
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).acceptedAt).not.toBeNull();
+    expect(await db.auditLog.findFirstOrThrow({ where: { action: "INVITATION_ACCEPTED", targetId: invitation.id } })).toMatchObject({
+      actorUserId: user.id,
+      afterValue: { role: "TEACHING_STAFF", branchId: south.id, newAccount: true },
+    });
+  });
+
+  test("single use: the same link again is INVALID and changes nothing", async () => {
+    const { token } = await invite(email("single"));
+    const input = { token, viewerUserId: null, newAccount: { name: "One Time", passwordHash: await strongHash() } };
+    expect((await acceptInvitation(input)).ok).toBe(true);
+    const users = await db.user.count();
+    const members = await db.membership.count();
+    expect(await acceptInvitation(input)).toEqual({ ok: false, reason: "INVALID" });
+    expect(await db.user.count()).toBe(users);
+    expect(await db.membership.count()).toBe(members);
+  });
+
+  test("two simultaneous accepts of one link: exactly ONE account and ONE membership; the other is told the link is used", async () => {
+    const to = email("simul");
+    const { token } = await invite(to);
+    const hash = await strongHash();
+    const results = await Promise.all([
+      acceptInvitation({ token, viewerUserId: null, newAccount: { name: "First", passwordHash: hash } }),
+      acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Second", passwordHash: hash } }),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    const loser = results.find((r) => !r.ok);
+    expect(["INVALID", "SIGN_IN_REQUIRED"]).toContain(loser && !loser.ok ? loser.reason : "");
+    expect(await db.user.count({ where: { email: to } })).toBe(1);
+    const user = await db.user.findUniqueOrThrow({ where: { email: to } });
+    expect(await db.membership.count({ where: { userId: user.id } })).toBe(1);
+  });
+
+  test("a failure part-way rolls EVERYTHING back: no user, no membership, and the link is still unspent", async () => {
+    const to = email("rollback");
+    const { invitation, token } = await invite(to);
+    // A password hash that is not a string fails at the user insert — AFTER the link was claimed inside the transaction.
+    await expect(
+      acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Doomed", passwordHash: 12345 as unknown as string } }),
+    ).rejects.toThrow();
+    expect(await db.user.count({ where: { email: to } })).toBe(0);
+    expect(await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).toMatchObject({ acceptedAt: null, acceptedById: null });
+    expect(
+      (await acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Retry", passwordHash: await strongHash() } })).ok,
+    ).toBe(true); // and it still works
+  });
+
+  test("it needs a name and a password: without them the link is NOT spent", async () => {
+    const { invitation, token } = await invite(email("input"));
+    expect(await acceptInvitation({ token, viewerUserId: null })).toEqual({ ok: false, reason: "INPUT_REQUIRED" });
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).acceptedAt).toBeNull();
+  });
+
+  test("an expired link cannot be accepted — to the millisecond", async () => {
+    const { invitation, token } = await invite(email("expired"));
+    await db.invitation.update({ where: { id: invitation.id }, data: { expiresAt: new Date(Date.now() - 1) } });
+    expect(await acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Late", passwordHash: await strongHash() } })).toEqual({
+      ok: false,
+      reason: "INVALID",
+    });
+    await db.invitation.update({ where: { id: invitation.id }, data: { expiresAt: new Date(Date.now() + 30_000) } });
+    expect(
+      (await acceptInvitation({ token, viewerUserId: null, newAccount: { name: "On Time", passwordHash: await strongHash() } })).ok,
+    ).toBe(true);
+  });
+});
+
+// A lost race, made DETERMINISTIC: the claim's conditions only matter when something changes the row AFTER the pre-read, and a plain
+// concurrent test hits that window by luck. A second connection changes the row inside a transaction it has not committed yet;
+// `acceptInvitation` reads the still-unchanged row, then BLOCKS on the claim until the other side commits — and what it does next is
+// exactly the code under test.
+async function whileHeld<T>(hold: (tx: Prisma.TransactionClient) => Promise<unknown>, run: () => Promise<T>): Promise<T> {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  let held!: () => void;
+  const isHeld = new Promise<void>((resolve) => (held = resolve));
+  const other = db.$transaction(
+    async (tx) => {
+      await hold(tx);
+      held();
+      await released;
+    },
+    { timeout: 30_000 },
+  );
+  await isHeld;
+  const running = run();
+  const deadline = Date.now() + 10_000;
+  for (;;) {
+    const [{ waiting }] = await db.$queryRaw<
+      { waiting: bigint }[]
+    >`SELECT count(*) AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+    if (Number(waiting) > 0) break;
+    if (Date.now() > deadline) throw new Error("the accept never reached the row lock — the test would prove nothing");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  release();
+  await other;
+  return running;
+}
+
+test.describe("accepting — losing a race AFTER the link was read", () => {
+  test("the link is claimed by someone else in the meantime: INVALID, and no account and no membership appear", async () => {
+    const to = email("lostclaim");
+    const { invitation, token } = await invite(to);
+    const result = await whileHeld(
+      (tx) => tx.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } }),
+      async () => acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Too Late", passwordHash: await strongHash() } }),
+    );
+    expect(result).toEqual({ ok: false, reason: "INVALID" });
+    expect(await db.user.count({ where: { email: to } })).toBe(0);
+  });
+
+  test("the link is REVOKED in the meantime: INVALID — a revoked link never admits anyone", async () => {
+    const to = email("lostrevoke");
+    const { invitation, token } = await invite(to);
+    const result = await whileHeld(
+      (tx) => tx.invitation.update({ where: { id: invitation.id }, data: { revokedAt: new Date() } }),
+      async () => acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Revoked", passwordHash: await strongHash() } }),
+    );
+    expect(result).toEqual({ ok: false, reason: "INVALID" });
+    expect(await db.user.count({ where: { email: to } })).toBe(0);
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).acceptedAt).toBeNull();
+  });
+
+  test("an account for the address appears in the meantime: SIGN_IN_REQUIRED (not a crash), and the link is NOT spent", async () => {
+    const to = email("lostaccount");
+    const { invitation, token } = await invite(to);
+    const result = await whileHeld(
+      (tx) => tx.user.create({ data: { email: to, name: "Got There First", passwordHash: "x" } }),
+      async () => acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Second", passwordHash: await strongHash() } }),
+    );
+    expect(result).toEqual({ ok: false, reason: "SIGN_IN_REQUIRED" });
+    expect(await db.user.count({ where: { email: to } })).toBe(1); // theirs, untouched
+    expect(await db.user.findUniqueOrThrow({ where: { email: to } })).toMatchObject({ name: "Got There First", passwordHash: "x" });
+    expect(await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).toMatchObject({ acceptedAt: null, acceptedById: null });
+  });
+});
+
+/// An invitation made with the admin client, for the cases the service itself (rightly) refuses to create.
+async function plantInvitation(to: string, role: R, branchId = north.id) {
+  const token = newInvitationToken();
+  const row = await db.invitation.create({
+    data: { email: to, role, branchId, tokenHash: hashInvitationToken(token), expiresAt: new Date(Date.now() + 60_000) },
+  });
+  return { token, row };
+}
+
+test.describe("accepting — an account that already exists is attached only by its OWNER", () => {
+  test("signed in as that account: the membership is created with the invited role and branch", async () => {
+    const owner = await createUser({ name: "Olu Owner" });
+    const { token, invitation } = await invite(owner.email, { role: R.PARENT, branchId: south.id });
+    const result = await acceptInvitation({ token, viewerUserId: owner.id });
+    expect(result).toMatchObject({ ok: true, userId: owner.id, newAccount: false });
+    expect(await db.membership.findUniqueOrThrow({ where: { userId_branchId: { userId: owner.id, branchId: south.id } } })).toMatchObject({
+      role: "PARENT",
+    });
+    expect(await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).toMatchObject({ acceptedById: owner.id });
+  });
+
+  test("nobody signed in: SIGN_IN_REQUIRED — and the account is untouched and the link unspent (a new password is NOT accepted for an existing address)", async () => {
+    const owner = await createUser();
+    const { token, invitation } = await invite(owner.email);
+    const before = await db.user.findUniqueOrThrow({ where: { id: owner.id } });
+    expect(
+      await acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Impostor", passwordHash: await strongHash() } }),
+    ).toEqual({
+      ok: false,
+      reason: "SIGN_IN_REQUIRED",
+    });
+    expect(await db.user.findUniqueOrThrow({ where: { id: owner.id } })).toEqual(before); // name, password hash: unchanged
+    expect(await db.membership.count({ where: { userId: owner.id } })).toBe(0);
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).acceptedAt).toBeNull();
+  });
+
+  test("signed in as SOMEONE ELSE: WRONG_ACCOUNT — neither account gains a membership, and the link is unspent", async () => {
+    const owner = await createUser();
+    const other = await createUser();
+    const { token, invitation } = await invite(owner.email, { role: R.ADMIN });
+    expect(await acceptInvitation({ token, viewerUserId: other.id })).toEqual({ ok: false, reason: "WRONG_ACCOUNT" });
+    expect(await db.membership.count({ where: { userId: { in: [owner.id, other.id] } } })).toBe(0);
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).acceptedAt).toBeNull();
+  });
+
+  test("signed in, but the address has NO account (the session belongs to someone else): WRONG_ACCOUNT, not a silent sign-up", async () => {
+    const other = await createUser();
+    const { token } = await invite(email("stranger"));
+    expect(await acceptInvitation({ token, viewerUserId: other.id, newAccount: { name: "X", passwordHash: await strongHash() } })).toEqual({
+      ok: false,
+      reason: "WRONG_ACCOUNT",
+    });
+  });
+
+  test("already a member (in any branch): ALREADY_MEMBER, and the link is NOT spent — nobody is promoted by a stray invitation", async () => {
+    const member = await createUser({ role: R.TEACHING_STAFF });
+    const { token, row } = await plantInvitation(member.email, R.ADMIN, south.id);
+    expect(await acceptInvitation({ token, viewerUserId: member.id })).toEqual({ ok: false, reason: "ALREADY_MEMBER" });
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: row.id } })).acceptedAt).toBeNull();
+    expect(await db.membership.findMany({ where: { userId: member.id } })).toMatchObject([{ role: "TEACHING_STAFF", branchId: north.id }]);
+  });
+
+  test("a DEACTIVATED person cannot come back through an old link: INVALID, nothing changes (reactivation is the way back)", async () => {
+    const returning = await createUser({ role: R.TEACHING_STAFF });
+    await db.membership.updateMany({ where: { userId: returning.id }, data: { deactivatedAt: new Date() } });
+    const { token, row } = await plantInvitation(returning.email, R.NON_TEACHING_STAFF);
+    expect(await acceptInvitation({ token, viewerUserId: returning.id })).toEqual({ ok: false, reason: "INVALID" });
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: row.id } })).acceptedAt).toBeNull();
+    const memberships = await db.membership.findMany({ where: { userId: returning.id } });
+    expect(memberships).toHaveLength(1);
+    expect(memberships[0]).toMatchObject({ role: "TEACHING_STAFF" });
+    expect(memberships[0].deactivatedAt).not.toBeNull();
+  });
+});
