@@ -18,7 +18,9 @@ export const POST = withAuth(
       return fail("Too many changes. Please try again in a few minutes.", 429, "RATE_LIMITED");
     }
     const result = await deactivateMember(auth.userId, id);
-    return result.ok ? ok({ member: result.member, changed: result.changed }) : memberFailure(result.reason);
+    return result.ok
+      ? ok({ member: result.member, changed: result.changed, signedOut: result.signedOut ?? false })
+      : memberFailure(result.reason);
   },
   { roles: ["ADMIN"] },
 );

@@ -153,7 +153,7 @@ test.describe("changeMember — the authority rules", () => {
     expect((await row(boss.membershipId)).role).toBe("ADMIN");
   });
 
-  test("a branch that does not exist — or one where the person already has a membership — is refused, and nothing changes", async () => {
+  test("a branch that does not exist is a refusal of its own, and so is one where the person already has a membership (BRANCH_TAKEN); nothing changes", async () => {
     const boss = await person(R.ADMIN);
     const target = await person(R.TEACHING_STAFF, { branch: 0 });
     expect(await changeMember(boss.id, target.membershipId, { branchId: "no-such-branch" })).toEqual({
@@ -162,7 +162,7 @@ test.describe("changeMember — the authority rules", () => {
     });
     // a second membership for the same person on branch 1 (the schema allows it; this page never makes one): moving onto it would collide
     await db.membership.create({ data: { userId: target.id, branchId: branches[1].id, role: R.TEACHING_STAFF } });
-    expect(await changeMember(boss.id, target.membershipId, { branchId: branches[1].id })).toEqual({ ok: false, reason: "INVALID_BRANCH" });
+    expect(await changeMember(boss.id, target.membershipId, { branchId: branches[1].id })).toEqual({ ok: false, reason: "BRANCH_TAKEN" });
     expect((await row(target.membershipId)).branchId).toBe(branches[0].id);
   });
 
@@ -241,6 +241,25 @@ test.describe("changeMember — the authority rules", () => {
   });
 });
 
+test.describe("a person in several branches", () => {
+  test("is listed once per membership, and each membership is changed and deactivated on its own", async () => {
+    const boss = await person(R.ADMIN, { name: "Ada Admin" });
+    const both = await person(R.TEACHING_STAFF, { name: "Both Branches", branch: 0 });
+    const second = await db.membership.create({ data: { userId: both.id, branchId: branches[2].id, role: R.PARENT } });
+    const { members } = await listMembers({ status: "active", q: "Both Branches" }, { skip: 0, take: 10 });
+    expect(members.map((m) => [m.id, m.userId, m.role, m.branchId]).sort()).toEqual(
+      [
+        [both.membershipId, both.id, "TEACHING_STAFF", branches[0].id],
+        [second.id, both.id, "PARENT", branches[2].id],
+      ].sort(),
+    );
+    expect(await changeMember(boss.id, second.id, { role: R.NON_TEACHING_STAFF })).toMatchObject({ ok: true, changed: true });
+    expect((await row(both.membershipId)).role).toBe("TEACHING_STAFF"); // the other membership was not touched
+    expect(await deactivateMember(boss.id, second.id)).toMatchObject({ ok: true, changed: true, signedOut: false });
+    expect((await row(both.membershipId)).deactivatedAt).toBeNull();
+  });
+});
+
 test.describe("deactivate and reactivate", () => {
   test("deactivation keeps the row, is audited with who the person WAS, and is undone by reactivation (same row, same role and branch)", async () => {
     const boss = await person(R.ADMIN);
@@ -283,7 +302,7 @@ test.describe("deactivate and reactivate", () => {
     await createSession(target.id);
     const bystander = await person(R.PARENT);
     await createSession(bystander.id);
-    expect(await deactivateMember(boss.id, target.membershipId)).toMatchObject({ ok: true, changed: true });
+    expect(await deactivateMember(boss.id, target.membershipId)).toMatchObject({ ok: true, changed: true, signedOut: true });
     expect(await db.session.count({ where: { userId: target.id } })).toBe(0);
     expect(await db.session.count({ where: { userId: bystander.id } })).toBe(1); // nobody else is signed out
     expect(await db.auditLog.findFirstOrThrow({ where: { targetId: target.membershipId, action: "MEMBER_DEACTIVATED" } })).toMatchObject({
@@ -296,7 +315,7 @@ test.describe("deactivate and reactivate", () => {
     const target = await person(R.TEACHING_STAFF, { branch: 0 });
     await db.membership.create({ data: { userId: target.id, branchId: branches[1].id, role: R.TEACHING_STAFF } });
     await createSession(target.id);
-    expect(await deactivateMember(boss.id, target.membershipId)).toMatchObject({ ok: true, changed: true });
+    expect(await deactivateMember(boss.id, target.membershipId)).toMatchObject({ ok: true, changed: true, signedOut: false });
     expect(await db.session.count({ where: { userId: target.id } })).toBe(1);
     expect(await db.auditLog.findFirstOrThrow({ where: { targetId: target.membershipId, action: "MEMBER_DEACTIVATED" } })).toMatchObject({
       afterValue: { sessionsRevoked: 0 },

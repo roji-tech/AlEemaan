@@ -35,6 +35,10 @@ export function memberFailure(reason: MemberFailure): Response {
       return fail("Choose one of the school's branches.", 400, "VALIDATION", [
         { path: "body.branchId", message: "Choose one of the school's branches." },
       ]);
+    case "BRANCH_TAKEN":
+      return fail("This person already has access in that branch.", 409, "BRANCH_TAKEN", [
+        { path: "body.branchId", message: "This person already has access in that branch." },
+      ]);
     case "DEACTIVATED":
       return fail("This person is deactivated. Reactivate them first.", 409, "DEACTIVATED");
   }

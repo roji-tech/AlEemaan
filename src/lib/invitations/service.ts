@@ -60,7 +60,7 @@ export type CreateInvitationResult =
   | { ok: true; invitation: PublicInvitation; token: string }
   | { ok: false; reason: "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "INVALID_BRANCH" };
 
-/// Invites `input.email`. One open invitation per address: an earlier open one is revoked (and audited) first, and a partial unique index
+/// Invites `input.email` to a branch. One open invitation per (address, branch): an earlier open one is revoked (and audited) first, and a partial unique index
 /// is the guarantee under concurrency — an advisory lock on the address serialises two administrators inviting the same person at the same
 /// instant, so the loser revokes the winner's instead of failing on the index. Only ever tells the administrator about THIS school: an
 /// address that already holds a membership (or had one deactivated) is named as such.
@@ -75,14 +75,22 @@ export async function createInvitation(
     const branch = await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true } });
     if (!branch) return { ok: false, reason: "INVALID_BRANCH" } as const;
 
-    // The membership check looks at the PERSON, not the branch: one active membership per person is the rule these pages keep.
-    const memberships = await tx.membership.findMany({ where: { user: { email: input.email } }, select: { deactivatedAt: true } });
-    if (memberships.some((m) => !m.deactivatedAt)) return { ok: false, reason: "ALREADY_MEMBER" } as const;
-    if (memberships.length > 0) return { ok: false, reason: "DEACTIVATED_MEMBER" } as const;
+    // The rule is per (person, branch): a person may belong to several branches (plan, "a person may belong to several branches"). Refused: an
+    // active membership in THIS branch; a deactivated one in this branch; or deactivated memberships and no active one anywhere (a
+    // deactivated person comes back by reactivation, never by a new link).
+    const memberships = await tx.membership.findMany({
+      where: { user: { email: input.email } },
+      select: { branchId: true, deactivatedAt: true },
+    });
+    if (memberships.some((m) => m.branchId === input.branchId && !m.deactivatedAt)) return { ok: false, reason: "ALREADY_MEMBER" } as const;
+    const anyActive = memberships.some((m) => !m.deactivatedAt);
+    if (memberships.some((m) => m.branchId === input.branchId) || (memberships.length > 0 && !anyActive)) {
+      return { ok: false, reason: "DEACTIVATED_MEMBER" } as const;
+    }
 
     const now = new Date();
     const earlier = await tx.invitation.findMany({
-      where: { email: input.email, acceptedAt: null, revokedAt: null },
+      where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null }, // (a different branch's open invitation stays)
       select: { id: true },
     });
     for (const old of earlier) {
@@ -269,9 +277,15 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
         throw new Abort("INPUT_REQUIRED");
       }
 
-      const memberships = account ? await tx.membership.findMany({ where: { userId: account.id }, select: { deactivatedAt: true } }) : [];
-      if (memberships.some((m) => !m.deactivatedAt)) throw new Abort("ALREADY_MEMBER");
-      if (memberships.length > 0) throw new Abort("INVALID"); // deactivated: reactivation is the way back, not an old link
+      const memberships = account
+        ? await tx.membership.findMany({ where: { userId: account.id }, select: { branchId: true, deactivatedAt: true } })
+        : [];
+      if (memberships.some((m) => m.branchId === found.branchId && !m.deactivatedAt)) throw new Abort("ALREADY_MEMBER");
+      // Deactivated in this branch, or deactivated everywhere: reactivation is the way back, not a link. (An active membership in ANOTHER
+      // branch is fine — the person is simply joining a second one.)
+      if (memberships.some((m) => m.branchId === found.branchId) || (memberships.length > 0 && memberships.every((m) => m.deactivatedAt))) {
+        throw new Abort("INVALID");
+      }
 
       // Single use: the conditional update must change exactly one row, so two simultaneous accepts produce one membership.
       const claimed = await tx.invitation.updateMany({

@@ -411,9 +411,14 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
       <DeactivateDialog
         member={deactivating}
         onClose={() => setDeactivating(null)}
-        onDone={(member) => {
+        onDone={(member, signedOut) => {
           flushSync(() => setDeactivating(null)); // the dialog is closed (and focus handed back) before the lists are reloaded
-          setNotice({ variant: "success", text: `${displayName(member)} was deactivated. They are signed out and lose access.` });
+          setNotice({
+            variant: "success",
+            text: signedOut
+              ? `${displayName(member)} was deactivated. They are signed out and lose access.`
+              : `${displayName(member)} was deactivated in ${member.branchName}. They keep their other branches.`,
+          });
           void afterChange();
         }}
       />

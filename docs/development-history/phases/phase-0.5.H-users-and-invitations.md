@@ -4,6 +4,8 @@
 Branch `claude/aleemaan-users-invitations`, **stacked on `claude/aleemaan-0.5.G` (PR #10, still open)**. Design of record: plan §"Build design — Users pages and invitations", committed alone before any code (`1f2ab1e`); "As built" follows it in the plan. Source of behaviour: Octalve Edu's 0.5.4, read from the raw diff, not copied.
 Decisions this phase made that someone might reverse by mistake have ADRs: `docs/decisions/0002` (a deactivated membership is no membership; the last one signs the person out), `0003` (live-data safety), `0005` (last administrator counted by person under a row lock).
 
+> **Update 2026-10-07 (same branch, after the maintainer answered the open question): a person may now belong to several branches.** Wherever this record says "one active membership per person", read "one membership per person per branch" — see plan "Design change — a person may belong to several branches", ADR `0007`, and migration `20261008090000_invitation_per_branch`. Test counts below were taken before the change; the final numbers are under "Final run".
+
 ## What this delivers
 An administrator can **see the school's people** (filters: role, branch, status, search; paged), **invite** someone (email + role + branch → a hashed, single-use, seven-day link in the URL fragment, mailed after the response), **change a person's role or branch**, **deactivate** and **reactivate** a membership, and **resend or revoke** a pending invitation. The invitee opens `/accept-invite`: a person with no account chooses a name and password; a person with an account must be signed in as it; anyone else is refused. Everything is audited in the same transaction as the change.
 
@@ -16,7 +18,7 @@ An administrator can **see the school's people** (filters: role, branch, status,
 | Screens | `/users` (nav "Users" is a link now; anyone but an administrator gets the access-denied view); `/accept-invite` |
 | Primitives ported with their users | `Dialog`, `SelectField`, `Alert` (with `announce`), `postJson` (PATCH/DELETE) — code-identical with Octalve's |
 
-`[id]` in the member routes is the **membership's** id, not the user's (the schema allows one person several memberships; the id keeps every action unambiguous).
+`[id]` in the member routes is the **membership's** id, not the user's (a person may hold several memberships; the id keeps every action unambiguous).
 
 ## Verification
 Gate order: `pnpm typecheck` → `pnpm lint` → `pnpm format:check` → `pnpm build` → tests. All four static steps clean on the final tree.

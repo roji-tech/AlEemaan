@@ -166,12 +166,35 @@ test.describe("inviting", () => {
     expect(tokenFrom(mail)).toHaveLength(43);
   });
 
-  test("an address that is already a member is refused where you are looking, and nothing is sent", async ({ page }) => {
+  test("someone who already belongs to one branch can be invited to another: the link is mailed, and after accepting they appear in both", async ({
+    page,
+  }) => {
+    const tola = await member(Role.TEACHING_STAFF, "Tola Teacher", 0);
+    await signedInAdmin(page);
+    await page.getByRole("button", { name: "Invite someone" }).click();
+    await dialog(page).getByLabel("Email address").fill(tola.email);
+    await dialog(page).getByLabel("Role").selectOption("PARENT");
+    await dialog(page).getByLabel("Branch").selectOption({ label: BRANCH_NAMES[1] });
+    await dialog(page).getByRole("button", { name: "Send invitation" }).click();
+    await expect(dialog(page)).toBeHidden();
+    await expect(row(page, tola.email).filter({ hasText: "invited by" })).toBeVisible();
+    const token = tokenFrom((await waitForMail(tola.email))[0]);
+    const joined = await api("/api/v1/invitations/accept", { body: { token }, cookie: cookieHeader((await loginAs(tola)).token!) });
+    expect(joined.status).toBe(200);
+    await page.reload();
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await page.getByLabel("Search").fill("Tola");
+    await expect(page.getByText("2 people match")).toBeVisible(); // one row per membership
+    await expect(row(page, "Tola Teacher").filter({ hasText: BRANCH_NAMES[0] })).toBeVisible();
+    await expect(row(page, "Tola Teacher").filter({ hasText: BRANCH_NAMES[1] })).toBeVisible();
+  });
+
+  test("an address that is already a member of that branch is refused where you are looking, and nothing is sent", async ({ page }) => {
     const tola = await member(Role.TEACHING_STAFF, "Tola Teacher");
     await signedInAdmin(page);
     await page.getByRole("button", { name: "Invite someone" }).click();
     await dialog(page).getByLabel("Email address").fill(tola.email);
-    await dialog(page).getByLabel("Branch").selectOption({ label: BRANCH_NAMES[2] });
+    await dialog(page).getByLabel("Branch").selectOption({ label: BRANCH_NAMES[0] }); // the branch Tola is already in
     await dialog(page).getByRole("button", { name: "Send invitation" }).click();
     await expect(dialog(page).getByText("That person is already a member.")).toBeVisible();
     await expect(dialog(page)).toBeVisible(); // stays open: fix it and go on
@@ -279,7 +302,7 @@ test.describe("changing people", () => {
     await page.getByRole("button", { name: "Deactivate Tola Teacher" }).click();
     const d = dialog(page);
     await expect(d.getByRole("heading", { name: "Deactivate Tola Teacher?" })).toBeVisible();
-    await expect(d).toContainText("They lose access straight away, and they are signed out. Nothing they did is deleted");
+    await expect(d).toContainText("They lose access to this branch straight away. If it is their only branch they are signed out as well");
     await expect(d.getByRole("button", { name: "Cancel" })).toBeFocused(); // the SAFE choice has focus, so Enter cannot deactivate
     await d.getByRole("button", { name: "Cancel" }).click();
     expect((await api("/api/v1/auth/me", { cookie: tolaCookie })).status).toBe(200); // cancelled: nothing happened

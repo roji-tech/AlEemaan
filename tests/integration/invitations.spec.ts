@@ -135,12 +135,12 @@ test.describe("creating", () => {
     expect(revoked.reason).toMatch(/replaced/);
   });
 
-  test("two administrators inviting the same person at the same instant: both succeed, exactly ONE link stays live (repeated, so lucky timing cannot hide a missing lock)", async () => {
+  test("two administrators inviting the same person to the SAME branch at the same instant: both succeed, exactly ONE link stays live (repeated, so lucky timing cannot hide a missing lock)", async () => {
     for (let round = 0; round < 6; round++) {
       const to = email(`race${round}`);
       const results = await Promise.all([
         createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id }),
-        createInvitation(admin.id, { email: to, role: R.STUDENT, branchId: south.id }),
+        createInvitation(admin.id, { email: to, role: R.STUDENT, branchId: north.id }),
       ]);
       expect(
         results.every((r) => r.ok),
@@ -154,23 +154,54 @@ test.describe("creating", () => {
     }
   });
 
-  test("an address that is already a member is named as such — in ANY branch; a deactivated one says to reactivate; nothing is created either time", async () => {
+  test("the same person invited to TWO different branches: both links stay live (one open invitation per address AND branch)", async () => {
+    const to = email("twobranches");
+    const first = await invite(to, { branchId: north.id });
+    const second = await invite(to, { role: R.PARENT, branchId: south.id });
+    expect(await previewInvitation(first.token)).toMatchObject({ branchName: BRANCH_NAMES[0] });
+    expect(await previewInvitation(second.token)).toMatchObject({ branchName: BRANCH_NAMES[1], role: "PARENT" });
+    expect(await db.invitation.count({ where: { email: to, acceptedAt: null, revokedAt: null } })).toBe(2);
+    // …and a repeat for the first branch replaces only that one
+    const again = await invite(to, { branchId: north.id });
+    expect(await previewInvitation(first.token)).toBeNull();
+    expect(await previewInvitation(again.token)).not.toBeNull();
+    expect(await previewInvitation(second.token)).not.toBeNull();
+  });
+
+  test("an address that already belongs to THIS branch is named as such; a deactivated one says to reactivate; nothing is created either time", async () => {
     const member = await createUser({ role: R.TEACHING_STAFF }); // a member of the first branch
     const gone = await createUser({ role: R.TEACHING_STAFF });
     await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
     const before = await db.invitation.count();
-    // One active membership per person: inviting the member to a DIFFERENT branch is refused too.
-    for (const branchId of [north.id, south.id]) {
-      expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId })).toEqual({
-        ok: false,
-        reason: "ALREADY_MEMBER",
-      });
-    }
-    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: south.id })).toEqual({
+    expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId: north.id })).toEqual({
+      ok: false,
+      reason: "ALREADY_MEMBER",
+    });
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: north.id })).toEqual({
       ok: false,
       reason: "DEACTIVATED_MEMBER",
     });
     expect(await db.invitation.count()).toBe(before);
+  });
+
+  test("a member of ANOTHER branch can be invited to this one (a person may belong to several); a person deactivated everywhere cannot, even into a branch they never had", async () => {
+    const member = await createUser({ role: R.TEACHING_STAFF }); // active in the first branch
+    expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId: south.id })).toMatchObject({ ok: true });
+
+    const gone = await createUser({ role: R.TEACHING_STAFF }); // deactivated in the first branch, and has nothing active anywhere
+    await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: south.id })).toEqual({
+      ok: false,
+      reason: "DEACTIVATED_MEMBER",
+    }); // reactivation is the way back, not a new link
+    // but deactivated in one branch while ACTIVE in another is just a person with a past: another branch is fine
+    await db.membership.create({ data: { userId: gone.id, branchId: south.id, role: R.PARENT } });
+    const third = await db.branch.findUniqueOrThrow({ where: { name: BRANCH_NAMES[2] } });
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: third.id })).toMatchObject({ ok: true });
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: north.id })).toEqual({
+      ok: false,
+      reason: "DEACTIVATED_MEMBER",
+    }); // …but the branch they were deactivated in still says reactivate
   });
 
   test("a branch that does not exist is refused", async () => {
@@ -515,12 +546,33 @@ test.describe("accepting — an account that already exists is attached only by 
     });
   });
 
-  test("already a member (in any branch): ALREADY_MEMBER, and the link is NOT spent — nobody is promoted by a stray invitation", async () => {
+  test("already a member of THIS branch: ALREADY_MEMBER, and the link is NOT spent — nobody is promoted by a stray invitation", async () => {
     const member = await createUser({ role: R.TEACHING_STAFF });
-    const { token, row } = await plantInvitation(member.email, R.ADMIN, south.id);
+    const { token, row } = await plantInvitation(member.email, R.ADMIN, north.id);
     expect(await acceptInvitation({ token, viewerUserId: member.id })).toEqual({ ok: false, reason: "ALREADY_MEMBER" });
     expect((await db.invitation.findUniqueOrThrow({ where: { id: row.id } })).acceptedAt).toBeNull();
     expect(await db.membership.findMany({ where: { userId: member.id } })).toMatchObject([{ role: "TEACHING_STAFF", branchId: north.id }]);
+  });
+
+  test("a member of ANOTHER branch who accepts joins this one too: a second membership, the first untouched", async () => {
+    const member = await createUser({ role: R.TEACHING_STAFF }); // the first branch
+    const { token, invitation } = await invite(member.email, { role: R.PARENT, branchId: south.id });
+    expect(await acceptInvitation({ token, viewerUserId: member.id })).toMatchObject({ ok: true, userId: member.id, newAccount: false });
+    const rows = await db.membership.findMany({ where: { userId: member.id }, orderBy: { createdAt: "asc" } });
+    expect(rows.map((m) => [m.branchId, m.role, m.deactivatedAt])).toEqual([
+      [north.id, "TEACHING_STAFF", null],
+      [south.id, "PARENT", null],
+    ]);
+    expect(await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).toMatchObject({ acceptedById: member.id });
+  });
+
+  test("a person deactivated EVERYWHERE cannot come back through a link into any branch: INVALID, nothing changes (reactivation is the way back)", async () => {
+    const returning = await createUser({ role: R.TEACHING_STAFF });
+    await db.membership.updateMany({ where: { userId: returning.id }, data: { deactivatedAt: new Date() } });
+    const { token, row } = await plantInvitation(returning.email, R.PARENT, south.id); // a branch they never belonged to
+    expect(await acceptInvitation({ token, viewerUserId: returning.id })).toEqual({ ok: false, reason: "INVALID" });
+    expect((await db.invitation.findUniqueOrThrow({ where: { id: row.id } })).acceptedAt).toBeNull();
+    expect(await db.membership.count({ where: { userId: returning.id } })).toBe(1);
   });
 
   test("a DEACTIVATED person cannot come back through an old link: INVALID, nothing changes (reactivation is the way back)", async () => {

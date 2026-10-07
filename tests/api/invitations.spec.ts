@@ -435,14 +435,14 @@ test.describe("POST /invitations/accept — an account that already exists is at
     expect(stillWrong.json.error.code).toBe("WRONG_ACCOUNT"); // not a silent sign-up while signed in as someone else
   });
 
-  test("already a member: 409 ALREADY_MEMBER and the link is not spent; a DEACTIVATED person cannot come back through a link (400)", async () => {
+  test("already a member of THIS branch: 409 ALREADY_MEMBER and the link is not spent; a DEACTIVATED person cannot come back through a link (400)", async () => {
     const member = await createUser({ role: Role.TEACHING_STAFF });
     const token = newInvitationToken();
     const row = await db.invitation.create({
       data: {
         email: member.email,
         role: Role.ADMIN,
-        branchId: branches[1].id,
+        branchId: branches[0].id,
         tokenHash: hashInvitationToken(token),
         expiresAt: new Date(Date.now() + 60_000),
       },
@@ -460,5 +460,32 @@ test.describe("POST /invitations/accept — an account that already exists is at
     expect(back.json).toEqual(INVALID);
     expect((await db.invitation.findUniqueOrThrow({ where: { id: row.id } })).acceptedAt).toBeNull();
     expect((await db.membership.findFirstOrThrow({ where: { userId: member.id } })).deactivatedAt).not.toBeNull();
+  });
+
+  test("a member of ANOTHER branch can be invited to this one and joins it: two memberships, both listed, the first untouched", async () => {
+    const member = await createUser({ name: "Two Branches", role: Role.TEACHING_STAFF }); // the first branch
+    const memberCookie = await cookieFor(member);
+    // same branch is refused …
+    expect((await invite(member.email, "PARENT", { branchId: branches[0].id })).json.error.code).toBe("ALREADY_MEMBER");
+    // … another is not
+    const { token, id } = await (async () => {
+      const res = await invite(member.email, "PARENT", { branchId: branches[1].id });
+      expect(res.status).toBe(201);
+      const mail = await waitForMail(member.email);
+      return { token: tokenFrom(mail[mail.length - 1]), id: res.json.data.invitation.id as string };
+    })();
+    expect(id).toBeTruthy();
+    const joined = await accept({ token }, { cookie: memberCookie });
+    expect(joined.status).toBe(200);
+    expect(joined.json.data).toEqual({ accepted: true, newAccount: false });
+    const me = await api("/api/v1/auth/me", { cookie: memberCookie });
+    expect(me.json.data.memberships.map((m: { branchId: string; role: string }) => [m.branchId, m.role]).sort()).toEqual(
+      [
+        [branches[0].id, "TEACHING_STAFF"],
+        [branches[1].id, "PARENT"],
+      ].sort(),
+    );
+    const listed = await api(`/api/v1/members?q=${encodeURIComponent("Two Branches")}`, asAdmin());
+    expect(listed.json.data.members).toHaveLength(2);
   });
 });

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 // The school's people (domain-implementation-plan.md "Build design — Users pages and invitations", a port of Octalve Edu's 0.5.4).
 //
 // People are read THROUGH `membership` with a narrow `select` of the person's name and address — never a bare `user` listing.
-// A "member" here is a MEMBERSHIP, addressed by its own id: the schema allows one person several (one per branch), nothing creates
-// more than one today, and the id keeps every action unambiguous if that ever changes. Every change is audited in the same
+// A "member" here is a MEMBERSHIP, addressed by its own id: a person may belong to several branches (one membership each), and the id keeps
+// every action unambiguous. Every change is audited in the same
 // transaction as the change.
 
 type Tx = Prisma.TransactionClient;
@@ -95,10 +95,13 @@ export type MemberFailure =
   /// The school's last active administrator cannot be demoted or deactivated: it would leave the school with nobody who can manage it.
   | "LAST_ADMIN"
   | "INVALID_BRANCH"
+  /// The person already has a membership in the branch it would move to (one membership per person per branch).
+  | "BRANCH_TAKEN"
   /// A deactivated member must be reactivated before anything else about them changes.
   | "DEACTIVATED";
 
-export type MemberResult = { ok: true; member: PublicMember; changed: boolean } | { ok: false; reason: MemberFailure };
+/// `signedOut` (deactivation only): true when this was the person's last active membership, so their sessions were deleted.
+export type MemberResult = { ok: true; member: PublicMember; changed: boolean; signedOut?: boolean } | { ok: false; reason: MemberFailure };
 
 const find = (tx: Tx, membershipId: string) => tx.membership.findUnique({ where: { id: membershipId }, select: MEMBER_SELECT });
 
@@ -127,6 +130,13 @@ export async function changeMember(
       const branch = await tx.branch.findUnique({ where: { id: change.branchId }, select: { id: true } });
       if (!branch) return { ok: false, reason: "INVALID_BRANCH" };
     }
+    if (change.branchId && change.branchId !== current.branchId) {
+      const taken = await tx.membership.findUnique({
+        where: { userId_branchId: { userId: current.userId, branchId: change.branchId } },
+        select: { id: true },
+      });
+      if (taken) return { ok: false, reason: "BRANCH_TAKEN" };
+    }
     const roleChanged = change.role !== undefined && change.role !== current.role;
     const branchChanged = change.branchId !== undefined && change.branchId !== current.branchId;
     if (!roleChanged && !branchChanged) return { ok: true, member: toPublic(current), changed: false }; // a no-op writes nothing
@@ -143,9 +153,8 @@ export async function changeMember(
         select: MEMBER_SELECT,
       });
     } catch (error) {
-      // (userId, branchId) is unique: moving a membership onto a branch where this person already has one would collide.
-      if (typeof error === "object" && error && (error as { code?: string }).code === "P2002")
-        return { ok: false, reason: "INVALID_BRANCH" };
+      // (userId, branchId) is unique: a concurrent move onto a branch where this person already has one would collide.
+      if (typeof error === "object" && error && (error as { code?: string }).code === "P2002") return { ok: false, reason: "BRANCH_TAKEN" };
       throw error;
     }
     if (roleChanged) {
@@ -185,7 +194,7 @@ export async function deactivateMember(actorUserId: string, membershipId: string
     const current = await find(tx, membershipId);
     if (!current) return { ok: false, reason: "NOT_FOUND" };
     if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
-    if (current.deactivatedAt) return { ok: true, member: toPublic(current), changed: false };
+    if (current.deactivatedAt) return { ok: true, member: toPublic(current), changed: false, signedOut: false };
     if (current.role === "ADMIN" && !(await hasAnotherActiveAdmin(tx, current.userId))) return { ok: false, reason: "LAST_ADMIN" };
 
     const updated = await tx.membership.update({ where: { id: current.id }, data: { deactivatedAt: new Date() }, select: MEMBER_SELECT });
@@ -201,7 +210,7 @@ export async function deactivateMember(actorUserId: string, membershipId: string
         afterValue: { sessionsRevoked: sessions.count },
       },
     });
-    return { ok: true, member: toPublic(updated), changed: true };
+    return { ok: true, member: toPublic(updated), changed: true, signedOut: stillActive === 0 };
   });
 }
 

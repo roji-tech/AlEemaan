@@ -28,3 +28,4 @@ Plans and phase records link to the ADR instead of re-arguing the reason.
 | [0004](0004-octalve-auth-is-canonical-constants-are-not-shared.md) | Octalve's auth design is canonical; product-specific constants are not shared | accepted |
 | [0005](0005-last-admin-is-counted-by-person-under-a-lock.md) | The last administrator is counted by person, under a row lock | accepted |
 | [0006](0006-mutation-passes-deferred-to-end-of-phase-2.md) | Mutation passes for new work are deferred to the end of Phase 2 | accepted |
+| [0007](0007-a-person-may-belong-to-several-branches.md) | A person may belong to several branches | accepted |

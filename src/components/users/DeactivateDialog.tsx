@@ -16,7 +16,7 @@ export function DeactivateDialog({
 }: {
   member: Member | null;
   onClose: () => void;
-  onDone: (member: Member) => void;
+  onDone: (member: Member, signedOut: boolean) => void;
 }) {
   return (
     <Dialog open={member !== null} onClose={onClose} title={member ? `Deactivate ${displayName(member)}?` : "Deactivate"}>
@@ -25,7 +25,15 @@ export function DeactivateDialog({
   );
 }
 
-function DeactivateBody({ member, onClose, onDone }: { member: Member; onClose: () => void; onDone: (member: Member) => void }) {
+function DeactivateBody({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: Member;
+  onClose: () => void;
+  onDone: (member: Member, signedOut: boolean) => void;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +43,7 @@ function DeactivateBody({ member, onClose, onDone }: { member: Member; onClose: 
     setError(null);
     const reply = await sendJson(`/api/v1/members/${member.id}/deactivate`, "POST", {});
     setPending(false);
-    if (reply.ok) return onDone(reply.data!.member as Member);
+    if (reply.ok) return onDone(reply.data!.member as Member, Boolean(reply.data!.signedOut));
     if (reply.status === 401) setError(SESSION_ENDED);
     else if (reply.status === 429) setError(RATE_LIMITED);
     else if (reply.status === 0) setError(NETWORK_ERROR);
@@ -45,8 +53,8 @@ function DeactivateBody({ member, onClose, onDone }: { member: Member; onClose: 
   return (
     <div className="space-y-4">
       <p className="text-sm leading-relaxed text-fg-2">
-        They lose access straight away, and they are signed out. Nothing they did is deleted, and you can reactivate them later with the
-        same role and branch.
+        They lose access to this branch straight away. If it is their only branch they are signed out as well; otherwise they stay signed in
+        with their other branches. Nothing they did is deleted, and you can reactivate them later with the same role and branch.
       </p>
       {error && <Alert variant="error">{error}</Alert>}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

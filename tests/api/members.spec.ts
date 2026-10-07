@@ -263,7 +263,7 @@ test.describe("POST /members/[id]/deactivate and /reactivate", () => {
 
     const res = await deactivate(target.membershipId);
     expect(res.status).toBe(200);
-    expect(res.json.data).toMatchObject({ changed: true, member: { status: "deactivated" } });
+    expect(res.json.data).toMatchObject({ changed: true, signedOut: true, member: { status: "deactivated" } });
     // the session itself is gone (the divergence from Octalve): the cookie is a 401, not a signed-in person with no school
     expect((await api("/api/v1/auth/me", { cookie: targetCookie })).status).toBe(401);
     // …and they cannot simply sign in again to a working account: signing in works (it is their account) but they hold no membership
@@ -285,6 +285,21 @@ test.describe("POST /members/[id]/deactivate and /reactivate", () => {
         })
       ).map((r) => r.action),
     ).toEqual(["MEMBER_DEACTIVATED", "MEMBER_REACTIVATED"]);
+  });
+
+  test("with a SECOND branch the person stays signed in (signedOut:false), keeps the other branch, and moving onto a branch they already have is a 409 BRANCH_TAKEN", async () => {
+    const target = await newMember(Role.TEACHING_STAFF, "Two Branches", 0);
+    const other = await db.membership.create({ data: { userId: target.id, branchId: branches[1].id, role: Role.PARENT } });
+    const targetCookie = await cookieFor(target);
+    const taken = await api(member(target.membershipId), as("admin", { method: "PATCH", body: { branchId: branches[1].id } }));
+    expect(taken.status).toBe(409);
+    expect(taken.json.error).toMatchObject({ code: "BRANCH_TAKEN", details: [{ path: "body.branchId" }] });
+    const res = await api(`${member(target.membershipId)}/deactivate`, as("admin", { method: "POST", body: {} }));
+    expect(res.json.data).toMatchObject({ changed: true, signedOut: false });
+    const me = await api("/api/v1/auth/me", { cookie: targetCookie });
+    expect(me.status).toBe(200); // still signed in …
+    expect(me.json.data.memberships).toEqual([{ branchId: branches[1].id, branchName: BRANCH_NAMES[1], role: "PARENT" }]); // … with the branch that is left
+    expect(other.id).toBeTruthy();
   });
 
   test("a deactivated administrator loses the ADMIN routes at once (even with a session that somehow survived)", async () => {
