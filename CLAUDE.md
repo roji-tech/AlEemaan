@@ -57,7 +57,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 ## Read in this order, first session
 
 1. **This file.**
-2. **`/home/rojitech/Desktop/CODEC/out/tasks.md`** — the maintainer's single task tracker for both repos (outside the repos, so it is not in git). **Read it at the start of every session**: it says what is done, in progress, blocked, and what the maintainer has decided. Then continue from it.
+2. **`/home/rojitech/Desktop/CODEC/out/tasks.md`** — the maintainer's single task tracker for both repos (outside the repos, so it is not in git). **Check that it exists and read it at the start of every session**: it says what is done, in progress, blocked, and what the maintainer has decided. If the file does not exist, **create it first** (a legend `[x] done · [~] in progress · [ ] to do · [!] blocked / needs the maintainer`, the rules in force, then one section per repo) and fill it from the progress tracker, rather than working without one. Then continue from it.
 3. **`docs/development-history/aleemaan_progress.md`** — the single source of truth for "what's
    actually built right now," checked against the real repo, not what any plan says should exist.
    Has a "Next action" section at the bottom — that's the actual todo list.
@@ -101,7 +101,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 
 ## Working rules in this repo (follow these without being asked)
 
-**Task tracking (applies to every session, in both repos).** Check `/home/rojitech/Desktop/CODEC/out/tasks.md` before starting work and update it as tasks start, finish, block or appear — it is the maintainer's view of progress, separate from the in-repo progress tracker (which records what is *built*). Note: this is the *workspace* `CODEC/out/`, not the repo's own gitignored `out/` folder.
+**Task tracking (applies to every session, in both repos).** Check that `/home/rojitech/Desktop/CODEC/out/tasks.md` exists before starting work (create it if it does not — see the read-order step) and update it as tasks start, finish, block or appear — it is the maintainer's view of progress, separate from the in-repo progress tracker (which records what is *built*). Note: this is the *workspace* `CODEC/out/`, not the repo's own gitignored `out/` folder.
 
 1. **Design before code.** Write or extend the relevant phase section in `domain-implementation-plan.md`
    first. If you discover the design was wrong while implementing, fix the doc *and* explain the
