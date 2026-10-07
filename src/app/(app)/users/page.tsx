@@ -37,7 +37,10 @@ export default async function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Users" description="The people who can sign in to AlEemaan: invite someone, change a role or branch, or deactivate an account." />
+      <PageHeader
+        title="Users"
+        description="The people who can sign in to AlEemaan: invite someone, change a role or branch, or deactivate an account."
+      />
       <UsersPanel branches={branches} currentUserId={session.userId} />
     </div>
   );
