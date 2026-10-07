@@ -9,7 +9,7 @@ import { TextField } from "@/components/ui/TextField";
 import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, problemFor, sendJson } from "@/components/auth/postJson";
 import { ROLE_OPTIONS, type BranchOption, type Invitation, type RoleName } from "./model";
 
-/// "Invite someone": an address, a role and (optionally) a branch. The server checks everything again; this form only gives the answer where
+/// "Invite someone": an address, a role and a branch (every membership belongs to one). The server checks everything again; this form only gives the answer where
 /// the person is looking. The dialog is remounted per opening (the owner keys it), so it always starts clean.
 export function InviteDialog({
   open,
@@ -26,6 +26,7 @@ export function InviteDialog({
   const [role, setRole] = useState<RoleName>("TEACHING_STAFF");
   const [branchId, setBranchId] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -34,21 +35,29 @@ export function InviteDialog({
     if (pending) return;
     setFormError(null);
     const address = email.trim();
-    if (!address) return setEmailError("Enter an email address.");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return setEmailError("Enter a valid email address.");
-    setEmailError(null);
+    const emailMistake = !address
+      ? "Enter an email address."
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)
+        ? "Enter a valid email address."
+        : null;
+    const branchMistake = branchId ? null : "Choose a branch.";
+    setEmailError(emailMistake);
+    setBranchError(branchMistake);
+    if (emailMistake || branchMistake) return;
 
     setPending(true);
-    const reply = await sendJson(`/api/v1/invitations`, "POST", { email: address, role, branchId: branchId || null });
+    const reply = await sendJson(`/api/v1/invitations`, "POST", { email: address, role, branchId });
     setPending(false);
     if (reply.ok) return onInvited(reply.data!.invitation as Invitation);
 
     const emailProblem = problemFor(reply, "email");
+    const branchProblem = problemFor(reply, "branchId");
     if (emailProblem) setEmailError(emailProblem);
+    else if (branchProblem) setBranchError(branchProblem);
     else if (reply.status === 401) setFormError(SESSION_ENDED);
     else if (reply.status === 429) setFormError(reply.message ?? RATE_LIMITED);
     else if (reply.status === 0) setFormError(NETWORK_ERROR);
-    else setFormError(problemFor(reply, "branchId") ?? reply.message ?? "We couldn't send that invitation. Please try again.");
+    else setFormError(reply.message ?? "We couldn't send that invitation. Please try again.");
   }
 
   return (
@@ -87,11 +96,13 @@ export function InviteDialog({
           label="Branch"
           name="branch"
           value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
+          onChange={(e) => {
+            setBranchId(e.target.value);
+            if (branchError) setBranchError(null);
+          }}
+          error={branchError}
           options={[{ value: "", label: "Choose a branch" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
-          hint={
-            role === "ADMIN" ? "Administrators can see every branch whatever is chosen here." : "Everyone else sees only their own branch."
-          }
+          hint={role === "ADMIN" ? "Administrators can see every branch whatever is chosen here." : "The branch this person belongs to."}
           disabled={pending}
         />
         {formError && <Alert variant="error">{formError}</Alert>}
