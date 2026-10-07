@@ -159,3 +159,39 @@ export function emailChangeTakenNotice(to: string) {
     ].join("\n"),
   };
 }
+
+// --- Invitations (the Users pages) ----------------------------------------------------------------------------
+
+/// A name goes into a header (the subject) and a line of text: never let it break either.
+const oneLine = (value: string) => value.replace(/[\r\n\u2028\u2029]+/g, " ").trim();
+
+/// The token travels in the URL FRAGMENT, like a reset link: no server log, no Referer.
+export function invitationLink(token: string): string {
+  return `${appUrl()}/accept-invite#token=${token}`;
+}
+
+/// To the invited address. Says the same whether or not that address already has an account (the invitee finds out when they open it) —
+/// nothing here lets an administrator learn who is registered.
+export function invitationEmail(input: {
+  to: string;
+  token: string;
+  branchName: string;
+  roleLabel: string;
+  inviterName: string | null;
+  days: number;
+}) {
+  const branch = oneLine(input.branchName);
+  const inviter = input.inviterName ? oneLine(input.inviterName) : "An administrator";
+  return {
+    to: input.to,
+    subject: `You're invited to join ${brand.name}`,
+    text: [
+      `${inviter} invited you to join ${brand.name} (${branch}) as ${input.roleLabel}.`,
+      ``,
+      `To accept, open this link within ${input.days} days:`,
+      invitationLink(input.token),
+      ``,
+      `If you weren't expecting this, ignore this message — nothing happens unless the link is opened, and it stops working by itself.`,
+    ].join("\n"),
+  };
+}

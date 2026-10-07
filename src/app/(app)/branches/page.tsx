@@ -36,7 +36,7 @@ export default async function BranchesPage() {
 
   const branches = await prisma.branch.findMany({
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, _count: { select: { memberships: true } } },
+    select: { id: true, name: true, _count: { select: { memberships: { where: { deactivatedAt: null } } } } },
   });
 
   return <BranchesView branches={branches.map((b) => ({ id: b.id, name: b.name, members: b._count.memberships }))} />;

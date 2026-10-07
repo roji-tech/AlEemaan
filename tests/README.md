@@ -105,6 +105,21 @@ in the app.
   new behaviour; adding a screen? Add it to `responsive-and-a11y.spec.ts` (every state that changes
   the DOM, not just first paint).
 
+## The Users and invitations specs (0.5.H)
+
+| Spec | Proves |
+| :--- | :--- |
+| `unit/users-model` | Relative-expiry wording, `displayName`, `escapeLike`, token shape/hash, invitation status precedence. |
+| `integration/invitations` | The lifecycle against the real database: hash at rest, one live link per address (and two administrators at once), resend/revoke/list, preview, accept — **deterministic lost races** (`whileHeld()`: a second connection holds a change uncommitted while the accept blocks on it), atomic rollback, an existing account attached only by its owner. |
+| `integration/members` | Authority rules, **administrators counted by person under a row lock** (incl. two at once), self-changes, deactivation signs out only on the last membership. |
+| `integration/deactivated-members` | Each reader treats a deactivated membership as absent (`getUserMemberships`, the sign-in admin policy). |
+| `integration/users-migration` | The migration is additive on a database with existing people (it is stepped back inside a rolled-back transaction); the partial unique index and lower-case CHECK hold. |
+| `api/members`, `api/invitations` | Every route over HTTP: role matrix, strict bodies, paging, CSRF, rate limits, mail, audit, a deactivated administrator is a 403 everywhere, an HTTP race. |
+| `e2e/users`, `e2e/accept-invite` | The Users page and the accept page in Chromium, desktop and phone. `accept-invite` runs against the breach-check server (`BREACH_URL`). |
+| `e2e/responsive-and-a11y` — "Users and invitation screens" | axe in both themes, no overflow, ≥ 44 px tap targets, for every state. |
+
+Conventions these specs add: a spec whose assertions count **all** administrators or people starts with `resetDatabase()` + `seedInstance()` (the specs share one database, run one at a time); a test of the breached-password refusal must send the request to `BREACH_URL` (only that server asks the stand-in); a test that steps the schema back inside a transaction must not reuse the same `SELECT *` text before and after (Prisma caches the plan).
+
 ## Known limits
 
 - Chromium only. Firefox/WebKit would be the next step; the cookie and CSRF behaviour under test is

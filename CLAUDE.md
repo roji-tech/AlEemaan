@@ -57,22 +57,24 @@ one-off pattern sources, referenced once for a specific technique and then done:
 ## Read in this order, first session
 
 1. **This file.**
-2. **`docs/development-history/aleemaan_progress.md`** — the single source of truth for "what's
+2. **`/home/rojitech/Desktop/CODEC/out/tasks.md`** — the maintainer's single task tracker for both repos (outside the repos, so it is not in git). **Check that it exists and read it at the start of every session**: it says what is done, in progress, blocked, and what the maintainer has decided. If the file does not exist, **create it first** (a legend `[x] done · [~] in progress · [ ] to do · [!] blocked / needs the maintainer`, the rules in force, then one section per repo) and fill it from the progress tracker, rather than working without one. Then continue from it.
+3. **`docs/development-history/aleemaan_progress.md`** — the single source of truth for "what's
    actually built right now," checked against the real repo, not what any plan says should exist.
    Has a "Next action" section at the bottom — that's the actual todo list.
-3. **`docs/development-history/domain-implementation-plan.md`** — the step-by-step build plan.
+4. **`docs/development-history/domain-implementation-plan.md`** — the step-by-step build plan.
    Design-first: every phase gets designed here *before* it's coded. Read whichever phase section is
    currently "next" before writing any code for it.
-4. **`prisma/schema/*.prisma`** — the actual current data model. This is ground truth; if a doc and
+5. **`prisma/schema/*.prisma`** — the actual current data model. This is ground truth; if a doc and
    the schema disagree, the schema is right and the doc is stale (fix the doc).
-5. **`docs/development-history/phases/*.md`** — one completion record per finished phase, for history
+6. **`docs/development-history/phases/*.md`** — one completion record per finished phase, for history
    and reasoning you don't need to re-derive. Skim titles, read the ones relevant to what you're
    touching.
-6. The PRD — **not yet synced to this repo** (tracked gap, see below). Lives only as a Claude Doc;
+7. The PRD — **not yet synced to this repo** (tracked gap, see below). Lives only as a Claude Doc;
    ask the user for the link if you need it and Claude Docs tools are unavailable.
 
 ## Files that change constantly — update these every session that changes anything real
 
+- **`/home/rojitech/Desktop/CODEC/out/tasks.md`** — the single task tracker for Octalve Edu *and* AlEemaan. Update it as work moves, not at the end: mark `[~]` when you start a task, `[x]` when it is done *and verified*, `[!]` when you are blocked on the maintainer; add every new task, open question and deferred item the moment it appears; record real numbers (tests passed/failed/not run), branch names and PR links. Never mark something done that was not run. Before a context compaction or hand-off, make sure it holds everything the next session needs.
 - **`docs/development-history/aleemaan_progress.md`** — update its "Last Updated" date and "Next
   action" section after *any* real change (code, schema, or a design decision), not just at the end
   of a phase. This is the first file any future session reads to know current state; letting it go
@@ -88,6 +90,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 
 ## Files that are stable reference — read once, trust, don't expect them to move
 
+- `docs/decisions/` — short ADRs (one per decision someone might reverse by mistake); read the index before changing RLS, locks, permissions, deactivation or migrations. Rules are in its README: never edit an accepted decision, supersede it.
 - `docs/legacy-feature-inventory.md` — a frozen factual snapshot of the 5 legacy repos as read on
   2026-09-28. Won't change unless the legacy system itself is re-audited.
 - `docs/feature-reconciliation-audit.md` — the second-pass gap analysis against the PRD's original
@@ -97,6 +100,8 @@ one-off pattern sources, referenced once for a specific technique and then done:
 - `docs/development-history/phases/*.md` — append-only history, never edited after being written.
 
 ## Working rules in this repo (follow these without being asked)
+
+**Task tracking (applies to every session, in both repos).** Check that `/home/rojitech/Desktop/CODEC/out/tasks.md` exists before starting work (create it if it does not — see the read-order step) and update it as tasks start, finish, block or appear — it is the maintainer's view of progress, separate from the in-repo progress tracker (which records what is *built*). Note: this is the *workspace* `CODEC/out/`, not the repo's own gitignored `out/` folder.
 
 1. **Design before code.** Write or extend the relevant phase section in `domain-implementation-plan.md`
    first. If you discover the design was wrong while implementing, fix the doc *and* explain the
@@ -164,6 +169,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
   and phone sizes, axe accessibility, and a real-HTTPS cookie run). It needs a Postgres
   (`docker compose up -d db`), Chromium (`pnpm exec playwright install chromium`) and `openssl`; it uses
   its own `aleemaan_test` database. Run it before opening a PR.
+- **Phase 0.5.H (Users pages and invitations, ported from Octalve Edu's 0.5.4) is BUILT AND VERIFIED** — branch `claude/aleemaan-users-invitations`, stacked on `claude/aleemaan-0.5.G` (PR #10). **Rules that follow:** (1) **a deactivated membership is no membership** — every new reader of `Membership` filters `deactivatedAt: null` (ADR 0002); deactivating a person's *last active* membership also deletes their sessions (a deliberate divergence from Octalve); (2) members are addressed by **membership id**; **a person may belong to several branches** (one membership each — ADR 0007), so inviting/accepting are per (person, branch) and one open invitation exists per (address, branch); (3) an invitation's existing account is attached **only by its owner** (signed in as it) — never by an administrator, never while signed in as someone else; a deactivated person comes back by **reactivation**, not by an old link; (4) the last administrator is counted **by person, under `FOR UPDATE`** (ADR 0005); (5) the migration is additive — **run it before deploying the code**; (6) specs that count all administrators/people start with `resetDatabase()`, and a breached-password test must hit `BREACH_URL`. Mutation pass **pending** (end of Phase 2). Not in this port: permissions, admin-initiated email change, School Settings. Record: `docs/development-history/phases/phase-0.5.H-users-and-invitations.md`.
 - **Phase 0.5.G (shared API infrastructure, ported from Octalve Edu §0.5.3) is BUILT AND VERIFIED** — branch `claude/aleemaan-0.5.G`. **Rules that follow:** (1) new routes use `ok`/`fail(message, status, code, details?)`,
   `parseOffsetPagination` / `parseCursorPagination` and `validate({ body, query }, …)` *inside* `withAuth` — a bad parameter is a **400 naming the field**, never clamped, never first-wins; unknown body keys are
   stripped, never passed on; (2) **`X-Forwarded-Host` is never trusted unless `TRUST_FORWARDED_HOST=true`** — set only behind a proxy that *overwrites* it; the default is to compare `Origin` with the `Host` header, so a reverse

@@ -60,7 +60,7 @@ export function withAuth<C = unknown>(
 
     if (roles) {
       const permitted = await prisma.membership.findFirst({
-        where: { userId: session.userId, role: { in: [...roles] } },
+        where: { userId: session.userId, role: { in: [...roles] }, deactivatedAt: null }, // a deactivated membership grants nothing
         select: { id: true },
       });
       // 403, not 401: the person IS signed in; signing in again won't help.

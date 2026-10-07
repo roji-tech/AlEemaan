@@ -72,11 +72,11 @@ export default async function OverviewPage() {
 
   const [branchCount, peopleCount, branches] = await Promise.all([
     prisma.branch.count(),
-    prisma.user.count({ where: { memberships: { some: {} } } }),
+    prisma.user.count({ where: { memberships: { some: { deactivatedAt: null } } } }), // active people only
     prisma.branch.findMany({
       orderBy: { createdAt: "asc" },
       take: 6,
-      select: { id: true, name: true, _count: { select: { memberships: true } } },
+      select: { id: true, name: true, _count: { select: { memberships: { where: { deactivatedAt: null } } } } },
     }),
   ]);
 
