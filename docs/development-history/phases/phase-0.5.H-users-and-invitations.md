@@ -38,3 +38,6 @@ What they pin: the lifecycle with the hash at rest and no secret in any audit ro
 - Permissions (`withAuth` `permissions` and the grant UI — Octalve's 1.0), admin-initiated email change (Octalve 0.5.4-F is still open there), School Settings — **not part of this port, and not started**.
 - **Deploy notes:** run the migration first, then the code (the old code runs unchanged against the migrated database); the reverse proxy must pass `Host` through (or `TRUST_FORWARDED_HOST=true`) — that is 0.5.G's note, and this stacks on it; invitation mail needs `RESEND_API_KEY` + `EMAIL_FROM`.
 - Open questions for the maintainer: one person in two branches? Should `CAN_MANAGE_USERS` ever manage people? Is "deactivated = signed out" wanted? Invitation wording and sender.
+
+## Final run
+One lane, the whole suite, on the final tree (`b32b976` plus docs): `pnpm typecheck` → `pnpm lint` → `pnpm format:check` → `pnpm build` clean, then `npx playwright test --timeout=120000` against `aleemaan_test`: **1042 passed, 0 failed, 18 skipped, 56.6 minutes** (1060 tests in all). The 18 skips are the viewport-specific tests that skip themselves on the other project (phone-only tests on the desktop project, and the reverse — `test.skip(({ isMobile }) => …)`). Nothing was re-run, loosened or retried. Mutation pass: **not run** (pending, end of Phase 2).
