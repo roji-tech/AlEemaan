@@ -1,7 +1,19 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
-import { Role, codeFor, createUser, db, enableMfa, resetDatabase, seedInstance, uniqueEmail, uniqueIp } from "./../support/db";
+import {
+  BRANCH_NAMES,
+  Role,
+  codeFor,
+  createUser,
+  db,
+  enableMfa,
+  resetDatabase,
+  seedInstance,
+  uniqueEmail,
+  uniqueIp,
+} from "./../support/db";
+import { hashInvitationToken, newInvitationToken } from "@/lib/invitations/token";
 import { DEVTOOLS_URL, DEV_TOOLS_TEST_TOKEN } from "../support/env";
 import { linkFrom, waitForMail } from "../support/outbox";
 import { createEmailChangeToken } from "@/lib/auth/email-change";
@@ -503,6 +515,194 @@ test.describe("account self-service screens (profile, email, sessions)", () => {
     await page.goto("/confirm-email");
     await expect(page.getByRole("heading", { name: "This link can't be used" })).toBeVisible();
     await checkScreen(page, "/confirm-email (no token)", isMobile);
+  });
+});
+
+test.describe("Users and invitation screens", () => {
+  test.beforeEach(async () => {
+    await resetDatabase();
+    await seedInstance();
+  });
+
+  async function people() {
+    const branches = await db.branch.findMany({ orderBy: { createdAt: "asc" } });
+    const staff = await createUser({ name: "Tola Teacher", role: Role.TEACHING_STAFF });
+    await createUser({ name: "Pat Parent", role: Role.PARENT });
+    const gone = await createUser({ name: "Gone Person", role: Role.NON_TEACHING_STAFF });
+    await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
+    await db.invitation.create({
+      data: {
+        email: uniqueEmail("waiting"),
+        role: Role.PARENT,
+        branchId: branches[1].id,
+        tokenHash: hashInvitationToken(newInvitationToken()),
+        expiresAt: new Date(Date.now() + 5 * 86_400_000),
+      },
+    });
+    await db.invitation.create({
+      data: {
+        email: uniqueEmail("late"),
+        role: Role.STUDENT,
+        branchId: branches[0].id,
+        tokenHash: hashInvitationToken(newInvitationToken()),
+        expiresAt: new Date(Date.now() - 3_600_000),
+      },
+    });
+    return { branches, staff };
+  }
+
+  test("/users — the list with pending and expired invitations, the filters, the empty result, and the deactivated view", async ({
+    page,
+    isMobile,
+  }) => {
+    await people();
+    const admin = await createUser({ name: "Amina Yusuf", role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.goto("/users");
+    await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await expect(page.getByText("Send again")).toBeVisible(); // the invitations have loaded too
+    await checkScreen(page, "/users (list and invitations)", isMobile);
+
+    await page.getByLabel("Search").fill("zzz-no-one");
+    await expect(page.getByText("No one matches these filters.")).toBeVisible();
+    await checkScreen(page, "/users (no match)", isMobile);
+    await page.getByRole("button", { name: "Clear filters" }).click();
+
+    await page.getByLabel("Status").selectOption("deactivated");
+    await expect(page.getByRole("button", { name: "Reactivate Gone Person" })).toBeVisible();
+    await checkScreen(page, "/users (deactivated people)", isMobile);
+  });
+
+  test("/users — the Invite dialog: open, with its errors, and refused for an existing member", async ({ page, isMobile }) => {
+    const { staff } = await people();
+    const admin = await createUser({ name: "Amina Yusuf", role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.goto("/users");
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await page.getByRole("button", { name: "Invite someone" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByLabel("Email address")).toBeFocused();
+    await checkScreen(page, "/users (Invite dialog)", isMobile);
+
+    await dialog.getByRole("button", { name: "Send invitation" }).click();
+    await expect(dialog.getByText("Enter an email address.")).toBeVisible();
+    await expect(dialog.getByText("Choose a branch.")).toBeVisible();
+    await checkScreen(page, "/users (Invite dialog, errors)", isMobile);
+
+    await dialog.getByLabel("Email address").fill(staff.email);
+    await dialog.getByLabel("Branch").selectOption({ label: BRANCH_NAMES[0] });
+    await dialog.getByRole("button", { name: "Send invitation" }).click();
+    await expect(dialog.getByText("That person is already a member.")).toBeVisible();
+    await checkScreen(page, "/users (Invite dialog, already a member)", isMobile);
+  });
+
+  test("/users — the Edit and Deactivate dialogs, and the notice after a change", async ({ page, isMobile }) => {
+    await people();
+    const admin = await createUser({ name: "Amina Yusuf", role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.goto("/users");
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await page.getByRole("button", { name: "Change role or branch for Pat Parent" }).click();
+    await expect(page.getByRole("dialog").getByRole("heading", { name: "Change access for Pat Parent" })).toBeVisible();
+    await checkScreen(page, "/users (Edit dialog)", isMobile);
+    await page.getByRole("dialog").getByLabel("Role").selectOption("ADMIN");
+    await expect(page.getByRole("dialog").getByText("Administrators can see every branch whatever is chosen here.")).toBeVisible();
+    await checkScreen(page, "/users (Edit dialog, administrator)", isMobile);
+    await page.getByRole("dialog").getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByRole("status").filter({ hasText: /Saved\./ })).toBeVisible();
+    await checkScreen(page, "/users (after a change)", isMobile);
+
+    await page.getByRole("button", { name: "Deactivate Tola Teacher" }).click();
+    await expect(page.getByRole("dialog").getByRole("heading", { name: "Deactivate Tola Teacher?" })).toBeVisible();
+    await checkScreen(page, "/users (Deactivate dialog)", isMobile);
+  });
+
+  test("/users — someone who is not an administrator is told they have no access", async ({ page, isMobile }) => {
+    const teacher = await createUser({ role: Role.TEACHING_STAFF });
+    await signInThroughUi(page, teacher);
+    await page.goto("/users");
+    await expect(page.getByText("You don't have access to this page")).toBeVisible();
+    await checkScreen(page, "/users (no access)", isMobile);
+  });
+
+  test("/accept-invite — the new-account form, its errors, and the finished state", async ({ page, isMobile }) => {
+    const { branches } = await people();
+    const to = uniqueEmail("newbie");
+    const token = newInvitationToken();
+    await db.invitation.create({
+      data: {
+        email: to,
+        role: Role.TEACHING_STAFF,
+        branchId: branches[0].id,
+        tokenHash: hashInvitationToken(token),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    await page.goto(`/accept-invite#token=${token}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Join AlEemaan" })).toBeVisible();
+    await checkScreen(page, "/accept-invite (new account)", isMobile);
+
+    await page.getByRole("button", { name: "Create account and join" }).click();
+    await expect(page.getByText("Enter your name.")).toBeVisible();
+    await checkScreen(page, "/accept-invite (errors)", isMobile);
+
+    await page.getByLabel("Your name").fill("Nia Newbie");
+    await page.getByLabel("Password", { exact: true }).fill("a-fresh-unseen-passphrase-3");
+    await page.getByLabel("Confirm password").fill("a-fresh-unseen-passphrase-3");
+    await page.getByRole("button", { name: "Create account and join" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "You're in" })).toBeVisible();
+    await checkScreen(page, "/accept-invite (finished)", isMobile);
+  });
+
+  test("/accept-invite — sign in first, the wrong account, signed in as the invitee, and a link that cannot be used", async ({
+    page,
+    isMobile,
+  }) => {
+    const { branches } = await people();
+    const owner = await createUser({ name: "Olu Owner" });
+    const token = newInvitationToken();
+    await db.invitation.create({
+      data: {
+        email: owner.email,
+        role: Role.PARENT,
+        branchId: branches[0].id,
+        tokenHash: hashInvitationToken(token),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    await page.goto(`/accept-invite#token=${token}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in to join AlEemaan" })).toBeVisible();
+    await checkScreen(page, "/accept-invite (sign in first)", isMobile);
+
+    await page.goto("/accept-invite");
+    await expect(page.getByRole("heading", { level: 1, name: "This link can't be used" })).toBeVisible();
+    await checkScreen(page, "/accept-invite (incomplete link)", isMobile);
+
+    const other = await createUser({ name: "Someone Else" });
+    await signInThroughUi(page, other);
+    await page.goto(`/accept-invite#token=${token}`);
+    await expect(page.getByRole("heading", { level: 1, name: "This invitation is for a different account" })).toBeVisible();
+    await checkScreen(page, "/accept-invite (wrong account)", isMobile);
+  });
+
+  test("/accept-invite — signed in as the invitee: one button", async ({ page, isMobile }) => {
+    const { branches } = await people();
+    const owner = await createUser({ name: "Olu Owner" });
+    const token = newInvitationToken();
+    await db.invitation.create({
+      data: {
+        email: owner.email,
+        role: Role.PARENT,
+        branchId: branches[0].id,
+        tokenHash: hashInvitationToken(token),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    await signInThroughUi(page, owner);
+    await page.goto(`/accept-invite#token=${token}`);
+    await expect(page.getByRole("button", { name: "Join AlEemaan" })).toBeVisible();
+    await checkScreen(page, "/accept-invite (signed in as the invitee)", isMobile);
   });
 });
 
