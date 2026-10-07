@@ -1,6 +1,6 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-10-05 (auth rebuilt against the hardened shared design, then synced to Octalve Edu's
+Last Updated: 2026-10-07 (Users pages and invitations built — see "Users pages and invitations build" below; before that, 2026-10-05: auth rebuilt against the hardened shared design, then synced to Octalve Edu's
 built-and-verified implementation — see "Synced to Octalve Edu's verified auth" below; repo
 https://github.com/roji-tech/AlEemaan, public)
 
@@ -164,14 +164,18 @@ a free and a taken address, and the emailed page waits for a click. 833 tests pa
 bugs was re-run here, all caught. One additive migration (`EmailChangeToken`) — safe for the live school's database. Needs working
 email (`RESEND_API_KEY` + `EMAIL_FROM`) for an address change.
 
+## Users pages and invitations build (2026-10-07) — built and verified, stacked on 0.5.G
+
+Design: plan §"Build design — Users pages and invitations" + "As built". Record: `phases/phase-0.5.H-users-and-invitations.md`; decisions: `docs/decisions/0002`, `0003`, `0005`. Branch `claude/aleemaan-users-invitations`, **based on `claude/aleemaan-0.5.G` (PR #10, open)**.
+An administrator can see the school's people (filters, paging), invite someone (hashed, single-use, 7-day link in the URL fragment, mailed after the response), change a role or branch, deactivate and reactivate a membership, and resend or revoke a pending invitation; the invitee accepts at `/accept-invite` (new account, or signed in as the existing one). **One additive migration** (`Membership.deactivatedAt`, `Invitation`) — safe for the live school's database, run before the code. **A deactivated membership is no membership in every reader**, and deactivating a person's last active membership also signs them out. Mutation pass **not run** (pending, end of Phase 2). Not in this port: permissions, admin-initiated email change, School Settings.
+
 ## Next action
 
 **Phases 0.5.1.6 (the sync) and 0.5.A–0.5.F are merged to `master`** (the stacked PRs #4–#6 were merged into their stack bases rather
 than `master`, so they were consolidated into #7, which landed). **0.5.E (self-service) is merged too** ([#8](https://github.com/roji-tech/AlEemaan/pull/8), 2026-10-05), as is the roadmap doc
 ([#9](https://github.com/roji-tech/AlEemaan/pull/9)). Then, in order (2026-10-05, after a cross-repo plan review — see the plan's "Cross-repo review"): **(1)** ~~the shared API infrastructure ported from Octalve Edu~~ (**0.5.G**: pagination, `validate()`, breached-password check, plus a CSRF hardening fix — built,
 verified, 51 mutations all caught; branch `claude/aleemaan-0.5.G`, PR open — **deploy note: the reverse proxy must pass `Host` through, or set `TRUST_FORWARDED_HOST=true`**; `Dialog`/`SelectField` move with the Users pages that use them);
-**(2)** the Users pages that finish 0.5.E (invite & activate, deactivation), ported from Octalve Edu's 0.5.4 after it has had its mutation
-pass; **(3)** Phase 0.5.2 (School Settings), designed in the plan — **not implemented yet**, waiting on the maintainer's go-ahead before
+**(2)** ~~the Users pages that finish 0.5.E (invite & activate, deactivation), ported from Octalve Edu's 0.5.4~~ (**0.5.H**: built and verified 2026-10-07, branch `claude/aleemaan-users-invitations`, stacked on #10 — mutation pass pending; permissions and admin-initiated email change are separate, later ports); **(3)** Phase 0.5.2 (School Settings), designed in the plan — **not implemented yet**, waiting on the maintainer's go-ahead before
 any code, per the design-first rule this document follows. (The shell's *Settings* entry is a visible "Soon" until then.) The Redis rate-limit
 store and everything in Octalve Edu's §0.5.2 (RLS) are deliberately **not** ported — AlEemaan is one school in one process.
 

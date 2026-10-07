@@ -209,6 +209,7 @@ fix or review finding in one maps 1:1 onto the other.
 | Error codes | `INVALID_CREDENTIALS`, `RATE_LIMITED`, `CSRF`, `INVALID_BODY`, `UNAUTHENTICATED` | adds `FORBIDDEN` (403) |
 | Screens | `/login`, `/dashboard`, `/` (router), `/setup`; `components/ui/*`, `components/auth/*` | brand text only |
 | Tests | `tests/{setup,unit,integration,api,e2e,https}`, `playwright.config.ts`, `pnpm test` | own ports (3200 / 3201 / 3543), DB `aleemaan_test` |
+| Users and invitations (0.5.4 here: **0.5.H**) | `lib/invitations/{token,status,service}.ts`, `lib/members/{service,http}.ts`, `POST /api/v1/invitations/{preview,accept}`, `/accept-invite`, `/users`, `components/users/*`, audit actions `INVITATION_*`, `MEMBER_*` | **divergences:** `/members/[membershipId]` (a membership's id, not a user's); `branchId` where Octalve has `campusId`; no RLS / invitation context; **deactivating a person's last active membership deletes their sessions** (Octalve keeps the session); an ADMIN's branch is shown as "All branches" (ADR 0002) |
 
 Deliberately **not** synced (different concepts, not drift): `Branch`/`Membership` here vs
 `Campus`/`TenantMembership` there (no tenant above a branch here), and the cookie's product prefix.
@@ -1131,3 +1132,14 @@ English three-term calendars, the WAEC scale, real records to migrate; the core 
 
 **Decision 10 — divergences, to be logged in both plans' shared-names tables when built.** `members/[membershipId]` (not user id); `branchId` where Octalve has `campusId`; no RLS / `forInvitation`; deactivation revokes sessions when it removes the last active membership; an ADMIN's branch is shown as "All branches".
 **Open questions for the maintainer:** (1) one person in two branches? (2) should `CAN_MANAGE_USERS` ever manage people (Octalve: never delegable)? (3) is "deactivated = signed out" wanted for the live school (Decision 3's divergence)? (4) invitation wording and the sender name/address the school wants on the mail.
+
+### As built — Users pages and invitations (2026-10-07)
+
+Built as designed above (Decisions 1–10), in the order: additive migration → services and readers → routes → components → tests → docs. Record: `phases/phase-0.5.H-users-and-invitations.md`. Where the build differs from the design:
+
+- **The invite dialog requires a branch** (the design's wording "optionally a branch" was Octalve's campus rule carried over): a membership always has one here. Found by the browser test; the dialog says "Choose a branch." in place.
+- **No per-token limit** on the public routes (Decision 5 listed one). Only the per-IP failure limit (refunded on success) exists, as in Octalve; the token is 256 random bits.
+- **Where the tests live:** token / status / like-escape / mail-header tests are in the integration spec `invitations` (as Octalve does) and the pure UI wording in the unit spec `users-model`; everything else is as listed in Decision 9, plus an HTTP race (two administrators deactivating each other) and "a deactivated administrator is a 403 on every administrator route".
+- **`LAST_ADMIN` cannot be provoked over HTTP except by a race** (the caller is always a second administrator), so the rule is pinned in-process and the HTTP test is the race.
+- Hints no longer promise a per-branch view nothing here enforces ("The branch this person belongs to").
+- **Mutation pass: not run — pending, end of Phase 2.** The list stays as in Decision 9.
