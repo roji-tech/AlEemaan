@@ -1018,6 +1018,10 @@ everything above being schema-stable, for obvious reasons.
   since idempotency ("already-promoted students are no longer in the source class query") falls out
   naturally from querying active enrollments rather than needing a separate history field to check
   against.
+  *Public Credential / Report-Card Verification (`VerifyCertificateForm` pattern):*
+  Every approved and published term report card and certificate will feature an immutable verification hash and QR code. An unauthenticated public verification portal (`/verify/[code]` or `/verify-certificate`) adopting the `VerifyCertificateForm` pattern allows tertiary institutions, employers, and sponsors to verify credential authenticity and honors without exposing internal pupil records.
+  *Interactive Timetable & Curriculum Canvas (`TwoNode_V2_Design_Canvas.html`):*
+  Academic timetable slot scheduling and subject allocations borrow the visual workflow canvas architecture from `TwoNode_V2_Design_Canvas.html` for real-time drag-and-drop clash resolution (teacher-period-room conflict detection across branches).
 
 - **Phase 4 — Finance & Payments.** Depends on Phase 2 (`Student` must exist to have a payment
   status). `Invoice`/`Payment` records replacing the legacy bare `hasPaid` boolean the result-checker

@@ -58,7 +58,7 @@ Pure configuration, no student data. **Per-branch** (Arabic branches: two terms;
 | 1.3 | `Subject` per branch and class group |
 | 1.4 | `AssessmentConfig` (CA components + max scores + exam max) with the **snapshot onto each Result** |
 | 1.5 | `GradeScale` as data (band → letter → remark; A1–F9 default) |
-| 1.6 | Screens: one "Academic setup" area per branch; copy-forward from last session |
+| 1.6 | Screens: one "Academic setup" area per branch; copy-forward from last session; interactive timetable & subject allocation canvas (adopting visual workflow canvas from `TwoNode_V2_Design_Canvas.html` for drag-and-drop clash resolution) |
 | 1.7 | Gate: every branch configurable; rules (one active term per branch, no overlapping bands) enforced by conditional updates |
 
 Steps for each of 1.1–1.5: (1) design in plan (what is branch-scoped, uniqueness, deletion rules — nothing referenced by
@@ -76,9 +76,10 @@ touch another branch if branch-scoped roles are introduced) ; (6) screens; (7) m
 ## Phase 3 — Results & Assessment Workflow
 T1 score entry (teacher) validated against the snapshot · T2 submit → approve (`CAN_APPROVE_RESULTS`) → publish (conditional
 updates; replaces the plaintext shared-password unlock) · T3 class position computed server-side with correct tie handling ·
-T4 server-rendered report-card PDF (letterhead from Settings) · T5 bulk promotion (Third-Term only, average of per-term
+T4 server-rendered report-card PDF (letterhead from Settings) with cryptographic verification token and QR code · T5 bulk promotion (Third-Term only, average of per-term
 averages ≥ 50%, idempotent) by closing and opening **enrollments** · T6 screens · T7 gate: parent/student see only their own
-published results; promotion rule matches the legacy golden cases exactly.
+published results; promotion rule matches the legacy golden cases exactly · **T8 public report-card and certificate verification portal**
+(adopting the `VerifyCertificateForm` pattern for tamper-evident public credential verification without exposing internal data).
 
 ## Phase 4 — Finance & Payments
 T1 `Invoice` / `Payment` replacing the bare `hasPaid` flag the result checker gates on · T2 manual confirmation first (no
@@ -88,7 +89,7 @@ client-side flag.
 
 ## Phase 5 — Public Site & CMS
 Admissions inquiry form finally wired to a backend (currently cosmetic) · fee browser from CMS content, not `fees-data.js` ·
-contact / tour / vacancy forms · spam protection and rate limits · content publish permission (`CAN_PUBLISH_CONTENT`) · SEO,
+contact / tour / vacancy forms · spam protection and rate limits · content publish permission (`CAN_PUBLISH_CONTENT`) · public credential verification portal (integrating `VerifyCertificateForm` pattern for certificates and diplomas) · SEO,
 accessibility, performance budget.
 
 ## 0.5.3 — Auth completion
