@@ -7,10 +7,12 @@ model Branch {
   id   String @id @default(cuid())
   name String @unique
 
-  memberships Membership[]
-  invitations Invitation[]
-  sessions    AcademicSession[]
-  periods     AcademicPeriod[]
+  memberships       Membership[]
+  invitations       Invitation[]
+  sessions          AcademicSession[]
+  periods           AcademicPeriod[]
+  students          StudentRecord[]
+  enrollments       StudentEnrollment[]
 
   createdAt DateTime @default(now())
 }

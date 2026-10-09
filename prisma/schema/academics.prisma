@@ -27,8 +27,9 @@ model AcademicSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch  Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  periods AcademicPeriod[]
+  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  periods     AcademicPeriod[]
+  enrollments StudentEnrollment[]
 
   @@unique([branchId, label])
   @@index([branchId, status])
