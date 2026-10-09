@@ -1,0 +1,34 @@
+// --- Attendance Tracking Domain (Port of Octalve Edu Phase 1.3) ---
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+enum AttendanceSource {
+  ONLINE
+  OFFLINE_SYNC
+}
+
+/// Daily roll call record for a student on a specific date.
+model AttendanceRecord {
+  id             String           @id @default(cuid())
+  branchId       String
+  studentId      String
+  date           DateTime         @db.Date
+  status         AttendanceStatus @default(PRESENT)
+  remarks        String?
+  source         AttendanceSource @default(ONLINE)
+  markedByUserId String?
+  markedAt       DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
+
+  branch  Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student StudentRecord @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+  @@index([branchId, date])
+  @@index([studentId])
+}
