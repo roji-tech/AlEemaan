@@ -22,7 +22,8 @@
     "test:e2e": "playwright test --project=e2e-desktop --project=e2e-mobile",
     "test:https": "playwright test --project=https",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "tasks:check": "node scripts/tasks-check.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

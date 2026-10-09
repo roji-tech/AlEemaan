@@ -1,5 +1,5 @@
 # 0003 — Migrations are additive and tests never touch the live database
-Status: accepted · Decided: from the start of the live school · Recorded: 2026-10-07
+Status: accepted (the "never run migrate with the default DATABASE_URL" bullet is superseded by 0009) · Decided: from the start of the live school · Recorded: 2026-10-07
 
 ## Context
 The school's real data lives in the `aleemaan` database on port 5434. A destructive migration or a test helper that truncates tables there is unrecoverable.
