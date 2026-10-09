@@ -1,0 +1,59 @@
+// --- Academic Structure Foundation (Plan §Roadmap Phase 1) ---
+
+enum SessionStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+}
+
+enum PeriodKind {
+  TERM
+  SEMESTER
+}
+
+/// An academic year/session scoped to a branch (English branches run 3 terms, Arabic branches run 2 terms).
+model AcademicSession {
+  id        String        @id @default(cuid())
+  branchId  String
+  label     String // e.g. "2026/2027"
+  startDate DateTime      @db.Date
+  endDate   DateTime      @db.Date
+  status    SessionStatus @default(PLANNED)
+
+  archivedAt  DateTime?
+  closeAt     DateTime?
+  closeForced Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  branch  Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  periods AcademicPeriod[]
+
+  @@unique([branchId, label])
+  @@index([branchId, status])
+}
+
+/// A term or period within an academic session.
+model AcademicPeriod {
+  id        String     @id @default(cuid())
+  branchId  String
+  sessionId String
+  kind      PeriodKind @default(TERM)
+  ordinal   Int // 1, 2, 3
+  label     String // e.g. "1st Term", "2nd Term", "3rd Term"
+  startDate DateTime   @db.Date
+  endDate   DateTime?  @db.Date
+  isCurrent Boolean    @default(false)
+
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  branch  Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, ordinal])
+  @@index([branchId, sessionId])
+}

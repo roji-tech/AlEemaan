@@ -90,7 +90,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 
 ## Files that are stable reference — read once, trust, don't expect them to move
 
-- `docs/decisions/` — short ADRs (one per decision someone might reverse by mistake); read the index before changing RLS, locks, permissions, deactivation or migrations. Rules are in its README: never edit an accepted decision, supersede it.
+- `docs/adr/` — short ADRs (one per decision someone might reverse by mistake); read the index before changing RLS, locks, permissions, deactivation or migrations. Rules are in its README: never edit an accepted decision, supersede it.
 - `docs/legacy-feature-inventory.md` — a frozen factual snapshot of the 5 legacy repos as read on
   2026-09-28. Won't change unless the legacy system itself is re-audited.
 - `docs/feature-reconciliation-audit.md` — the second-pass gap analysis against the PRD's original
