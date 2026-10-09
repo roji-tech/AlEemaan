@@ -4,7 +4,7 @@
 - **Status:** Completed
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/aleemaan-attendance`
+- **Target Branch / PR:** [PR #15](https://github.com/roji-tech/AlEemaan/pull/15) (`claude/aleemaan-attendance`)
 - **Started:** 2026-10-09 22:00:00 UTC
 - **Ended:** 2026-10-09 22:35:00 UTC
 - **Duration:** 35 minutes
