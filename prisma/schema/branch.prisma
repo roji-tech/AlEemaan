@@ -13,6 +13,7 @@ model Branch {
   periods           AcademicPeriod[]
   students          StudentRecord[]
   enrollments       StudentEnrollment[]
+  attendanceRecords AttendanceRecord[]
 
   createdAt DateTime @default(now())
 }

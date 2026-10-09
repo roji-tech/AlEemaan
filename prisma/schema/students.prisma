@@ -33,8 +33,9 @@ model StudentRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  enrollments StudentEnrollment[]
+  branch            Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  enrollments       StudentEnrollment[]
+  attendanceRecords AttendanceRecord[]
 
   @@index([branchId])
   @@index([branchId, firstName, lastName])
