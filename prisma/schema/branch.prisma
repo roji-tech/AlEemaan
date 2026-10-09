@@ -9,6 +9,8 @@ model Branch {
 
   memberships Membership[]
   invitations Invitation[]
+  sessions    AcademicSession[]
+  periods     AcademicPeriod[]
 
   createdAt DateTime @default(now())
 }

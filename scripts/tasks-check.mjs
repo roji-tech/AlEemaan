@@ -1,18 +1,10 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const thisRepo = path.resolve(__dirname, "..");
 
 // Known paths strictly limited to the twin workspaces
 const OCTALVE_EDU_PATH = "/home/rojitech/Desktop/CODEC/OCTALVE/octalve-edu";
 const ALEEMAAN_PATH = "/home/rojitech/Desktop/CODEC/NextJS/AlEemaan";
-
-// Determine which repo is running this script
-const isOctalve = thisRepo.includes("octalve-edu");
-const currentName = isOctalve ? "octalve-edu" : "aleemaan";
 
 function parseTasks(repoPath) {
   const currentTasksFile = path.join(repoPath, "docs", "tasks", "current-tasks.md");
@@ -27,7 +19,10 @@ function parseTasks(repoPath) {
   for (const line of lines) {
     // Match table rows like: | 0001 | ... | ... | Status | ...
     if (line.trim().startsWith("|") && !line.includes("---") && !line.includes("Task File")) {
-      const parts = line.split("|").map((p) => p.trim()).filter(Boolean);
+      const parts = line
+        .split("|")
+        .map((p) => p.trim())
+        .filter(Boolean);
       if (parts.length >= 4) {
         tasks.push({
           id: parts[0],

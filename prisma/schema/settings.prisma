@@ -1,0 +1,17 @@
+// --- School settings (Plan §0.5.2) ---
+
+/// One row for the entire school: id is always "global".
+/// Defaults provide a valid record so it is never null/unconfigured.
+model SchoolSettings {
+  id        String  @id @default("global")
+  name      String  @default("Al-Eemaan Schools")
+  principal String?
+  phone     String?
+  motto     String?
+  address   String?
+  email     String?
+  website   String?
+
+  updatedAt DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+}
