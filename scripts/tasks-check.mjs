@@ -74,6 +74,6 @@ if (aleemaanData.found && aleemaanData.tasks.length > 0) {
 console.log("\n\x1b[1m\x1b[36m------------------------------------------------------------------------\x1b[0m");
 console.log("\x1b[1m▶ CROSS-PROJECT ALIGNMENT & PARITY STATUS\x1b[0m");
 console.log("  • \x1b[32m[✓] Auth & Users:\x1b[0m         Octalve (PR #11 merged) --> AlEemaan (PR #11 open, verified)");
-console.log("  • \x1b[33m[!] Students / Override:\x1b[0m  Octalve (ADR-0014 built) --> AlEemaan (Ready to port)");
+console.log("  • \x1b[32m[✓] Students / Override:\x1b[0m  Octalve (ADR-0014 built) --> AlEemaan (ADR-0011 ported & verified)");
 console.log("  • \x1b[36m[·] Attendance:\x1b[0m           Octalve (Phase 1.3 next) --> AlEemaan (Queued after settings)");
 console.log("\x1b[1m\x1b[36m========================================================================\x1b[0m\n");
