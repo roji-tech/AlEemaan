@@ -1186,3 +1186,15 @@ Built as Decisions M1–M7 above, on the same branch (PR #11), in this order: de
 **Tests (written with the code).** *Unit:* none new (pure rules unchanged). *API:* a teacher with a membership in branch A only gets 404 on GET/POST for branch B and on a branch-B student's history; a branch-B student id inside a branch-A POST is a 400 and nothing is written (and a pre-existing branch-B record is unchanged); an archived / unenrolled / unknown id is a 400 with nothing written; duplicate ids refused; POST with no active session is 409; malformed `date` on GET is 400; an ADMIN still reaches every branch; the existing tests still pass. *Integration:* the transaction rolls back wholly when one id is refused (no partial marks).
 
 **Not in this change.** The student import's missing row cap and raw error text, and moving the new routes onto the shared `validate()` helper, are separate items on the tracker. Mutation pass: not run — pending, end of Phase 2 (targets: the membership check, the branch-equals check on each student, the active-session check, the duplicate-id check).
+
+#### Design addendum — student reads are staff-only and branch-scoped (found 2026-10-11 while auditing for the same flaw; written before the code)
+
+**Finding.** `GET /api/v1/students` and `GET /api/v1/students/[id]` are wrapped in `withAuth` with **no `roles`**, so any signed-in user — including a `STUDENT` or `PARENT` membership, or anyone with an account and no membership — can list every student of every branch and read one student's record, which includes the guardian's name, phone and email and the date of birth. (`GET /settings/school` and `GET /academics/sessions` are also open to every signed-in user; their content is the school profile and session dates, which a parent legitimately needs, so they are left as they are and noted.)
+
+**Decisions.**
+- **A7 — who reads students.** Both routes require a staff role (`ADMIN`, `TEACHING_STAFF`, `NON_TEACHING_STAFF`). A non-admin sees only students of branches where they hold an active membership; `?branchId=` for a branch they do not belong to is the same 404 as an unknown branch, and the list without `branchId` is restricted to their branches. `ADMIN` anywhere sees all (as in A1).
+- **A8 — one place for the rule.** `lib/attendance/access.ts` becomes `lib/auth/branch-access.ts` (`resolveBranchRole`, `branchIdsFor(userId)`), used by attendance and students alike.
+- **A9 — tests.** API: a `STUDENT`, a `PARENT` and a user with no membership get 403 on both routes; a teacher of branch A lists only branch-A students and gets 404 for a branch-B student and for `?branchId=<B>`; an administrator still sees all; guardian fields are present for staff as before.
+
+**ADR.** ADR 0012 is widened from "attendance" to "people data is scoped to role and branch" (still Proposed).
+Mutation pass: not run — pending, end of Phase 2 (targets: the role list on both routes, the branch filter, the 404-vs-403 difference).
