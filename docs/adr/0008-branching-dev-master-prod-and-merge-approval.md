@@ -1,5 +1,5 @@
 # 0008 — Development happens on `dev`; `master` needs the maintainer's approval; `prod` is reserved
-Status: accepted · Decided: by the maintainer · Recorded: 2026-10-08
+Status: accepted (partly superseded by 0013: the roles of master and prod) · Decided: by the maintainer · Recorded: 2026-10-08
 
 ## Context
 Until now the AI pushed feature branches and opened PRs, and the maintainer merged everything. That made every step wait on a human.
