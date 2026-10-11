@@ -1238,8 +1238,11 @@ The maintainer answered the question raised by ADR 0012: **a person may hold dif
 
 **Open questions for the maintainer (each has a default; say if you want otherwise).**
 1. Flag on the person (default) or a new `SUPER_ADMIN` role?
-2. May a branch admin create *another* branch admin (default **no**, only a superadmin does)?
+2. May a branch admin create *another* branch admin (default **no**, only a superadmin does) — answered 2026-10-11: accepted?
 3. Should everyone who is an administrator today become a superadmin on migration (default **yes**, so nothing changes until you choose)?
 4. Do branch admins manage *academic sessions* of their branch (default **yes**) or only superadmins?
 
 **Order of work.** a) this design (committed alone) → b) your answers → c) migration + `canAdminister` + tests → d) member/invitation routes → e) the other admin routes → f) Users page → g) docs, ADR (Proposed), full suite → h) PR into `dev`. Mutation pass: not run — pending, end of Phase 2 (targets: the backfill predicate, the last-superadmin count, the branch comparison in `canAdminister`, the "cannot touch an admin" rule).
+
+#### Maintainer's answers to the branch-admin / superadmin questions (2026-10-11)
+All four defaults accepted: (1) `User.isSuperAdmin` **flag on the person**, not a new role; (2) a branch admin **cannot create another branch admin** (only a superadmin can); (3) every current administrator **becomes a superadmin on migration** (nothing changes for the live school until the maintainer demotes someone by choice); (4) **branch admins manage the academic sessions of their branch**. The design (S1–S8) stands as written. Status: answered; the migration has not been written (it is built after the attendance/student-read fix is merged to `dev`, and runs on the dev database first).
