@@ -1,7 +1,7 @@
 # [0006]: Branch administrators and superadmins (build of design S1–S8)
 
 - **Period / Focus:** 2026-10-11 → (authorization model change on the live-school codebase)
-- **Status:** In Progress — **(running)** full one-lane suite on `claude/branch-admins-superadmins` (started 2026-10-11)
+- **Status:** Completed (code) — full one-lane suite on `claude/branch-admins-superadmins`, 2026-10-11: **1143 passed, 0 failed, 18 skipped (1.0 h)**; ADR 0014 awaits the maintainer
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/branch-admins-superadmins` → `dev`
@@ -49,8 +49,8 @@
 ---
 
 ## 4. Unified Verification & Quality Gates
-- [ ] `tsc --noEmit`, lint, `format:check`, `pnpm build`, tests (gate order)
-- [ ] Full one-lane suite — **(running)**, started 2026-10-11 (result to be recorded here)
+- [x] `tsc --noEmit`, lint, `format:check`, `pnpm build`, tests (gate order)
+- [x] Full one-lane suite — 1143 passed, 0 failed, 18 skipped (1.0 h), 2026-10-11, HEAD `539574d`
 - Mutation pass: not run — pending, end of Phase 2 (targets: backfill predicate, last-superadmin count, branch comparison in `canAdminister`, "cannot touch an admin").
 
 ---
@@ -64,3 +64,4 @@
 - Slice 2 tests: new `tests/api/branch-admins.spec.ts` (13), `tests/integration/make-superadmin-script.spec.ts` (3), `tests/integration/members.spec.ts` rewritten for the superadmin rule (28 incl. deactivate-race and revoke-race, branch-scope and `setSuperAdmin` blocks); API/integration/unit subset 298 passed after the race-test fix. One failure on the way was a TEST bug, not a lock failure: the race test retired its pair by setting the role to PARENT, which no longer removes authority, so a third superadmin existed and two removals were correctly allowed; it now retires by clearing the flag and counts bystanders by flag (3 repeat runs passed).
 - Slice 3 (2026-10-11): students (create/update/archive/restore/import) and academic sessions/periods follow the branch (`lib/students/scope.ts`: entity of another branch = 404 like an unknown id, a branch in the body that is not the caller's = 403); `POST /branches` and `PATCH /settings/school` are `superAdmin: true`; `GET /branches` is scoped; page session, nav (Branches and Settings are superadmin entries), the Branches/Settings pages, the sign-in lifetime and the Users page (badge, hidden controls, "Make / Remove superadmin" dialog, role options without Administrator for a branch administrator). Second route-guard assertion added and checked non-vacuous. ADR 0014 drafted (**Proposed**). The superadmin endpoint is `PATCH` (not `PUT`) so the shared `components/auth/postJson.ts`, which CLAUDE.md keeps identical to Octalve's, is untouched.
 - Slice 3 tests: `tests/api/branch-admin-scope.spec.ts` (7), e2e in `users.spec.ts` (3) and `responsive-and-a11y.spec.ts` (2 new screens, desktop + phone). They were seen failing against the slice-2 build first (branch-admin-scope: 6 of 7 failed for the right reason). Subset runs: unit+integration+api projects 736 passed, 1 failed (`branches.spec` "demoting an admin…", which relied on the old meaning that a role change ends authority; rewritten: a role change alone keeps it, clearing the flag or deactivating the last membership ends it); e2e subset (users, branches-page, shell, responsive-and-a11y, sign-in): 241 passed, 4 failed, 15 skipped: the same branches test, the Edit-dialog hint text my change altered (test updated), and **one unexplained failure**: `e2e/branches-page "shows every branch with its real member count"` saw 23 members where the database had 24 a moment later; it passed alone (16 passed) and I have not found who wrote the extra membership. Watch for it in the full run; do not treat a pass as an explanation.
+- Full-suite result (2026-10-11, HEAD `539574d`, `pnpm build` first, one worker, run alone except for short Octalve doc/test-writing work in another repo): **1143 passed, 0 failed, 18 skipped (the 18 are the same designed viewport-specific skips as before), 1.0 h.** The earlier unexplained failure (`e2e/branches-page "shows every branch with its real member count"`, 23 vs 24 members) did **not** recur; that is not an explanation, only an absence. Candidate cause, unproven: a membership written by another process between the page render and the test's own count. If it recurs, capture the rows before assuming a code fault. Not run: mutation passes (end of Phase 2).
