@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { SessionStatus } from "@prisma/client";
 import { isFutureDate, canEditAttendance, calculateAttendanceSummary, AttendanceStatus, type AttendanceCountSummary } from "./rules";
+import { resolveBranchRole } from "@/lib/auth/branch-access";
 import type { BulkMarkAttendanceInput, AttendanceFailure } from "./http";
 
 export type ServiceResult<T> = { ok: true; data: T } | { ok: false; failure: AttendanceFailure };
@@ -178,50 +179,83 @@ export async function markBranchAttendance({
 
   const targetDate = new Date(`${dateStr}T00:00:00Z`);
 
-  // 3. Upsert records inside transaction
-  await prisma.$transaction(async (tx) => {
-    for (const item of records) {
-      await tx.attendanceRecord.upsert({
-        where: {
-          studentId_date: {
+  // 3. Marking needs an active session, and every student must be a live, ENROLLED student of THIS branch, listed once (A2).
+  const activeSession = await prisma.academicSession.findFirst({
+    where: { branchId, status: SessionStatus.ACTIVE, archivedAt: null },
+    select: { id: true },
+  });
+  if (!activeSession) {
+    return { ok: false, failure: "SESSION_NOT_ACTIVE" };
+  }
+  const ids = records.map((r) => r.studentId);
+  if (new Set(ids).size !== ids.length) {
+    return { ok: false, failure: "INVALID_STUDENTS" };
+  }
+  const enrolled = await prisma.studentEnrollment.findMany({
+    where: { branchId, sessionId: activeSession.id, status: "ACTIVE", studentId: { in: ids }, student: { archivedAt: null, branchId } },
+    select: { studentId: true },
+  });
+  if (enrolled.length !== ids.length) {
+    return { ok: false, failure: "INVALID_STUDENTS" };
+  }
+
+  // 4. Upsert records inside one transaction; an existing record must already belong to this branch (A3), else everything rolls back.
+  let crossBranch = false;
+  await prisma
+    .$transaction(async (tx) => {
+      for (const item of records) {
+        const existing = await tx.attendanceRecord.findUnique({
+          where: { studentId_date: { studentId: item.studentId, date: targetDate } },
+          select: { branchId: true },
+        });
+        if (existing && existing.branchId !== branchId) {
+          crossBranch = true;
+          throw new Error("CROSS_BRANCH_RECORD");
+        }
+        await tx.attendanceRecord.upsert({
+          where: { studentId_date: { studentId: item.studentId, date: targetDate } },
+          create: {
+            branchId,
             studentId: item.studentId,
             date: targetDate,
+            status: item.status,
+            remarks: item.remarks ?? null,
+            source,
+            markedByUserId: actorUserId,
+          },
+          update: {
+            status: item.status,
+            remarks: item.remarks ?? null,
+            source,
+            markedByUserId: actorUserId,
+          },
+        });
+      }
+
+      // 5. Audit Log (Zero PII: IDs and count only)
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "ATTENDANCE_RECORDED",
+          targetType: "AttendanceRecord",
+          targetId: branchId,
+          afterValue: {
+            branchId,
+            date: dateStr,
+            recordCount: records.length,
+            source,
           },
         },
-        create: {
-          branchId,
-          studentId: item.studentId,
-          date: targetDate,
-          status: item.status,
-          remarks: item.remarks ?? null,
-          source,
-          markedByUserId: actorUserId,
-        },
-        update: {
-          status: item.status,
-          remarks: item.remarks ?? null,
-          source,
-          markedByUserId: actorUserId,
-        },
       });
-    }
-
-    // 4. Audit Log (Zero PII: IDs and count only)
-    await tx.auditLog.create({
-      data: {
-        actorUserId,
-        action: "ATTENDANCE_RECORDED",
-        targetType: "AttendanceRecord",
-        targetId: branchId,
-        afterValue: {
-          branchId,
-          date: dateStr,
-          recordCount: records.length,
-          source,
-        },
-      },
+    })
+    .catch((error: unknown) => {
+      // The refusal after a write must roll back (ADR 0002): throwing inside the transaction does that; here it becomes an answer.
+      if (crossBranch) return;
+      throw error;
     });
-  });
+  if (crossBranch) {
+    return { ok: false, failure: "INVALID_STUDENTS" };
+  }
 
   const summary = calculateAttendanceSummary(records);
 
@@ -238,7 +272,10 @@ export async function markBranchAttendance({
 /**
  * Retrieves full attendance history for a single student.
  */
-export async function getStudentAttendanceHistory(studentId: string): Promise<
+export async function getStudentAttendanceHistory(
+  studentId: string,
+  userId: string,
+): Promise<
   ServiceResult<{
     student: {
       id: string;
@@ -260,13 +297,15 @@ export async function getStudentAttendanceHistory(studentId: string): Promise<
     where: { id: studentId, archivedAt: null },
     select: {
       id: true,
+      branchId: true,
       admissionNo: true,
       firstName: true,
       lastName: true,
     },
   });
 
-  if (!student) {
+  // Unknown student and a student of a branch the caller has nothing to do with look the same (A4).
+  if (!student || !(await resolveBranchRole(userId, student.branchId))) {
     return { ok: false, failure: "NOT_FOUND" };
   }
 
@@ -295,7 +334,7 @@ export async function getStudentAttendanceHistory(studentId: string): Promise<
   return {
     ok: true,
     data: {
-      student,
+      student: { id: student.id, admissionNo: student.admissionNo, firstName: student.firstName, lastName: student.lastName },
       records: mapped,
       summary,
     },

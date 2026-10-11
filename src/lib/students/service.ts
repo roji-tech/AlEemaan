@@ -347,17 +347,20 @@ export async function restoreStudent(
  * Lists students with pagination, search, and filtering.
  */
 export async function listStudents(filters: {
+  /// Branches the caller may see: `"all"` (an ADMIN) or a list. A requested `branchId` outside it yields an empty page (the route answers 404 first).
+  visible: "all" | string[];
   branchId?: string;
   status?: "live" | "archived" | "all";
   q?: string;
   page?: number;
   limit?: number;
 }) {
-  const { branchId, status = "live", q, page = 1, limit = 25 } = filters;
+  const { visible, branchId, status = "live", q, page = 1, limit = 25 } = filters;
   const skip = (page - 1) * limit;
 
   const where: Prisma.StudentRecordWhereInput = {
     ...(branchId ? { branchId } : {}),
+    ...(visible === "all" ? {} : { branchId: branchId && visible.includes(branchId) ? branchId : { in: visible } }),
     ...(status === "live" ? { archivedAt: null } : status === "archived" ? { archivedAt: { not: null } } : {}),
   };
 
@@ -418,9 +421,10 @@ export async function listStudents(filters: {
 /**
  * Retrieves student detail by ID with complete enrolment history.
  */
-export async function getStudent(id: string) {
-  const student = await prisma.studentRecord.findUnique({
-    where: { id },
+export async function getStudent(id: string, visible: "all" | string[] = []) {
+  // A student of a branch the caller cannot see is "not found" (the same answer as an unknown id).
+  const student = await prisma.studentRecord.findFirst({
+    where: { id, ...(visible === "all" ? {} : { branchId: { in: visible } }) },
     include: {
       branch: { select: { id: true, name: true } },
       enrollments: {

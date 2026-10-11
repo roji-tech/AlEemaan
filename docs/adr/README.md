@@ -34,3 +34,4 @@ Plans and phase records link to the ADR instead of re-arguing the reason.
 | [0009](0009-the-docker-database-is-a-local-dev-database.md) | The docker `aleemaan` database is a local dev database | accepted |
 | [0010](0010-commit-and-pr-messages-are-comprehensive.md) | Commit and PR messages are comprehensive | accepted |
 | [0011](0011-audited-override-for-namesake-student-registrations.md) | Audited in-place override for namesake student registrations | accepted |
+| [0012](0012-attendance-is-scoped-to-the-callers-branch.md) | Attendance is scoped to the caller's branch; marking only accepts enrolled students of that branch | proposed |

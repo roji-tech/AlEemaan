@@ -1198,3 +1198,7 @@ Built as Decisions M1–M7 above, on the same branch (PR #11), in this order: de
 
 **ADR.** ADR 0012 is widened from "attendance" to "people data is scoped to role and branch" (still Proposed).
 Mutation pass: not run — pending, end of Phase 2 (targets: the role list on both routes, the branch filter, the 404-vs-403 difference).
+
+#### As built — attendance and student reads are scoped to role and branch (2026-10-11)
+
+Record: task `docs/tasks/0005-aleemaan-attendance-branch-scoping-fix.md`; ADR 0012 (Proposed); issues ISS-0001…0005, 0009 in `docs/issues/README.md`. Built as decisions A1–A9, with these notes: (a) the helper lives in `src/lib/auth/branch-access.ts` (`resolveBranchRole`, `branchIdsFor`), used by attendance and students; (b) the cross-branch record guard (A3) is a read inside the transaction followed by a throw, which rolls back the whole request (ADR 0002 of Octalve) and is answered as the same 400 as an unenrolled student; (c) `GET /students` for a non-admin with no `branchId` lists only their branches, and `?branchId=` outside them is a 404; (d) the student detail answer no longer carries anything for a branch the caller cannot see (404). Not changed: the student import cap and raw error text (ISS-0006) and the `validate()` migration (ISS-0007), both on the register. Mutation pass: not run — pending, end of Phase 2.

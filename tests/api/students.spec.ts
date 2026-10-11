@@ -313,3 +313,79 @@ test.describe("Students API & ADR-0011 Namesake Override", () => {
     expect(impOverride.json.data.summary.overridden).toBe(2);
   });
 });
+
+// Reads are staff-only and branch-scoped (plan "Design addendum — student reads are staff-only and branch-scoped", decisions A7-A9).
+test.describe("Students API — who may read", () => {
+  let primary: { id: string };
+  let secondary: { id: string };
+  let inPrimary: { id: string };
+  let inSecondary: { id: string };
+
+  test.beforeAll(async () => {
+    primary = await db.branch.findFirstOrThrow({ where: { name: "Primary (English)" } });
+    secondary = await db.branch.findFirstOrThrow({ where: { name: "Secondary (English)" } });
+    const make = (branchId: string, admissionNo: string, firstName: string) =>
+      db.studentRecord.upsert({
+        where: { admissionNo },
+        update: { archivedAt: null },
+        create: {
+          branchId,
+          firstName,
+          lastName: "Scoped",
+          gender: "FEMALE",
+          dateOfBirth: new Date("2015-04-04"),
+          admissionNo,
+          guardianName: "Private Guardian",
+          guardianPhone: "08000000000",
+          guardianEmail: "guardian@example.com",
+        },
+      });
+    inPrimary = await make(primary.id, "2026/SC01", "Prim");
+    inSecondary = await make(secondary.id, "2026/SC02", "Sec");
+  });
+
+  const inBranch = async (role: Role, branchId: string) => {
+    const user = await createUser();
+    await db.membership.create({ data: { userId: user.id, branchId, role } });
+    const { token } = await loginAs(user);
+    return cookieHeader(token!);
+  };
+
+  test("a STUDENT, a PARENT and a user with no membership are refused on the list and on one student (403)", async () => {
+    const cookies = [await inBranch(Role.STUDENT, primary.id), await inBranch(Role.PARENT, primary.id), (await asRole()).cookie];
+    for (const cookie of cookies) {
+      expect((await api(STUDENTS_ROUTE, { cookie })).status).toBe(403);
+      expect((await api(`${STUDENTS_ROUTE}/${inPrimary.id}`, { cookie })).status).toBe(403);
+    }
+  });
+
+  test("a teacher sees only the students of the branches they belong to", async () => {
+    const cookie = await inBranch(Role.TEACHING_STAFF, primary.id);
+
+    const list = await api(`${STUDENTS_ROUTE}?limit=100&q=Scoped`, { cookie });
+    expect(list.status).toBe(200);
+    const ids = (list.json.data.students as Array<{ id: string }>).map((s) => s.id);
+    expect(ids).toContain(inPrimary.id);
+    expect(ids).not.toContain(inSecondary.id);
+
+    expect((await api(`${STUDENTS_ROUTE}/${inPrimary.id}`, { cookie })).status).toBe(200);
+    const foreign = await api(`${STUDENTS_ROUTE}/${inSecondary.id}`, { cookie });
+    expect(foreign.status).toBe(404);
+    const unknown = await api(`${STUDENTS_ROUTE}/does-not-exist`, { cookie });
+    expect(unknown.status).toBe(404);
+    expect(foreign.json.error.code).toBe(unknown.json.error.code);
+
+    expect((await api(`${STUDENTS_ROUTE}?branchId=${secondary.id}`, { cookie })).status).toBe(404);
+  });
+
+  test("an administrator still sees every branch, with the guardian's details", async () => {
+    const { cookie } = await asRole(Role.ADMIN);
+    const list = await api(`${STUDENTS_ROUTE}?limit=100&q=Scoped`, { cookie });
+    const ids = (list.json.data.students as Array<{ id: string }>).map((s) => s.id);
+    expect(ids).toEqual(expect.arrayContaining([inPrimary.id, inSecondary.id]));
+
+    const one = await api(`${STUDENTS_ROUTE}/${inSecondary.id}`, { cookie });
+    expect(one.status).toBe(200);
+    expect(one.json.data.student.guardianPhone).toBe("08000000000");
+  });
+});
