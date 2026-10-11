@@ -400,6 +400,34 @@ test.describe("AlEemaan Attendance API — branch scoping", () => {
     }
   });
 
+  test("different roles in different branches: the role held IN the branch decides (teacher here, non-teaching there)", async () => {
+    const user = await createUser();
+    await db.membership.create({ data: { userId: user.id, branchId: branch.id, role: Role.TEACHING_STAFF } });
+    await db.membership.create({ data: { userId: user.id, branchId: other.id, role: Role.NON_TEACHING_STAFF } });
+    const cookie = cookieHeader((await loginAs(user)).token!);
+
+    // may mark where they teach ...
+    expect((await mark(cookie, branch.id, [{ studentId: student1.id, status: "PRESENT" }])).status).toBe(200);
+    // ... may LOOK where they are non-teaching staff ...
+    const look = await api(`${ATTENDANCE_ROUTE}?branchId=${other.id}&className=Primary 1&arm=Blue&date=${today()}`, { cookie });
+    expect(look.status).toBe(200);
+    // ... but may not mark there, although the route-level check ("a teacher somewhere") would let them in.
+    const denied = await mark(cookie, other.id, [{ studentId: otherStudent.id, status: "PRESENT" }]);
+    expect(denied.status).toBe(403);
+    expect(denied.json.error.code).toBe("FORBIDDEN");
+  });
+
+  test("a PARENT or STUDENT membership in a branch gives nothing there, even for someone who is staff elsewhere", async () => {
+    const user = await createUser();
+    await db.membership.create({ data: { userId: user.id, branchId: branch.id, role: Role.TEACHING_STAFF } });
+    await db.membership.create({ data: { userId: user.id, branchId: other.id, role: Role.PARENT } });
+    const cookie = cookieHeader((await loginAs(user)).token!);
+
+    expect((await api(`${ATTENDANCE_ROUTE}?branchId=${other.id}&className=Primary 1&date=${today()}`, { cookie })).status).toBe(404);
+    expect((await mark(cookie, other.id, [{ studentId: otherStudent.id, status: "PRESENT" }])).status).toBe(404);
+    expect((await api(`/api/v1/students/${otherStudent.id}/attendance`, { cookie })).status).toBe(404);
+  });
+
   test("an administrator still reaches every branch", async () => {
     const { cookie } = await asRole(Role.ADMIN);
     const get = await api(`${ATTENDANCE_ROUTE}?branchId=${other.id}&className=Primary 1&arm=Blue&date=${today()}`, { cookie });

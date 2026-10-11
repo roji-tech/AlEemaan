@@ -83,6 +83,8 @@ export const POST = withAuth(
 
     const role = await resolveBranchRole(auth.userId, parsed.data.branchId);
     if (!role) return attendanceFailure("NOT_FOUND");
+    // The route-level roles say "a teacher somewhere"; marking needs a teaching (or admin) role in THIS branch.
+    if (!WRITE_ROLES.some((r) => r === role)) return attendanceFailure("UNAUTHORIZED");
 
     const result = await markBranchAttendance({
       branchId: parsed.data.branchId,
