@@ -1202,3 +1202,13 @@ Mutation pass: not run — pending, end of Phase 2 (targets: the role list on bo
 #### As built — attendance and student reads are scoped to role and branch (2026-10-11)
 
 Record: task `docs/tasks/0005-aleemaan-attendance-branch-scoping-fix.md`; ADR 0012 (Proposed); issues ISS-0001…0005, 0009 in `docs/issues/README.md`. Built as decisions A1–A9, with these notes: (a) the helper lives in `src/lib/auth/branch-access.ts` (`resolveBranchRole`, `branchIdsFor`), used by attendance and students; (b) the cross-branch record guard (A3) is a read inside the transaction followed by a throw, which rolls back the whole request (ADR 0002 of Octalve) and is answered as the same 400 as an unenrolled student; (c) `GET /students` for a non-admin with no `branchId` lists only their branches, and `?branchId=` outside them is a 404; (d) the student detail answer no longer carries anything for a branch the caller cannot see (404). Not changed: the student import cap and raw error text (ISS-0006) and the `validate()` migration (ISS-0007), both on the register. Mutation pass: not run — pending, end of Phase 2.
+
+#### Guard design — every API handler declares who may call it (2026-10-11; written before the test)
+
+**Why.** The student-list leak (ISS-0003) was a handler wrapped in `withAuth` with no `roles`, i.e. "any signed-in user". Nothing flagged it. A source-level test can: it needs no server and no database.
+
+**Rule (G1).** For every exported HTTP handler (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) in `src/app/api/**/route.ts`, the handler's own source must contain `roles:` **or** the handler is on an explicit allowlist in the test with a one-line reason. The allowlist is grouped: *public by design* (login, forgot/reset password, email-change confirm, invitation preview/accept, logout, setup, dev inbox), *own-account only* (profile, change password, sessions, MFA, `auth/me`, email-change request), and *read content a parent legitimately needs* (school profile, academic sessions). A new handler without `roles:` fails the test until someone either adds `roles:` or writes the reason down — that is the point.
+**G2.** The allowlist cannot silently grow stale: the test also fails for an allowlist entry that matches no handler, or that now has `roles:`.
+**G3.** The `dev/email-inbox` handlers are public in source; the test only records that fact. Whether they refuse in production is a separate item on the register (suspect), not decided here.
+
+Test: `tests/unit/route-role-guard.spec.ts` (unit project). Mutation pass: not run — pending, end of Phase 2 (target: the regex that finds handlers, the allowlist staleness check).
