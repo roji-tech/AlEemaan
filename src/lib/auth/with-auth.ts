@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
 import { getSessionFromRequest, type ResolvedSession } from "@/lib/auth/session";
+import { isSuperAdmin } from "@/lib/auth/branch-access";
 
 // The shared route guard: same name, file and call shape as Octalve Edu's
 // (domain-implementation-plan.md §0.5.1.6). It REPLACES `requireAdmin()`.
@@ -14,14 +15,14 @@ import { getSessionFromRequest, type ResolvedSession } from "@/lib/auth/session"
 export type AuthContext = ResolvedSession;
 
 export type WithAuthOptions = {
-  /// The user must hold a membership with ANY of these roles. AlEemaan is
-  /// single-tenant, so a role held in any branch applies school-wide — in
-  /// particular an ADMIN membership crosses every branch, the branch on the
-  /// row being bookkeeping (§0.5.1.2). This is the one place the two repos
-  /// deliberately differ: in Octalve Edu the same rule would be a cross-tenant
-  /// privilege escalation, so there `roles` is unavailable until tenant
-  /// resolution (§0.5.2) exists.
+  /// The user must hold a membership with ANY of these roles — in ANY branch ("a role somewhere"). It is a coarse gate: a handler that acts
+  /// on a branch must also check the role held THERE (`resolveBranchRole`, `canAdminister`; ADR 0012). `ADMIN` means "administers at least
+  /// one branch"; a superadmin satisfies it without holding an ADMIN membership. This is the one place the two repos deliberately differ:
+  /// in Octalve Edu the same rule would be a cross-tenant privilege escalation, so there `roles` is unavailable until tenant resolution exists.
   roles?: readonly Role[];
+  /// The user must be a superadmin (`User.isSuperAdmin`, holding at least one active membership): school-wide authority — branches, school
+  /// settings, other administrators. Combine with nothing else: it is the strictest gate this wrapper offers.
+  superAdmin?: true;
   /// Typed `never` (and refused at module load) in BOTH repos until §1.7's
   /// permission design is built in both together — nothing consumes it yet, and
   /// untested speculative gating helps neither.
@@ -38,6 +39,9 @@ export function withAuth<C = unknown>(
   // route that quietly lets everyone through.
   if ("permissions" in options) {
     throw new Error("withAuth: `permissions` is not available until the lightweight-permissions design (§1.7) is built.");
+  }
+  if (options.superAdmin !== undefined && options.superAdmin !== true) {
+    throw new Error("withAuth: `superAdmin` can only be `true`.");
   }
   if (options.roles !== undefined && options.roles.length === 0) {
     throw new Error("withAuth: `roles` must list at least one role (an empty list would refuse everyone).");
@@ -64,9 +68,12 @@ export function withAuth<C = unknown>(
         select: { id: true },
       });
       // 403, not 401: the person IS signed in; signing in again won't help.
-      if (!permitted) {
+      if (!permitted && !(roles.includes("ADMIN") && (await isSuperAdmin(session.userId)))) {
         return noStore(fail("You don't have permission to do that", 403, "FORBIDDEN"));
       }
+    }
+    if (options.superAdmin && !(await isSuperAdmin(session.userId))) {
+      return noStore(fail("You don't have permission to do that", 403, "FORBIDDEN"));
     }
 
     const response = await handler(req, session, routeContext);

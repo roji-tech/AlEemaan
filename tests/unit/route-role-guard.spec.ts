@@ -44,6 +44,9 @@ const ALLOWED: Record<string, string> = {
   "GET v1/academics/sessions/[id]/route.ts": CONTENT,
 };
 
+/// A handler declares who may call it with `roles:` or `superAdmin: true`.
+const declares = (source: string) => source.includes("roles:") || source.includes("superAdmin: true");
+
 function routeFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = join(dir, name);
@@ -66,14 +69,14 @@ function handlers(): { key: string; source: string }[] {
 test.describe("every API handler declares who may call it", () => {
   test("a handler without `roles:` is on the allowlist, with a reason", () => {
     const missing = handlers()
-      .filter((h) => !h.source.includes("roles:") && !(h.key in ALLOWED))
+      .filter((h) => !declares(h.source) && !(h.key in ALLOWED))
       .map((h) => h.key);
     expect(missing, "add `roles: [...]` to these handlers, or list them in ALLOWED with the reason").toEqual([]);
   });
 
   test("the allowlist has no stale entries (the handler exists and still has no `roles:`)", () => {
     const byKey = new Map(handlers().map((h) => [h.key, h.source]));
-    const stale = Object.keys(ALLOWED).filter((key) => !byKey.has(key) || byKey.get(key)!.includes("roles:"));
+    const stale = Object.keys(ALLOWED).filter((key) => !byKey.has(key) || declares(byKey.get(key)!));
     expect(stale).toEqual([]);
   });
 

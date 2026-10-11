@@ -20,10 +20,22 @@ export async function isSuperAdmin(userId: string): Promise<boolean> {
   return (await load(userId)).superAdmin;
 }
 
+/// What a person may ADMINISTER: everything (`superAdmin`), or the listed branches where they hold an active ADMIN membership.
+export type AdminScope = { superAdmin: boolean; branchIds: readonly string[] };
+
+/// The scope of a superadmin; also what service-level tests pass when the caller's own authority is not what they are about.
+export const EVERY_BRANCH: AdminScope = { superAdmin: true, branchIds: [] };
+
+export const mayAdminister = (scope: AdminScope, branchId: string): boolean => scope.superAdmin || scope.branchIds.includes(branchId);
+
+export async function adminScope(userId: string): Promise<AdminScope> {
+  const { memberships, superAdmin } = await load(userId);
+  return { superAdmin, branchIds: memberships.filter((m) => m.role === Role.ADMIN).map((m) => m.branchId) };
+}
+
 /// True when the person may administer THIS branch: a superadmin, or an active ADMIN membership in that very branch (ADR 0012, plan S2).
 export async function canAdminister(userId: string, branchId: string): Promise<boolean> {
-  const { memberships, superAdmin } = await load(userId);
-  return superAdmin || memberships.some((m) => m.role === Role.ADMIN && m.branchId === branchId);
+  return mayAdminister(await adminScope(userId), branchId);
 }
 
 /// The STAFF role a caller holds FOR ONE BRANCH, or `null` when they may not touch it. A superadmin is `ADMIN` in every branch; an ADMIN

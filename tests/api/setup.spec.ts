@@ -40,6 +40,7 @@ test.describe("POST /api/v1/setup — success and what it creates", () => {
     const user = await db.user.findUniqueOrThrow({ where: { email: "amina@aleemaan.test" } });
     expect(user.passwordHash).toMatch(/^\$2[aby]\$12\$/);
     expect(user.passwordHash).not.toContain(body.password);
+    expect(user.isSuperAdmin).toBe(true); // the first administrator is a superadmin (plan S6): nobody else exists to make one
 
     const memberships = await db.membership.findMany({ where: { userId: user.id } });
     expect(memberships.map((m) => m.role)).toEqual(["ADMIN"]);

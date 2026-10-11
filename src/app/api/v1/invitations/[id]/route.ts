@@ -1,6 +1,6 @@
 import { ok } from "@/lib/api/envelope";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
-import { isPlausibleId, notFound } from "@/lib/members/http";
+import { isPlausibleId, notFound, scopeOrForbidden } from "@/lib/members/http";
 import { revokeInvitation } from "@/lib/invitations/service";
 
 // DELETE /api/v1/invitations/[id]                                      (Users pages — a port of Octalve Edu's 0.5.4)
@@ -11,7 +11,9 @@ export const DELETE = withAuth(
   async (_req, auth: AuthContext, ctx: Ctx) => {
     const { id } = await ctx.params;
     if (!isPlausibleId(id)) return notFound("open invitation");
-    return (await revokeInvitation(auth.userId, id)) ? ok({ revoked: true }) : notFound("open invitation");
+    const scope = await scopeOrForbidden(auth.userId);
+    if (scope instanceof Response) return scope;
+    return (await revokeInvitation(auth.userId, id, scope)) ? ok({ revoked: true }) : notFound("open invitation");
   },
   { roles: ["ADMIN"] },
 );
