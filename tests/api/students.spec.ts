@@ -378,6 +378,20 @@ test.describe("Students API — who may read", () => {
     expect((await api(`${STUDENTS_ROUTE}?branchId=${secondary.id}`, { cookie })).status).toBe(404);
   });
 
+  test("a teacher in one branch who is only a PARENT in another sees nothing of the second", async () => {
+    const user = await createUser();
+    await db.membership.create({ data: { userId: user.id, branchId: primary.id, role: Role.TEACHING_STAFF } });
+    await db.membership.create({ data: { userId: user.id, branchId: secondary.id, role: Role.PARENT } });
+    const cookie = cookieHeader((await loginAs(user)).token!);
+
+    const ids = ((await api(`${STUDENTS_ROUTE}?limit=100&q=Scoped`, { cookie })).json.data.students as Array<{ id: string }>).map(
+      (s) => s.id,
+    );
+    expect(ids).toContain(inPrimary.id);
+    expect(ids).not.toContain(inSecondary.id);
+    expect((await api(`${STUDENTS_ROUTE}/${inSecondary.id}`, { cookie })).status).toBe(404);
+  });
+
   test("an administrator still sees every branch, with the guardian's details", async () => {
     const { cookie } = await asRole(Role.ADMIN);
     const list = await api(`${STUDENTS_ROUTE}?limit=100&q=Scoped`, { cookie });
