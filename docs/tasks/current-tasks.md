@@ -15,6 +15,7 @@
 | 0003 | [`0003-aleemaan-student-domain-and-override.md`](0003-aleemaan-student-domain-and-override.md) | Student Domain & ADR-0014 Duplicate Override Port | Completed | 2026-10-09 11:28:00 UTC | 2026-10-09 14:55:00 UTC | [PR #14](https://github.com/roji-tech/AlEemaan/pull/14) (`claude/student-domain-and-override`) |
 | 0004 | [`0004-aleemaan-attendance-domain.md`](0004-aleemaan-attendance-domain.md) | Attendance Domain & Touch Grid (Phase 1.3 Adaptation) | Completed | 2026-10-09 22:00:00 UTC | 2026-10-09 22:35:00 UTC | [PR #15](https://github.com/roji-tech/AlEemaan/pull/15) (`claude/aleemaan-attendance`) |
 
+| 0005 | [`0005-aleemaan-attendance-branch-scoping-fix.md`](0005-aleemaan-attendance-branch-scoping-fix.md) | Attendance branch-scoping fix (code-review findings) | In Progress | 2026-10-11 UTC | — | `claude/fix-attendance-branch-scoping` |
 ---
 
 ## Completed Tasks: 0001 - 0004

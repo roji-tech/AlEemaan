@@ -1,8 +1,8 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
-import { prisma } from "@/lib/db";
-import { bulkMarkAttendanceSchema, attendanceFailure } from "@/lib/attendance/http";
+import { resolveBranchRole } from "@/lib/auth/branch-access";
+import { bulkMarkAttendanceSchema, rollCallQuerySchema, attendanceFailure } from "@/lib/attendance/http";
 import { getBranchRollCall, markBranchAttendance } from "@/lib/attendance/service";
 
 const STAFF_ROLES = [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF] as const;
@@ -16,23 +16,26 @@ export const GET = withAuth(
   async (req, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
-      const branchId = searchParams.get("branchId");
-      const className = searchParams.get("className");
-      const arm = searchParams.get("arm") || undefined;
-      const dateStr = searchParams.get("date") || new Date().toISOString().slice(0, 10);
-
-      if (!branchId || !className) {
-        return fail("branchId and className are required query parameters.", 400, "VALIDATION");
-      }
-
-      // Determine highest role for caller (ADMIN crosses all branches in AlEemaan)
-      const memberships = await prisma.membership.findMany({
-        where: { userId: auth.userId, deactivatedAt: null },
-        select: { role: true, branchId: true },
+      const query = rollCallQuerySchema.safeParse({
+        branchId: searchParams.get("branchId") ?? undefined,
+        className: searchParams.get("className") ?? undefined,
+        arm: searchParams.get("arm") || undefined,
+        date: searchParams.get("date") || undefined,
       });
-      const hasAdmin = memberships.some((m) => m.role === Role.ADMIN);
-      const branchMembership = memberships.find((m) => m.branchId === branchId);
-      const role = hasAdmin ? Role.ADMIN : (branchMembership?.role ?? Role.TEACHING_STAFF);
+      if (!query.success) {
+        return fail(
+          query.error.issues[0]?.message ?? "Invalid query",
+          400,
+          "VALIDATION",
+          query.error.issues.map((i) => ({ path: `query.${i.path.join(".")}`, message: i.message })),
+        );
+      }
+      const { branchId, className, arm } = query.data;
+      const dateStr = query.data.date ?? new Date().toISOString().slice(0, 10);
+
+      // The caller's role IN THIS BRANCH (an ADMIN anywhere reaches all); none = the same 404 as an unknown branch.
+      const role = await resolveBranchRole(auth.userId, branchId);
+      if (!role) return attendanceFailure("NOT_FOUND");
 
       const result = await getBranchRollCall({
         branchId,
@@ -78,14 +81,8 @@ export const POST = withAuth(
       );
     }
 
-    // Determine role for edit window check (ADMIN crosses all branches in AlEemaan)
-    const memberships = await prisma.membership.findMany({
-      where: { userId: auth.userId, deactivatedAt: null },
-      select: { role: true, branchId: true },
-    });
-    const hasAdmin = memberships.some((m) => m.role === Role.ADMIN);
-    const branchMembership = memberships.find((m) => m.branchId === parsed.data.branchId);
-    const role = hasAdmin ? Role.ADMIN : (branchMembership?.role ?? Role.TEACHING_STAFF);
+    const role = await resolveBranchRole(auth.userId, parsed.data.branchId);
+    if (!role) return attendanceFailure("NOT_FOUND");
 
     const result = await markBranchAttendance({
       branchId: parsed.data.branchId,

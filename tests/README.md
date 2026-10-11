@@ -132,3 +132,5 @@ Conventions these specs add: a spec whose assertions count **all** administrator
 - The rate limiter is in-process memory (correct for Solo and single-instance SaaS). A Redis-backed
   limiter — required before any multi-instance deployment — will need these limiter tests re-pointed
   at it.
+
+- **Branch scoping (attendance and student reads).** `tests/api/attendance.spec.ts` (branch-scoping block, 8 tests) and `tests/api/students.spec.ts` ("who may read", 3 tests): 403 for STUDENT/PARENT/no membership, 404 for a foreign branch or student, a foreign student id refuses the whole marking request and writes nothing, another branch's record is never overwritten, no active session is 409, a malformed date is 400, an administrator still reaches everything. The suites sign in with a membership **in the branch under test** (`createUser({ role })` uses the first seeded branch, which is not the Primary one).

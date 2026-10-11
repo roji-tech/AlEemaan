@@ -1,27 +1,31 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { branchIdsFor } from "@/lib/auth/branch-access";
 import { getStudent, updateStudent, archiveStudent, studentUpdateSchema } from "@/lib/students/service";
 
 type Context = { params: Promise<{ id: string }> };
 
 /**
  * GET /api/v1/students/[id]
- * Authenticated. Retrieves student detail by ID.
+ * Staff only. Retrieves student detail by ID (a branch the caller does not belong to is a 404).
  */
-export const GET = withAuth<Context>(async (_req, _auth, context) => {
-  const { id } = await context.params;
-  try {
-    const student = await getStudent(id);
-    if (!student) {
-      return fail(`Student "${id}" not found`, 404, "NOT_FOUND");
+export const GET = withAuth<Context>(
+  async (_req, auth, context) => {
+    const { id } = await context.params;
+    try {
+      const student = await getStudent(id, await branchIdsFor(auth.userId));
+      if (!student) {
+        return fail(`Student "${id}" not found`, 404, "NOT_FOUND");
+      }
+      return ok({ student });
+    } catch (error) {
+      console.error("[STUDENT_GET_DETAIL_ERROR]", error);
+      return fail("Unable to load student details", 500, "INTERNAL");
     }
-    return ok({ student });
-  } catch (error) {
-    console.error("[STUDENT_GET_DETAIL_ERROR]", error);
-    return fail("Unable to load student details", 500, "INTERNAL");
-  }
-});
+  },
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF] },
+);
 
 /**
  * PATCH /api/v1/students/[id]
