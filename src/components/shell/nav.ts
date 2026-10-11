@@ -7,20 +7,23 @@ export type NavItem = {
   /// (the design artifact draws Settings and Users; a link to nothing would be a lie).
   href: string | null;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
-  /// Administrators only. Hiding an entry is a courtesy; the page and API behind it enforce it.
+  /// Administrators only (of any branch, or a superadmin). Hiding an entry is a courtesy; the page and API behind it enforce it.
   adminOnly?: boolean;
+  /// Superadmins only (school-wide: branches, school settings).
+  superAdminOnly?: boolean;
 };
 
 /// The single source of truth for navigation: the sidebar, the phone tab bar and the "More"
 /// sheet are all derived from this list, so they can't disagree.
 export const NAV: readonly NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: HomeIcon },
-  { label: "Branches", href: "/branches", icon: BuildingIcon, adminOnly: true },
-  { label: "Settings", href: "/settings", icon: SlidersIcon, adminOnly: true },
+  { label: "Branches", href: "/branches", icon: BuildingIcon, superAdminOnly: true },
+  { label: "Settings", href: "/settings", icon: SlidersIcon, superAdminOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
-export const navFor = (isAdmin: boolean): NavItem[] => NAV.filter((item) => isAdmin || !item.adminOnly);
+export const navFor = (isAdmin: boolean, isSuperAdmin: boolean): NavItem[] =>
+  NAV.filter((item) => (item.superAdminOnly ? isSuperAdmin : item.adminOnly ? isAdmin : true));
 
 /// Second crumb of the top bar, by path (the first crumb is the person's section: "Admin", …).
 export const PAGE_LABELS: Record<string, string> = {

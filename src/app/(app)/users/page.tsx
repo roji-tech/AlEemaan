@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
+import { adminScope } from "@/lib/auth/branch-access";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { UsersPanel } from "@/components/users/UsersPanel";
 
@@ -9,9 +10,9 @@ export const metadata: Metadata = { title: "Users" };
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const { session, isAdmin } = await requirePageSession();
+  const { session, isAdmin, isSuperAdmin } = await requirePageSession();
 
-  // The page enforces what the API enforces (the members and invitations routes are admin-only): hiding the nav entry from other roles is
+  // The page enforces what the API enforces (the members and invitations routes are for administrators): hiding the nav entry from other roles is
   // a courtesy, this is the check. Nothing about people is fetched or rendered for them.
   if (!isAdmin) {
     return (
@@ -33,7 +34,13 @@ export default async function UsersPage() {
     );
   }
 
-  const branches = await prisma.branch.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, name: true } });
+  // The branches the caller may pick: all of them for a superadmin, their own for a branch administrator.
+  const scope = await adminScope(session.userId);
+  const branches = await prisma.branch.findMany({
+    where: scope.superAdmin ? {} : { id: { in: [...scope.branchIds] } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true },
+  });
 
   return (
     <div className="space-y-6">
@@ -41,7 +48,7 @@ export default async function UsersPage() {
         title="Users"
         description="The people who can sign in to AlEemaan: invite someone, change a role or branch, or deactivate an account."
       />
-      <UsersPanel branches={branches} currentUserId={session.userId} />
+      <UsersPanel branches={branches} currentUserId={session.userId} isSuperAdmin={isSuperAdmin} />
     </div>
   );
 }

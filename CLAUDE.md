@@ -143,6 +143,8 @@ one-off pattern sources, referenced once for a specific technique and then done:
    display, never the guard). Navigation is one list, `components/shell/nav.ts`. Design and numbers: plan
    §0.5.A; work log: `docs/development-history/phases/phase-0.5.A-design-language.md`.
 
+9. **`ADMIN` administers one branch; school-wide authority is `User.isSuperAdmin` (ADR 0014).** Decide who may act with `canAdminister(userId, branchId)` / `adminScope(userId)` (`lib/auth/branch-access.ts`) — never from `withAuth({ roles })` alone, which only means "a role somewhere". A route that names a branch or a branch-owned entity must call a branch helper (`resolveBranchRole`, `canAdminister`, `adminScope`, `scopeOrForbidden`, `branchOutOfScope`, `studentOutOfScope`) or be allowlisted with a reason in `tests/unit/route-role-guard.spec.ts`. An entity of another branch is a 404 like an unknown id; a branch named in a body that is not the caller's is a 403. Branches, school settings and granting superadmin are `withAuth({ superAdmin: true })`. The members/invitations services take a required `AdminScope`. The school always has a superadmin (`LAST_SUPERADMIN`); recovery is `pnpm superadmin:make -- <email>`. In tests, `createUser({ role: ADMIN })` is a superadmin (as after the migration); a branch administrator is `superAdmin: false`.
+
 ## Current state, as of 2026-09-30 (verify against `aleemaan_progress.md` — it may have moved since)
 
 - Phase 0 (scaffold), 0.5.0 (setup wizard), 0.5.1 (auth + branch management) are built.

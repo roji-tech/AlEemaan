@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { branchOutOfScope } from "@/lib/students/scope";
 import { importStudents, type ImportStudentRow } from "@/lib/students/import";
 import { z } from "zod";
 
@@ -48,6 +49,9 @@ export const POST = withAuth(
         parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       );
     }
+
+    const outOfScope = await branchOutOfScope(admin.userId, parsed.data.branchId);
+    if (outOfScope) return outOfScope;
 
     try {
       const rows: ImportStudentRow[] = parsed.data.rows.map((r) => ({

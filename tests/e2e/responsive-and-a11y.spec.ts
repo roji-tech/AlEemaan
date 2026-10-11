@@ -551,6 +551,32 @@ test.describe("Users and invitation screens", () => {
     return { branches, staff };
   }
 
+  test("/users — the superadmin dialog, and a branch administrator's view", async ({ page, isMobile }) => {
+    await people();
+    const admin = await createUser({ name: "Amina Yusuf", role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+    await page.goto("/users");
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await page.getByRole("button", { name: "Make superadmin Tola Teacher" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("dialog").getByLabel("Your password").fill("not-the-password-1");
+    await page.getByRole("dialog").getByRole("button", { name: "Make superadmin" }).click();
+    await expect(page.getByRole("dialog")).toContainText("Your password is incorrect.");
+    await checkScreen(page, "/users (superadmin dialog with an error)", isMobile);
+  });
+
+  test("/users — a branch administrator's list and the access-denied Branches page", async ({ page, isMobile }) => {
+    await people();
+    const branchAdmin = await createUser({ name: "Bola Branchadmin", role: Role.ADMIN, superAdmin: false });
+    await signInThroughUi(page, branchAdmin);
+    await page.goto("/users");
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await checkScreen(page, "/users (branch administrator)", isMobile);
+    await page.goto("/branches");
+    await expect(page.getByText("You don't have access to this page")).toBeVisible();
+    await checkScreen(page, "/branches (access denied)", isMobile);
+  });
+
   test("/users — the list with pending and expired invitations, the filters, the empty result, and the deactivated view", async ({
     page,
     isMobile,
@@ -607,7 +633,7 @@ test.describe("Users and invitation screens", () => {
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Change access for Pat Parent" })).toBeVisible();
     await checkScreen(page, "/users (Edit dialog)", isMobile);
     await page.getByRole("dialog").getByLabel("Role").selectOption("ADMIN");
-    await expect(page.getByRole("dialog").getByText("Administrators can see every branch whatever is chosen here.")).toBeVisible();
+    await expect(page.getByRole("dialog").getByText("Administers this branch. Superadmin is set separately, from the list.")).toBeVisible();
     await checkScreen(page, "/users (Edit dialog, administrator)", isMobile);
     await page.getByRole("dialog").getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("status").filter({ hasText: /Saved\./ })).toBeVisible();

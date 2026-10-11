@@ -346,3 +346,69 @@ test.describe("changing people", () => {
     await expect(dialog(page).getByRole("alert")).toContainText("This person is deactivated. Reactivate them first.");
   });
 });
+
+test.describe("superadmins and branch administrators", () => {
+  test("a superadmin makes someone a superadmin with their own password: a wrong one is refused in the dialog, the right one adds the badge", async ({
+    page,
+  }) => {
+    await member(Role.TEACHING_STAFF, "Tola Teacher", 1);
+    await signedInAdmin(page);
+    await expect(row(page, "Amina Yusuf")).toContainText("Superadmin");
+    await page.getByRole("button", { name: "Make superadmin Tola Teacher" }).click();
+    await dialog(page).getByLabel("Your password").fill("not-the-password-1");
+    await dialog(page).getByRole("button", { name: "Make superadmin" }).click();
+    await expect(dialog(page)).toContainText("Your password is incorrect.");
+    await dialog(page).getByLabel("Your password").fill("correct-horse-battery-9");
+    await dialog(page).getByRole("button", { name: "Make superadmin" }).click();
+    await expect(notice(page)).toContainText("Tola Teacher is now a superadmin.");
+    await expect(row(page, "Tola Teacher")).toContainText("Superadmin");
+    await expect(row(page, "Tola Teacher")).toContainText("All branches");
+    // and back
+    await row(page, "Tola Teacher").getByRole("button", { name: "Remove superadmin from Tola Teacher" }).click();
+    await dialog(page).getByLabel("Your password").fill("correct-horse-battery-9");
+    await dialog(page).getByRole("button", { name: "Remove superadmin" }).click();
+    await expect(notice(page)).toContainText("Tola Teacher is no longer a superadmin.");
+    await expect(row(page, "Tola Teacher")).not.toContainText("Superadmin");
+  });
+
+  test("a branch administrator sees only their branch, no controls on an administrator or a superadmin, and no Administrator role to give", async ({
+    page,
+  }) => {
+    const branchAdmin = await createUser({ name: "Bola Branchadmin", role: Role.ADMIN, superAdmin: false }); // branch 0
+    await member(Role.TEACHING_STAFF, "Tola Teacher", 0);
+    await member(Role.TEACHING_STAFF, "Uche Elsewhere", 1);
+    await member(Role.ADMIN, "Sade Superadmin", 0);
+    await db.user.update({
+      where: { email: (await db.user.findFirstOrThrow({ where: { name: "Sade Superadmin" } })).email! },
+      data: { isSuperAdmin: true },
+    });
+    await signInThroughUi(page, branchAdmin);
+    await page.goto("/users");
+    await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+
+    await expect(row(page, "Tola Teacher")).toBeVisible();
+    await expect(row(page, "Uche Elsewhere")).toHaveCount(0); // another branch: not even listed
+    await expect(row(page, "Sade Superadmin").getByRole("button")).toHaveCount(0);
+    await expect(row(page, "Tola Teacher").getByRole("button", { name: "Make superadmin Tola Teacher" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Invite someone" }).click();
+    await expect(dialog(page).getByLabel("Role").locator("option", { hasText: "Administrator" })).toHaveCount(0);
+    await expect(dialog(page).getByLabel("Branch").locator("option")).toHaveCount(2); // "Choose a branch" + their own
+  });
+
+  test("Branches and Settings are superadmin pages: a branch administrator has no nav entry and gets the access-denied view", async ({
+    page,
+  }) => {
+    const branchAdmin = await createUser({ name: "Bola Branchadmin", role: Role.ADMIN, superAdmin: false });
+    await signInThroughUi(page, branchAdmin);
+    const nav = page.getByRole("navigation", { name: "Main" });
+    await expect(nav.getByRole("link", { name: "Users" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Branches" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(0);
+    for (const path of ["/branches", "/settings"]) {
+      await page.goto(path);
+      await expect(page.getByText("You don't have access to this page")).toBeVisible();
+      await expect(page.getByText("Only superadmins can")).toBeVisible();
+    }
+  });
+});

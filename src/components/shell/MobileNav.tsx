@@ -14,6 +14,7 @@ type MobileNavProps = {
   email: string | null;
   roleLabel: string;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 };
 
 const TAB =
@@ -25,13 +26,13 @@ const SHEET_ROW =
 /// a "More" sheet for everything that doesn't fit — pages that aren't built yet, Profile, and
 /// Sign out. The sheet is a native modal `<dialog>`, so the focus trap, Escape, an inert page
 /// behind it and focus returning to "More" come from the platform rather than hand-rolled code.
-export function MobileNav({ name, email, roleLabel, isAdmin }: MobileNavProps) {
+export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin }: MobileNavProps) {
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { signOut, pending, error } = useSignOut();
 
-  const items = navFor(isAdmin);
+  const items = navFor(isAdmin, isSuperAdmin);
   const tabs = items.filter((item) => item.href);
   const soon = items.filter((item) => !item.href);
   const displayName = name?.trim() || email || "Account";

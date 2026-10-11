@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { canAdminister } from "@/lib/auth/branch-access";
 import { getSession, updateSession, updateSessionSchema } from "@/lib/academics/sessions";
 
 type Context = { params: Promise<{ id: string }> };
@@ -51,7 +52,8 @@ export const PATCH = withAuth<Context>(
 
     try {
       const before = await getSession(id);
-      if (!before) {
+      // A session of a branch the caller does not administer is "not found", like an unknown id.
+      if (!before || !(await canAdminister(admin.userId, before.branchId))) {
         return fail(`Academic session "${id}" not found`, 404, "NOT_FOUND");
       }
 

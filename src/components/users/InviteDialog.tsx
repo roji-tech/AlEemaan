@@ -7,7 +7,8 @@ import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, problemFor, sendJson } from "@/components/auth/postJson";
-import { ROLE_OPTIONS, type BranchOption, type Invitation, type RoleName } from "./model";
+import type { SelectOption } from "@/components/ui/SelectField";
+import type { BranchOption, Invitation, RoleName } from "./model";
 
 /// "Invite someone": an address, a role and a branch (every membership belongs to one). The server checks everything again; this form only gives the answer where
 /// the person is looking. The dialog is remounted per opening (the owner keys it), so it always starts clean.
@@ -15,11 +16,13 @@ export function InviteDialog({
   open,
   onClose,
   branches,
+  roleOptions,
   onInvited,
 }: {
   open: boolean;
   onClose: () => void;
   branches: BranchOption[];
+  roleOptions: SelectOption[];
   onInvited: (invitation: Invitation) => void;
 }) {
   const [email, setEmail] = useState("");
@@ -89,7 +92,7 @@ export function InviteDialog({
           name="role"
           value={role}
           onChange={(e) => setRole(e.target.value as RoleName)}
-          options={ROLE_OPTIONS}
+          options={roleOptions}
           disabled={pending}
         />
         <SelectField
@@ -102,7 +105,11 @@ export function InviteDialog({
           }}
           error={branchError}
           options={[{ value: "", label: "Choose a branch" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
-          hint={role === "ADMIN" ? "Administrators can see every branch whatever is chosen here." : "The branch this person belongs to."}
+          hint={
+            role === "ADMIN"
+              ? "Administers this branch. For authority over every branch, make them a superadmin afterwards."
+              : "The branch this person belongs to."
+          }
           disabled={pending}
         />
         {formError && <Alert variant="error">{formError}</Alert>}

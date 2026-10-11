@@ -168,9 +168,9 @@ test.describe("invitations — a branch administrator", () => {
   });
 });
 
-test.describe("PUT /members/[id]/superadmin", () => {
+test.describe("PATCH /members/[id]/superadmin", () => {
   const put = (membershipId: string, who: string, body: unknown) =>
-    api(`/api/v1/members/${membershipId}/superadmin`, as(who, { method: "PUT", body }));
+    api(`/api/v1/members/${membershipId}/superadmin`, as(who, { method: "PATCH", body }));
 
   test("only a superadmin: a branch administrator, a teacher and a signed-out caller are refused", async () => {
     const target = await memberIn(Role.TEACHING_STAFF, 0, "Candidate");
@@ -179,7 +179,7 @@ test.describe("PUT /members/[id]/superadmin", () => {
     expect(
       (
         await api(`/api/v1/members/${target.membershipId}/superadmin`, {
-          method: "PUT",
+          method: "PATCH",
           body: { superAdmin: true, password: DEFAULT_PASSWORD },
         })
       ).status,

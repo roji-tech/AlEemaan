@@ -8,7 +8,7 @@ import { refundAttempt, reserveAttempt } from "@/lib/auth/rate-limit";
 import { isPlausibleId, memberFailure, notFound } from "@/lib/members/http";
 import { setSuperAdmin } from "@/lib/members/service";
 
-// PUT /api/v1/members/[id]/superadmin  { superAdmin: boolean, password }                (branch administrators and superadmins, plan S3/S5)
+// PATCH /api/v1/members/[id]/superadmin  { superAdmin: boolean, password }                (branch administrators and superadmins, plan S3/S5)
 // Grants or revokes a person's school-wide authority — superadmins only, and the caller re-types THEIR OWN password first (a stolen session
 // cannot hand out the keys to the school). Audited; nobody changes their own; the school's last superadmin cannot be revoked. `[id]` is one
 // of the person's memberships (a grant needs it to be active). Idempotent: setting what already holds is a quiet success.
@@ -17,7 +17,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 const body = z.strictObject({ superAdmin: z.boolean(), password: z.string().min(1).max(PASSWORD_MAX_LENGTH) });
 
-export const PUT = withAuth(
+export const PATCH = withAuth(
   validate({ body }, async (_req, auth: AuthContext, ctx: Ctx, { body: input }) => {
     const { id } = await ctx.params;
     if (!isPlausibleId(id)) return notFound("member");
