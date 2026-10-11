@@ -32,6 +32,9 @@ model User {
   image         String?
   /// Nullable — an invited-but-not-yet-activated user has none.
   passwordHash  String?
+  /// A person with school-wide authority: administers every branch (a plain ADMIN membership administers only its own branch). A flag on the
+  /// person, not a role — roles are per branch (ADR 0007). Granted/revoked only by a superadmin, or by `pnpm superadmin:make` (plan S1–S6).
+  isSuperAdmin  Boolean   @default(false)
 
   sessions            Session[]
   resetTokens         PasswordResetToken[]

@@ -84,8 +84,8 @@ test.beforeAll(async () => {
 
 /// A signed-in user holding `role` in the PRIMARY branch (the one these tests mark attendance in). Attendance is branch-scoped, so the
 /// membership must be in that branch; `createUser({ role })` would put it in the first seeded branch, which is a different one.
-const asRole = async (role: Role, branchId: string = branch.id) => {
-  const user = await createUser();
+const asRole = async (role: Role, branchId: string = branch.id, superAdmin = false) => {
+  const user = await createUser({ superAdmin });
   await db.membership.create({ data: { userId: user.id, branchId, role } });
   const { token } = await loginAs(user);
   return { user, cookie: cookieHeader(token!) };
@@ -428,8 +428,19 @@ test.describe("AlEemaan Attendance API — branch scoping", () => {
     expect((await api(`/api/v1/students/${otherStudent.id}/attendance`, { cookie })).status).toBe(404);
   });
 
-  test("an administrator still reaches every branch", async () => {
-    const { cookie } = await asRole(Role.ADMIN);
+  test("a branch administrator reaches their own branch and gets 404 for another", async () => {
+    const { cookie } = await asRole(Role.ADMIN); // not a superadmin: administers the PRIMARY branch only
+    const own = await api(`${ATTENDANCE_ROUTE}?branchId=${branch.id}&className=Primary 1&arm=Gold&date=${today()}`, { cookie });
+    expect(own.status).toBe(200);
+    expect((await api(`${ATTENDANCE_ROUTE}?branchId=${other.id}&className=Primary 1&arm=Blue&date=${today()}`, { cookie })).status).toBe(
+      404,
+    );
+    expect((await mark(cookie, other.id, [{ studentId: otherStudent.id, status: "PRESENT" }])).status).toBe(404);
+    expect((await api(`/api/v1/students/${otherStudent.id}/attendance`, { cookie })).status).toBe(404);
+  });
+
+  test("a superadmin reaches every branch", async () => {
+    const { cookie } = await asRole(Role.ADMIN, branch.id, true);
     const get = await api(`${ATTENDANCE_ROUTE}?branchId=${other.id}&className=Primary 1&arm=Blue&date=${today()}`, { cookie });
     expect(get.status).toBe(200);
     expect(get.json.data.students.map((s: { studentId: string }) => s.studentId)).toContain(otherStudent.id);

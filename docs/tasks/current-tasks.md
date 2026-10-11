@@ -16,6 +16,7 @@
 | 0004 | [`0004-aleemaan-attendance-domain.md`](0004-aleemaan-attendance-domain.md) | Attendance Domain & Touch Grid (Phase 1.3 Adaptation) | Completed | 2026-10-09 22:00:00 UTC | 2026-10-09 22:35:00 UTC | [PR #15](https://github.com/roji-tech/AlEemaan/pull/15) (`claude/aleemaan-attendance`) |
 
 | 0005 | [`0005-aleemaan-attendance-branch-scoping-fix.md`](0005-aleemaan-attendance-branch-scoping-fix.md) | Attendance branch-scoping fix and route-role guard | Completed | 2026-10-11 UTC | 2026-10-11 UTC | [PR #17](https://github.com/roji-tech/AlEemaan/pull/17) → #20 (dev) |
+| 0006 | [`0006-aleemaan-branch-admins-and-superadmins.md`](0006-aleemaan-branch-admins-and-superadmins.md) | Branch administrators and superadmins (S1–S8) | In Progress | 2026-10-11 UTC | — | `claude/branch-admins-superadmins` |
 ---
 
 ## Completed Tasks: 0001 - 0004
