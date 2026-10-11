@@ -48,7 +48,7 @@ Make attendance reading and marking respect the caller's branch: no cross-branch
 - [ ] Lint & formatting clean (`pnpm lint`, `pnpm format:check`)
 - [x] Production build succeeds (`pnpm build`)
 - [x] `tests/api/attendance.spec.ts` passed (15/15)
-- [~] **(running)** Zero regressions on the rest of the suite — full AlEemaan one-lane run on `claude/route-role-guard` started 2026-10-11, output `/tmp/claude-1000/aleemaan-full.txt`; result to be recorded here
+- [x] Full AlEemaan one-lane run on `claude/route-role-guard` (2026-10-11, 1.1 h): **1096 passed, 3 failed, 18 skipped** (the 18 are viewport-specific designed skips). The 3 failures were all `e2e/shell.spec.ts` expectations that went stale when Settings became a real page (0.5.2): Settings expected as "coming soon" text (desktop), the phone tab bar expected 3 links (now 4), and Settings expected in the More sheet. None is related to this change. The three expectations were corrected and `shell.spec.ts` re-run: **37 passed, 0 failed** (desktop + phone).
 
 ---
 
