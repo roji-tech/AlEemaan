@@ -14,7 +14,7 @@ ADR 0001 made the branch "not a security boundary" and roles school-wide, and sa
 - **A person acts in a branch only through the STAFF role they hold in that branch** (`Membership(userId, branchId, role)`). No membership in the branch, or only a STUDENT/PARENT membership there, is the same 404 as an unknown branch. There is no default role.
 - **Writes use the branch role**, not "a teacher somewhere": marking attendance needs ADMIN or TEACHING_STAFF *in that branch*.
 - **Student list and detail** require a staff role and show only the branches where the caller holds a staff membership.
-- **Interim, until the next ADR:** an ADMIN membership in any branch still administers every branch (as 0001). The maintainer's intended end state is branch admins (admin in their own branch) plus superadmins (admin everywhere); that needs its own design, an additive migration that backfills existing admins as superadmins, a review of every admin-only route, and a superseding ADR.
+- **Interim, until the next ADR:** an ADMIN membership in any branch still administers every branch (as 0001). The maintainer's intended end state is branch admins (admin in their own branch) plus superadmins (admin everywhere); that needs its own design, an additive migration that backfills existing admins as superadmins, a review of every admin-only route, and a superseding ADR. That later ADR supersedes **only this bullet**; the rest of 0012 stays in force. The interim costs the live school nothing, because every current admin becomes a superadmin in that migration; it matters only once the first branch-only admin exists, so branch admins must ship together with the new administer check (`canAdminister`), never before it.
 - Marking only accepts non-archived students with an ACTIVE enrolment in the branch's active session, listed once, and never overwrites another branch's record; one helper (`lib/auth/branch-access.ts`) decides.
 
 ## Alternatives Considered
@@ -28,8 +28,9 @@ ADR 0001 made the branch "not a security boundary" and roles school-wide, and sa
 
 - A teacher who works in two branches needs a membership in each (ADR 0007 allows it).
 - `withAuth({ roles })` still means "a membership with this role somewhere"; routes that act on a branch must also check the branch role. The route-role guard test (`tests/unit/route-role-guard.spec.ts`) forces every handler to declare `roles:` or an allowlist reason, but does not check the branch role: that stays a review item for each new branch-scoped route.
-- ADR 0001's status becomes "partly superseded by 0012" when this is accepted.
-- **Revisit if:** branch admins and superadmins are built (supersede the interim ADMIN rule), or attendance moves to per-class teacher assignment.
+- ADR 0001's status becomes "partly superseded by 0012" when this is accepted (a status-line edit only).
+- **A remaining trap, to be closed by a follow-up:** nothing forces a branch-scoped route to call `resolveBranchRole`; forgetting it is how the original flaws arose. The follow-up is to make the branch part of the guard itself (for example `withAuth({ roles, branch: (req) => branchId })`) and have the scan test require `branch:` on any route that takes a `branchId`. It touches `withAuth`, so it is best done with the branch-admin and superadmin build, under its own ADR.
+- **Revisit if:** branch admins and superadmins are built (supersede the interim ADMIN rule); attendance moves to per-class teacher assignment; or a parent or student portal is built. A portal reads its own child's or own record through the guardian or student link, not through a branch role, so it needs its own explicit access path; the staff-only rule on `/students` must not be loosened to serve it.
 
 ## Enforced by
 
