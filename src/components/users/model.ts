@@ -15,6 +15,8 @@ export type Member = {
   role: RoleName;
   branchId: string;
   branchName: string;
+  /// School-wide authority, independent of the role held in this branch.
+  isSuperAdmin: boolean;
   status: "active" | "deactivated";
   joinedAt: string;
 };
@@ -37,6 +39,10 @@ export const ROLE_OPTIONS: SelectOption[] = (Object.keys(ROLE_LABELS) as RoleNam
   value: role,
   label: ROLE_LABELS[role],
 }));
+
+/// What a caller may assign: a branch administrator never makes an administrator (the API refuses it too), a superadmin may.
+export const roleOptionsFor = (isSuperAdmin: boolean): SelectOption[] =>
+  isSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter((option) => option.value !== "ADMIN");
 
 export const displayName = (member: Pick<Member, "name" | "email">) => member.name?.trim() || member.email || "Unnamed person";
 

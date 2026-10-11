@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { test, expect } from "@playwright/test";
+import { EVERY_BRANCH } from "@/lib/auth/branch-access";
 import type { Prisma } from "@prisma/client";
 import { Role as R, BRANCH_NAMES, createUser, db, seedInstance } from "../support/db";
 import { hashPassword } from "@/lib/auth/password";
@@ -43,7 +44,11 @@ test.beforeAll(async () => {
 });
 
 async function invite(to: string, opts: { role?: R; branchId?: string } = {}) {
-  const result = await createInvitation(admin.id, { email: to, role: opts.role ?? R.TEACHING_STAFF, branchId: opts.branchId ?? north.id });
+  const result = await createInvitation(
+    admin.id,
+    { email: to, role: opts.role ?? R.TEACHING_STAFF, branchId: opts.branchId ?? north.id },
+    EVERY_BRANCH,
+  );
   if (!result.ok) throw new Error(`invite failed: ${result.reason}`);
   return result;
 }
@@ -139,8 +144,8 @@ test.describe("creating", () => {
     for (let round = 0; round < 6; round++) {
       const to = email(`race${round}`);
       const results = await Promise.all([
-        createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id }),
-        createInvitation(admin.id, { email: to, role: R.STUDENT, branchId: north.id }),
+        createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id }, EVERY_BRANCH),
+        createInvitation(admin.id, { email: to, role: R.STUDENT, branchId: north.id }, EVERY_BRANCH),
       ]);
       expect(
         results.every((r) => r.ok),
@@ -173,11 +178,11 @@ test.describe("creating", () => {
     const gone = await createUser({ role: R.TEACHING_STAFF });
     await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
     const before = await db.invitation.count();
-    expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId: north.id })).toEqual({
+    expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId: north.id }, EVERY_BRANCH)).toEqual({
       ok: false,
       reason: "ALREADY_MEMBER",
     });
-    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: north.id })).toEqual({
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: north.id }, EVERY_BRANCH)).toEqual({
       ok: false,
       reason: "DEACTIVATED_MEMBER",
     });
@@ -186,26 +191,32 @@ test.describe("creating", () => {
 
   test("a member of ANOTHER branch can be invited to this one (a person may belong to several); a person deactivated everywhere cannot, even into a branch they never had", async () => {
     const member = await createUser({ role: R.TEACHING_STAFF }); // active in the first branch
-    expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId: south.id })).toMatchObject({ ok: true });
+    expect(await createInvitation(admin.id, { email: member.email, role: R.PARENT, branchId: south.id }, EVERY_BRANCH)).toMatchObject({
+      ok: true,
+    });
 
     const gone = await createUser({ role: R.TEACHING_STAFF }); // deactivated in the first branch, and has nothing active anywhere
     await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
-    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: south.id })).toEqual({
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: south.id }, EVERY_BRANCH)).toEqual({
       ok: false,
       reason: "DEACTIVATED_MEMBER",
     }); // reactivation is the way back, not a new link
     // but deactivated in one branch while ACTIVE in another is just a person with a past: another branch is fine
     await db.membership.create({ data: { userId: gone.id, branchId: south.id, role: R.PARENT } });
     const third = await db.branch.findUniqueOrThrow({ where: { name: BRANCH_NAMES[2] } });
-    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: third.id })).toMatchObject({ ok: true });
-    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: north.id })).toEqual({
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: third.id }, EVERY_BRANCH)).toMatchObject({
+      ok: true,
+    });
+    expect(await createInvitation(admin.id, { email: gone.email, role: R.PARENT, branchId: north.id }, EVERY_BRANCH)).toEqual({
       ok: false,
       reason: "DEACTIVATED_MEMBER",
     }); // …but the branch they were deactivated in still says reactivate
   });
 
   test("a branch that does not exist is refused", async () => {
-    expect(await createInvitation(admin.id, { email: email("branch"), role: R.TEACHING_STAFF, branchId: "no-such-branch" })).toEqual({
+    expect(
+      await createInvitation(admin.id, { email: email("branch"), role: R.TEACHING_STAFF, branchId: "no-such-branch" }, EVERY_BRANCH),
+    ).toEqual({
       ok: false,
       reason: "INVALID_BRANCH",
     });
@@ -216,8 +227,8 @@ test.describe("creating", () => {
   test("an address with an account but no membership is invitable, and nothing in the answer marks that it has one", async () => {
     const account = await createUser(); // no role: an account with no membership
     const stranger = email("nobody");
-    const known = await createInvitation(admin.id, { email: account.email, role: R.PARENT, branchId: north.id });
-    const unknown = await createInvitation(admin.id, { email: stranger, role: R.PARENT, branchId: north.id });
+    const known = await createInvitation(admin.id, { email: account.email, role: R.PARENT, branchId: north.id }, EVERY_BRANCH);
+    const unknown = await createInvitation(admin.id, { email: stranger, role: R.PARENT, branchId: north.id }, EVERY_BRANCH);
     expect(known.ok).toBe(true);
     expect(unknown.ok).toBe(true);
     if (known.ok && unknown.ok) {
@@ -232,7 +243,7 @@ test.describe("resend, revoke, list", () => {
     const { invitation, token } = await invite(email("resend"));
     await db.invitation.update({ where: { id: invitation.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
     expect(await previewInvitation(token)).toBeNull(); // expired
-    const resent = await resendInvitation(admin.id, invitation.id);
+    const resent = await resendInvitation(admin.id, invitation.id, EVERY_BRANCH);
     expect(resent).not.toBeNull();
     expect(resent!.token).not.toBe(token);
     expect(await previewInvitation(token)).toBeNull();
@@ -249,17 +260,17 @@ test.describe("resend, revoke, list", () => {
       newAccount: { name: "Done Person", passwordHash: await strongHash() },
     });
     const revoked = await invite(email("revoked"));
-    expect(await revokeInvitation(admin.id, revoked.invitation.id)).toBe(true);
+    expect(await revokeInvitation(admin.id, revoked.invitation.id, EVERY_BRANCH)).toBe(true);
     for (const id of [accepted.invitation.id, revoked.invitation.id, "no-such-invitation"]) {
-      expect(await resendInvitation(admin.id, id), id).toBeNull();
-      expect(await revokeInvitation(admin.id, id), id).toBe(false);
+      expect(await resendInvitation(admin.id, id, EVERY_BRANCH), id).toBeNull();
+      expect(await revokeInvitation(admin.id, id, EVERY_BRANCH), id).toBe(false);
     }
   });
 
   test("revoke ends the link, audits once, and a second revoke is 'no such open invitation'", async () => {
     const { invitation, token } = await invite(email("revoke"));
-    expect(await revokeInvitation(admin.id, invitation.id)).toBe(true);
-    expect(await revokeInvitation(admin.id, invitation.id)).toBe(false);
+    expect(await revokeInvitation(admin.id, invitation.id, EVERY_BRANCH)).toBe(true);
+    expect(await revokeInvitation(admin.id, invitation.id, EVERY_BRANCH)).toBe(false);
     expect(await previewInvitation(token)).toBeNull();
     expect(await acceptInvitation({ token, viewerUserId: null, newAccount: { name: "Late", passwordHash: await strongHash() } })).toEqual({
       ok: false,
@@ -271,7 +282,7 @@ test.describe("resend, revoke, list", () => {
   test("the list holds the OPEN invitations only (pending and expired), newest first, with derived status and no secret", async () => {
     // Every invitation made so far is cleared away, so the list holds exactly this test's four.
     await db.invitation.deleteMany({});
-    const run = (to: string) => createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id });
+    const run = (to: string) => createInvitation(admin.id, { email: to, role: R.PARENT, branchId: north.id }, EVERY_BRANCH);
     const old = await run(email("l1"));
     await new Promise((resolve) => setTimeout(resolve, 15));
     const mid = await run(email("l2"));
@@ -280,7 +291,7 @@ test.describe("resend, revoke, list", () => {
     const used = await run(email("l4"));
     if (!old.ok || !mid.ok || !fresh.ok || !used.ok) throw new Error("setup");
     await db.invitation.update({ where: { id: old.invitation.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
-    await revokeInvitation(admin.id, mid.invitation.id);
+    await revokeInvitation(admin.id, mid.invitation.id, EVERY_BRANCH);
     // An ACCEPTED invitation is not "open": it must not be listed (it would offer a Resend/Revoke on a link that is spent).
     expect(
       await acceptInvitation({
@@ -289,14 +300,14 @@ test.describe("resend, revoke, list", () => {
         newAccount: { name: "List Person", passwordHash: await strongHash() },
       }),
     ).toMatchObject({ ok: true });
-    const { invitations, total } = await listOpenInvitations({ skip: 0, take: 10 });
+    const { invitations, total } = await listOpenInvitations({ skip: 0, take: 10 }, EVERY_BRANCH);
     expect(total).toBe(2);
     expect(invitations.map((i) => [i.id, i.status])).toEqual([
       [fresh.invitation.id, "pending"],
       [old.invitation.id, "expired"],
     ]);
     expect(JSON.stringify(invitations)).not.toMatch(/tokenHash|"token"/);
-    expect((await listOpenInvitations({ skip: 1, take: 1 })).invitations.map((i) => i.id)).toEqual([old.invitation.id]); // paged
+    expect((await listOpenInvitations({ skip: 1, take: 1 }, EVERY_BRANCH)).invitations.map((i) => i.id)).toEqual([old.invitation.id]); // paged
   });
 });
 
@@ -320,7 +331,7 @@ test.describe("previewing", () => {
 
   test("unknown, malformed, revoked, expired and accepted links all give the SAME answer: nothing", async () => {
     const gone = await invite(email("gone"));
-    await revokeInvitation(admin.id, gone.invitation.id);
+    await revokeInvitation(admin.id, gone.invitation.id, EVERY_BRANCH);
     const late = await invite(email("late"));
     await db.invitation.update({ where: { id: late.invitation.id }, data: { expiresAt: new Date(Date.now() - 1) } });
     const used = await invite(email("used"));

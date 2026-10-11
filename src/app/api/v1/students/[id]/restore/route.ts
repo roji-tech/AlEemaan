@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { studentOutOfScope } from "@/lib/students/scope";
 import { restoreStudent } from "@/lib/students/service";
 
 type Context = { params: Promise<{ id: string }> };
@@ -19,6 +20,9 @@ export const POST = withAuth<Context>(
     } catch {
       // Empty body is acceptable
     }
+
+    const outOfScope = await studentOutOfScope(admin.userId, id);
+    if (outOfScope) return outOfScope;
 
     try {
       const result = await restoreStudent(admin.userId, id, Boolean(body.allowDuplicate));

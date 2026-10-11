@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { studentOutOfScope } from "@/lib/students/scope";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { getStudent, updateStudent, archiveStudent, studentUpdateSchema } from "@/lib/students/service";
 
@@ -52,6 +53,9 @@ export const PATCH = withAuth<Context>(
       );
     }
 
+    const outOfScope = await studentOutOfScope(admin.userId, id);
+    if (outOfScope) return outOfScope;
+
     try {
       const result = await updateStudent(admin.userId, id, parsed.data);
 
@@ -82,6 +86,8 @@ export const PATCH = withAuth<Context>(
 export const DELETE = withAuth<Context>(
   async (_req, admin, context) => {
     const { id } = await context.params;
+    const outOfScope = await studentOutOfScope(admin.userId, id);
+    if (outOfScope) return outOfScope;
     try {
       const result = await archiveStudent(admin.userId, id);
       if (!result.ok) {

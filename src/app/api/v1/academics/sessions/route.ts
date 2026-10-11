@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { branchOutOfScope } from "@/lib/students/scope";
 import { listSessions, createSession, createSessionSchema } from "@/lib/academics/sessions";
 
 /**
@@ -23,7 +24,7 @@ export const GET = withAuth(async (req) => {
 
 /**
  * POST /api/v1/academics/sessions
- * Admin-only. Creates a new academic session with automated periods/terms.
+ * Administrators only (a branch administrator: their own branches). Creates a new academic session with automated periods/terms.
  */
 export const POST = withAuth(
   async (req, admin) => {
@@ -43,6 +44,9 @@ export const POST = withAuth(
         parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       );
     }
+
+    const outOfScope = await branchOutOfScope(admin.userId, parsed.data.branchId);
+    if (outOfScope) return outOfScope;
 
     try {
       const created = await createSession(parsed.data);

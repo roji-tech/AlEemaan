@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { branchOutOfScope } from "@/lib/students/scope";
 import { setCurrentPeriod } from "@/lib/academics/sessions";
 import { z } from "zod";
 
@@ -31,6 +32,9 @@ export const PATCH = withAuth<Context>(
     if (!parsed.success) {
       return fail(parsed.error.issues[0]?.message ?? "Invalid payload", 400, "VALIDATION");
     }
+
+    const outOfScope = await branchOutOfScope(admin.userId, parsed.data.branchId);
+    if (outOfScope) return outOfScope;
 
     try {
       const updated = await setCurrentPeriod(parsed.data.branchId, id);

@@ -44,6 +44,27 @@ const ALLOWED: Record<string, string> = {
   "GET v1/academics/sessions/[id]/route.ts": CONTENT,
 };
 
+/// A handler declares who may call it with `roles:` or `superAdmin: true`.
+const declares = (source: string) => source.includes("roles:") || source.includes("superAdmin: true");
+
+/// Second assertion (plan S7): `roles:` means "a role somewhere", so a handler that acts on a BRANCH or on something that belongs to one must
+/// also ask about THAT branch. A handler whose source names a branch (`branchId`) or a branch-owned entity must call one of these helpers,
+/// or be listed in BRANCH_CHECKED_ELSEWHERE with the reason. Source-level, like the first: it finds a forgotten check, it does not prove a
+/// right one (the API specs do that).
+const BRANCH_HELPERS = [
+  "resolveBranchRole",
+  "branchIdsFor",
+  "canAdminister",
+  "adminScope",
+  "scopeOrForbidden",
+  "branchOutOfScope",
+  "studentOutOfScope",
+];
+const NAMES_A_BRANCH = /branchId|studentId|students?\/\[id\]|membershipId/;
+
+/// "METHOD path-under-api" -> why it needs no helper call in its own source.
+const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {};
+
 function routeFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = join(dir, name);
@@ -66,14 +87,34 @@ function handlers(): { key: string; source: string }[] {
 test.describe("every API handler declares who may call it", () => {
   test("a handler without `roles:` is on the allowlist, with a reason", () => {
     const missing = handlers()
-      .filter((h) => !h.source.includes("roles:") && !(h.key in ALLOWED))
+      .filter((h) => !declares(h.source) && !(h.key in ALLOWED))
       .map((h) => h.key);
     expect(missing, "add `roles: [...]` to these handlers, or list them in ALLOWED with the reason").toEqual([]);
   });
 
   test("the allowlist has no stale entries (the handler exists and still has no `roles:`)", () => {
     const byKey = new Map(handlers().map((h) => [h.key, h.source]));
-    const stale = Object.keys(ALLOWED).filter((key) => !byKey.has(key) || byKey.get(key)!.includes("roles:"));
+    const stale = Object.keys(ALLOWED).filter((key) => !byKey.has(key) || declares(byKey.get(key)!));
+    expect(stale).toEqual([]);
+  });
+
+  test("a handler that names a branch asks about that branch (or says where it is checked)", () => {
+    const unchecked = handlers()
+      .filter((h) => !(h.key in ALLOWED)) // public and own-account handlers act on no branch
+      .filter((h) => NAMES_A_BRANCH.test(h.source) && !BRANCH_HELPERS.some((name) => h.source.includes(name)))
+      .map((h) => h.key)
+      .filter((key) => !(key in BRANCH_CHECKED_ELSEWHERE));
+    expect(
+      unchecked,
+      "call a branch helper (lib/auth/branch-access, lib/students/scope, lib/members/http) or list them with the reason",
+    ).toEqual([]);
+  });
+
+  test("the branch allowlist has no stale entries", () => {
+    const byKey = new Map(handlers().map((h) => [h.key, h.source]));
+    const stale = Object.keys(BRANCH_CHECKED_ELSEWHERE).filter(
+      (key) => !byKey.has(key) || !NAMES_A_BRANCH.test(byKey.get(key)!) || BRANCH_HELPERS.some((name) => byKey.get(key)!.includes(name)),
+    );
     expect(stale).toEqual([]);
   });
 

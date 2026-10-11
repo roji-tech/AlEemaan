@@ -62,8 +62,16 @@ test.describe("GET /api/v1/branches (admin only)", () => {
   test("demoting an admin takes effect on the very next request (the role is read live, not cached in the session)", async () => {
     const { user, cookie } = await asRole(Role.ADMIN);
     expect((await api(BRANCHES, { cookie })).status).toBe(200);
+    // a role change alone removes no authority (a superadmin is a flag on the person, ADR 0014)…
     await db.membership.updateMany({ where: { userId: user.id }, data: { role: Role.PARENT } });
+    expect((await api(BRANCHES, { cookie })).status).toBe(200);
+    // …revoking the flag does, and so does deactivating their last membership; both are read live, on the very next request
+    await db.user.update({ where: { id: user.id }, data: { isSuperAdmin: false } });
     expect((await api(BRANCHES, { cookie })).status).toBe(403);
+    await db.user.update({ where: { id: user.id }, data: { isSuperAdmin: true } });
+    expect((await api(BRANCHES, { cookie })).status).toBe(200);
+    await db.membership.updateMany({ where: { userId: user.id }, data: { deactivatedAt: new Date() } });
+    expect((await api(BRANCHES, { cookie })).status).toBe(403); // a superadmin with no active membership has no authority (and is signed out by the real deactivation)
   });
 });
 

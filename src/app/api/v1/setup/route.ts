@@ -151,8 +151,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // The first administrator is a SUPERADMIN: nobody else exists to make one, and the school must always have one (plan S6).
       const admin = await tx.user.create({
-        data: { email, name, passwordHash },
+        data: { email, name, passwordHash, isSuperAdmin: true },
       });
 
       await tx.membership.create({

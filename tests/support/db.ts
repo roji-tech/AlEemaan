@@ -81,15 +81,23 @@ export type TestUser = { id: string; email: string; name: string; password: stri
 
 /// Creates a user with a real bcrypt hash. `role` adds a membership in a
 /// (seeded) branch; omit it for a user with no branch. `password: null` makes
-/// an invited-but-not-activated account (no passwordHash).
-export async function createUser(opts: { email?: string; name?: string; password?: string | null; role?: Role } = {}): Promise<TestUser> {
+/// an invited-but-not-activated account (no passwordHash). `superAdmin` defaults to "is an ADMIN" — exactly what the super-admin migration
+/// does to every existing administrator — so a test that wants a branch administrator says `superAdmin: false`.
+export async function createUser(
+  opts: { email?: string; name?: string; password?: string | null; role?: Role; superAdmin?: boolean } = {},
+): Promise<TestUser> {
   const email = opts.email ?? uniqueEmail();
   const password = opts.password === undefined ? DEFAULT_PASSWORD : opts.password;
   const name = opts.name ?? "Amina Yusuf";
   const branch = await seedInstance();
 
   const user = await db.user.create({
-    data: { email, name, passwordHash: password === null ? null : await hashOnce(password) },
+    data: {
+      email,
+      name,
+      passwordHash: password === null ? null : await hashOnce(password),
+      isSuperAdmin: opts.superAdmin ?? opts.role === Role.ADMIN,
+    },
   });
   if (opts.role) {
     await db.membership.create({ data: { userId: user.id, branchId: branch.id, role: opts.role } });

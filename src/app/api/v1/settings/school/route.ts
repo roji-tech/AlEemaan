@@ -1,4 +1,3 @@
-import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
@@ -20,7 +19,7 @@ export const GET = withAuth(async () => {
 
 /**
  * PATCH /api/v1/settings/school
- * Admin-only. Updates school profile / contact info.
+ * Superadmin only. Updates school profile / contact info.
  */
 export const PATCH = withAuth(
   async (req, admin) => {
@@ -62,5 +61,5 @@ export const PATCH = withAuth(
       return fail("Failed to update school settings", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] },
+  { superAdmin: true },
 );

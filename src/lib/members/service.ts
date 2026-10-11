@@ -1,5 +1,6 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 
 // The school's people (domain-implementation-plan.md "Build design — Users pages and invitations", a port of Octalve Edu's 0.5.4).
 //
@@ -22,6 +23,8 @@ export type PublicMember = {
   role: Role;
   branchId: string;
   branchName: string;
+  /// School-wide authority (`User.isSuperAdmin`), independent of the role held in this branch.
+  isSuperAdmin: boolean;
   status: MemberStatus;
   joinedAt: Date;
 };
@@ -33,7 +36,7 @@ const MEMBER_SELECT = {
   branchId: true,
   deactivatedAt: true,
   createdAt: true,
-  user: { select: { name: true, email: true } },
+  user: { select: { name: true, email: true, isSuperAdmin: true } },
   branch: { select: { name: true } },
 } satisfies Prisma.MembershipSelect;
 
@@ -47,6 +50,7 @@ const toPublic = (row: MemberRow): PublicMember => ({
   role: row.role,
   branchId: row.branchId,
   branchName: row.branch.name,
+  isSuperAdmin: row.user.isSuperAdmin,
   status: row.deactivatedAt ? "deactivated" : "active",
   joinedAt: row.createdAt,
 });
@@ -55,13 +59,16 @@ const toPublic = (row: MemberRow): PublicMember => ({
 /// "%" listing everyone). Backslash is Postgres' default LIKE escape: escape the three special characters and the search is text.
 export const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
 
+/// `scope`: a superadmin sees everyone; a branch administrator only the people of the branches they administer (plan S3).
 export async function listMembers(
   filters: MemberFilters,
   page: { skip: number; take: number },
+  scope: AdminScope,
 ): Promise<{ members: PublicMember[]; total: number }> {
   const where: Prisma.MembershipWhereInput = {
+    ...(scope.superAdmin ? {} : { branchId: { in: [...scope.branchIds] } }),
     ...(filters.role ? { role: filters.role } : {}),
-    ...(filters.branchId ? { branchId: filters.branchId } : {}),
+    ...(filters.branchId ? { AND: { branchId: filters.branchId } } : {}),
     ...(filters.status === "active" ? { deactivatedAt: null } : filters.status === "deactivated" ? { deactivatedAt: { not: null } } : {}),
     ...(filters.q
       ? {
@@ -92,8 +99,13 @@ export type MemberFailure =
   | "NOT_FOUND"
   /// Nobody changes or deactivates themselves here ("ask another administrator"): an accidental self-lockout is worse than an extra step.
   | "SELF"
-  /// The school's last active administrator cannot be demoted or deactivated: it would leave the school with nobody who can manage it.
-  | "LAST_ADMIN"
+  /// The school's last active superadmin cannot lose that authority or their last active membership: it would leave the school with nobody
+  /// who can manage it as a whole (ADR 0005, counted by person under a lock).
+  | "LAST_SUPERADMIN"
+  /// Only a superadmin may make, change, deactivate or reactivate an administrator or a superadmin (plan S3).
+  | "ADMIN_ONLY"
+  /// The branch it would move to is not one the caller administers.
+  | "OUT_OF_SCOPE"
   | "INVALID_BRANCH"
   /// The person already has a membership in the branch it would move to (one membership per person per branch).
   | "BRANCH_TAKEN"
@@ -105,30 +117,45 @@ export type MemberResult = { ok: true; member: PublicMember; changed: boolean; s
 
 const find = (tx: Tx, membershipId: string) => tx.membership.findUnique({ where: { id: membershipId }, select: MEMBER_SELECT });
 
-/// True when ANOTHER PERSON than `exceptUserId` holds an active ADMIN membership — and holds a row lock on all of them for the rest of
-/// the transaction. Counted by person, not by row (one person with two admin memberships is still one administrator). Two administrators
-/// demoting each other at the same instant would each see "the other is still an admin" without the lock; with it the second waits for
-/// the first to commit, re-reads, and finds itself the last.
-async function hasAnotherActiveAdmin(tx: Tx, exceptUserId: string): Promise<boolean> {
-  const admins = await tx.$queryRaw<{ id: string; userId: string }[]>`
-    SELECT id, "userId" FROM "Membership" WHERE role = 'ADMIN' AND "deactivatedAt" IS NULL FOR UPDATE`;
-  return admins.some((admin) => admin.userId !== exceptUserId);
+/// True when ANOTHER PERSON than `exceptUserId` is a superadmin who still has an active membership — and holds a row lock on every
+/// superadmin's `User` row for the rest of the transaction. Counted by person, not by row. Two superadmins removing each other at the same
+/// instant would each see "the other is still one" without the lock; with it the second waits for the first to commit, then COUNTS AGAIN in
+/// a new statement (READ COMMITTED: the new statement sees what the first committed) and finds itself the last.
+async function hasAnotherActiveSuperAdmin(tx: Tx, exceptUserId: string): Promise<boolean> {
+  await tx.$queryRaw`SELECT id FROM "User" WHERE "isSuperAdmin" = true FOR UPDATE`;
+  const others = await tx.$queryRaw<{ userId: string }[]>`
+    SELECT DISTINCT m."userId" FROM "Membership" m JOIN "User" u ON u.id = m."userId"
+    WHERE u."isSuperAdmin" = true AND m."deactivatedAt" IS NULL AND m."userId" <> ${exceptUserId}`;
+  return others.length > 0;
+}
+
+/// The refusals every action shares (plan S3). A member outside the caller's branches is "no such member" (404), never "not allowed";
+/// within them, only a superadmin may touch an administrator or a superadmin.
+function refuse(current: MemberRow, scope: AdminScope): MemberFailure | null {
+  if (!mayAdminister(scope, current.branchId)) return "NOT_FOUND";
+  if (!scope.superAdmin && (current.role === "ADMIN" || current.user.isSuperAdmin)) return "ADMIN_ONLY";
+  return null;
 }
 
 export async function changeMember(
   actorUserId: string,
   membershipId: string,
   change: { role?: Role; branchId?: string },
+  scope: AdminScope,
 ): Promise<MemberResult> {
   return prisma.$transaction(async (tx): Promise<MemberResult> => {
     const current = await find(tx, membershipId);
     if (!current) return { ok: false, reason: "NOT_FOUND" };
+    const refused = refuse(current, scope);
+    if (refused) return { ok: false, reason: refused };
     if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
     if (current.deactivatedAt) return { ok: false, reason: "DEACTIVATED" };
+    if (!scope.superAdmin && change.role === "ADMIN") return { ok: false, reason: "ADMIN_ONLY" }; // only a superadmin makes an administrator
 
     if (change.branchId) {
       const branch = await tx.branch.findUnique({ where: { id: change.branchId }, select: { id: true } });
       if (!branch) return { ok: false, reason: "INVALID_BRANCH" };
+      if (!mayAdminister(scope, change.branchId)) return { ok: false, reason: "OUT_OF_SCOPE" };
     }
     if (change.branchId && change.branchId !== current.branchId) {
       const taken = await tx.membership.findUnique({
@@ -141,9 +168,7 @@ export async function changeMember(
     const branchChanged = change.branchId !== undefined && change.branchId !== current.branchId;
     if (!roleChanged && !branchChanged) return { ok: true, member: toPublic(current), changed: false }; // a no-op writes nothing
 
-    if (roleChanged && current.role === "ADMIN" && change.role !== "ADMIN" && !(await hasAnotherActiveAdmin(tx, current.userId))) {
-      return { ok: false, reason: "LAST_ADMIN" };
-    }
+    // (Changing a role never removes school-wide authority: that is the person's superadmin flag, revoked on its own — `setSuperAdmin`.)
 
     let updated: MemberRow;
     try {
@@ -189,13 +214,21 @@ export async function changeMember(
 /// request (the role is read from the membership every time). **If it was the person's last active membership, their sessions are deleted
 /// in the same transaction** (the deliberate divergence from Octalve Edu: "deactivated" means signed out here); with another active
 /// membership the sessions are left alone.
-export async function deactivateMember(actorUserId: string, membershipId: string): Promise<MemberResult> {
+export async function deactivateMember(actorUserId: string, membershipId: string, scope: AdminScope): Promise<MemberResult> {
   return prisma.$transaction(async (tx): Promise<MemberResult> => {
     const current = await find(tx, membershipId);
     if (!current) return { ok: false, reason: "NOT_FOUND" };
+    const refused = refuse(current, scope);
+    if (refused) return { ok: false, reason: refused };
     if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
     if (current.deactivatedAt) return { ok: true, member: toPublic(current), changed: false, signedOut: false };
-    if (current.role === "ADMIN" && !(await hasAnotherActiveAdmin(tx, current.userId))) return { ok: false, reason: "LAST_ADMIN" };
+    // A superadmin stops being one when they have no active membership left, so the LAST membership of the LAST superadmin stays. (The lock
+    // is taken BEFORE the count, so the count below sees what a racing transaction just committed.)
+    if (current.user.isSuperAdmin) {
+      const others = await hasAnotherActiveSuperAdmin(tx, current.userId);
+      const active = await tx.membership.count({ where: { userId: current.userId, deactivatedAt: null } });
+      if (active <= 1 && !others) return { ok: false, reason: "LAST_SUPERADMIN" };
+    }
 
     const updated = await tx.membership.update({ where: { id: current.id }, data: { deactivatedAt: new Date() }, select: MEMBER_SELECT });
     const stillActive = await tx.membership.count({ where: { userId: current.userId, deactivatedAt: null } });
@@ -214,10 +247,12 @@ export async function deactivateMember(actorUserId: string, membershipId: string
   });
 }
 
-export async function reactivateMember(actorUserId: string, membershipId: string): Promise<MemberResult> {
+export async function reactivateMember(actorUserId: string, membershipId: string, scope: AdminScope): Promise<MemberResult> {
   return prisma.$transaction(async (tx): Promise<MemberResult> => {
     const current = await find(tx, membershipId);
     if (!current) return { ok: false, reason: "NOT_FOUND" };
+    const refused = refuse(current, scope);
+    if (refused) return { ok: false, reason: refused };
     if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
     if (!current.deactivatedAt) return { ok: true, member: toPublic(current), changed: false };
 
@@ -232,5 +267,33 @@ export async function reactivateMember(actorUserId: string, membershipId: string
       },
     });
     return { ok: true, member: toPublic(updated), changed: true };
+  });
+}
+
+/// Grants or revokes a person's SUPERADMIN authority (`User.isSuperAdmin`), addressed through one of their memberships. The caller must
+/// already be a superadmin (the route says so with `withAuth({ superAdmin: true })`); the password re-type is the route's job. Nobody
+/// changes their own. Revoking takes the same lock as a deactivation and refuses to leave the school without a superadmin.
+export async function setSuperAdmin(actorUserId: string, membershipId: string, value: boolean): Promise<MemberResult> {
+  return prisma.$transaction(async (tx): Promise<MemberResult> => {
+    const current = await find(tx, membershipId);
+    if (!current) return { ok: false, reason: "NOT_FOUND" };
+    if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
+    if (value && current.deactivatedAt) return { ok: false, reason: "DEACTIVATED" }; // authority needs an active membership to mean anything
+    if (current.user.isSuperAdmin === value) return { ok: true, member: toPublic(current), changed: false };
+
+    if (!value && !(await hasAnotherActiveSuperAdmin(tx, current.userId))) return { ok: false, reason: "LAST_SUPERADMIN" };
+    await tx.user.update({ where: { id: current.userId }, data: { isSuperAdmin: value } });
+    await tx.auditLog.create({
+      data: {
+        actorUserId,
+        action: value ? "SUPERADMIN_GRANTED" : "SUPERADMIN_REVOKED",
+        targetType: "User",
+        targetId: current.userId,
+        beforeValue: { isSuperAdmin: !value },
+        afterValue: { isSuperAdmin: value },
+      },
+    });
+    const updated = await find(tx, membershipId);
+    return { ok: true, member: toPublic(updated!), changed: true };
   });
 }

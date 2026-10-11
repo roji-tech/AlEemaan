@@ -15,6 +15,7 @@ export type ShellUser = {
   /// e.g. "Administrator" — shown under the name.
   roleLabel: string;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 };
 
 function BrandMark({ size }: { size: "sm" | "md" }) {
@@ -55,7 +56,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
           <span className="text-lg font-bold tracking-tight text-fg">{brand.name}</span>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-4">
-          <SidebarNav isAdmin={user.isAdmin} />
+          <SidebarNav isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} />
         </div>
         <div className="flex items-center gap-3 border-t border-line p-4">
           <span
@@ -94,7 +95,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         </main>
       </div>
 
-      <MobileNav name={user.name} email={user.email} roleLabel={user.roleLabel} isAdmin={user.isAdmin} />
+      <MobileNav name={user.name} email={user.email} roleLabel={user.roleLabel} isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} />
     </div>
   );
 }
