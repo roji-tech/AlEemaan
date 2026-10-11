@@ -18,7 +18,7 @@ Make attendance reading and marking respect the caller's branch: no cross-branch
 
 ## 2. Context & Related Docs
 - Plan: "Fix design — attendance is scoped to the caller's branch" (committed alone, `2dec5ea`).
-- ADR 0012 (Proposed), ADR 0001 / 0007 (roles school-wide, membership per branch), ADR 0003 (additive migrations — none needed here).
+- ADR 0012 (Accepted 2026-10-11), ADR 0001 / 0007 (roles school-wide, membership per branch), ADR 0003 (additive migrations — none needed here).
 - Found by reading the code of PR #15; the review is not a test, so each finding gets a failing-first test.
 
 ---
@@ -27,7 +27,7 @@ Make attendance reading and marking respect the caller's branch: no cross-branch
 
 ### Module A: Design and decision record
 - [x] Fix design committed alone (`2dec5ea`)
-- [x] ADR 0012 drafted (Proposed — needs the maintainer)
+- [x] ADR 0012 drafted, then accepted by the maintainer on 2026-10-11
 
 ### Module B: Code
 - [x] `lib/attendance/access.ts` — `resolveBranchRole` (no default role)

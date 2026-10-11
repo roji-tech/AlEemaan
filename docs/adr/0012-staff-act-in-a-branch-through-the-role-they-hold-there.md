@@ -1,7 +1,7 @@
 # 0012 — Staff act in a branch only through the role they hold there; people data is scoped to role and branch
 
-Status: Proposed
-Decided by: — (drafted by an agent; the maintainer chose per-branch roles on 2026-10-11, acceptance pending) · Date: 2026-10-11
+Status: Accepted
+Decided by: the maintainer (abdullahjamiu4@gmail.com), who chose per-branch roles on 2026-10-11 and accepted this ADR, with the recommended edits, on 2026-10-11 (drafted by an agent) · Date: 2026-10-11
 Recorded: 2026-10-11
 Amends: 0001 (its last sentence, "a role applies school-wide; withAuth checks that a membership with the role exists, not which branch") — see Consequences
 
