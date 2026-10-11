@@ -48,7 +48,7 @@ Make attendance reading and marking respect the caller's branch: no cross-branch
 - [ ] Lint & formatting clean (`pnpm lint`, `pnpm format:check`)
 - [x] Production build succeeds (`pnpm build`)
 - [x] `tests/api/attendance.spec.ts` passed (15/15)
-- [ ] Zero regressions on the rest of the suite — full AlEemaan run **not started** (waits for the Octalve run to finish)
+- [~] **(running)** Zero regressions on the rest of the suite — full AlEemaan one-lane run on `claude/route-role-guard` started 2026-10-11, output `/tmp/claude-1000/aleemaan-full.txt`; result to be recorded here
 
 ---
 
