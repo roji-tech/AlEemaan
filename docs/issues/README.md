@@ -17,6 +17,7 @@ Every known or suspected problem, with severity, kind, where it is and how sure 
 | ISS-0011 | P1 | Authorization | Staff in one branch with another role in a second branch: route-level `roles` means "a role somewhere", so a non-teaching member of branch B who teaches in A could mark in B; PARENT/STUDENT memberships counted as visibility | Fixed on this branch | unknown | Reproduced by test | `src/lib/auth/branch-access.ts`, attendance route | 2026-10-11 |
 | ISS-0012 | P2 | Process / Docs drift | ADR 0001 (roles school-wide) and the attendance/student code disagreed; superseding ADR not proposed before coding | Open until ADR 0012 is accepted | n/a | Read | `docs/adr/0001`, `0012` | 2026-10-11 |
 | ISS-0013 | P1 | Authorization (design) | An ADMIN membership in any branch administers the whole school; no superadmin/branch-admin split | Open (design needed) | unknown | Read | `lib/auth/branch-access.ts`, all `Role.ADMIN` routes | 2026-10-11 |
+| ISS-0014 | P3 | Test gap | `e2e/shell.spec.ts` expected Settings as "coming soon" and a 3-link tab bar after Settings shipped (0.5.2); found by the full suite | Fixed on `claude/design-branch-admins-superadmins` | n/a | Reproduced (full suite) | `tests/e2e/shell.spec.ts` | 2026-10-11 |
 | ISS-0010 | P3 | Process | `docs/tasks/current-tasks.md` names a sync script that does not exist; `tasks:check` prints stale statuses | Open | unknown | Read | `docs/tasks/current-tasks.md`, `scripts/tasks-check.mjs` | 2026-10-11 |
 
 ## Priority scale
