@@ -1,7 +1,7 @@
 # 0014 — An ADMIN membership administers one branch; school-wide authority is a flag on the person
 
-Status: Proposed
-Decided by: — (drafted by an agent; the maintainer chose the model and accepted its four defaults on 2026-10-11, acceptance of this record pending) · Date: 2026-10-11
+Status: Accepted
+Decided by: the maintainer — chose the model and accepted its four defaults on 2026-10-11; accepted this record on 2026-10-13 ("I'll accept all your suggestions or recommendations", in answer to the review that advised acceptance **after** the administrator list is read) · Date: 2026-10-11
 Recorded: 2026-10-11
 Amends: 0012 (its interim bullet "an ADMIN membership in any branch still administers every branch"); 0005 (the last administrator becomes the last superadmin)
 Supersedes in part: 0001 (the school-wide meaning of ADMIN)
@@ -11,6 +11,8 @@ Supersedes in part: 0001 (the school-wide meaning of ADMIN)
 ADR 0001 made `ADMIN` school-wide; ADR 0012 kept that as an interim while the maintainer's end state was designed: **branch administrators** (an administrator of their own branch) plus **superadmins** (administer everywhere). On 2026-10-11 the maintainer chose the model and accepted all four defaults of the design (plan S1–S8): a flag on the person, not a new role; a branch administrator cannot create another administrator; every current administrator becomes a superadmin on migration; branch administrators manage their branch's academic sessions. Roles are per branch (ADR 0007), so a school-wide authority does not belong in a per-branch row.
 
 ## Decision
+
+**Condition on the live deploy (the maintainer's accepted recommendation, 2026-10-13):** before the migration runs on the live database, run `pnpm admins:list` (read-only), decide who stays a superadmin, deploy, then remove the flag from the others on the Users page. Do not deploy first and clean up later: until then every branch administrator would have school-wide power.
 
 - **`User.isSuperAdmin`** (default false) is school-wide authority: every branch, branches and school settings, other administrators, granting and revoking the flag. It counts only while the person has at least one active membership (as signing in does).
 - **An `ADMIN` membership administers that branch only.** One helper decides: `canAdminister(userId, branchId)` = superadmin OR an active ADMIN membership in that branch; `adminScope()` gives the same answer for lists.

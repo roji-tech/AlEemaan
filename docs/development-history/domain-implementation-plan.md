@@ -1058,11 +1058,10 @@ everything above being schema-stable, for obvious reasons.
   inconvenience.
 
 - **Phase 7 — Data Migration & Cutover.** Depends on every schema above being stable. Maps the 4
-  separate Firestore projects' data into one Postgres database. Blocked on a real answer to the
-  audit's open question first: what's actually populating the two Arabic branches' data today, since
-  no admin/teacher portal exists for them in any of the 5 repos read — that changes how much of this
-  phase is "migrate real records" versus "start those two branches from zero." Ask the school before
-  this phase's design pass gets written, not during it.
+  separate Firestore projects' data into one Postgres database. **Answered 2026-10-13 by the
+  maintainer:** the two Arabic branches' data is not available at all, so the school starts those two branches
+  from zero through the normal admin and teacher portal - this phase migrates the two ENGLISH branches' Firestore
+  projects only (no import or reconciliation for the Arabic ones). Its design pass can now be written.
 
 ## Next action
 

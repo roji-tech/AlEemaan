@@ -102,8 +102,9 @@ One `PARENT` / `STUDENT` login across all four branches (replacing four per-bran
 children in several branches · published results and invoice status only · notifications · gate: no cross-family access.
 
 ## Phase 7 — Data Migration & Cutover
-**Blocked on a question for the school first:** what populates the two Arabic branches' data today (no admin/teacher portal
-exists for them in the five legacy repos)? Then: T1 mapping of four Firestore projects → one Postgres; T2 dry-run migration on a
+**Unblocked (answered 2026-10-13): the two Arabic branches have no data to bring across - the school starts them fresh, through the normal
+admin and teacher portal.** So the migration covers the two ENGLISH branches' Firestore projects only (the Arabic branches get their branch
+rows, administrators and first students by ordinary input; no import, no reconciliation for them). Then: T1 mapping of the two English Firestore projects → one Postgres; T2 dry-run migration on a
 copy with reconciliation reports (counts, checksums, spot audits by staff); T3 freeze window and cutover plan; T4 rollback plan;
 T5 parallel-run period; T6 decommission the old projects.
 
