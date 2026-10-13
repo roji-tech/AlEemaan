@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
 import { branchOutOfScope } from "@/lib/students/scope";
-import { setCurrentPeriod } from "@/lib/academics/sessions";
+import { setCurrentPeriod, DomainError } from "@/lib/academics/sessions";
 import { z } from "zod";
 
 type Context = { params: Promise<{ id: string }> };
@@ -57,7 +57,7 @@ export const PATCH = withAuth<Context>(
 
       return ok({ period: updated });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to set current term";
+      const msg = error instanceof DomainError ? error.message : "Failed to set current term";
       console.error("[ACADEMIC_PERIOD_PATCH_ERROR]", error);
       return fail(msg, 400, "PERIOD_UPDATE_FAILED");
     }

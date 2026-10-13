@@ -74,9 +74,9 @@ export const POST = withAuth(
 
       return ok(result.data, {}, 201);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to create student";
       console.error("[STUDENT_CREATE_ERROR]", error);
-      return fail(msg, 500, "INTERNAL");
+      // a fixed message: the exception's own text can name tables, columns and values (ISS-0006)
+      return fail("Failed to create student.", 500, "INTERNAL");
     }
   },
   { roles: [Role.ADMIN] },

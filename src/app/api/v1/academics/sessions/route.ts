@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
 import { branchOutOfScope } from "@/lib/students/scope";
-import { listSessions, createSession, createSessionSchema } from "@/lib/academics/sessions";
+import { listSessions, createSession, createSessionSchema, DomainError } from "@/lib/academics/sessions";
 
 /**
  * GET /api/v1/academics/sessions
@@ -69,7 +69,7 @@ export const POST = withAuth(
 
       return ok({ session: created }, {}, 201);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to create academic session";
+      const msg = error instanceof DomainError ? error.message : "Failed to create academic session";
       if (msg.includes("already exists")) {
         return fail(msg, 409, "DUPLICATE_SESSION");
       }
