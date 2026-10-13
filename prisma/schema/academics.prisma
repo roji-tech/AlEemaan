@@ -58,3 +58,80 @@ model AcademicPeriod {
   @@unique([sessionId, ordinal])
   @@index([branchId, sessionId])
 }
+
+// --- Academic structure: classes, arms, subjects (Slice P1a; plan "Build design - Slice P1") ---
+//
+// Everything belongs to exactly ONE branch. A child is kept in its parent's branch by a composite key (branchId, id), so the database - not only the code -
+// refuses an arm that points at another branch's class group. Nothing is deleted: classes, arms and subjects are archived.
+
+/// A class ("JSS 1", "Primary 3", "Ibtidaiyah 2") of one branch. `sortOrder` is the progression rung promotion will use. Live names are unique per branch
+/// (ignoring case) by a partial index in the migration SQL.
+model ClassGroup {
+  id         String    @id @default(cuid())
+  branchId   String
+  name       String
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  arms      ClassArm[]
+  offerings SubjectOffering[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// An arm of a class ("A", "Gold"). Capacity lives on the arm and is display-only. Live names are unique per class (ignoring case) by a partial index.
+model ClassArm {
+  id           String    @id @default(cuid())
+  branchId     String
+  classGroupId String
+  name         String
+  capacity     Int?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup  ClassGroup          @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  enrollments StudentEnrollment[]
+
+  @@unique([branchId, id])
+  @@index([branchId, classGroupId])
+}
+
+/// A subject taught in one branch. `code` is upper-cased and unique among the branch's live subjects when present (partial index).
+model Subject {
+  id         String    @id @default(cuid())
+  branchId   String
+  name       String
+  code       String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  offerings SubjectOffering[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// "This class studies this subject." A real DELETE for now because nothing references it; the day a later slice adds a foreign key to it, a test fails and
+/// forces archive-on-reference.
+model SubjectOffering {
+  id           String   @id @default(cuid())
+  branchId     String
+  classGroupId String
+  subjectId    String
+  createdAt    DateTime @default(now())
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  subject    Subject    @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([classGroupId, subjectId])
+  @@index([branchId])
+}

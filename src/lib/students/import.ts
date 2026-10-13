@@ -1,3 +1,4 @@
+import { resolveArmId } from "@/lib/academics/structure";
 import { prisma } from "@/lib/db";
 import { Gender, EnrollmentStatus, SessionStatus } from "@prisma/client";
 import { findDuplicate, generateAdmissionNo, lockStudents } from "./service";
@@ -116,6 +117,7 @@ export async function importStudents(
             sessionId: activeSession.id,
             className: r.className,
             arm: r.arm || null,
+            classArmId: await resolveArmId(tx, branchId, r.className, r.arm),
             status: EnrollmentStatus.ACTIVE,
           },
         });

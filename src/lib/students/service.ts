@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveArmId } from "@/lib/academics/structure";
 import { prisma } from "@/lib/db";
 import { Gender, EnrollmentStatus, SessionStatus, Prisma } from "@prisma/client";
 
@@ -150,6 +151,7 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
             sessionId: activeSession.id,
             className: input.className,
             arm: input.arm || null,
+            classArmId: await resolveArmId(tx, input.branchId, input.className, input.arm),
             status: EnrollmentStatus.ACTIVE,
           },
         });

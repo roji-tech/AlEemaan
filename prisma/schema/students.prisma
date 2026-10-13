@@ -55,13 +55,16 @@ model StudentEnrollment {
   sessionId  String
   className  String // e.g. "JSS 1", "Basic 2"
   arm        String? // e.g. "A", "Gold"
+  /// The real arm this enrolment is in, when the strings above match one of the branch's arms (Slice P1a). Null until then; the strings stay until after Phase 7.
+  classArmId String?
   status     EnrollmentStatus @default(ACTIVE)
   enrolledAt DateTime         @default(now())
   updatedAt  DateTime         @default(now()) @updatedAt
 
-  student StudentRecord   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  branch  Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student  StudentRecord   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  branch   Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session  AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  classArm ClassArm?       @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
 
   @@unique([studentId, sessionId])
   @@index([branchId, sessionId])
