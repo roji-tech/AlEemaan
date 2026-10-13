@@ -1,8 +1,9 @@
+import { z } from "zod";
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
-import { validate } from "@/lib/api/validate";
+import { validate, type Parsed } from "@/lib/api/validate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
-import { resolveBranchRole } from "@/lib/auth/branch-access";
+import { withBranch } from "@/lib/auth/with-branch";
 import { bulkMarkAttendanceSchema, rollCallQuerySchema, attendanceFailure } from "@/lib/attendance/http";
 import { getBranchRollCall, markBranchAttendance } from "@/lib/attendance/service";
 
@@ -31,12 +32,24 @@ export const GET = withAuth(
           query.error.issues.map((i) => ({ path: `query.${i.path.join(".")}`, message: i.message })),
         );
       }
-      const { branchId, className, arm } = query.data;
-      const dateStr = query.data.date ?? new Date().toISOString().slice(0, 10);
-
       // The caller's role IN THIS BRANCH (an ADMIN anywhere reaches all); none = the same 404 as an unknown branch.
-      const role = await resolveBranchRole(auth.userId, branchId);
-      if (!role) return attendanceFailure("NOT_FOUND");
+      return rollCallInBranch(req, auth, undefined, query.data);
+    } catch (error) {
+      console.error("[ATTENDANCE_GET_ERROR]", error);
+      return fail("Unable to retrieve attendance roll call", 500, "INTERNAL");
+    }
+  },
+  { roles: STAFF_ROLES },
+);
+
+const NOT_FOUND = () => attendanceFailure("NOT_FOUND");
+
+const rollCallInBranch = withBranch<z.infer<typeof rollCallQuerySchema>, AuthContext, unknown>(
+  { of: (query) => query.branchId, as: "staff-read", refuse: NOT_FOUND },
+  async (_req, _auth, _ctx, query, { role }) => {
+    try {
+      const { branchId, className, arm } = query;
+      const dateStr = query.date ?? new Date().toISOString().slice(0, 10);
 
       const result = await getBranchRollCall({
         branchId,
@@ -56,7 +69,6 @@ export const GET = withAuth(
       return fail("Unable to retrieve attendance roll call", 500, "INTERNAL");
     }
   },
-  { roles: STAFF_ROLES },
 );
 
 /**
@@ -64,24 +76,29 @@ export const GET = withAuth(
  * Staff only. Records or updates attendance roll call.
  */
 export const POST = withAuth(
-  validate({ body: bulkMarkAttendanceSchema }, async (_req, auth: AuthContext, _ctx: unknown, { body }) => {
-    const role = await resolveBranchRole(auth.userId, body.branchId);
-    if (!role) return attendanceFailure("NOT_FOUND");
-    // The route-level roles say "a teacher somewhere"; marking needs a teaching (or admin) role in THIS branch.
-    if (!WRITE_ROLES.some((r) => r === role)) return attendanceFailure("UNAUTHORIZED");
+  validate(
+    { body: bulkMarkAttendanceSchema },
+    withBranch<Parsed<z.infer<typeof bulkMarkAttendanceSchema>, undefined>, AuthContext, unknown>(
+      {
+        of: ({ body }) => body.branchId,
+        as: "staff-write", // marking needs a teaching (or admin) role in THIS branch; the route-level roles only say "a teacher somewhere"
+        refuse: (why) => attendanceFailure(why === "FORBIDDEN" ? "UNAUTHORIZED" : "NOT_FOUND"),
+      },
+      async (_req, auth, _ctx, { body }, { role }) => {
+        const result = await markBranchAttendance({
+          branchId: body.branchId,
+          actorUserId: auth.userId,
+          actorRole: role,
+          input: body,
+        });
 
-    const result = await markBranchAttendance({
-      branchId: body.branchId,
-      actorUserId: auth.userId,
-      actorRole: role,
-      input: body,
-    });
+        if (!result.ok) {
+          return attendanceFailure(result.failure);
+        }
 
-    if (!result.ok) {
-      return attendanceFailure(result.failure);
-    }
-
-    return ok(result.data);
-  }),
+        return ok(result.data);
+      },
+    ),
+  ),
   { roles: WRITE_ROLES },
 );

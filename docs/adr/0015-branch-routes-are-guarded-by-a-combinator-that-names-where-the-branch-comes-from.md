@@ -25,14 +25,16 @@ Recorded: 2026-10-13 (drafted by an agent; this is the follow-up ADRs 0012 and 0
 
 ## Consequences
 
+- **As built (task 0009):** the combinator composes inside `validate()` where a route uses it, and inside the route's own handler (after its own body check) where a route still parses by hand - so the order of answers is unchanged. Six handlers are listed as not wrapped, with reasons, in the guard test; moving the list endpoints and the invitation create onto it is follow-up work.
+
 - A migration of existing routes, with no change to any response: the existing API specs are the check.
 - The guard test asserts structure (wrapped or allowlisted); the API specs still prove the answers.
 - **Revisit if:** a route needs the branch from more than one place, or a second kind of branch-scoped authority (a head of a branch who cannot be demoted by other branch administrators, ADR 0014) arrives.
 
 ## Enforced by
 
-(planned, task 0009) unit: `tests/unit/with-branch.spec.ts` (each `as`, each source of the branch, the 404/403 rules, a deactivated membership); `tests/unit/route-role-guard.spec.ts` (every handler that names a branch is wrapped or allowlisted); the existing API specs unchanged.
+`tests/integration/with-branch.spec.ts` (each `as`, each source of the branch, the 404/403 rules, a deactivated membership, `refuse`); `tests/unit/route-role-guard.spec.ts` (every handler that names a branch is wrapped by `withBranch` or listed in `NOT_WRAPPED` with a reason, and the list has no stale entries); the existing API specs unchanged (task 0009).
 
 ## Binds
 
-- (planned) `src/lib/auth/with-branch.ts`, `src/lib/auth/branch-access.ts`, `src/lib/students/scope.ts`, `tests/unit/route-role-guard.spec.ts`
+- `src/lib/auth/with-branch.ts`, `src/lib/auth/branch-access.ts`, `src/lib/students/scope.ts`, `tests/unit/route-role-guard.spec.ts`

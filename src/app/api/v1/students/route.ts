@@ -1,7 +1,8 @@
+import { z } from "zod";
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { branchOutOfScope } from "@/lib/students/scope";
+import { withBranch } from "@/lib/auth/with-branch";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { listStudents, createStudent, studentInputSchema } from "@/lib/students/service";
 
@@ -59,11 +60,17 @@ export const POST = withAuth(
       );
     }
 
-    const outOfScope = await branchOutOfScope(admin.userId, parsed.data.branchId);
-    if (outOfScope) return outOfScope;
+    // After the body is checked (as before): the caller must administer the branch they name (403 otherwise).
+    return createInBranch(req, admin, undefined, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
 
+const createInBranch = withBranch<z.infer<typeof studentInputSchema>, { userId: string }, unknown>(
+  { of: (input) => input.branchId, as: "administer", where: "body" },
+  async (_req, admin, _ctx, data) => {
     try {
-      const result = await createStudent(admin.userId, parsed.data);
+      const result = await createStudent(admin.userId, data);
 
       if (!result.ok) {
         if (result.code === "POSSIBLE_DUPLICATE") {
@@ -79,5 +86,4 @@ export const POST = withAuth(
       return fail("Failed to create student.", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] },
 );

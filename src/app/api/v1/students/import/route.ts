@@ -1,8 +1,8 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
-import { validate } from "@/lib/api/validate";
+import { validate, type Parsed } from "@/lib/api/validate";
 import { withAuth } from "@/lib/auth/with-auth";
-import { branchOutOfScope } from "@/lib/students/scope";
+import { withBranch } from "@/lib/auth/with-branch";
 import { importStudents, type ImportStudentRow } from "@/lib/students/import";
 import { z } from "zod";
 
@@ -37,19 +37,22 @@ const importPayloadSchema = z.object({
  * Admin-only. Bulk imports students with duplicate detection and override capability.
  */
 export const POST = withAuth(
-  validate({ body: importPayloadSchema }, async (_req, admin: { userId: string }, _ctx: unknown, { body }) => {
-    const outOfScope = await branchOutOfScope(admin.userId, body.branchId);
-    if (outOfScope) return outOfScope;
-
-    try {
-      const rows: ImportStudentRow[] = body.rows.map((r) => ({ ...r, branchId: body.branchId }));
-      const summary = await importStudents(admin.userId, body.branchId, rows, body.allowDuplicates);
-      return ok({ summary });
-    } catch (error: unknown) {
-      // Never hand the exception's own text to the caller (ISS-0006): it can name tables, columns and values.
-      console.error("[STUDENT_IMPORT_ERROR]", error);
-      return fail("The import could not be completed. Nothing was imported.", 500, "INTERNAL");
-    }
-  }),
+  validate(
+    { body: importPayloadSchema },
+    withBranch<Parsed<z.infer<typeof importPayloadSchema>, undefined>, { userId: string }, unknown>(
+      { of: ({ body }) => body.branchId, as: "administer", where: "body" },
+      async (_req, admin: { userId: string }, _ctx: unknown, { body }) => {
+        try {
+          const rows: ImportStudentRow[] = body.rows.map((r) => ({ ...r, branchId: body.branchId }));
+          const summary = await importStudents(admin.userId, body.branchId, rows, body.allowDuplicates);
+          return ok({ summary });
+        } catch (error: unknown) {
+          // Never hand the exception's own text to the caller (ISS-0006): it can name tables, columns and values.
+          console.error("[STUDENT_IMPORT_ERROR]", error);
+          return fail("The import could not be completed. Nothing was imported.", 500, "INTERNAL");
+        }
+      },
+    ),
+  ),
   { roles: [Role.ADMIN] },
 );

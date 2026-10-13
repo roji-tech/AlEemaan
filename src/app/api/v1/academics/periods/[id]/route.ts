@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { branchOutOfScope } from "@/lib/students/scope";
+import { withBranch } from "@/lib/auth/with-branch";
 import { setCurrentPeriod, DomainError } from "@/lib/academics/sessions";
 import { z } from "zod";
 
@@ -19,8 +19,6 @@ const patchPeriodSchema = z.object({
  */
 export const PATCH = withAuth<Context>(
   async (req, admin, context) => {
-    const { id } = await context.params;
-
     let body: unknown;
     try {
       body = await req.json();
@@ -33,11 +31,18 @@ export const PATCH = withAuth<Context>(
       return fail(parsed.error.issues[0]?.message ?? "Invalid payload", 400, "VALIDATION");
     }
 
-    const outOfScope = await branchOutOfScope(admin.userId, parsed.data.branchId);
-    if (outOfScope) return outOfScope;
+    // After the body is checked (as before): the caller must administer the branch they name (403 otherwise).
+    return setCurrentInBranch(req, admin, context, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
 
+const setCurrentInBranch = withBranch<z.infer<typeof patchPeriodSchema>, { userId: string }, Context>(
+  { of: (input) => input.branchId, as: "administer", where: "body" },
+  async (_req, admin, context, data) => {
+    const { id } = await context.params;
     try {
-      const updated = await setCurrentPeriod(parsed.data.branchId, id);
+      const updated = await setCurrentPeriod(data.branchId, id);
 
       await prisma.auditLog.create({
         data: {
@@ -62,5 +67,4 @@ export const PATCH = withAuth<Context>(
       return fail(msg, 400, "PERIOD_UPDATE_FAILED");
     }
   },
-  { roles: [Role.ADMIN] },
 );

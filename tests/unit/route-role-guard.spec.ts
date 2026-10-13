@@ -59,11 +59,26 @@ const BRANCH_HELPERS = [
   "scopeOrForbidden",
   "branchOutOfScope",
   "studentOutOfScope",
+  "withBranch",
 ];
 const NAMES_A_BRANCH = /branchId|studentId|students?\/\[id\]|membershipId/;
 
 /// "METHOD path-under-api" -> why it needs no helper call in its own source.
 const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {};
+
+/// Third assertion (ADR 0015): a handler that names a branch is wrapped by `withBranch` - the structure that makes the branch check impossible to forget -
+/// unless it is listed here with the reason. These are the routes that have NOT been moved over yet, or that act on no single branch. A NEW route cannot
+/// join this list without someone writing why; the aim is for it to shrink.
+const STRUCTURE = /withBranch[(<]/;
+const NOT_WRAPPED: Record<string, string> = {
+  "GET v1/academics/sessions/route.ts": "a list every signed-in person needs (content); acts on no single branch",
+  "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
+  "GET v1/students/route.ts": "a list narrowed to the caller's visible branches (branchIdsFor); acts on no single branch",
+  "GET v1/students/[id]/route.ts":
+    "reads one student through a visible-branches filter (another branch's student is the same 404); to move to staff-read",
+  "POST v1/invitations/route.ts": "the branch is checked by lib/members/http (scopeOrForbidden); to move to administer",
+  "POST v1/setup/route.ts": "public first-run setup: creates the first branch and administrator, there is no caller to ask",
+};
 
 function routeFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -114,6 +129,22 @@ test.describe("every API handler declares who may call it", () => {
     const byKey = new Map(handlers().map((h) => [h.key, h.source]));
     const stale = Object.keys(BRANCH_CHECKED_ELSEWHERE).filter(
       (key) => !byKey.has(key) || !NAMES_A_BRANCH.test(byKey.get(key)!) || BRANCH_HELPERS.some((name) => byKey.get(key)!.includes(name)),
+    );
+    expect(stale).toEqual([]);
+  });
+
+  test("a handler that names a branch is wrapped by withBranch, or is listed as not yet moved / acting on no one branch (ADR 0015)", () => {
+    const unwrapped = handlers()
+      .filter((h) => NAMES_A_BRANCH.test(h.source) && !STRUCTURE.test(h.source))
+      .map((h) => h.key)
+      .filter((key) => !(key in NOT_WRAPPED));
+    expect(unwrapped, "wrap the handler with withBranch (lib/auth/with-branch.ts) or list it in NOT_WRAPPED with the reason").toEqual([]);
+  });
+
+  test("the not-wrapped list has no stale entries (the handler exists, still names a branch, and is still unwrapped)", () => {
+    const byKey = new Map(handlers().map((h) => [h.key, h.source]));
+    const stale = Object.keys(NOT_WRAPPED).filter(
+      (key) => !byKey.has(key) || !NAMES_A_BRANCH.test(byKey.get(key)!) || STRUCTURE.test(byKey.get(key)!),
     );
     expect(stale).toEqual([]);
   });

@@ -1,8 +1,9 @@
+import { z } from "zod";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { branchOutOfScope } from "@/lib/students/scope";
+import { withBranch } from "@/lib/auth/with-branch";
 import { listSessions, createSession, createSessionSchema, DomainError } from "@/lib/academics/sessions";
 
 /**
@@ -45,11 +46,17 @@ export const POST = withAuth(
       );
     }
 
-    const outOfScope = await branchOutOfScope(admin.userId, parsed.data.branchId);
-    if (outOfScope) return outOfScope;
+    // After the body is checked (as before): the caller must administer the branch they name (403 otherwise).
+    return createInBranch(req, admin, undefined, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
 
+const createInBranch = withBranch<z.infer<typeof createSessionSchema>, { userId: string }, unknown>(
+  { of: (input) => input.branchId, as: "administer", where: "body" },
+  async (_req, admin, _ctx, data) => {
     try {
-      const created = await createSession(parsed.data);
+      const created = await createSession(data);
 
       await prisma.auditLog.create({
         data: {
@@ -77,5 +84,4 @@ export const POST = withAuth(
       return fail(msg, 400, "SESSION_CREATE_FAILED");
     }
   },
-  { roles: [Role.ADMIN] },
 );
