@@ -1,7 +1,7 @@
 # 0015 — A route that acts on a branch is wrapped by a combinator that says where the branch comes from and what the caller must be there
 
-Status: Proposed
-Decided by: <the maintainer — to accept or modify> · Date: —
+Status: Accepted
+Decided by: the maintainer ("go with your suggestions", in reply to the list of ADRs awaiting acceptance) · Date: 2026-10-13
 Recorded: 2026-10-13 (drafted by an agent; this is the follow-up ADRs 0012 and 0014 name as `withAuth({ roles, branch })`)
 
 ## Context
