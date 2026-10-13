@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
+import { validate } from "@/lib/api/validate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { resolveBranchRole } from "@/lib/auth/branch-access";
 import { bulkMarkAttendanceSchema, rollCallQuerySchema, attendanceFailure } from "@/lib/attendance/http";
@@ -63,34 +64,17 @@ export const GET = withAuth(
  * Staff only. Records or updates attendance roll call.
  */
 export const POST = withAuth(
-  async (req, auth: AuthContext) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
-
-    const parsed = bulkMarkAttendanceSchema.safeParse(body);
-    if (!parsed.success) {
-      return fail(
-        parsed.error.issues[0]?.message ?? "Invalid attendance payload",
-        400,
-        "VALIDATION",
-        parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-      );
-    }
-
-    const role = await resolveBranchRole(auth.userId, parsed.data.branchId);
+  validate({ body: bulkMarkAttendanceSchema }, async (_req, auth: AuthContext, _ctx: unknown, { body }) => {
+    const role = await resolveBranchRole(auth.userId, body.branchId);
     if (!role) return attendanceFailure("NOT_FOUND");
     // The route-level roles say "a teacher somewhere"; marking needs a teaching (or admin) role in THIS branch.
     if (!WRITE_ROLES.some((r) => r === role)) return attendanceFailure("UNAUTHORIZED");
 
     const result = await markBranchAttendance({
-      branchId: parsed.data.branchId,
+      branchId: body.branchId,
       actorUserId: auth.userId,
       actorRole: role,
-      input: parsed.data,
+      input: body,
     });
 
     if (!result.ok) {
@@ -98,6 +82,6 @@ export const POST = withAuth(
     }
 
     return ok(result.data);
-  },
+  }),
   { roles: WRITE_ROLES },
 );

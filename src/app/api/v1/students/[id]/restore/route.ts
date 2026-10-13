@@ -39,9 +39,9 @@ export const POST = withAuth<Context>(
 
       return ok(result.data);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to restore student";
       console.error("[STUDENT_RESTORE_ERROR]", error);
-      return fail(msg, 500, "INTERNAL");
+      // a fixed message: the exception's own text can name tables, columns and values (ISS-0006)
+      return fail("Failed to restore student.", 500, "INTERNAL");
     }
   },
   { roles: [Role.ADMIN] },

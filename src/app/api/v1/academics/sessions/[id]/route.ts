@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
-import { getSession, updateSession, updateSessionSchema } from "@/lib/academics/sessions";
+import { getSession, updateSession, updateSessionSchema, DomainError } from "@/lib/academics/sessions";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -72,7 +72,7 @@ export const PATCH = withAuth<Context>(
 
       return ok({ session: updated });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to update academic session";
+      const msg = error instanceof DomainError ? error.message : "Failed to update academic session";
       console.error("[ACADEMIC_SESSION_PATCH_ERROR]", error);
       return fail(msg, 400, "SESSION_UPDATE_FAILED");
     }
