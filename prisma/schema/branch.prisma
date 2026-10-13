@@ -14,6 +14,10 @@ model Branch {
   students          StudentRecord[]
   enrollments       StudentEnrollment[]
   attendanceRecords AttendanceRecord[]
+  classGroups       ClassGroup[]
+  classArms         ClassArm[]
+  subjects          Subject[]
+  subjectOfferings  SubjectOffering[]
 
   createdAt DateTime @default(now())
 }
