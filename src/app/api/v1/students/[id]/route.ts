@@ -1,7 +1,9 @@
+import { z } from "zod";
 import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { studentOutOfScope } from "@/lib/students/scope";
+import { studentBranchId, studentNotFound } from "@/lib/students/scope";
+import { withBranch } from "@/lib/auth/with-branch";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { getStudent, updateStudent, archiveStudent, studentUpdateSchema } from "@/lib/students/service";
 
@@ -34,8 +36,6 @@ export const GET = withAuth<Context>(
  */
 export const PATCH = withAuth<Context>(
   async (req, admin, context) => {
-    const { id } = await context.params;
-
     let body: unknown;
     try {
       body = await req.json();
@@ -53,11 +53,18 @@ export const PATCH = withAuth<Context>(
       );
     }
 
-    const outOfScope = await studentOutOfScope(admin.userId, id);
-    if (outOfScope) return outOfScope;
+    // After the body is checked (as before): the caller must administer the student's branch - a student of another branch is "no such student".
+    return updateInBranch(req, admin, context, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
 
+const updateInBranch = withBranch<z.infer<typeof studentUpdateSchema>, { userId: string }, Context>(
+  { of: async (_input, _req, context) => studentBranchId((await context.params).id), as: "administer", refuse: studentNotFound },
+  async (_req, admin, context, data) => {
+    const { id } = await context.params;
     try {
-      const result = await updateStudent(admin.userId, id, parsed.data);
+      const result = await updateStudent(admin.userId, id, data);
 
       if (!result.ok) {
         if (result.code === "POSSIBLE_DUPLICATE") {
@@ -76,7 +83,6 @@ export const PATCH = withAuth<Context>(
       return fail("Failed to update student.", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] },
 );
 
 /**
@@ -84,21 +90,22 @@ export const PATCH = withAuth<Context>(
  * Admin-only. Archives a student record (never physically deletes).
  */
 export const DELETE = withAuth<Context>(
-  async (_req, admin, context) => {
-    const { id } = await context.params;
-    const outOfScope = await studentOutOfScope(admin.userId, id);
-    if (outOfScope) return outOfScope;
-    try {
-      const result = await archiveStudent(admin.userId, id);
-      if (!result.ok) {
-        return fail(result.error, 400, result.code);
+  withBranch<undefined, { userId: string }, Context>(
+    { of: async (_input, _req, context) => studentBranchId((await context.params).id), as: "administer", refuse: studentNotFound },
+    async (_req, admin, context) => {
+      const { id } = await context.params;
+      try {
+        const result = await archiveStudent(admin.userId, id);
+        if (!result.ok) {
+          return fail(result.error, 400, result.code);
+        }
+        return ok(result.data);
+      } catch (error: unknown) {
+        console.error("[STUDENT_ARCHIVE_ERROR]", error);
+        // a fixed message: the exception's own text can name tables, columns and values (ISS-0006)
+        return fail("Failed to archive student.", 500, "INTERNAL");
       }
-      return ok(result.data);
-    } catch (error: unknown) {
-      console.error("[STUDENT_ARCHIVE_ERROR]", error);
-      // a fixed message: the exception's own text can name tables, columns and values (ISS-0006)
-      return fail("Failed to archive student.", 500, "INTERNAL");
-    }
-  },
+    },
+  ),
   { roles: [Role.ADMIN] },
 );

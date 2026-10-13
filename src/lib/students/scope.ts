@@ -18,3 +18,11 @@ export async function studentOutOfScope(userId: string, studentId: string): Prom
 export async function branchOutOfScope(userId: string, branchId: string): Promise<Response | null> {
   return (await canAdminister(userId, branchId)) ? null : fail("You don't administer that branch.", 403, "FORBIDDEN");
 }
+
+/// The branch a student record belongs to, or `null` for an unknown id - what `withBranch({ of })` looks up for an entity route (ADR 0015).
+export async function studentBranchId(studentId: string): Promise<string | null> {
+  return (await prisma.studentRecord.findUnique({ where: { id: studentId }, select: { branchId: true } }))?.branchId ?? null;
+}
+
+/// The refusal `withBranch` gives for a student the caller may not administer: the same words as `studentOutOfScope`, so no response changes.
+export const studentNotFound = () => fail("Student not found", 404, "NOT_FOUND");

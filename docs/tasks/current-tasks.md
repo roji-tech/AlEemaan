@@ -19,6 +19,7 @@
 | 0006 | [`0006-aleemaan-branch-admins-and-superadmins.md`](0006-aleemaan-branch-admins-and-superadmins.md) | Branch administrators and superadmins (S1–S8) | Completed (code); suite 1143 passed / 0 failed; ADR 0014 accepted 2026-10-13 (live deploy gated on the administrator list) | 2026-10-11 UTC | — | `claude/branch-admins-superadmins` |
 | 0007 | [`0007-adr-0014-accepted-and-admin-list.md`](0007-adr-0014-accepted-and-admin-list.md) | ADR 0014 accepted; administrator list; Arabic branches start fresh | Completed (the live list is waiting on the maintainer) | 2026-10-13 UTC | 2026-10-13 UTC | `claude/adr-0014-accepted-and-admin-list` |
 | 0008 | [`0008-input-hardening.md`](0008-input-hardening.md) | Input hardening: ISS-0006, ISS-0007, ISS-0010 | Completed (suite 1149 passed / 1 load-sensitive timing test failed, passes alone / 18 skipped) | 2026-10-13 UTC | — | `claude/hardening-iss-0006-0007` |
+| 0009 | [`0009-with-branch-combinator.md`](0009-with-branch-combinator.md) | The branch combinator (ADR 0015) | Completed (suite 1158 passed / 0 failed / 18 skipped) | 2026-10-14 UTC | — | `claude/with-branch` |
 ---
 
 ## Completed Tasks: 0001 - 0004

@@ -1,8 +1,9 @@
+import { z } from "zod";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { canAdminister } from "@/lib/auth/branch-access";
+import { withBranch } from "@/lib/auth/with-branch";
 import { getSession, updateSession, updateSessionSchema, DomainError } from "@/lib/academics/sessions";
 
 type Context = { params: Promise<{ id: string }> };
@@ -31,8 +32,6 @@ export const GET = withAuth<Context>(async (_req, _auth, context) => {
  */
 export const PATCH = withAuth<Context>(
   async (req, admin, context) => {
-    const { id } = await context.params;
-
     let body: unknown;
     try {
       body = await req.json();
@@ -50,14 +49,25 @@ export const PATCH = withAuth<Context>(
       );
     }
 
+    // After the body is checked (as before): the caller must administer the session's branch - another branch's session is "not found", like an unknown id.
+    return updateInBranch(req, admin, context, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
+
+const updateInBranch = withBranch<z.infer<typeof updateSessionSchema>, { userId: string }, Context>(
+  {
+    of: async (_input, _req, context) => (await getSession((await context.params).id))?.branchId ?? null,
+    as: "administer",
+    refuse: async (_why, context) => fail(`Academic session "${(await context.params).id}" not found`, 404, "NOT_FOUND"),
+  },
+  async (_req, admin, context, data) => {
+    const { id } = await context.params;
     try {
       const before = await getSession(id);
-      // A session of a branch the caller does not administer is "not found", like an unknown id.
-      if (!before || !(await canAdminister(admin.userId, before.branchId))) {
-        return fail(`Academic session "${id}" not found`, 404, "NOT_FOUND");
-      }
+      if (!before) return fail(`Academic session "${id}" not found`, 404, "NOT_FOUND");
 
-      const updated = await updateSession(id, parsed.data);
+      const updated = await updateSession(id, data);
 
       await prisma.auditLog.create({
         data: {
@@ -77,5 +87,4 @@ export const PATCH = withAuth<Context>(
       return fail(msg, 400, "SESSION_UPDATE_FAILED");
     }
   },
-  { roles: [Role.ADMIN] },
 );
