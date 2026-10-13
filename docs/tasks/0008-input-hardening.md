@@ -1,7 +1,7 @@
 # [0008]: Input hardening - ISS-0006, ISS-0007, ISS-0010
 
 - **Period / Focus:** 2026-10-13 (hardening backlog)
-- **Status:** In Progress - built; the full suite is **(running)**
+- **Status:** Completed - full suite 1149 passed, 1 failed (a load-sensitive timing test, passes alone), 18 skipped
 - **Priority:** Medium
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/hardening-iss-0006-0007` -> `dev`
@@ -23,4 +23,4 @@ Close the three open hardening issues: the student import has no row cap and ret
 - [x] ISS-0010: `current-tasks.md` points at `pnpm tasks:check`; the script uses its own checkout's path, an overridable sibling path, and prints no hard-coded parity block.
 
 ## 3. Verification
-Targeted: hardening-input, no-raw-errors, students, attendance, settings, academics, route-role guard: 38 passed after `pnpm build` (the no-raw-errors test was seen failing against the 8 real offenders, and once against its own over-eager regex, which matched logging lines - the test was fixed, not the routes). Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2.
+Targeted: hardening-input, no-raw-errors, students, attendance, settings, academics, route-role guard: 38 passed after `pnpm build` (the no-raw-errors test was seen failing against the 8 real offenders, and once against its own over-eager regex, which matched logging lines - the test was fixed, not the routes). Full suite (one worker, all projects, `aleemaan_test`): **1149 passed, 1 failed, 18 skipped** (1.1 h). The one failure was `account-self-service.spec.ts:349` ("the response time doesn't depend on whether the address is taken"): it compares median response times of 9 requests each against a fixed 40 ms threshold, so it is sensitive to machine load - and other test suites were running on the same machine during part of that run (an Octalve Edu run, same host). Re-run alone on one worker it **passed 3 times** (the third time with the output captured). That is evidence of load-sensitivity, not proof the test cannot flake; the test was NOT changed or loosened. The 18 skips are existing skips (not introduced by this task) and were not individually re-examined here. Mutation passes NOT RUN - pending, end of Phase 2.
