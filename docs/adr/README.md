@@ -37,3 +37,4 @@ Plans and phase records link to the ADR instead of re-arguing the reason.
 | [0012](0012-staff-act-in-a-branch-through-the-role-they-hold-there.md) | Staff act in a branch only through the role they hold there; people data is scoped to role and branch | accepted |
 | [0013](0013-dev-is-development-master-is-staging-prod-is-production.md) | `dev` is development, `master` is staging, `prod` is production | accepted |
 | [0014](0014-admin-is-one-branch-superadmin-is-a-flag-on-the-person.md) | An ADMIN membership administers one branch; school-wide authority is a flag on the person | accepted |
+| [0015](0015-branch-routes-are-guarded-by-a-combinator-that-names-where-the-branch-comes-from.md) | A route that acts on a branch is wrapped by a combinator that says where the branch comes from and what the caller must be there | **proposed** |
