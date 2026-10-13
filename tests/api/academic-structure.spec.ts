@@ -166,10 +166,12 @@ test.describe("the student routes link the strings to a real arm", () => {
         status: "ACTIVE",
       },
     });
-    await db.academicSession.updateMany({
+    // The branch may have another ACTIVE session (other specs share this database): close it for this test and put it back afterwards.
+    const displaced = await db.academicSession.findMany({
       where: { branchId: home.id, id: { not: session.id }, status: "ACTIVE" },
-      data: { status: "CLOSED" },
+      select: { id: true },
     });
+    await db.academicSession.updateMany({ where: { id: { in: displaced.map((d) => d.id) } }, data: { status: "CLOSED" } });
     const make = (first: string, className: string, armName: string) =>
       api("/api/v1/students", {
         method: "POST",
@@ -195,5 +197,7 @@ test.describe("the student routes link the strings to a real arm", () => {
     expect((await api(`${GROUPS}?branchId=${home.id}`, { cookie })).json.data.unmatchedEnrolments).toBeGreaterThanOrEqual(1);
     await db.studentEnrollment.deleteMany({ where: { student: { lastName: "Linked" } } });
     await db.studentRecord.deleteMany({ where: { lastName: "Linked" } });
+    await db.academicSession.delete({ where: { id: session.id } }).catch(() => undefined);
+    await db.academicSession.updateMany({ where: { id: { in: displaced.map((d) => d.id) } }, data: { status: "ACTIVE" } });
   });
 });
