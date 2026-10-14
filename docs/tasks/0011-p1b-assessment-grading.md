@@ -1,7 +1,7 @@
 # [0011]: P1b - assessment schemes and grade scales (ported to branches)
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P1", decisions 6 and 7)
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite run (1 stale assertion fixed)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p1b-assessment-grading` -> `dev`
@@ -25,4 +25,4 @@ How a mark is built (continuous-assessment components + exam = total) and how a 
 - [ ] Screens (Assessment and Grading sections) are slice P1d. The CA/exam split per branch is chosen by the administrator when the first scheme is created (legacy: secondary 30/70, primary 40/60) - nothing is seeded.
 
 ## 3. Verification
-Targeted: integration 6 + unit scoring (16) + API 7 + route guard passed after `pnpm build`; typecheck, lint, prettier clean. Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2.
+Targeted: integration 6 + unit scoring (16) + API 7 + route guard passed after `pnpm build`; typecheck, lint, prettier clean. Full suite (one worker, ~1.1 h): **1205 passed, 1 failed, 18 skipped.** The failure was `shell.spec.ts:235` (phone tab bar) expecting 4 links; it got 5 because the Academics nav item I added in P1a made it 5 for a superadmin - a stale assertion from my P1a merge, not caused by P1b. Assertion and title updated; the whole `shell.spec.ts` re-run: 37 passed, 12 skipped (skips are the desktop/phone-only guards). The 18 skips were not individually re-examined. The phone bar now has 5 tabs plus More for a superadmin - tight; worth a look at P1d. Mutation passes NOT RUN - pending, end of Phase 2.

@@ -232,12 +232,14 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
   const tabBar = (page: Page) => mainNav(page);
   const moreButton = (page: Page) => tabBar(page).getByRole("button", { name: "More" });
 
-  test("a tab bar replaces the sidebar: Overview, Branches, Settings, Users, More — and the current page is marked", async ({ page }) => {
+  test("a tab bar replaces the sidebar: Overview, Branches, Settings, Academics, Users, More — and the current page is marked", async ({
+    page,
+  }) => {
     const admin = await createUser({ role: Role.ADMIN });
     await signInThroughUi(page, admin);
 
     await expect(tabBar(page)).toBeVisible();
-    await expect(tabBar(page).getByRole("link")).toHaveCount(4); // the built pages; anything not yet built would live in More
+    await expect(tabBar(page).getByRole("link")).toHaveCount(5); // the built pages (Academics joined in P1a); anything not yet built would live in More
     await expect(tabBar(page).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
     await expect(moreButton(page)).toHaveAttribute("aria-haspopup", "dialog");
     await expect(moreButton(page)).toHaveAttribute("aria-expanded", "false");
