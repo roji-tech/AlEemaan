@@ -18,6 +18,10 @@ model Branch {
   classArms         ClassArm[]
   subjects          Subject[]
   subjectOfferings  SubjectOffering[]
+  assessmentSchemes AssessmentScheme[]
+  assessmentComps   AssessmentComponent[]
+  gradeScales       GradeScale[]
+  gradeBands        GradeBand[]
 
   createdAt DateTime @default(now())
 }
