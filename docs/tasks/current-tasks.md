@@ -22,6 +22,7 @@
 | 0009 | [`0009-with-branch-combinator.md`](0009-with-branch-combinator.md) | The branch combinator (ADR 0015) | Completed (suite 1158 passed / 0 failed / 18 skipped) | 2026-10-14 UTC | — | `claude/with-branch` |
 | 0010 | [`0010-p1a-classes-arms-subjects.md`](0010-p1a-classes-arms-subjects.md) | P1a: classes, arms, subjects and offerings | Completed (suite 1164 passed / 5 failed, re-run green / 18 skipped) | 2026-10-14 UTC | — | `claude/p1a-classes-subjects` |
 | 0011 | [`0011-p1b-assessment-grading.md`](0011-p1b-assessment-grading.md) | P1b: assessment schemes and grade scales | [~] In Progress (built; full suite 1205 passed, 1 stale assertion fixed) | 2026-10-14 UTC | — | `claude/p1b-assessment-grading` |
+| 0012 | [`0012-p1c-staff-assignments.md`](0012-p1c-staff-assignments.md) | P1c: staff records and teaching assignments | [~] In Progress (built; full suite (running)) | 2026-10-14 UTC | — | `claude/p1c-staff-assignments` |
 ---
 
 ## Completed Tasks: 0001 - 0004
