@@ -344,12 +344,12 @@ model Result {
 }
 
 /// Append-only history of every result: each entry, edit, transition and unlock, in the same transaction as the change. UPDATE and DELETE are refused by triggers.
-/// `resultId` carries no foreign key on purpose: a draft that is deleted keeps its trail.
+/// `resultId` carries no foreign key on purpose: a draft that is deleted keeps its trail. `actorUserId` is null for the system (a term closing locks its published results).
 model ResultAudit {
   id          String        @id @default(cuid())
   branchId    String
   resultId    String
-  actorUserId String
+  actorUserId String?
   action      String
   fromStatus  ResultStatus?
   toStatus    ResultStatus?
@@ -359,7 +359,7 @@ model ResultAudit {
   createdAt   DateTime      @default(now())
 
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  actor  User   @relation("ResultAudits", fields: [actorUserId], references: [id], onDelete: NoAction)
+  actor  User?  @relation("ResultAudits", fields: [actorUserId], references: [id], onDelete: NoAction)
 
   @@index([branchId, resultId])
   @@index([createdAt])

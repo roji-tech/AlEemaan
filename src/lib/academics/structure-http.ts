@@ -1,5 +1,5 @@
 import { fail } from "@/lib/api/envelope";
-import { ConflictError } from "@/lib/academics/structure";
+import { ConflictError, ForbiddenError } from "@/lib/academics/structure";
 import { DomainError } from "@/lib/academics/sessions";
 
 export const READ_ROLES = ["ADMIN", "TEACHING_STAFF", "NON_TEACHING_STAFF"] as const;
@@ -10,6 +10,7 @@ export async function structureCall(label: string, run: () => Promise<Response>)
   try {
     return await run();
   } catch (error) {
+    if (error instanceof ForbiddenError) return fail(error.message, 403, "FORBIDDEN");
     if (error instanceof ConflictError) return fail(error.message, 409, "CONFLICT");
     if (error instanceof DomainError) return fail(error.message, 400, "VALIDATION");
     console.error(`[${label}]`, error);
