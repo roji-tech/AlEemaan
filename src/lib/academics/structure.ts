@@ -8,6 +8,8 @@ import { DomainError } from "@/lib/academics/sessions";
 // Nothing is deleted: a class, arm or subject is archived, which frees its name.
 
 export class ConflictError extends DomainError {}
+/// The caller is signed in and in the branch but not allowed to do THIS (a 403), as opposed to a rule of the data (409 / 400).
+export class ForbiddenError extends DomainError {}
 
 const name = z.string().trim().min(1, "Give a name.").max(60, "Use at most 60 characters.");
 export const classGroupInput = z.strictObject({

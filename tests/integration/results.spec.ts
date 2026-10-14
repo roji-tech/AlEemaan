@@ -169,3 +169,42 @@ test.describe("history", () => {
     expect(await db.resultAudit.count({ where: { resultId: r.id } })).toBe(1);
   });
 });
+
+test.describe("closing a term", () => {
+  test("closing a session locks its PUBLISHED results (and only those) with a history row for the system, whichever code closes it", async () => {
+    const w = await resultsWorld(home.id);
+    const two = await db.studentRecord.create({
+      data: {
+        branchId: home.id,
+        firstName: "Bola",
+        lastName: "Ola",
+        gender: "MALE",
+        dateOfBirth: new Date("2012-01-01"),
+        admissionNo: "ADM/CLOSE/2",
+      },
+    });
+    const by = await createUser();
+    const published = await draft(w, home.id);
+    await db.result.update({
+      where: { id: published.id },
+      data: {
+        ...approvedFields(by.id),
+        status: "PUBLISHED",
+        publishedAt: T,
+        verificationToken: "p".repeat(43),
+        verificationHash: "h".repeat(64),
+      },
+    });
+    const approved = await draft(w, home.id, { studentId: two.id });
+    await db.result.update({ where: { id: approved.id }, data: approvedFields(by.id) });
+
+    await db.academicSession.update({ where: { id: w.session.id }, data: { status: "CLOSED" } });
+    const after = await db.result.findMany({ orderBy: { id: "asc" } });
+    expect(Object.fromEntries(after.map((r) => [r.id, r.status]))).toEqual({ [published.id]: "LOCKED", [approved.id]: "APPROVED" });
+    const locked = await db.result.findUniqueOrThrow({ where: { id: published.id } });
+    expect(locked.lockedAt).not.toBeNull();
+    const trail = await db.resultAudit.findMany({ where: { resultId: published.id } });
+    expect(trail.map((h) => [h.action, h.actorUserId, h.fromStatus, h.toStatus])).toEqual([["LOCKED", null, "PUBLISHED", "LOCKED"]]);
+    expect(await db.resultAudit.count({ where: { resultId: approved.id } })).toBe(0);
+  });
+});
