@@ -46,6 +46,7 @@ model User {
   resultsSubmitted    Result[]             @relation("ResultsSubmitted")
   resultsApproved     Result[]             @relation("ResultsApproved")
   resultAudits        ResultAudit[]        @relation("ResultAudits")
+  remarksUpdated      ReportRemark[]       @relation("RemarksUpdated")
   mfaCredential       MfaCredential?
   mfaRecoveryCodes    MfaRecoveryCode[]
   mfaChallenges       MfaChallenge[]

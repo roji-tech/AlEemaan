@@ -23,6 +23,7 @@ model Branch {
   staffAssignments  StaffSubjectAssignment[]
   results           Result[]
   resultAudits      ResultAudit[]
+  reportRemarks     ReportRemark[]
   assessmentComps   AssessmentComponent[]
   gradeScales       GradeScale[]
   gradeBands        GradeBand[]
