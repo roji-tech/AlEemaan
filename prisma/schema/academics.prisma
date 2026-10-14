@@ -75,9 +75,10 @@ model ClassGroup {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
 
-  branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
   arms      ClassArm[]
   offerings SubjectOffering[]
+  schemes   AssessmentScheme[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -134,4 +135,90 @@ model SubjectOffering {
 
   @@unique([classGroupId, subjectId])
   @@index([branchId])
+}
+
+// --- Assessment schemes and grade scales (Slice P1b; plan "Build design - Slice P1", decisions 6 and 7) ---
+//
+// Both are VERSIONED so history cannot be rewritten: edited in place only while `lockedAt` is null; the first result that references one (P2) locks it, a trigger
+// then refuses any change to it or its children, and a change after that is a NEW VERSION that supersedes it. Per branch; nothing is deleted.
+
+/// How a mark is built: continuous-assessment components plus the exam, summing exactly to `totalMax`. classGroupId null = the branch default.
+model AssessmentScheme {
+  id           String    @id @default(cuid())
+  branchId     String
+  classGroupId String?
+  name         String
+  totalMax     Decimal   @default(100) @db.Decimal(6, 2)
+  examMax      Decimal   @db.Decimal(6, 2)
+  version      Int       @default(1)
+  lockedAt     DateTime?
+  supersedesId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch     Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup?           @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  supersedes AssessmentScheme?     @relation("SchemeVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors AssessmentScheme[]    @relation("SchemeVersions")
+  components AssessmentComponent[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+model AssessmentComponent {
+  id        String  @id @default(cuid())
+  branchId  String
+  schemeId  String
+  name      String
+  maxScore  Decimal @db.Decimal(6, 2)
+  sortOrder Int
+
+  branch Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scheme AssessmentScheme @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, schemeId])
+}
+
+/// A grade scale as data: bands of score -> letter -> remark. Exactly one live DEFAULT per branch (partial unique index in the migration).
+model GradeScale {
+  id           String    @id @default(cuid())
+  branchId     String
+  name         String
+  isDefault    Boolean   @default(false)
+  version      Int       @default(1)
+  lockedAt     DateTime?
+  supersedesId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch     Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supersedes GradeScale?  @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors GradeScale[] @relation("ScaleVersions")
+  bands      GradeBand[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// Half-open [minScore, maxScore), except the top band which is closed at 100; the bands of a scale are contiguous from 0 to 100 (checked by
+/// lib/academics/scoring.ts#checkBands, in the write transaction).
+model GradeBand {
+  id        String  @id @default(cuid())
+  branchId  String
+  scaleId   String
+  minScore  Decimal @db.Decimal(5, 2)
+  maxScore  Decimal @db.Decimal(5, 2)
+  letter    String
+  remark    String
+  sortOrder Int
+
+  branch Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scale  GradeScale @relation(fields: [branchId, scaleId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, scaleId])
 }

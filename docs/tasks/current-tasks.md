@@ -21,6 +21,7 @@
 | 0008 | [`0008-input-hardening.md`](0008-input-hardening.md) | Input hardening: ISS-0006, ISS-0007, ISS-0010 | Completed (suite 1149 passed / 1 load-sensitive timing test failed, passes alone / 18 skipped) | 2026-10-13 UTC | — | `claude/hardening-iss-0006-0007` |
 | 0009 | [`0009-with-branch-combinator.md`](0009-with-branch-combinator.md) | The branch combinator (ADR 0015) | Completed (suite 1158 passed / 0 failed / 18 skipped) | 2026-10-14 UTC | — | `claude/with-branch` |
 | 0010 | [`0010-p1a-classes-arms-subjects.md`](0010-p1a-classes-arms-subjects.md) | P1a: classes, arms, subjects and offerings | Completed (suite 1164 passed / 5 failed, re-run green / 18 skipped) | 2026-10-14 UTC | — | `claude/p1a-classes-subjects` |
+| 0011 | [`0011-p1b-assessment-grading.md`](0011-p1b-assessment-grading.md) | P1b: assessment schemes and grade scales | [~] In Progress (built; full suite 1205 passed, 1 stale assertion fixed) | 2026-10-14 UTC | — | `claude/p1b-assessment-grading` |
 ---
 
 ## Completed Tasks: 0001 - 0004

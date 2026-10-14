@@ -55,7 +55,7 @@ const duplicate = (error: unknown, message: string): never => {
   throw error;
 };
 
-async function audit(
+export async function audit(
   actorUserId: string,
   action: string,
   targetType: string,
