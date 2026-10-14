@@ -232,14 +232,14 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
   const tabBar = (page: Page) => mainNav(page);
   const moreButton = (page: Page) => tabBar(page).getByRole("button", { name: "More" });
 
-  test("a tab bar replaces the sidebar: Overview, Branches, Settings, Academics, Users, More — and the current page is marked", async ({
+  test("a tab bar replaces the sidebar: Overview, Branches, Academics, Users, More (Settings is in More) — and the current page is marked", async ({
     page,
   }) => {
     const admin = await createUser({ role: Role.ADMIN });
     await signInThroughUi(page, admin);
 
     await expect(tabBar(page)).toBeVisible();
-    await expect(tabBar(page).getByRole("link")).toHaveCount(5); // the built pages (Academics joined in P1a); anything not yet built would live in More
+    await expect(tabBar(page).getByRole("link")).toHaveCount(4); // the built pages that fit; Settings lives in the More sheet so the bar is not cramped
     await expect(tabBar(page).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
     await expect(moreButton(page)).toHaveAttribute("aria-haspopup", "dialog");
     await expect(moreButton(page)).toHaveAttribute("aria-expanded", "false");
@@ -247,6 +247,11 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     await tabBar(page).getByRole("link", { name: "Branches" }).click();
     await expect(page).toHaveURL(/\/branches$/);
     await expect(tabBar(page).getByRole("link", { name: "Branches" })).toHaveAttribute("aria-current", "page");
+
+    await expect(tabBar(page).getByRole("link", { name: "Settings" })).toHaveCount(0);
+    await moreButton(page).click();
+    await page.getByRole("dialog").getByRole("link", { name: "Settings" }).click(); // Settings is one tap further, in the More sheet
+    await expect(page).toHaveURL(/\/settings$/);
   });
 
   test("the tab bar never covers the end of a long page", async ({ page }) => {
@@ -280,7 +285,8 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     await expect(sheet).toContainText("Amina Yusuf");
     await expect(sheet).toContainText("Administrator");
     await expect(sheet.getByText("Users")).toHaveCount(0); // built: it is a tab, not a "Soon" row in the sheet
-    await expect(sheet.getByText("Settings")).toHaveCount(0); // built since 0.5.2: also a tab
+    await expect(sheet.getByRole("link", { name: "Settings" })).toBeVisible(); // built, so a real link in the sheet (not a "Soon" row)
+    await expect(sheet.getByText("Soon", { exact: true })).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "Profile" })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Sign out" })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Amina Yusuf" })).toBeVisible(); // it is named

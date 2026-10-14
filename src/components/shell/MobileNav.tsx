@@ -33,7 +33,8 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin }: Mob
   const { signOut, pending, error } = useSignOut();
 
   const items = navFor(isAdmin, isSuperAdmin);
-  const tabs = items.filter((item) => item.href);
+  const tabs = items.filter((item) => item.href && !item.inMore);
+  const moreLinks = items.filter((item) => item.href && item.inMore);
   const soon = items.filter((item) => !item.href);
   const displayName = name?.trim() || email || "Account";
 
@@ -109,6 +110,14 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin }: Mob
           </div>
 
           <ul className="mt-3 border-t border-line pt-2">
+            {moreLinks.map(({ label, href, icon: Icon }) => (
+              <li key={label}>
+                <Link href={href!} aria-current={isActive(pathname, href!) ? "page" : undefined} className={`${SHEET_ROW} ${FOCUS_RING}`}>
+                  <Icon className="h-5 w-5" />
+                  {label}
+                </Link>
+              </li>
+            ))}
             {soon.map(({ label, icon: Icon }) => (
               <li key={label}>
                 <span className={`${SHEET_ROW} text-fg-muted hover:bg-transparent hover:text-fg-muted`}>

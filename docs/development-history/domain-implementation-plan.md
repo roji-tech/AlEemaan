@@ -1331,6 +1331,15 @@ Record: task `docs/tasks/0006-aleemaan-branch-admins-and-superadmins.md`; issue 
 
 **Tests.** E2E (real browser, desktop and phone, BOTH themes, axe on each section and each dialog): a branch administrator creates a scheme (and sees the sum line), applies the template and creates a grade scale, makes it default; creates a staff record, links a sign-in, assigns a subject to an arm, removes it, archives; a teacher sees the lists without controls; a broken scheme shows the server's sentence. Screenshots to `out/screenshots` for the maintainer. Mutation passes: NOT RUN - pending, end of Phase 2.
 
+#### As built — Slice P1 (2026-10-14; tasks 0010, 0011, 0012, 0013)
+P1a classes, arms, subjects (migration `20261014090000`), P1b assessment schemes and grade scales with lock triggers (`20261014100000`), P1c staff records and teaching assignments (`20261014110000`), P1d the screens. All four are merged to `dev` (P1d when its PR merges) and every migration is additive and runs before the code. Built as designed, with these notes:
+- **Staff categories:** two (TEACHING / NON_TEACHING), not three - a guard or driver is NON_TEACHING with no account (as Octalve).
+- **Nothing is locked yet:** `lockScheme` / `lockScale` exist and the triggers are tested, but the first caller is Slice P2 (results); until then every scheme and scale is editable in place.
+- **Nothing is seeded:** the WAEC-style scale is a template the administrator applies; the CA/exam split per branch is chosen at first use (legacy: secondary 30/70, primary 40/60 - still to be confirmed by the maintainer).
+- **Screens:** one Academics page with three tab sections. The branch choice is per section. Phone: the bottom bar is Overview, Branches, Academics, Users, More for a superadmin (Settings moved into the More sheet because five tabs plus More overflowed the bar - found in the phone screenshots).
+- **Not decided here (maintainer):** whether teachers may only take attendance for arms they are assigned to; whether a branch may copy another branch's structure.
+- **Mutation passes:** NOT RUN - pending, end of Phase 2.
+
 #### Build design — Slice P4: finance (2026-10-14, written before any code; the maintainer's answers recorded)
 
 **Research behind it (2026-10-14; mostly vendor, news and academic material - no survey with numbers exists, so treat it as a likely picture).** Nigerian schools collect fees mainly by bank transfer plus proof of payment confirmed by hand, cash and POS at the bursary, and rolling part-payments; the community Islamiyyah pattern is nominal fees, cash and paper receipts, the modern dual-curriculum pattern is corporate accounts and electronic payment. The pain is manual reconciliation and "fake alert" / forged-receipt fraud. Paystack has a schools rate (0.7% on local cards capped at N1,500, flat N300 for everything else) that a school must apply for; standard is 1.5% + N100 capped at N2,000 (Paystack help centre, checked 2026-10-14; an older copy showed a flat N300 only - re-check before promising it). A blanket BVN/NIN rule for per-student virtual accounts is reported by Monnify, not confirmed from a CBN text.

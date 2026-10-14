@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { ClassesPanel } from "@/components/academics/ClassesPanel";
+import { AcademicsSections } from "@/components/academics/AcademicsSections";
 
 export const metadata: Metadata = { title: "Academics" };
 export const dynamic = "force-dynamic";
@@ -26,8 +26,8 @@ export default async function AcademicsPage() {
         title="Academics"
         description={
           isAdmin
-            ? "The classes, arms and subjects of each branch. Nothing here is ever deleted - old items are archived."
-            : "The classes, arms and subjects of your branches. Only an administrator of a branch can change them."
+            ? "Classes, subjects, how marks are built and graded, and the staff of each branch. Nothing here is ever deleted - old items are archived."
+            : "Classes, subjects, grading and staff of your branches. Only an administrator of a branch can change them."
         }
       />
       {branches.length === 0 ? (
@@ -35,7 +35,7 @@ export default async function AcademicsPage() {
           You don&apos;t belong to a branch with staff access yet.
         </p>
       ) : (
-        <ClassesPanel branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))} />
+        <AcademicsSections branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))} />
       )}
     </div>
   );
