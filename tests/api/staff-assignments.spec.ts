@@ -8,6 +8,10 @@ import { api, cookieHeader, loginAs } from "../support/http";
 
 let home: { id: string };
 let other: { id: string };
+// These specs leave classes, subjects and staff behind; a later spec (the Academics screen) expects an empty branch, so leave the database as found.
+test.afterAll(async () => {
+  await resetDatabase();
+});
 test.beforeEach(async () => {
   await resetDatabase();
   home = await seedInstance();

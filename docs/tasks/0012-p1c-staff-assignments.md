@@ -1,7 +1,7 @@
 # [0012]: P1c - staff records and teaching assignments (ported to branches)
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P1c", refining decision 8 of Slice P1)
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite run (2 failures were my own leftover rows, fixed)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p1c-staff-assignments` -> `dev`
@@ -25,4 +25,4 @@ How the branch knows its staff - including people who never sign in - and who te
 - [ ] Screens (People/Staff section) are slice P1d. Teachers' attendance remains unrestricted by assignment (separate decision for the maintainer).
 
 ## 3. Verification
-Targeted after `pnpm build`: integration 5 + API 4 + route guard (unit) passed; typecheck, lint, Prettier clean. Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2.
+Targeted after `pnpm build`: integration 5 + API 4 + route guard (unit) passed; typecheck, lint, Prettier clean. Full suite (one worker, ~1.1 h): **1213 passed, 2 failed, 18 skipped.** Both failures were `academics-structure.spec.ts:47` (dark and light, desktop): it expects the home branch to have no classes, and my new staff specs left a class, subjects and staff behind (a spec that changes shared rows must restore them - I broke my own hygiene rule). Fixed with a truncating reset after each of the two staff spec files; the two staff specs + `academics-structure` re-run in that order: 20 passed. The rest of the suite was not re-run after this test-only change. The 18 skips were not individually re-examined. Mutation passes NOT RUN - pending, end of Phase 2.
