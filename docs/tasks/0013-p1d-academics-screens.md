@@ -1,7 +1,7 @@
 # [0013]: P1d - Assessment and grading and Staff screens
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P1d")
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite 1225 passed
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p1d-screens` -> `dev`
@@ -26,4 +26,4 @@ The screens over the P1b and P1c APIs, so a branch administrator can set up how 
 - [ ] Not done: the branch choice is per section (switching tabs resets it to the first branch); a "Locked" scheme or scale cannot yet be seen in the UI because nothing locks them until Slice P2, so the New version path is covered by the API tests, not by a browser test.
 
 ## 3. Verification
-Targeted after `pnpm build`: academics-grading-staff + academics-structure (21 passed), shell + users (73 passed, 12 skipped); typecheck, lint, Prettier clean. Screenshots in `out/screenshots` (desktop and phone, both themes). Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2.
+Targeted after `pnpm build`: academics-grading-staff + academics-structure (21 passed), shell + users (73 passed, 12 skipped); typecheck, lint, Prettier clean. Screenshots in `out/screenshots` (desktop and phone, both themes). Full suite (one worker, ~1.1 h): **1225 passed, 0 failed, 18 skipped.** The 18 skips were not individually re-examined. Mutation passes NOT RUN - pending, end of Phase 2.
