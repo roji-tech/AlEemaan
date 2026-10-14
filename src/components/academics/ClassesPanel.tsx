@@ -7,26 +7,15 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
-import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
+import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
+import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 
 // The Academics page's lists and dialogs (Slice P1): classes with their arms and subjects, and the branch's subjects. Presentation only - the academics API
 // enforces who may read and change what, and every outcome (duplicate name, archived parent, signed out, offline) has its own honest message.
 
-export type BranchChoice = { id: string; name: string; canEdit: boolean };
 type Arm = { id: string; name: string; capacity: number | null; archivedAt: string | null; enrolments: number };
 type ClassGroup = { id: string; name: string; sortOrder: number; archivedAt: string | null; subjectIds: string[]; arms: Arm[] };
 type Subject = { id: string; name: string; code: string | null; archivedAt: string | null };
-type Notice = { variant: "success" | "error"; text: string } | null;
-
-const say = (reply: Reply, fallback: string) =>
-  reply.status === 401
-    ? SESSION_ENDED
-    : reply.status === 429
-      ? (reply.message ?? RATE_LIMITED)
-      : reply.status === 0
-        ? NETWORK_ERROR
-        : (reply.message ?? fallback);
-
 type Editing =
   | { kind: "class"; item: ClassGroup | null }
   | { kind: "arm"; classGroup: ClassGroup; item: Arm | null }

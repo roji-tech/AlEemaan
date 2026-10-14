@@ -11,6 +11,8 @@ export type NavItem = {
   adminOnly?: boolean;
   /// Superadmins only (school-wide: branches, school settings).
   superAdminOnly?: boolean;
+  /// Phone only: the bottom bar fits four tabs plus More, so a rarely used page lives in the More sheet instead of squeezing the bar (the sidebar still lists it).
+  inMore?: boolean;
 };
 
 /// The single source of truth for navigation: the sidebar, the phone tab bar and the "More"
@@ -18,7 +20,7 @@ export type NavItem = {
 export const NAV: readonly NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: HomeIcon },
   { label: "Branches", href: "/branches", icon: BuildingIcon, superAdminOnly: true },
-  { label: "Settings", href: "/settings", icon: SlidersIcon, superAdminOnly: true },
+  { label: "Settings", href: "/settings", icon: SlidersIcon, superAdminOnly: true, inMore: true },
   { label: "Academics", href: "/academics", icon: GraduationCapIcon, adminOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
