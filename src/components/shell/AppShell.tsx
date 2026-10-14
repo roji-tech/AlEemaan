@@ -16,6 +16,8 @@ export type ShellUser = {
   roleLabel: string;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  /// Holds a teaching-staff role in some branch (shows the Results item to a teacher who is not an administrator).
+  isTeacher: boolean;
 };
 
 function BrandMark({ size }: { size: "sm" | "md" }) {
@@ -50,13 +52,13 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         Skip to content
       </a>
 
-      <div className="fixed inset-y-0 left-0 z-20 hidden w-62 flex-col border-r border-line bg-surface lg:flex">
+      <div className="fixed inset-y-0 left-0 z-20 hidden w-62 flex-col border-r border-line bg-surface lg:flex print:hidden">
         <div className="flex h-15 shrink-0 items-center gap-3 px-5">
           <BrandMark size="md" />
           <span className="text-lg font-bold tracking-tight text-fg">{brand.name}</span>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-4">
-          <SidebarNav isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} />
+          <SidebarNav isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} isTeacher={user.isTeacher} />
         </div>
         <div className="flex items-center gap-3 border-t border-line p-4">
           <span
@@ -72,8 +74,8 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         </div>
       </div>
 
-      <div className="lg:pl-62">
-        <header className="sticky top-0 z-20 flex h-15 items-center justify-between gap-4 border-b border-line bg-canvas px-4 sm:px-6">
+      <div className="lg:pl-62 print:pl-0">
+        <header className="sticky top-0 z-20 flex h-15 print:hidden items-center justify-between gap-4 border-b border-line bg-canvas px-4 sm:px-6">
           <div className="flex items-center gap-2.5 lg:hidden">
             <BrandMark size="sm" />
             <span className="text-base font-bold tracking-tight text-fg">{brand.name}</span>
@@ -95,7 +97,14 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         </main>
       </div>
 
-      <MobileNav name={user.name} email={user.email} roleLabel={user.roleLabel} isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} />
+      <MobileNav
+        name={user.name}
+        email={user.email}
+        roleLabel={user.roleLabel}
+        isAdmin={user.isAdmin}
+        isSuperAdmin={user.isSuperAdmin}
+        isTeacher={user.isTeacher}
+      />
     </div>
   );
 }

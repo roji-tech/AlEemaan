@@ -8,13 +8,13 @@ import { isActive, navFor } from "./nav";
 /// The desktop sidebar's navigation. The current page is marked with `aria-current="page"`
 /// (which is also what the styling keys off, so what sighted and screen-reader users are told
 /// can't drift apart); pages that don't exist yet are plain text with a "Soon" tag.
-export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSuperAdmin: boolean }) {
+export function SidebarNav({ isAdmin, isSuperAdmin, isTeacher }: { isAdmin: boolean; isSuperAdmin: boolean; isTeacher: boolean }) {
   const pathname = usePathname();
 
   return (
     <nav aria-label="Main">
       <ul className="space-y-1">
-        {navFor(isAdmin, isSuperAdmin).map(({ label, href, icon: Icon }) => (
+        {navFor(isAdmin, isSuperAdmin, isTeacher).map(({ label, href, icon: Icon }) => (
           <li key={label}>
             {href ? (
               <Link

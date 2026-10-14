@@ -92,7 +92,7 @@ async function loadContext(branchId: string, periodId: string, classArmId: strin
   return { period, arm, subject, scheme, scale };
 }
 
-const rosterOf = (branchId: string, sessionId: string, classArmId: string) =>
+export const rosterOf = (branchId: string, sessionId: string, classArmId: string) =>
   prisma.studentEnrollment.findMany({
     where: { branchId, sessionId, classArmId, status: "ACTIVE", student: { archivedAt: null } },
     select: { student: { select: { id: true, firstName: true, middleName: true, lastName: true, admissionNo: true } } },
@@ -123,6 +123,10 @@ export async function getSheet(branchId: string, q: z.infer<typeof sheetQuery>) 
       totalMax: num(ctx.scheme.totalMax),
       examMax: num(ctx.scheme.examMax),
       components: ctx.scheme.components.map((c) => ({ name: c.name, max: num(c.maxScore) })),
+    },
+    scale: {
+      id: ctx.scale.id,
+      bands: ctx.scale.bands.map((b) => ({ min: num(b.minScore), max: num(b.maxScore), letter: b.letter, remark: b.remark })),
     },
     students: roster.map(({ student }) => {
       const r = byStudent.get(student.id);
@@ -282,4 +286,68 @@ export async function saveSheet(actorUserId: string, branchId: string, input: Sh
     }
     return { created, updated, removed };
   });
+}
+
+export const optionsQuery = z.object({ branchId: id });
+
+/// What the entry screen offers this person: the terms of the active session(s) and the (class arm, subject) pairs they may enter - every offered pair for an
+/// administrator, only the assigned ones for a teacher. The same rule `mayEnterResults` applies on every request; this only lists it.
+export async function entryOptions(userId: string, role: Role, branchId: string) {
+  const periods = await prisma.academicPeriod.findMany({
+    where: { branchId, archivedAt: null, session: { status: "ACTIVE" } },
+    orderBy: [{ ordinal: "asc" }],
+    select: { id: true, label: true, isCurrent: true, session: { select: { label: true } } },
+  });
+  type Pair = { classArmId: string; armName: string; subjectId: string; subjectName: string };
+  let pairs: Pair[] = [];
+  if (role === Role.ADMIN) {
+    const offerings = await prisma.subjectOffering.findMany({
+      where: { branchId, subject: { archivedAt: null }, classGroup: { archivedAt: null } },
+      select: {
+        subject: { select: { id: true, name: true } },
+        classGroup: { select: { name: true, sortOrder: true, arms: { where: { archivedAt: null }, select: { id: true, name: true } } } },
+      },
+    });
+    pairs = offerings.flatMap((o) =>
+      o.classGroup.arms.map((a) => ({
+        classArmId: a.id,
+        armName: `${o.classGroup.name} ${a.name}`,
+        subjectId: o.subject.id,
+        subjectName: o.subject.name,
+      })),
+    );
+  } else if (role === Role.TEACHING_STAFF) {
+    const mine = await prisma.staffSubjectAssignment.findMany({
+      where: {
+        branchId,
+        staffRecord: { userId, branchId, archivedAt: null },
+        subject: { archivedAt: null },
+        classArm: { archivedAt: null, classGroup: { archivedAt: null } },
+      },
+      select: {
+        subject: { select: { id: true, name: true } },
+        classArm: { select: { id: true, name: true, classGroup: { select: { name: true } } } },
+      },
+    });
+    pairs = mine.map((m) => ({
+      classArmId: m.classArm.id,
+      armName: `${m.classArm.classGroup.name} ${m.classArm.name}`,
+      subjectId: m.subject.id,
+      subjectName: m.subject.name,
+    }));
+  }
+  pairs.sort((a, b) => a.armName.localeCompare(b.armName) || a.subjectName.localeCompare(b.subjectName));
+  return { periods: periods.map((p) => ({ id: p.id, label: p.label, session: p.session.label, isCurrent: p.isCurrent })), pairs };
+}
+
+/// The students of an arm for a term (the report-card picker): enrolled in the arm in the term's session, active, not archived.
+export async function armRoster(branchId: string, classArmId: string, periodId: string) {
+  const period = await prisma.academicPeriod.findFirst({ where: { id: periodId, branchId }, select: { sessionId: true } });
+  if (!period) throw new ConflictError("That term does not exist in this branch.");
+  const rows = await rosterOf(branchId, period.sessionId, classArmId);
+  return rows.map(({ student }) => ({
+    id: student.id,
+    name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
+    admissionNo: student.admissionNo,
+  }));
 }

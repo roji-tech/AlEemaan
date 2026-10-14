@@ -171,20 +171,20 @@ export async function resultHistory(branchId: string, resultId: string) {
 
 export const queueQuery = z.object({ branchId: z.string().min(1), periodId: z.string().min(1) });
 
-/// The review queue: for a term, each (arm, subject) with how many results are in each status. What an administrator works from.
+/// The review queue: for a term, each (arm, subject) with how many results are in each status - and their ids, so an action can be applied to a whole group.
 export async function reviewQueue(branchId: string, periodId: string) {
-  const groups = await prisma.result.groupBy({
-    by: ["classArmId", "subjectId", "status"],
+  const rows = await prisma.result.findMany({
     where: { branchId, periodId },
-    _count: { _all: true },
+    select: { id: true, classArmId: true, subjectId: true, status: true },
+    orderBy: { id: "asc" },
   });
   const [arms, subjects] = await Promise.all([
     prisma.classArm.findMany({
-      where: { branchId, id: { in: [...new Set(groups.map((g) => g.classArmId))] } },
+      where: { branchId, id: { in: [...new Set(rows.map((g) => g.classArmId))] } },
       select: { id: true, name: true, classGroup: { select: { name: true } } },
     }),
     prisma.subject.findMany({
-      where: { branchId, id: { in: [...new Set(groups.map((g) => g.subjectId))] } },
+      where: { branchId, id: { in: [...new Set(rows.map((g) => g.subjectId))] } },
       select: { id: true, name: true },
     }),
   ]);
@@ -192,9 +192,16 @@ export async function reviewQueue(branchId: string, periodId: string) {
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
   const byKey = new Map<
     string,
-    { classArmId: string; armName: string; subjectId: string; subjectName: string; counts: Record<string, number> }
+    {
+      classArmId: string;
+      armName: string;
+      subjectId: string;
+      subjectName: string;
+      counts: Record<string, number>;
+      ids: Record<string, string[]>;
+    }
   >();
-  for (const g of groups) {
+  for (const g of rows) {
     const key = `${g.classArmId}|${g.subjectId}`;
     const entry = byKey.get(key) ?? {
       classArmId: g.classArmId,
@@ -202,8 +209,10 @@ export async function reviewQueue(branchId: string, periodId: string) {
       subjectId: g.subjectId,
       subjectName: subjectName.get(g.subjectId) ?? "",
       counts: {},
+      ids: {},
     };
-    entry.counts[g.status] = g._count._all;
+    entry.counts[g.status] = (entry.counts[g.status] ?? 0) + 1;
+    (entry.ids[g.status] ??= []).push(g.id);
     byKey.set(key, entry);
   }
   return [...byKey.values()].sort((a, b) => a.armName.localeCompare(b.armName) || a.subjectName.localeCompare(b.subjectName));

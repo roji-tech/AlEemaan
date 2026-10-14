@@ -7,7 +7,12 @@ import { requirePageSession } from "@/lib/auth/page-session";
 /// so each page calls `requirePageSession()` itself (it is cached per request, so that costs
 /// nothing extra).
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { session, roleLabel, isAdmin, isSuperAdmin } = await requirePageSession();
+  const { session, memberships, roleLabel, isAdmin, isSuperAdmin } = await requirePageSession();
+  const isTeacher = memberships.some((m) => m.role === "TEACHING_STAFF");
 
-  return <AppShell user={{ name: session.user.name, email: session.user.email, roleLabel, isAdmin, isSuperAdmin }}>{children}</AppShell>;
+  return (
+    <AppShell user={{ name: session.user.name, email: session.user.email, roleLabel, isAdmin, isSuperAdmin, isTeacher }}>
+      {children}
+    </AppShell>
+  );
 }
