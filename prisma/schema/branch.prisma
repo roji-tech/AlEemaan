@@ -21,6 +21,8 @@ model Branch {
   assessmentSchemes AssessmentScheme[]
   staffRecords      StaffRecord[]
   staffAssignments  StaffSubjectAssignment[]
+  results           Result[]
+  resultAudits      ResultAudit[]
   assessmentComps   AssessmentComponent[]
   gradeScales       GradeScale[]
   gradeBands        GradeBand[]

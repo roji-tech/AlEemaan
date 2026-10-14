@@ -54,8 +54,10 @@ model AcademicPeriod {
 
   branch  Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
   session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results Result[]
 
   @@unique([sessionId, ordinal])
+  @@unique([branchId, id])
   @@index([branchId, sessionId])
 }
 
@@ -99,6 +101,7 @@ model ClassArm {
   classGroup  ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
   enrollments StudentEnrollment[]
   assignments StaffSubjectAssignment[]
+  results     Result[]
 
   @@unique([branchId, id])
   @@index([branchId, classGroupId])
@@ -117,6 +120,7 @@ model Subject {
   branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   offerings   SubjectOffering[]
   assignments StaffSubjectAssignment[]
+  results     Result[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -164,6 +168,7 @@ model AssessmentScheme {
   supersedes AssessmentScheme?     @relation("SchemeVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
   successors AssessmentScheme[]    @relation("SchemeVersions")
   components AssessmentComponent[]
+  results    Result[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -201,6 +206,7 @@ model GradeScale {
   supersedes GradeScale?  @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
   successors GradeScale[] @relation("ScaleVersions")
   bands      GradeBand[]
+  results    Result[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -273,4 +279,88 @@ model StaffSubjectAssignment {
 
   @@unique([staffRecordId, subjectId, classArmId])
   @@index([branchId])
+}
+
+// --- Results (Slice P2a; plan "Build design - Slice P2") ---
+
+enum ResultStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PUBLISHED
+  LOCKED
+}
+
+/// One student's result in one subject for one period. The arm, scheme and scale are SNAPSHOTTED onto it (the arm the student was in when it was entered; the
+/// scheme and scale that built the numbers, which the first result locks), and the letter and remark are copied, not looked up later - so history cannot change when
+/// a scheme, a scale or the student's class does. Content (scores, snapshot) can change only while the row is a DRAFT; the status machine, the dates and the
+/// verification token are enforced by CHECKs and triggers in the migration SQL. One live row per student x subject x period.
+model Result {
+  id                String       @id @default(cuid())
+  branchId          String
+  studentId         String
+  subjectId         String
+  periodId          String
+  classArmId        String
+  schemeId          String
+  scaleId           String
+  /// [{ name, max, score }] in the scheme's order.
+  componentScores   Json
+  examScore         Decimal      @db.Decimal(6, 2)
+  examMax           Decimal      @db.Decimal(6, 2)
+  caTotal           Decimal      @db.Decimal(6, 2)
+  total             Decimal      @db.Decimal(6, 2)
+  maxScore          Decimal      @db.Decimal(6, 2)
+  gradeLetter       String
+  gradeRemark       String
+  status            ResultStatus @default(DRAFT)
+  enteredByUserId   String
+  submittedByUserId String?
+  submittedAt       DateTime?
+  approvedByUserId  String?
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  lockedAt          DateTime?
+  verificationToken String?      @unique
+  verificationHash  String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @default(now()) @updatedAt
+
+  branch      Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student     StudentRecord    @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  subject     Subject          @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+  period      AcademicPeriod   @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  classArm    ClassArm         @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
+  scheme      AssessmentScheme @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+  scale       GradeScale       @relation(fields: [branchId, scaleId], references: [branchId, id], onDelete: NoAction)
+  enteredBy   User             @relation("ResultsEntered", fields: [enteredByUserId], references: [id], onDelete: NoAction)
+  submittedBy User?            @relation("ResultsSubmitted", fields: [submittedByUserId], references: [id], onDelete: NoAction)
+  approvedBy  User?            @relation("ResultsApproved", fields: [approvedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, subjectId, periodId])
+  @@unique([branchId, id])
+  @@index([branchId, periodId, classArmId])
+  @@index([branchId, studentId, periodId])
+}
+
+/// Append-only history of every result: each entry, edit, transition and unlock, in the same transaction as the change. UPDATE and DELETE are refused by triggers.
+/// `resultId` carries no foreign key on purpose: a draft that is deleted keeps its trail.
+model ResultAudit {
+  id          String        @id @default(cuid())
+  branchId    String
+  resultId    String
+  actorUserId String
+  action      String
+  fromStatus  ResultStatus?
+  toStatus    ResultStatus?
+  fromTotal   Decimal?      @db.Decimal(6, 2)
+  toTotal     Decimal?      @db.Decimal(6, 2)
+  reason      String?
+  createdAt   DateTime      @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  actor  User   @relation("ResultAudits", fields: [actorUserId], references: [id], onDelete: NoAction)
+
+  @@index([branchId, resultId])
+  @@index([createdAt])
 }

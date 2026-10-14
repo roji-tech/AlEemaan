@@ -24,6 +24,7 @@
 | 0011 | [`0011-p1b-assessment-grading.md`](0011-p1b-assessment-grading.md) | P1b: assessment schemes and grade scales | [~] In Progress (built; full suite 1205 passed, 1 stale assertion fixed) | 2026-10-14 UTC | — | `claude/p1b-assessment-grading` |
 | 0012 | [`0012-p1c-staff-assignments.md`](0012-p1c-staff-assignments.md) | P1c: staff records and teaching assignments | [~] In Progress (built; full suite 1213 passed, 2 leftover-row failures fixed) | 2026-10-14 UTC | — | `claude/p1c-staff-assignments` |
 | 0013 | [`0013-p1d-academics-screens.md`](0013-p1d-academics-screens.md) | P1d: Assessment and grading and Staff screens | [~] In Progress (built; full suite 1225 passed, 0 failed) | 2026-10-14 UTC | — | `claude/p1d-screens` |
+| 0014 | [`0014-p2a-results-entry.md`](0014-p2a-results-entry.md) | P2a: results - tables, entry and history | [~] In Progress (built; full suite 1242 passed, 0 failed) | 2026-10-14 UTC | — | `claude/p2a-results-entry` |
 ---
 
 ## Completed Tasks: 0001 - 0004

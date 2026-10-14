@@ -42,6 +42,10 @@ model User {
   memberships         Membership[]
   invitationsSent     Invitation[]         @relation("InvitationsSent")
   invitationsAccepted Invitation[]         @relation("InvitationsAccepted")
+  resultsEntered      Result[]             @relation("ResultsEntered")
+  resultsSubmitted    Result[]             @relation("ResultsSubmitted")
+  resultsApproved     Result[]             @relation("ResultsApproved")
+  resultAudits        ResultAudit[]        @relation("ResultAudits")
   mfaCredential       MfaCredential?
   mfaRecoveryCodes    MfaRecoveryCode[]
   mfaChallenges       MfaChallenge[]
