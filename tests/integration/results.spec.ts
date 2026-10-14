@@ -208,3 +208,22 @@ test.describe("closing a term", () => {
     expect(await db.resultAudit.count({ where: { resultId: approved.id } })).toBe(0);
   });
 });
+
+test.describe("report remarks (P2c)", () => {
+  test("one row per student and term, in the student's branch; blank remarks and over-long ones are refused", async () => {
+    const mine = await resultsWorld(home.id);
+    const theirs = await resultsWorld(other.id);
+    const by = await createUser();
+    const base = { branchId: home.id, studentId: mine.student.id, periodId: mine.period.id, updatedByUserId: by.id };
+    await db.reportRemark.create({ data: { ...base, teacherRemark: "A hard-working pupil." } });
+    await rejects(db.reportRemark.create({ data: { ...base, principalRemark: "Second row, same term" } })); // one per student and term
+    await rejects(db.reportRemark.create({ data: { ...base, studentId: theirs.student.id, periodId: theirs.period.id } })); // another branch's student under this branch
+    await rejects(db.reportRemark.create({ data: { ...base, periodId: theirs.period.id } })); // another branch's term
+    const two = await resultsWorld(home.id, undefined, true);
+    await rejects(db.reportRemark.create({ data: { ...base, studentId: two.student.id, periodId: two.period.id, teacherRemark: "   " } })); // blank
+    await rejects(
+      db.reportRemark.create({ data: { ...base, studentId: two.student.id, periodId: two.period.id, principalRemark: "x".repeat(501) } }),
+    );
+    await db.reportRemark.create({ data: { ...base, studentId: two.student.id, periodId: two.period.id, principalRemark: "Excellent." } });
+  });
+});

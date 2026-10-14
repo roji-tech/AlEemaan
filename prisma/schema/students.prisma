@@ -37,6 +37,7 @@ model StudentRecord {
   enrollments       StudentEnrollment[]
   attendanceRecords AttendanceRecord[]
   results           Result[]
+  remarks           ReportRemark[]
 
   @@unique([branchId, id])
   @@index([branchId])

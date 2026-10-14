@@ -55,6 +55,7 @@ model AcademicPeriod {
   branch  Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
   session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   results Result[]
+  remarks ReportRemark[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
@@ -363,4 +364,26 @@ model ResultAudit {
 
   @@index([branchId, resultId])
   @@index([createdAt])
+}
+
+/// The teacher's and the principal's remark on a student's report card for one term (Slice P2c). Editable until any of the student's results for that term is
+/// published (a service rule, stated in the plan). One row per student and term.
+model ReportRemark {
+  id              String   @id @default(cuid())
+  branchId        String
+  studentId       String
+  periodId        String
+  teacherRemark   String?
+  principalRemark String?
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  branch    Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord  @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  period    AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  updatedBy User           @relation("RemarksUpdated", fields: [updatedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, periodId])
+  @@index([branchId, periodId])
 }

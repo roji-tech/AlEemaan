@@ -26,6 +26,7 @@
 | 0013 | [`0013-p1d-academics-screens.md`](0013-p1d-academics-screens.md) | P1d: Assessment and grading and Staff screens | [~] In Progress (built; full suite 1225 passed, 0 failed) | 2026-10-14 UTC | — | `claude/p1d-screens` |
 | 0014 | [`0014-p2a-results-entry.md`](0014-p2a-results-entry.md) | P2a: results - tables, entry and history | [~] In Progress (built; full suite 1242 passed, 0 failed) | 2026-10-14 UTC | — | `claude/p2a-results-entry` |
 | 0015 | [`0015-p2b-results-workflow.md`](0015-p2b-results-workflow.md) | P2b: results review workflow | [~] In Progress (built; full suite 1250 passed, 1 load-sensitive timing test failed then passed 3/3 alone) | 2026-10-14 UTC | — | `claude/p2b-results-workflow` |
+| 0016 | [`0016-p2c-report-card-verification.md`](0016-p2c-report-card-verification.md) | P2c: report card, remarks, public verification | [~] In Progress (built; full suite (running)) | 2026-10-14 UTC | — | `claude/p2c-report-card` |
 ---
 
 ## Completed Tasks: 0001 - 0004

@@ -25,6 +25,8 @@ const ALLOWED: Record<string, string> = {
   "POST v1/invitations/accept/route.ts": PUBLIC,
   "POST v1/invitations/preview/route.ts": PUBLIC,
   "GET v1/setup/route.ts": PUBLIC,
+  "GET v1/verify/[token]/route.ts":
+    "public by design: a parent or employer checks a printed code signed out; says nothing about marks, rate limited",
   "POST v1/setup/route.ts": PUBLIC,
   "GET v1/dev/email-inbox/route.ts": "dev-only inbox; public in source (whether it refuses in production is tracked separately)",
   "DELETE v1/dev/email-inbox/route.ts": "dev-only inbox; public in source (whether it refuses in production is tracked separately)",

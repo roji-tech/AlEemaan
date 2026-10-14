@@ -48,7 +48,7 @@ export async function resultsBranchId(ids: readonly string[]): Promise<string | 
   return branches.size === 1 ? [...branches][0] : null;
 }
 
-const hashOf = (
+export const contentHash = (
   r: {
     branchId: string;
     studentId: string;
@@ -126,7 +126,7 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
         Object.assign(data, {
           publishedAt: now,
           verificationToken: crypto.randomBytes(32).toString("base64url"),
-          verificationHash: hashOf(r, now),
+          verificationHash: contentHash(r, now),
         });
       }
       if (input.action === "lock") Object.assign(data, { lockedAt: now });
