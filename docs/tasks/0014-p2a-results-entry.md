@@ -1,7 +1,7 @@
 # [0014]: P2a - results: tables, entry and history
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P2", merged as PR #37)
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite 1242 passed
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p2a-results-entry` -> `dev`
@@ -26,4 +26,4 @@ A teacher (or administrator) can enter a subject's marks for an arm and term; th
 - [ ] Not done here: the status machine beyond DRAFT (P2b), the report card (P2c), the screens (P2d).
 
 ## 3. Verification
-Targeted after `pnpm build`: integration 9 + API 10 + route guard passed; typecheck, lint, Prettier clean. Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2.
+Targeted after `pnpm build`: integration 9 + API 10 + route guard passed; typecheck, lint, Prettier clean. Full suite (one worker, ~1.1 h): **1242 passed, 0 failed, 18 skipped.** The 18 skips were not individually re-examined. Mutation passes NOT RUN - pending, end of Phase 2.
