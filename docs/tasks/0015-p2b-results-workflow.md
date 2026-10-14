@@ -1,7 +1,7 @@
 # [0015]: P2b - results review workflow
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P2", merged as PR #37)
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite 1250 passed, 1 timing test flaky
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p2b-results-workflow` -> `dev`
@@ -25,4 +25,4 @@ Results move DRAFT -> SUBMITTED -> APPROVED -> PUBLISHED -> LOCKED under the rul
 - [ ] Not done: the report card and verification page (P2c), the screens (P2d), the payment gate.
 
 ## 3. Verification
-Targeted after `pnpm build`: API workflow 9 + integration results 10 + route guard passed; typecheck, lint, Prettier clean. Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2 (targets: the RULES table, the no-self-approval check, the all-or-nothing count, the session-close trigger).
+Targeted after `pnpm build`: API workflow 9 + integration results 10 + route guard passed; typecheck, lint, Prettier clean. Full suite (one worker, ~1.2 h): **1250 passed, 1 failed, 18 skipped.** The one failure is `account-self-service.spec.ts:349` ("the response time doesn't depend on whether the address is taken"): it compares the median wall-clock response time of a taken vs a free address and fails above a 40 ms difference; it saw 61 ms in the full run and 56 ms in my first isolated re-run (load average about 4 from other programs on this machine). Re-run three more times alone: **passed 3 of 3.** I did NOT make it pass: I did not change the test or the threshold. The cause is NOT proven - a timing test under machine load is the likely one (P1d's and P2a's full suites, which contain the same test, passed); nothing in P2b touches email-change. It stays on the list of tests to watch; if it fails again on a quiet machine it is a real timing difference between the two paths (an enumeration oracle) and a bug. The 18 skips were not individually re-examined. Mutation passes NOT RUN - pending, end of Phase 2 (targets: the RULES table, the no-self-approval check, the all-or-nothing count, the session-close trigger).
