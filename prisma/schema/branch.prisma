@@ -19,6 +19,8 @@ model Branch {
   subjects          Subject[]
   subjectOfferings  SubjectOffering[]
   assessmentSchemes AssessmentScheme[]
+  staffRecords      StaffRecord[]
+  staffAssignments  StaffSubjectAssignment[]
   assessmentComps   AssessmentComponent[]
   gradeScales       GradeScale[]
   gradeBands        GradeBand[]
@@ -67,6 +69,8 @@ model Membership {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  staffRecords StaffRecord[]
 
   createdAt DateTime @default(now())
 
