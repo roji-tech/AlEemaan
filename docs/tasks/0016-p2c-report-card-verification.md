@@ -1,7 +1,7 @@
 # [0016]: P2c - report card, remarks and public verification
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P2", merged as PR #37)
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite 1264 passed
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p2c-report-card` -> `dev`
@@ -26,4 +26,4 @@ A student's report card for a term (computed from published results), the teache
 - [ ] Not done: the screens (report card view with a print stylesheet, remarks form, review queue UI - P2d), student/parent access, PDF download (print first), the payment gate (finance F3).
 
 ## 3. Verification
-Targeted after `pnpm build`: API report-card 6 + integration results 11 + route guard + unit rules 7 passed; typecheck, lint, Prettier clean. Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2 (targets: the ranking, the average, the published-only filter, the remarks freeze, the public allow-list).
+Targeted after `pnpm build`: API report-card 6 + integration results 11 + route guard + unit rules 7 passed; typecheck, lint, Prettier clean. Full suite (one worker, ~1.2 h): **1264 passed, 0 failed, 18 skipped.** The 18 skips were not individually re-examined. Mutation passes NOT RUN - pending, end of Phase 2 (targets: the ranking, the average, the published-only filter, the remarks freeze, the public allow-list).
