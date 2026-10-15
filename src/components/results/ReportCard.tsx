@@ -34,6 +34,16 @@ export type Card = {
   legend: { min: number; max: number; letter: string; remark: string }[];
   allPublished: boolean;
   preview: boolean;
+  layout?: {
+    code: string;
+    name: string;
+    isLegacy?: boolean;
+    options?: {
+      logo?: boolean;
+      signatureLine?: boolean;
+      nextTermDate?: boolean;
+    };
+  };
 };
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
@@ -109,7 +119,7 @@ export function ReportCard({ card, origin }: { card: Card; origin: string }) {
           tabIndex={0}
           className="mt-4 overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <table className="w-full min-w-[30rem] text-left text-sm">
+          <table className="w-full min-w-120 text-left text-sm">
             <caption className="sr-only">Subjects, marks and grades</caption>
             <thead>
               <tr className="text-xs tracking-wide text-fg-2 uppercase print:text-black">
@@ -178,6 +188,28 @@ export function ReportCard({ card, origin }: { card: Card; origin: string }) {
           <p className="mt-1 min-h-10 text-sm">{card.remarks.principal ?? "—"}</p>
         </div>
       </section>
+
+      {card.layout?.options?.nextTermDate && (
+        <div className="mt-4 rounded-xl border border-line p-3 text-center print:border-black">
+          <p className="text-xs font-semibold tracking-wide text-fg-2 uppercase print:text-black">Next Term</p>
+          <p className="mt-1 text-sm font-semibold text-fg print:text-black">Resumption date to be announced by the school</p>
+        </div>
+      )}
+
+      {card.layout?.options?.signatureLine && (
+        <section aria-label="Signatures" className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-line p-3 print:border-black">
+            <h3 className="text-xs font-semibold tracking-wide text-fg-2 uppercase print:text-black">Class Teacher&apos;s Signature</h3>
+            <div className="mt-6 border-b border-dashed border-line-strong print:border-black" />
+            <p className="mt-1 text-right text-xs text-fg-muted print:text-black">Date &amp; Signature</p>
+          </div>
+          <div className="rounded-xl border border-line p-3 print:border-black">
+            <h3 className="text-xs font-semibold tracking-wide text-fg-2 uppercase print:text-black">Principal&apos;s Signature</h3>
+            <div className="mt-6 border-b border-dashed border-line-strong print:border-black" />
+            <p className="mt-1 text-right text-xs text-fg-muted print:text-black">Date &amp; Stamp</p>
+          </div>
+        </section>
+      )}
 
       {card.legend.length > 0 && (
         <p className="mt-4 text-xs text-fg-muted print:text-black">

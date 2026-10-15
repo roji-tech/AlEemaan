@@ -4,6 +4,7 @@ import { getSchoolSettings } from "@/lib/settings/school-settings";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
+import { getBranchReportCardLayout, getVerificationPageConfig } from "@/lib/settings/approvals";
 
 // Results, Slice P2c: the REPORT CARD (computed, never stored), the teacher's and principal's remarks, and the public verification of one published result.
 // The caller's authority over the BRANCH was checked by `withBranch` in the route (ADR 0015). Outside staff only ever see PUBLISHED / LOCKED results; an
@@ -101,9 +102,10 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     summary = { ...summary, average: avg / 100, position: mine?.position ?? null, classSize: mine?.size ?? null };
   }
 
-  const [school, remarks] = await Promise.all([
+  const [school, remarks, layout] = await Promise.all([
     getSchoolSettings(),
     prisma.reportRemark.findUnique({ where: { studentId_periodId: { studentId, periodId } } }),
+    getBranchReportCardLayout(branchId),
   ]);
   return {
     school: { name: school.name, principal: school.principal, motto: school.motto, address: school.address, phone: school.phone },
@@ -122,6 +124,7 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     legend: first ? first.scale.bands.map((b) => ({ min: num(b.minScore), max: num(b.maxScore), letter: b.letter, remark: b.remark })) : [],
     allPublished: subjects.length > 0 && subjects.every((s) => (PUBLISHED as readonly string[]).includes(s.status)),
     preview: includeUnpublished,
+    layout,
   };
 }
 
@@ -158,7 +161,7 @@ export async function verifyToken(token: string) {
     include: {
       student: { select: { firstName: true, lastName: true } },
       subject: { select: { name: true } },
-      branch: { select: { name: true } },
+      branch: { select: { id: true, name: true } },
       classArm: { select: { name: true, classGroup: { select: { name: true } } } },
       period: { select: { label: true, session: { select: { label: true } } } },
     },
@@ -166,15 +169,43 @@ export async function verifyToken(token: string) {
   if (!r || !r.publishedAt || !(PUBLISHED as readonly string[]).includes(r.status)) return null;
   // Tamper evidence: the stored hash must still match the content. A mismatch is reported as "does not match", not as genuine.
   const intact = r.verificationHash === contentHash(r, r.publishedAt);
-  const school = await getSchoolSettings();
-  return {
+  const [school, config] = await Promise.all([getSchoolSettings(), getVerificationPageConfig(r.branch.id)]);
+
+  // Bare minimum guaranteed fields
+  const verification: Record<string, unknown> = {
     genuine: intact,
     school: school.name,
     branch: r.branch.name,
     className: `${r.classArm.classGroup.name} ${r.classArm.name}`,
     period: `${r.period.label}, ${r.period.session.label}`,
-    subject: r.subject.name,
     publishedAt: r.publishedAt.toISOString(),
-    pupil: publicName(r.student.firstName, r.student.lastName),
   };
+
+  // Configurable fields
+  if (config.showPupilName) {
+    if (config.pupilNameFormat === "FULL") {
+      verification.pupil = `${r.student.firstName} ${r.student.lastName}`.trim();
+    } else if (config.pupilNameFormat === "INITIALS") {
+      const fInit = r.student.firstName ? `${r.student.firstName.charAt(0)}.` : "";
+      const lInit = r.student.lastName ? `${r.student.lastName.charAt(0)}.` : "";
+      verification.pupil = [fInit, lInit].filter(Boolean).join(" ");
+    } else {
+      // FIRST_LAST_INITIAL (default)
+      verification.pupil = publicName(r.student.firstName, r.student.lastName);
+    }
+  }
+
+  if (config.showSubject) {
+    verification.subject = r.subject.name;
+  }
+
+  if (config.showMarks) {
+    verification.finalScore = num(r.total);
+  }
+
+  if (config.showGrade) {
+    verification.grade = r.gradeLetter;
+  }
+
+  return verification;
 }

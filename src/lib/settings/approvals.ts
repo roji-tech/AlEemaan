@@ -355,3 +355,119 @@ export async function canSelfApproveResults(
 
   return { allowed: true, unseenReviewerUserId: grant.unseenReviewerUserId };
 }
+
+/**
+ * Ensures standard report card layouts exist in the database.
+ */
+export async function ensureDefaultReportCardLayouts() {
+  const layouts = [
+    {
+      code: "DEFAULT",
+      name: "Standard Layout",
+      type: "DEFAULT" as const,
+      isLegacy: false,
+      options: { logo: true, signatureLine: true, nextTermDate: true },
+    },
+    {
+      code: "LEGACY",
+      name: "Legacy Layout",
+      type: "LEGACY" as const,
+      isLegacy: true,
+      options: { logo: true, signatureLine: false, nextTermDate: false },
+    },
+  ];
+
+  for (const layout of layouts) {
+    await prisma.reportCardLayout.upsert({
+      where: { code: layout.code },
+      create: layout,
+      update: { name: layout.name, isLegacy: layout.isLegacy },
+    });
+  }
+}
+
+/**
+ * Gets available report card layouts.
+ */
+export async function getReportCardLayouts() {
+  await ensureDefaultReportCardLayouts();
+  return prisma.reportCardLayout.findMany({
+    orderBy: [{ isLegacy: "asc" }, { code: "asc" }],
+  });
+}
+
+/**
+ * Resolves the effective report card layout for a branch.
+ */
+export async function getBranchReportCardLayout(branchId: string) {
+  await ensureDefaultReportCardLayouts();
+
+  // Check branch setting value
+  const setting = await prisma.settingValue.findFirst({
+    where: {
+      key: "report_card_layout",
+      OR: [{ scope: SettingScope.BRANCH, branchId }, { scope: SettingScope.GLOBAL }],
+      status: SettingStatus.APPROVED,
+    },
+    orderBy: { scope: "desc" },
+  });
+
+  const layoutCode =
+    setting && typeof setting.value === "object" && setting.value !== null && "layoutCode" in setting.value
+      ? String((setting.value as { layoutCode: string }).layoutCode)
+      : "DEFAULT";
+
+  const customOptions =
+    setting && typeof setting.value === "object" && setting.value !== null && "options" in setting.value
+      ? (setting.value as { options: Record<string, boolean> }).options
+      : undefined;
+
+  const layout =
+    (await prisma.reportCardLayout.findUnique({ where: { code: layoutCode } })) ??
+    (await prisma.reportCardLayout.findUnique({ where: { code: "DEFAULT" } }));
+
+  if (!layout) {
+    return {
+      code: "DEFAULT",
+      name: "Standard Layout",
+      isLegacy: false,
+      options: { logo: true, signatureLine: true, nextTermDate: true, ...customOptions },
+    };
+  }
+
+  const baseOptions = typeof layout.options === "object" && layout.options !== null ? (layout.options as Record<string, boolean>) : {};
+
+  return {
+    code: layout.code,
+    name: layout.name,
+    isLegacy: layout.isLegacy,
+    options: { ...baseOptions, ...customOptions },
+  };
+}
+
+/**
+ * Resolves the verification page configuration for a branch (falling back to global, then defaults).
+ */
+export async function getVerificationPageConfig(branchId?: string | null) {
+  if (branchId) {
+    const branchConfig = await prisma.verificationPageConfig.findUnique({
+      where: { branchId },
+    });
+    if (branchConfig) return branchConfig;
+  }
+
+  const globalConfig = await prisma.verificationPageConfig.findFirst({
+    where: { branchId: null },
+  });
+  if (globalConfig) return globalConfig;
+
+  return {
+    id: "default",
+    branchId: branchId ?? null,
+    showPupilName: true,
+    pupilNameFormat: "FIRST_LAST_INITIAL" as const,
+    showSubject: true,
+    showMarks: false,
+    showGrade: false,
+  };
+}
