@@ -1,12 +1,12 @@
 # [0012]: P1c - staff records and teaching assignments (ported to branches)
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P1c", refining decision 8 of Slice P1)
-- **Status:** [~] In Progress - built; full suite run (2 failures were my own leftover rows, fixed)
+- **Status:** Completed (PR #35 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p1c-staff-assignments` -> `dev`
+- **Target Branch / PR:** `claude/p1c-staff-assignments` -> `dev` (merged: PR #35)
 - **Started:** 2026-10-14 UTC
-- **Ended:** -
+- **Ended:** 2026-10-14 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.

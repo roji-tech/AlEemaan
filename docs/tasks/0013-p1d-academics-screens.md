@@ -1,12 +1,12 @@
 # [0013]: P1d - Assessment and grading and Staff screens
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P1d")
-- **Status:** [~] In Progress - built; full suite 1225 passed
+- **Status:** Completed (PR #36 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p1d-screens` -> `dev`
+- **Target Branch / PR:** `claude/p1d-screens` -> `dev` (merged: PR #36)
 - **Started:** 2026-10-14 UTC
-- **Ended:** -
+- **Ended:** 2026-10-14 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.

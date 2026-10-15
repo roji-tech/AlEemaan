@@ -1,12 +1,12 @@
 # [0014]: P2a - results: tables, entry and history
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P2", merged as PR #37)
-- **Status:** [~] In Progress - built; full suite 1242 passed
+- **Status:** Completed (PR #38 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p2a-results-entry` -> `dev`
+- **Target Branch / PR:** `claude/p2a-results-entry` -> `dev` (merged: PR #38)
 - **Started:** 2026-10-14 UTC
-- **Ended:** -
+- **Ended:** 2026-10-14 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.

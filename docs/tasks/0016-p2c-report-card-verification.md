@@ -1,12 +1,12 @@
 # [0016]: P2c - report card, remarks and public verification
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P2", merged as PR #37)
-- **Status:** [~] In Progress - built; full suite 1264 passed
+- **Status:** Completed (PR #40 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p2c-report-card` -> `dev`
+- **Target Branch / PR:** `claude/p2c-report-card` -> `dev` (merged: PR #40)
 - **Started:** 2026-10-14 UTC
-- **Ended:** -
+- **Ended:** 2026-10-14 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.
