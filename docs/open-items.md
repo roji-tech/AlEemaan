@@ -2,6 +2,15 @@
 
 Updated 2026-10-15, after Slice P2d merged to `dev`. Octalve Edu's own list is in its `docs/tasks/0011-audited-support-access.md` §5-6 and `docs/tasks/0010-platform-followups.md`. When an item is done, tick it here and link the task or PR; when a new one appears, add it here first.
 
+## 0. Decided 2026-10-15 (maintainer) - to be designed and built; supersedes the matching items in section 1
+Full detail: the handoff file section 15. Summary: one shared settings-and-approvals layer (superadmin default, admin override, optional enforcement with approval and a reason) carries all of these.
+- [ ] **CA/exam scheme (slice P2e):** any number of optionally named CA parts plus an exam (defaults "CA" and "Exam"); scopes teacher-subject > class-group > branch > global; a teacher's subject scheme is usable while pending, stays a draft if rejected; superadmin may enforce (admin changes then need approval); drafts and templates for everyone. Nothing is hard-coded to 30/70 or 40/60.
+- [ ] **Report-card layouts (P2e):** several layouts, chosen per branch by admin or superadmin; legacy is one (needs a legacy sample).
+- [ ] **Self-approval (P2e):** becomes an admin-toggled setting with the trade-offs shown.
+- [ ] **Verification page (P2e):** a bare minimum always; the superadmin picks the rest per branch or for all; an admin's change needs superadmin approval.
+- [ ] **Attendance permissions (own slice after P2e):** the arm's class teacher (teaching or non-teaching) plus people granted named arms or groups of arms by an admin or superadmin; everyone else refused.
+- [ ] Waiting on the maintainer: seven follow-up questions (handoff 15.7).
+
 ## 1. Waiting on the maintainer
 - [ ] **Run `pnpm admins:list` against the LIVE AlEemaan database and say who stays a superadmin.** Blocks the live deploy of the branch-admins migration (ADR 0014, accepted with that condition).
 - [ ] **The CA/exam split per branch** (legacy code: secondary 30/70, primary 40/60). Nothing is seeded; an administrator creates each branch's assessment scheme before teachers can enter marks. Say whether the two Arabic branches follow the English ones.
