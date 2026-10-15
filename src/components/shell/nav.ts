@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { BuildingIcon, GraduationCapIcon, HomeIcon, SlidersIcon, UsersIcon } from "@/components/ui/icons";
+import { BuildingIcon, ClipboardIcon, GraduationCapIcon, HomeIcon, SlidersIcon, UsersIcon } from "@/components/ui/icons";
 
 export type NavItem = {
   label: string;
@@ -11,6 +11,8 @@ export type NavItem = {
   adminOnly?: boolean;
   /// Superadmins only (school-wide: branches, school settings).
   superAdminOnly?: boolean;
+  /// Administrators and teaching staff (marks and report cards).
+  staffOnly?: boolean;
   /// Phone only: the bottom bar fits four tabs plus More, so a rarely used page lives in the More sheet instead of squeezing the bar (the sidebar still lists it).
   inMore?: boolean;
 };
@@ -19,14 +21,15 @@ export type NavItem = {
 /// sheet are all derived from this list, so they can't disagree.
 export const NAV: readonly NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: HomeIcon },
-  { label: "Branches", href: "/branches", icon: BuildingIcon, superAdminOnly: true },
+  { label: "Branches", href: "/branches", icon: BuildingIcon, superAdminOnly: true, inMore: true },
   { label: "Settings", href: "/settings", icon: SlidersIcon, superAdminOnly: true, inMore: true },
   { label: "Academics", href: "/academics", icon: GraduationCapIcon, adminOnly: true },
+  { label: "Results", href: "/results", icon: ClipboardIcon, staffOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
-export const navFor = (isAdmin: boolean, isSuperAdmin: boolean): NavItem[] =>
-  NAV.filter((item) => (item.superAdminOnly ? isSuperAdmin : item.adminOnly ? isAdmin : true));
+export const navFor = (isAdmin: boolean, isSuperAdmin: boolean, isTeacher = false): NavItem[] =>
+  NAV.filter((item) => (item.superAdminOnly ? isSuperAdmin : item.adminOnly ? isAdmin : item.staffOnly ? isAdmin || isTeacher : true));
 
 /// Second crumb of the top bar, by path (the first crumb is the person's section: "Admin", …).
 export const PAGE_LABELS: Record<string, string> = {
@@ -34,6 +37,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "/branches": "Branches",
   "/settings": "Settings",
   "/academics": "Academics",
+  "/results": "Results",
   "/users": "Users",
   "/account": "Account",
 };
