@@ -1426,3 +1426,109 @@ P2a entry and history (migration `20261014120000`), P2b workflow (`...130000`), 
 
 **Not decided / for later.** Whether a parent may upload proofs themselves in F2 or only the bursar does (default: the parent may, the bursar approves); the exact legal wording to show about report-card holds (the maintainer's lawyer to confirm); how arrears carry between terms.
 
+---
+
+#### Build design — Slice P2e: settings + approvals layer, CA/exam scheme levels, report-card layouts, verification fields, self-approval toggle (2026-10-15, written before any code; all seven follow-up questions answered by the maintainer 2026-10-15)
+
+**Why P2e before P3.** P2's assessment scheme is currently a simple flat record per branch. The maintainer's 2026-10-15 decisions require a multi-scope scheme (global default → branch default → class-group → teacher's subject), a shared approval workflow that carries settings through DRAFT → PENDING → APPROVED → REJECTED, and an attendance-permissions model. These change how P2 resolves which scheme a result uses; P3 (timetable) does not touch results, so P2e must land before P3.
+
+**One shared mechanism carries all five sub-items.** Build it once; put the scheme, layouts, verification fields and self-approval toggle on top of it.
+
+```
+SettingValue       - the leaf: one field's value (TEXT / INT / BOOL / JSON)
+SettingScope       - GLOBAL | BRANCH (which branch, null if global)
+SettingStatus      - DRAFT | PENDING | APPROVED | REJECTED
+SettingApproval    - request record: actor, reason, decider (nullable), decidedAt, visibility VISIBLE | HIDDEN_TO_SUBJECT
+SettingAudit       - append-only: who changed what, old value, new value, timestamp
+```
+
+A superadmin sets the global default; a branch admin may override it (creates a PENDING record if enforcement is on; goes straight to APPROVED if not enforced). The superadmin can enforce on all branches, after which any admin change is PENDING until the superadmin (or a delegated, invisible reviewer) approves it with a reason. The reviewer assignment is invisible to the admin whose change is under review (the superadmin picks a reviewer and neither the name nor existence is revealed).
+
+**Correction to earlier handoff defaults.** The handoff section 15 said the default CA part names are "CA" and "Exam". The maintainer's 2026-10-15 answer corrects this: the **three default names are "CA", "Project", and "Exam"**. Parts are not optional — a scheme must have at least one CA part and the exam part.
+
+---
+
+##### P2e sub-item A — CA/exam scheme levels (supersedes the existing flat `AssessmentScheme` per branch)
+
+**What changes.** The current `AssessmentScheme` belongs to one branch (ADR 0015). P2e adds:
+- A **scope hierarchy** resolved at result-entry time, most specific first: teacher's subject scheme > class-group scheme > branch default > global default.
+- **Class-group schemes** (e.g. Primary 1–3 one scheme, JSS 1–3 another, SS another); a class group already belongs to one branch.
+- **Teacher subject schemes** — a teacher may create one for a subject they teach, with a required reason/description; it enters the approval workflow automatically; the teacher may use it (enter and review marks) while PENDING; marks under a PENDING scheme cannot be published until the scheme is APPROVED; on REJECTED the scheme stays as a DRAFT on the teacher's side (never deleted).
+- **Superadmin enforcement** — when on for a branch, every admin scheme change becomes PENDING.
+- **Drafts and templates** — any of superadmin, admin and teacher may save a draft or template; templates are private to the creator by default; the creator may share to the branch.
+- **Parts must total exactly 100.** A scheme is invalid and cannot be saved if its parts sum to anything other than 100.
+- **Parts are not optional** — every scheme must have at least one CA part and exactly one Exam part. Default names: "CA", "Project", "Exam".
+- **Part names are optional** — a part may be left unnamed (the default name is used); a named part may be anything up to 64 chars.
+
+**Existing constraint respected:** `lockScheme` — the first result for an arm+period pair locks the scheme; a changed scheme must not rewrite existing results; results snapshot the resolved scheme at entry time (already built in P2a). A newly chosen or approved scheme applies only to results entered after the change.
+
+**Migration (additive).** New tables: `AssessmentSchemeScope` (links a scheme to a class-group or marks it as branch/global default), `AssessmentSchemeDraft` (teacher's pending or rejected schemes), `SettingApproval` (shared approval record). No existing column changes meaning; the existing `AssessmentScheme` becomes the "branch default" scope row.
+
+**API changes (new routes, existing routes unchanged).** `GET/POST /v1/academics/schemes/global`, `GET/POST/PATCH /v1/academics/schemes/class-group/[id]`, `GET/POST/PATCH /v1/academics/schemes/teacher/[id]`, `GET/PATCH /v1/settings/approval/[id]` (approve/reject). The result-entry route (`POST /v1/academics/result-sheets`) resolves the effective scheme at write time using the hierarchy.
+
+**Tests.** Unit: scope-resolution pure function (teacher scheme > class-group > branch > global, tie-break by specificity); parts-sum validation (exactly 100); template-sharing rules. Integration: pending scheme allows entry, blocks publish; rejected scheme stays as draft; approval unlocks publish; backfill after existing results does not rewrite them. API: teacher cannot approve their own scheme; a rejected scheme is not deleted; enforcement makes admin changes PENDING. Mutation targets (NOT RUN — end of Phase 2): the resolution order; the 100-sum check; the publish-block on PENDING.
+
+---
+
+##### P2e sub-item B — Report-card layouts
+
+**What changes.** The current report card has one coded layout. P2e adds multiple fixed-coded layouts, each with options (school logo shown/hidden, signature line shown/hidden, next-term date shown/hidden). A layout is selected per branch by the superadmin or the branch admin.
+
+**Decisions (2026-10-15).** Fixed set of coded layouts — not a free-form editor. The legacy layout is one of them, marked `legacy = true`. New layouts can be added by deploying new code (an admin does not write layout code). A legacy sample (PDF or photo) is still needed from the maintainer to faithfully reproduce the exact legacy look.
+
+**Migration (additive).** New column `ReportCardLayout.type` (enum: `DEFAULT` | `LEGACY` | ...) and `ReportCardLayout.options` (JSONB: `{ logo: bool, signatureLine: bool, nextTermDate: bool }`). A `BranchSetting` row per branch holds the selected layout id. No existing result or report-card row changes.
+
+**Tests.** Unit: layout-options validation; layout selection per branch falls back to DEFAULT when unset. API: superadmin and branch admin may change their branch layout; another branch's admin cannot; a teacher cannot. E2e: the report card renders each layout option correctly (screenshot, or `data-testid` assertion).
+
+---
+
+##### P2e sub-item C — Self-approval toggle
+
+**What changes.** The self-approval rule is currently hard-coded in `results-workflow.ts` (`only a superadmin may approve their own entries`). P2e makes it a per-admin setting controlled exclusively by the superadmin.
+
+**Decisions (2026-10-15).** This is **not** an admin-toggled setting. The superadmin toggles it **per admin** — it is a superadmin action, not a branch setting. The superadmin is always the default approver for all admins. The superadmin may assign another person to review and approve an admin's results; that reviewer is **invisible to the admin** (neither the name nor the existence of a delegated reviewer is shown). This is a superadmin-only action; the shared 15.1 enforce/approve mechanism does not apply here (there is no admin-level toggle to enforce or approve).
+
+**Built default stays unchanged:** only a superadmin may self-approve.
+
+**Migration (additive).** New table `AdminSelfApprovalGrant` (superadmin grants a named admin the right to self-approve, with optional delegated reviewer id). The workflow check in `results-workflow.ts` reads this table; the existing hard-coded superadmin check becomes the fallback.
+
+**Tests.** Unit: an admin without a grant cannot self-approve; a superadmin always can; an admin with a grant can. Integration: the reviewer assignment is not visible in any admin-facing API response. API: only a superadmin may create or revoke a grant; a grant cannot be self-issued.
+
+---
+
+##### P2e sub-item D — Verification page field configuration
+
+**What changes.** The public `/verify/[token]` page and its API currently return a pinned exact field list (school, branch, class, term, subject, publish date, pupil as first name + last initial). P2e makes the extra fields configurable by the superadmin per branch or for all branches.
+
+**Decisions (2026-10-15).** A bare minimum is always shown: school, branch, class, term, publish date, "valid". Everything else (pupil name form, subject, marks, grade) is opt-in and chosen by the superadmin. An admin may change the extra fields for their branch, but the change needs superadmin approval (using the shared approval mechanism from sub-item A). The existing test pinning the exact field list must be changed to assert "minimum + configured fields", never fewer than the minimum and never more than what is configured.
+
+**Migration (additive).** New `VerificationPageConfig` table (branchId nullable — null = global default; fields: `showPupilName` BOOL, `pupilNameFormat` ENUM(FULL, FIRST_LAST_INITIAL, INITIALS), `showSubject` BOOL, `showMarks` BOOL, `showGrade` BOOL). The API and page resolve the config by branch, falling back to the global default, then to the built-in minimum.
+
+**Tests.** Unit: config resolution (branch-specific > global > minimum). API: the bare minimum is always present; configured fields are included; unconfigured fields are absent; another branch's config cannot be read through a verify token from this branch. The existing exact-field-list test is updated to the "minimum + configured" assertion. Mutation targets (NOT RUN — end of Phase 2): the published-only filter; the minimum field guarantee.
+
+---
+
+##### P2e sub-item E — Attendance permissions (own slice, after the above four are merged)
+
+**Scope.** AlEemaan only (Octalve keeps its existing teacher-arm rule). Currently any teacher of the branch may take attendance for any arm. The new rule restricts this.
+
+**Who may take attendance for an arm (decisions 2026-10-15):**
+1. The **class/form teacher** of that arm (teaching or non-teaching staff). "Class teacher" is a new nullable FK on `ClassArm.classTeacherId` (a `StaffRecord.id`).
+2. Anyone given an **explicit attendance grant** by the branch admin or superadmin, naming specific arms or groups of arms (even arms outside their own class). A teacher with several classes may be granted more.
+3. Admins and superadmins always may.
+4. Everyone else is refused with a 403.
+
+**Deploy rule (confirmed 2026-10-15).** On the day this ships, each teacher's currently assigned arms (from `TeachingAssignment`) are automatically backfilled as starting grants, so no one loses access.
+
+**Migration (additive).** New column `ClassArm.classTeacherId` (nullable FK → `StaffRecord.id`). New table `AttendanceGrant` (branchId, staffRecordId, classArmId, grantedBy, grantedAt). A one-off migration step (or a deploy script) backfills one grant per teaching-assignment row.
+
+**API changes.** `GET /v1/academics/attendance/arms` (which arms the caller may take attendance for) — already uses `access.ts`; update the access check. The `POST /v1/academics/attendance` write route validates the caller has access to the arm via the new rule.
+
+**Tests.** Integration: a teacher with no class-teacher assignment and no grant sees no arms; a class teacher sees their arm; a granted teacher sees their granted arms; an admin always sees all arms; the backfill is idempotent. API: a grant from another branch is ignored; a teacher cannot self-grant.
+
+---
+
+**Build order for P2e.** Sub-items A–D share the settings/approval infrastructure and can be built in one PR per sub-item after the shared tables are landed. Sub-item E (attendance permissions) is an independent slice after A–D are merged. Design committed alone (this section) before any code; each sub-item gets a task file `0018-p2e-...md`.
+
+**Not in P2e.** The full mutation passes (end of Phase 2); P3 (timetable and announcements); finance F1 (on the maintainer's go).
+
