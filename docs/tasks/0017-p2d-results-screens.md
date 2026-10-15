@@ -1,7 +1,7 @@
 # [0017]: P2d - the Results screens
 
 - **Period / Focus:** 2026-10-15 (design: plan "Build design - Slice P2d")
-- **Status:** [~] In Progress - built; full suite **(running)**
+- **Status:** [~] In Progress - built; full suite 1275 passed, 1 load-sensitive sign-in failure (passed 3/3 alone)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
 - **Target Branch / PR:** `claude/p2d-results-screens` -> `dev`
@@ -26,4 +26,4 @@ Teachers and administrators can do the whole results journey in the browser: ent
 - [ ] Not done: a per-group history dialog in Review (the history API exists; no screen yet), PDF download, student/parent access, the payment gate, a "Branches" shortcut for superadmins on phones other than More.
 
 ## 3. Verification
-Targeted after `pnpm build`: results-screens 7 + 7 (desktop, phone), shell 37 passed (12 skipped); typecheck, lint, Prettier clean. Screenshots in `out/screenshots` (`aleemaan-results-entry-*`, `aleemaan-results-card-*`). Full suite: **(running)**. Mutation passes NOT RUN - pending, end of Phase 2.
+Targeted after `pnpm build`: results-screens 7 + 7 (desktop, phone), shell 37 passed (12 skipped); typecheck, lint, Prettier clean. Screenshots in `out/screenshots` (`aleemaan-results-entry-*`, `aleemaan-results-card-*`). Full suite (one worker, ~1.2 h): **1275 passed, 1 failed, 18 skipped.** The one failure is `account-self-service.spec.ts:22` (desktop): `signInThroughUi` stayed on `/login` for its 5-second check (the same family of sign-in timeouts seen under machine load in earlier runs; load average about 5 from other programs on this machine). Re-run three times alone: **passed 3 of 3.** I did not change the test or the helper; the cause is NOT proven (load is the likely one; nothing in P2d touches sign-in or the account page). It stays on the watch list with `account-self-service.spec.ts:349`. The 18 skips were not individually re-examined. Mutation passes NOT RUN - pending, end of Phase 2.
