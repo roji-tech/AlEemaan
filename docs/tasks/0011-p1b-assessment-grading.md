@@ -1,12 +1,12 @@
 # [0011]: P1b - assessment schemes and grade scales (ported to branches)
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P1", decisions 6 and 7)
-- **Status:** [~] In Progress - built; full suite run (1 stale assertion fixed)
+- **Status:** Completed (PR #34 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p1b-assessment-grading` -> `dev`
+- **Target Branch / PR:** `claude/p1b-assessment-grading` -> `dev` (merged: PR #34)
 - **Started:** 2026-10-14 UTC
-- **Ended:** -
+- **Ended:** 2026-10-14 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.

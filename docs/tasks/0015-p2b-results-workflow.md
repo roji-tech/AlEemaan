@@ -1,12 +1,12 @@
 # [0015]: P2b - results review workflow
 
 - **Period / Focus:** 2026-10-14 (design: plan "Build design - Slice P2", merged as PR #37)
-- **Status:** [~] In Progress - built; full suite 1250 passed, 1 timing test flaky
+- **Status:** Completed (PR #39 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p2b-results-workflow` -> `dev`
+- **Target Branch / PR:** `claude/p2b-results-workflow` -> `dev` (merged: PR #39)
 - **Started:** 2026-10-14 UTC
-- **Ended:** -
+- **Ended:** 2026-10-14 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.

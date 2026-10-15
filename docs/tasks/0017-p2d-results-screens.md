@@ -1,12 +1,12 @@
 # [0017]: P2d - the Results screens
 
 - **Period / Focus:** 2026-10-15 (design: plan "Build design - Slice P2d")
-- **Status:** [~] In Progress - built; full suite 1275 passed, 1 load-sensitive sign-in failure (passed 3/3 alone)
+- **Status:** Completed (PR #41 merged into `dev`)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/p2d-results-screens` -> `dev`
+- **Target Branch / PR:** `claude/p2d-results-screens` -> `dev` (merged: PR #41)
 - **Started:** 2026-10-15 UTC
-- **Ended:** -
+- **Ended:** 2026-10-15 UTC
 - **Duration:** -
 
 > **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.
