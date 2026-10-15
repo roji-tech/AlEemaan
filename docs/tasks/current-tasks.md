@@ -28,7 +28,7 @@
 | 0015 | [`0015-p2b-results-workflow.md`](0015-p2b-results-workflow.md) | P2b: results review workflow | Completed | 2026-10-14 UTC | 2026-10-14 UTC | [PR #39](https://github.com/roji-tech/AlEemaan/pull/39) (`claude/p2b-results-workflow`) |
 | 0016 | [`0016-p2c-report-card-verification.md`](0016-p2c-report-card-verification.md) | P2c: report card, remarks, public verification | Completed | 2026-10-14 UTC | 2026-10-14 UTC | [PR #40](https://github.com/roji-tech/AlEemaan/pull/40) (`claude/p2c-report-card`) |
 | 0017 | [`0017-p2d-results-screens.md`](0017-p2d-results-screens.md) | P2d: the Results screens | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #41](https://github.com/roji-tech/AlEemaan/pull/41) (`claude/p2d-results-screens`) |
-| 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | [~] In Progress (Design confirmed & committed; implementation pending) | 2026-10-15 UTC | — | `claude/docs-decisions-2026-10-15` |
+| 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) (`claude/p2e-settings-approvals`) |
 | 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Upcoming (scheduled after P2e) | — | — | — |
 
 ---
@@ -79,12 +79,12 @@
 - [x] Full suite 1275 passed, 1 sign-in timeout under load (passed 3/3 alone).
 
 ### TASK-0018: Slice P2e — Settings + Approvals Layer & Multi-Scope Schemes
-- **Status:** [~] In Progress (Design confirmed and committed; implementation pending).
-- [ ] Schema & migration: `SettingValue`, `SettingScope`, `SettingStatus`, `SettingApproval`, `SettingAudit`.
-- [ ] Multi-scope CA/exam schemes (teacher subject > class group > branch default > global default), 100-sum check, default names "CA", "Project", "Exam".
-- [ ] Report-card layout selection (fixed coded layouts, legacy flag).
-- [ ] Self-approval toggle per administrator (superadmin exclusive, unseen reviewer delegation).
-- [ ] Configurable public verification fields (minimum guaranteed: school, branch, class, term, publish date, "valid").
+- **Status:** Completed (PR #44 opened into `dev`).
+- [x] Schema & additive migration: `AssessmentScheme`, `AssessmentSchemeComponent`, `AssessmentSchemeApprovalRequest`, `BranchSelfApprovalOverride`, `ReportCardLayoutConfig`, `VerificationPageConfig`.
+- [x] Multi-scope CA/exam schemes (teacher subject > class group > branch default > global default), 100-sum check, publishing guard.
+- [x] Report-card layout selection (fixed coded layouts, legacy flag, signature lines, next term date).
+- [x] Self-approval toggle per administrator (superadmin exclusive, unseen reviewer delegation/redaction).
+- [x] Configurable public verification fields (minimum guaranteed: school, branch, pupil, class, term, publish date, genuine badge).
 
 ### TASK-0019: Attendance Permissions
 - **Status:** Upcoming (scheduled post-P2e).
