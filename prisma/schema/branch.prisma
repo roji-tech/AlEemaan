@@ -27,6 +27,13 @@ model Branch {
   assessmentComps   AssessmentComponent[]
   gradeScales       GradeScale[]
   gradeBands        GradeBand[]
+  settingValues       SettingValue[]
+  settingApprovals    SettingApproval[]
+  settingAudits       SettingAudit[]
+  schemeScopes        AssessmentSchemeScope[]
+  schemeDrafts        AssessmentSchemeDraft[]
+  selfApprovalGrants  AdminSelfApprovalGrant[]
+  verificationConfig  VerificationPageConfig?
 
   createdAt DateTime @default(now())
 }

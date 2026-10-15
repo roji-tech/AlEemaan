@@ -50,6 +50,13 @@ model User {
   mfaCredential       MfaCredential?
   mfaRecoveryCodes    MfaRecoveryCode[]
   mfaChallenges       MfaChallenge[]
+  approvalsRequested  SettingApproval[]        @relation("ApprovalActor")
+  approvalsDecided    SettingApproval[]        @relation("ApprovalDecider")
+  schemeScopes        AssessmentSchemeScope[]  @relation("TeacherSchemeScope")
+  schemeDrafts        AssessmentSchemeDraft[]  @relation("TeacherSchemeDrafts")
+  selfApprovalGrants  AdminSelfApprovalGrant[] @relation("AdminSelfApproval")
+  selfApprovalsGranted AdminSelfApprovalGrant[] @relation("SelfApprovalGrantedBy")
+  unseenReviewsAssigned AdminSelfApprovalGrant[] @relation("SelfApprovalReviewer")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

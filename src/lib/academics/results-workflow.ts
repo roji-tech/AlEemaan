@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
-import { Prisma, Role, type ResultStatus } from "@prisma/client";
+import { Prisma, Role, SettingStatus, type ResultStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
+import { canSelfApproveResults } from "@/lib/settings/approvals";
 import { ConflictError, ForbiddenError } from "@/lib/academics/structure";
 
 // Results, Slice P2b: the REVIEW WORKFLOW. DRAFT -> SUBMITTED -> APPROVED -> PUBLISHED -> LOCKED, with the back-steps and the unlock. The caller's authority over the
@@ -111,8 +112,32 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
     if (!admin && input.action === "submit" && results.some((r) => r.enteredByUserId !== actorUserId)) {
       throw new ForbiddenError("You can submit only the results you entered yourself.");
     }
-    if (rule.noSelf && !superAdmin && results.some((r) => r.enteredByUserId === actorUserId || r.submittedByUserId === actorUserId)) {
-      throw new ForbiddenError("You cannot approve results you entered or submitted yourself; another administrator must.");
+    if (rule.noSelf) {
+      const selfApproval = await canSelfApproveResults(actorUserId, branchId, superAdmin);
+      if (!selfApproval.allowed && results.some((r) => r.enteredByUserId === actorUserId || r.submittedByUserId === actorUserId)) {
+        throw new ForbiddenError("You cannot approve results you entered or submitted yourself; another administrator must.");
+      }
+    }
+
+    // Guard: results under pending or rejected schemes cannot be published
+    if (input.action === "publish") {
+      const schemeIds = [...new Set(results.map((r) => r.schemeId))];
+      const pendingApprovals = await tx.settingApproval.findMany({
+        where: {
+          targetType: "ASSESSMENT_SCHEME",
+          targetId: { in: schemeIds },
+          status: { in: [SettingStatus.PENDING, SettingStatus.REJECTED] },
+        },
+      });
+      const pendingDrafts = await tx.assessmentSchemeDraft.findMany({
+        where: {
+          OR: [{ id: { in: schemeIds } }, { approvedSchemeId: { in: schemeIds } }],
+          status: { in: [SettingStatus.PENDING, SettingStatus.REJECTED] },
+        },
+      });
+      if (pendingApprovals.length > 0 || pendingDrafts.length > 0) {
+        throw new ConflictError("Results under pending or rejected assessment schemes cannot be published until the scheme is approved.");
+      }
     }
 
     const now = new Date();

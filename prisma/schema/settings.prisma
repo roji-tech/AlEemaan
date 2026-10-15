@@ -15,3 +15,201 @@ model SchoolSettings {
   updatedAt DateTime @default(now()) @updatedAt
   createdAt DateTime @default(now())
 }
+
+enum SettingScope {
+  GLOBAL
+  BRANCH
+}
+
+enum SettingStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalVisibility {
+  VISIBLE
+  HIDDEN_TO_SUBJECT
+}
+
+enum SchemeScopeLevel {
+  GLOBAL
+  BRANCH
+  CLASS_GROUP
+  TEACHER_SUBJECT
+}
+
+enum ReportCardLayoutType {
+  DEFAULT
+  LEGACY
+}
+
+enum PupilNameFormat {
+  FULL
+  FIRST_LAST_INITIAL
+  INITIALS
+}
+
+/// Generic setting value stored per scope (GLOBAL or BRANCH).
+model SettingValue {
+  id        String       @id @default(cuid())
+  scope     SettingScope
+  branchId  String?
+  key       String
+  value     Json
+  status    SettingStatus @default(APPROVED)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now()) @updatedAt
+
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([scope, branchId, key])
+  @@index([branchId, key])
+}
+
+/// Shared approval record for settings and scheme modifications.
+model SettingApproval {
+  id             String             @id @default(cuid())
+  settingKey     String
+  targetType     String             // "SETTING", "ASSESSMENT_SCHEME", "VERIFICATION_CONFIG"
+  targetId       String?
+  scope          SettingScope
+  branchId       String?
+  actorUserId    String
+  reason         String
+  status         SettingStatus      @default(PENDING)
+  deciderUserId  String?
+  decidedAt      DateTime?
+  decisionReason String?
+  visibility     ApprovalVisibility @default(VISIBLE)
+  proposedValue  Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @default(now()) @updatedAt
+
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  actor   User    @relation("ApprovalActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  decider User?   @relation("ApprovalDecider", fields: [deciderUserId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, status])
+  @@index([targetType, targetId])
+}
+
+/// Append-only audit record for setting mutations.
+model SettingAudit {
+  id          String       @id @default(cuid())
+  settingKey  String
+  scope       SettingScope
+  branchId    String?
+  actorUserId String?
+  oldValue    Json?
+  newValue    Json?
+  action      String
+  createdAt   DateTime     @default(now())
+
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, settingKey])
+  @@index([createdAt])
+}
+
+/// Hierarchy mapping for assessment schemes:
+/// teacher's subject scheme > class-group scheme > branch default > global default.
+model AssessmentSchemeScope {
+  id            String           @id @default(cuid())
+  schemeId      String
+  level         SchemeScopeLevel
+  branchId      String?
+  classGroupId  String?
+  teacherUserId String?
+  subjectId     String?
+  isDefault     Boolean          @default(false)
+  isShared      Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  scheme     AssessmentScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  branch     Branch?          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup?      @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  teacher    User?            @relation("TeacherSchemeScope", fields: [teacherUserId], references: [id], onDelete: SetNull)
+  subject    Subject?         @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([level, branchId])
+  @@index([classGroupId])
+  @@index([teacherUserId, subjectId])
+}
+
+/// Teacher draft or pending scheme. Kept private to creator by default with branch-sharing option.
+/// Retained as DRAFT if rejected; never deleted.
+model AssessmentSchemeDraft {
+  id                 String        @id @default(cuid())
+  branchId           String
+  teacherUserId      String
+  subjectId          String
+  name               String
+  caParts            Json          // array of { name: string, maxScore: number, sortOrder: number }
+  examMax            Decimal       @db.Decimal(6, 2)
+  totalMax           Decimal       @default(100) @db.Decimal(6, 2)
+  reason             String
+  status             SettingStatus @default(DRAFT)
+  rejectionReason    String?
+  isSharedWithBranch Boolean       @default(false)
+  approvalId         String?
+  approvedSchemeId   String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @default(now()) @updatedAt
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  teacher User    @relation("TeacherSchemeDrafts", fields: [teacherUserId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, teacherUserId])
+  @@index([status])
+}
+
+/// Superadmin-controlled grant allowing an admin to self-approve results,
+/// with optional unseen reviewer assigned.
+model AdminSelfApprovalGrant {
+  id                    String    @id @default(cuid())
+  branchId              String
+  adminUserId           String
+  grantedBySuperadminId String
+  unseenReviewerUserId  String?
+  grantedAt             DateTime  @default(now())
+  revokedAt             DateTime?
+
+  branch         Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  adminUser      User   @relation("AdminSelfApproval", fields: [adminUserId], references: [id], onDelete: Cascade)
+  grantedBy      User   @relation("SelfApprovalGrantedBy", fields: [grantedBySuperadminId], references: [id], onDelete: Cascade)
+  unseenReviewer User?  @relation("SelfApprovalReviewer", fields: [unseenReviewerUserId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, adminUserId])
+  @@index([branchId])
+}
+
+/// Fixed coded report card layouts with configurable display toggles.
+model ReportCardLayout {
+  id        String               @id @default(cuid())
+  code      String               @unique
+  name      String
+  type      ReportCardLayoutType @default(DEFAULT)
+  isLegacy  Boolean              @default(false)
+  options   Json                 // { logo: boolean, signatureLine: boolean, nextTermDate: boolean }
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @default(now()) @updatedAt
+}
+
+/// Public verification page configuration per branch (or global default if branchId is null).
+model VerificationPageConfig {
+  id              String          @id @default(cuid())
+  branchId        String?         @unique
+  showPupilName   Boolean         @default(true)
+  pupilNameFormat PupilNameFormat @default(FIRST_LAST_INITIAL)
+  showSubject     Boolean         @default(true)
+  showMarks       Boolean         @default(false)
+  showGrade       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now()) @updatedAt
+
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+}

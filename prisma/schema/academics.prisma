@@ -81,7 +81,8 @@ model ClassGroup {
   branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
   arms      ClassArm[]
   offerings SubjectOffering[]
-  schemes   AssessmentScheme[]
+  schemes      AssessmentScheme[]
+  schemeScopes AssessmentSchemeScope[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -121,7 +122,9 @@ model Subject {
   branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   offerings   SubjectOffering[]
   assignments StaffSubjectAssignment[]
-  results     Result[]
+  results      Result[]
+  schemeScopes AssessmentSchemeScope[]
+  schemeDrafts AssessmentSchemeDraft[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -170,6 +173,7 @@ model AssessmentScheme {
   successors AssessmentScheme[]    @relation("SchemeVersions")
   components AssessmentComponent[]
   results    Result[]
+  scopes     AssessmentSchemeScope[]
 
   @@unique([branchId, id])
   @@index([branchId])
