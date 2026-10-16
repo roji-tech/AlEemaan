@@ -29,7 +29,7 @@
 | 0016 | [`0016-p2c-report-card-verification.md`](0016-p2c-report-card-verification.md) | P2c: report card, remarks, public verification | Completed | 2026-10-14 UTC | 2026-10-14 UTC | [PR #40](https://github.com/roji-tech/AlEemaan/pull/40) (`claude/p2c-report-card`) |
 | 0017 | [`0017-p2d-results-screens.md`](0017-p2d-results-screens.md) | P2d: the Results screens | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #41](https://github.com/roji-tech/AlEemaan/pull/41) (`claude/p2d-results-screens`) |
 | 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) (`claude/p2e-settings-approvals`) |
-| 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | `claude/aleemaan-attendance-permissions` |
+| 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions`) |
 
 ---
 
@@ -87,7 +87,7 @@
 - [x] Configurable public verification fields (minimum guaranteed: school, branch, pupil, class, term, publish date, genuine badge).
 
 ### TASK-0019: Attendance Permissions
-- **Status:** Completed (PR on branch `claude/aleemaan-attendance-permissions`).
+- **Status:** Completed (PR #45 opened into `dev` on branch `claude/aleemaan-attendance-permissions`).
 - [x] Additive migration `20261015110000_attendance_permissions` (`ClassArm.classTeacherId`, `AttendanceGrant`, and deploy backfill).
 - [x] Access control service `src/lib/attendance/access.ts` (Form teacher, explicit grants, admin scoping).
 - [x] Protected API routes: `GET /api/v1/academics/attendance/arms`, `POST /api/v1/academics/attendance`, `GET/POST /api/v1/academics/attendance/grants`, `DELETE /api/v1/academics/attendance/grants/[id]`, `PATCH /api/v1/academics/arms/[id]/class-teacher`.

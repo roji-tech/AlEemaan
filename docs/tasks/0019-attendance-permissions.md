@@ -4,7 +4,7 @@
 - **Status:** [x] Completed (All quality gates passed, full automated suite green)
 - **Priority:** High
 - **Assignee:** Claude Agent / Maintainer
-- **Target Branch / PR:** `claude/aleemaan-attendance-permissions` -> `dev`
+- **Target Branch / PR:** [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions` -> `dev`)
 - **Started:** 2026-10-15 UTC
 - **Ended:** 2026-10-16 UTC
 - **Duration:** ~4 hours
