@@ -37,6 +37,12 @@ model Branch {
   attendanceGrants    AttendanceGrant[]
   timetableSlots      TimetableSlot[]
   announcements       Announcement[]
+  feeStructures       FeeStructure[]
+  invoices            Invoice[]
+  payments            Payment[]
+  invoiceDiscounts    InvoiceDiscount[]
+  receiptCounters     ReceiptCounter[]
+  invoiceCounters     InvoiceCounter[]
 
   createdAt DateTime @default(now())
 }

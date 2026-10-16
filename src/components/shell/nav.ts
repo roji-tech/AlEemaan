@@ -4,6 +4,7 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   ClipboardIcon,
+  CreditCardIcon,
   GraduationCapIcon,
   HomeIcon,
   MegaphoneIcon,
@@ -38,6 +39,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Results", href: "/results", icon: ClipboardIcon, staffOnly: true },
   { label: "Timetable", href: "/timetable", icon: CalendarIcon, staffOnly: true },
   { label: "Announcements", href: "/announcements", icon: MegaphoneIcon, inMore: true },
+  { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
@@ -54,6 +56,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "/results": "Results",
   "/timetable": "Timetable",
   "/announcements": "Announcements",
+  "/finance": "Finance",
   "/users": "Users",
   "/account": "Account",
 };

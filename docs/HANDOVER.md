@@ -46,6 +46,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0019 | — | Attendance permissions (arm-scoped teacher role & grants with backfill) | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) | Passing |
 | 0020 | — | PWA Foundation & Global Quick-Tools Dock | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) | Passing |
 | 0021 | P3 | Timetable Canvas & Announcements Broadcast | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) | Passing (unit, API, E2E a11y) |
+| 0022 | P4 | Finance & Fee Invoicing Foundation | `claude/p4-finance-billing` | Passing (unit 17/17, API 3/3, E2E a11y 5/5) |
 
 ---
 
@@ -109,6 +110,7 @@ The following 10 additive migrations have been applied and tested on development
 8. `20261015100000_p2e_settings_and_approvals` (Setting values, scopes, approvals, and audits)
 9. `20261015110000_attendance_permissions` (Attendance grants & class teacher assignment)
 10. `20261016100000_p3_timetable_and_announcements` (Timetable slots & multi-audience announcements)
+11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
 
 ---
 
@@ -116,4 +118,4 @@ The following 10 additive migrations have been applied and tested on development
 
 1. **Live Administrator Review:** Run `pnpm admins:list` on the live AlEemaan database to confirm which accounts retain `SUPER_ADMIN` status before running migration `20261011120000_super_admin_flag`.
 2. **Legacy Report Card Visual:** Provide a photo or PDF sample of the legacy report card to code the exact `LegacyLayout` (`legacy = true`).
-3. **Finance F1 Greenlight:** Formal go-ahead to begin implementation of Slice P4 (fee structures and invoicing). P2e and P3 precede this.
+3. **Approval of any `dev` -> `master` PR** and production deployment steps.

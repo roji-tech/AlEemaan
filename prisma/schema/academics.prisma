@@ -56,6 +56,8 @@ model AcademicPeriod {
   session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   results Result[]
   remarks ReportRemark[]
+  feeStructures FeeStructure[]
+  invoices      Invoice[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
@@ -83,6 +85,7 @@ model ClassGroup {
   offerings SubjectOffering[]
   schemes      AssessmentScheme[]
   schemeScopes AssessmentSchemeScope[]
+  feeStructures FeeStructure[]
 
   @@unique([branchId, id])
   @@index([branchId])

@@ -32,7 +32,7 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **May an administrator approve their own entries?** — answered 2026-10-15: only a superadmin may self-approve (unchanged built default); the superadmin toggles it per admin and may assign an unseen reviewer. *(Was item in §1.)*
 - [x] **What may the public verification page show?** — answered 2026-10-15: bare minimum (school, branch, class, term, publish date, "valid") always; everything else is superadmin-configured per branch. *(Was item in §1.)*
 - [x] **Teachers and attendance** — answered 2026-10-15: class/form teacher of the arm + explicit grants; backfill on deploy. *(Was item in §1.)*
-- [ ] **Go-ahead for finance F1** (fee structures and invoices); the design and your four answers are merged (plan "Build design - Slice P4: finance"). P3 and P2e come first.
+- [x] **Go-ahead for finance F1** (fee structures and invoices); built in Slice P4 (`claude/p4-finance-billing`).
 - [ ] Approval of any `dev` -> `master` PR (none is open) and any `prod` step.
 
 ## 2. Built on `dev`, not yet live: run the migrations BEFORE the code
@@ -48,6 +48,7 @@ None of these has been run on the live database by me (I never touch it); apply 
 8. `20261015100000_p2e_settings_and_approvals`
 9. `20261015110000_attendance_permissions`
 10. `20261016100000_p3_timetable_and_announcements`
+11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
 
 ## 3. Not built
 
@@ -59,7 +60,7 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [x] **P2e** settings + approvals layer, scheme levels, layouts, verification fields, self-approval toggle (PR #44).
 - [x] **Attendance-permissions slice** (PR #45).
 - [x] **P3** timetable and announcements (Task 0021: Completed, PR to dev).
-- [ ] **P4** finance F1-F4 (F4 online payment with Paystack is optional per branch).
+- [x] **P4** finance F1-F4 (fee structures, batch invoicing, manual recorded payments, receipting, dual-mode Paystack checkout, webhooks).
 - [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
 - [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
 

@@ -32,6 +32,7 @@
 | 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions`) |
 | 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) (`claude/pwa-and-quick-tools`) |
 | 0021 | [`0021-p3-timetable-and-announcements.md`](0021-p3-timetable-and-announcements.md) | Slice P3: Timetable Canvas & Announcements Broadcast | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) (`claude/p3-timetable-announcements`) |
+| 0022 | [`0022-p4-finance-and-billing.md`](0022-p4-finance-and-billing.md) | Slice P4: Finance & Fee Invoicing Foundation | Completed | 2026-10-16 UTC | 2026-10-16 UTC | `claude/p4-finance-billing` |
 
 ---
 
@@ -113,6 +114,16 @@
 - [x] Sub-phase D: Services & API Endpoints (`/api/v1/timetable`, `/api/v1/timetable/batch`, `/api/v1/timetable/[id]`, `/api/v1/announcements`, `/api/v1/announcements/[id]`, 3 API tests)
 - [x] Sub-phase E: UI Consoles & Accessibility (`TimetableCanvas`, `SlotEditModal`, `AnnouncementsFeed`, `AnnouncementComposerModal`, WCAG 2.2 AA compliant, 5 E2E tests)
 - [x] Sub-phase F: Testing & Quality Gates (0 type errors, 0 lint errors, 26 unit tests, 3 API tests, 5 E2E tests, 58/58 build routes)
+
+### TASK-0022: Slice P4 — Finance & Fee Invoicing Foundation
+- **Status:** Completed (`claude/p4-finance-billing` -> `dev`).
+- [x] Sub-phase A: Data Architecture & Schema (`prisma/schema/finance.prisma`, migration `20261016120000_p4_finance_and_billing`)
+- [x] Sub-phase B: Pure Rules & Computation Engine (`rules.ts`, `format.ts`, `crypto.ts`, `validation.ts`, 17 unit tests)
+- [x] Sub-phase C: Gateway Client & Dual-Mode Paystack Engine (`mock-paystack.ts`, `paystack.ts`)
+- [x] Sub-phase D: Services & API Endpoints (`service.ts`, 8 REST endpoints under `/api/v1/finance` and `/api/v1/webhooks/paystack`, 3 API tests)
+- [x] Sub-phase E: UI Consoles & Accessibility (`FinancePanel`, `InvoicesDashboard`, `FeeStructuresPanel`, modals, WCAG 2.2 AA compliant, 5 E2E tests)
+- [x] Sub-phase F: Quality Gates & Handover (0 type errors, 0 lint errors, 17 unit tests, 3 API tests, 5 E2E tests, 61/61 build routes)
+
 
 
 
