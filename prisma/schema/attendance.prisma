@@ -32,3 +32,23 @@ model AttendanceRecord {
   @@index([branchId, date])
   @@index([studentId])
 }
+
+/// Explicit grant allowing a staff member to view and mark attendance roll-call for a specific arm in this branch.
+model AttendanceGrant {
+  id              String   @id @default(cuid())
+  branchId        String
+  staffRecordId   String
+  classArmId      String
+  grantedByUserId String?
+  grantedAt       DateTime @default(now())
+
+  branch        Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staffRecord   StaffRecord @relation(fields: [branchId, staffRecordId], references: [branchId, id], onDelete: Cascade)
+  classArm      ClassArm    @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: Cascade)
+  grantedByUser User?       @relation("AttendanceGrantsGranted", fields: [grantedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, staffRecordId, classArmId])
+  @@index([branchId])
+  @@index([staffRecordId])
+  @@index([classArmId])
+}

@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { BuildingIcon, ClipboardIcon, GraduationCapIcon, HomeIcon, SlidersIcon, UsersIcon } from "@/components/ui/icons";
+import { BuildingIcon, CheckCircleIcon, ClipboardIcon, GraduationCapIcon, HomeIcon, SlidersIcon, UsersIcon } from "@/components/ui/icons";
 
 export type NavItem = {
   label: string;
@@ -24,6 +24,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Branches", href: "/branches", icon: BuildingIcon, superAdminOnly: true, inMore: true },
   { label: "Settings", href: "/settings", icon: SlidersIcon, superAdminOnly: true, inMore: true },
   { label: "Academics", href: "/academics", icon: GraduationCapIcon, adminOnly: true },
+  { label: "Attendance", href: "/attendance", icon: CheckCircleIcon, staffOnly: true },
   { label: "Results", href: "/results", icon: ClipboardIcon, staffOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
@@ -37,6 +38,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "/branches": "Branches",
   "/settings": "Settings",
   "/academics": "Academics",
+  "/attendance": "Attendance",
   "/results": "Results",
   "/users": "Users",
   "/account": "Account",

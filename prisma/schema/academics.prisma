@@ -95,18 +95,22 @@ model ClassArm {
   classGroupId String
   name         String
   capacity     Int?
+  classTeacherId String?
   archivedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
-  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  classGroup  ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
-  enrollments StudentEnrollment[]
-  assignments StaffSubjectAssignment[]
-  results     Result[]
+  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup       ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  classTeacher     StaffRecord?             @relation("ClassTeacherArms", fields: [branchId, classTeacherId], references: [branchId, id], onDelete: NoAction)
+  enrollments      StudentEnrollment[]
+  assignments      StaffSubjectAssignment[]
+  results          Result[]
+  attendanceGrants AttendanceGrant[]
 
   @@unique([branchId, id])
   @@index([branchId, classGroupId])
+  @@index([branchId, classTeacherId])
 }
 
 /// A subject taught in one branch. `code` is upper-cased and unique among the branch's live subjects when present (partial index).
@@ -259,9 +263,11 @@ model StaffRecord {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
 
-  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  membership  Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
-  assignments StaffSubjectAssignment[]
+  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  membership       Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
+  assignments      StaffSubjectAssignment[]
+  teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
+  attendanceGrants AttendanceGrant[]
 
   @@unique([branchId, id])
   @@index([branchId])

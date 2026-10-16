@@ -34,6 +34,7 @@ model Branch {
   schemeDrafts        AssessmentSchemeDraft[]
   selfApprovalGrants  AdminSelfApprovalGrant[]
   verificationConfig  VerificationPageConfig?
+  attendanceGrants    AttendanceGrant[]
 
   createdAt DateTime @default(now())
 }
