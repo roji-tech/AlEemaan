@@ -35,6 +35,8 @@ model Branch {
   selfApprovalGrants  AdminSelfApprovalGrant[]
   verificationConfig  VerificationPageConfig?
   attendanceGrants    AttendanceGrant[]
+  timetableSlots      TimetableSlot[]
+  announcements       Announcement[]
 
   createdAt DateTime @default(now())
 }

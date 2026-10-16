@@ -42,6 +42,10 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0015 | P2b | Results Review Workflow (DRAFT → SUBMITTED → APPROVED → PUBLISHED → LOCKED) | [PR #39](https://github.com/roji-tech/AlEemaan/pull/39) | 1250 passing |
 | 0016 | P2c | Report Cards, Remarks & Public Token Verification | [PR #40](https://github.com/roji-tech/AlEemaan/pull/40) | 1264 passing |
 | 0017 | P2d | Results UI Screens (Entry Grid, Approval Console, ReportCardView, Print Styles) | [PR #41](https://github.com/roji-tech/AlEemaan/pull/41) | 1275 passing |
+| 0018 | P2e | Settings + Approvals layer, CA schemes, report layouts, self-approval toggle | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) | Passing |
+| 0019 | — | Attendance permissions (arm-scoped teacher role & grants with backfill) | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) | Passing |
+| 0020 | — | PWA Foundation & Global Quick-Tools Dock | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) | Passing |
+| 0021 | P3 | Timetable Canvas & Announcements Broadcast | `claude/p3-timetable-announcements` | Passing (unit, API, E2E a11y) |
 
 ---
 
@@ -78,29 +82,14 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 ## 4. Sequential Road Ahead
 
 ```
-[Completed: P1a-P1d, P2a-P2d]
+[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, Slice P3 Timetable & Announcements]
           │
           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Slice P2e: Settings + Approvals, CA Schemes, Layouts        │
-│ (Task 0018: Build in progress)                             │
-└─────────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Slice: Attendance Permissions                               │
-│ (Task 0019: Class-teacher scoping + grants + deploy backfill)│
-└─────────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Slice P3: Timetable Canvas & Announcements Broadcast        │
-└─────────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Slice P4: Finance & Billing (F1 fee structures, F2 billing,  │
+│ Slice P4: Finance & Billing (F1 fee structures, F2 billing, │
 │ F3 receipting, F4 optional Paystack checkout)               │
+│                                                             │
+│ OR Port Slice P4 LMS & Assignments from Octalve Edu         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -108,7 +97,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ## 5. Production Database Migrations Register
 
-The following 7 additive migrations have been applied and tested on development and test databases, but **must be executed against the live production database in exact order** prior to deploying corresponding code:
+The following 10 additive migrations have been applied and tested on development and test databases, but **must be executed against the live production database in exact order** prior to deploying corresponding code:
 
 1. `20261011120000_super_admin_flag` (*Awaiting maintainer's `admins:list` review*)
 2. `20261014090000_academic_structure` (Classes, arms, subjects, offerings)
@@ -117,6 +106,9 @@ The following 7 additive migrations have been applied and tested on development 
 5. `20261014120000_results` (Result records, snapshot scheme, history)
 6. `20261014130000_results_workflow` (Review state transitions, session-close lock trigger)
 7. `20261014140000_report_remarks` (Report remarks per student-term)
+8. `20261015100000_p2e_settings_and_approvals` (Setting values, scopes, approvals, and audits)
+9. `20261015110000_attendance_permissions` (Attendance grants & class teacher assignment)
+10. `20261016100000_p3_timetable_and_announcements` (Timetable slots & multi-audience announcements)
 
 ---
 

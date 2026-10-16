@@ -107,6 +107,8 @@ model ClassArm {
   assignments      StaffSubjectAssignment[]
   results          Result[]
   attendanceGrants AttendanceGrant[]
+  timetableSlots   TimetableSlot[]
+  announcements    Announcement[]
 
   @@unique([branchId, id])
   @@index([branchId, classGroupId])
@@ -129,6 +131,7 @@ model Subject {
   results      Result[]
   schemeScopes AssessmentSchemeScope[]
   schemeDrafts AssessmentSchemeDraft[]
+  timetableSlots TimetableSlot[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -268,6 +271,7 @@ model StaffRecord {
   assignments      StaffSubjectAssignment[]
   teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
   attendanceGrants AttendanceGrant[]
+  timetableSlots   TimetableSlot[]
 
   @@unique([branchId, id])
   @@index([branchId])

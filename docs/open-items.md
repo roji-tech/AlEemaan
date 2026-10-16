@@ -18,11 +18,11 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 
 ### 0b. Items to design and build (in order)
 
-- [ ] **CA/exam scheme (slice P2e):** any number of CA parts (1, 2, 3 …) plus an exam; parts are **not optional** (at least one CA + the exam); CA parts may be named — **default names "CA", "Project", "Exam"**; parts must total exactly 100; scopes teacher-subject > class-group > branch > global; a teacher's subject scheme is usable while pending, stays a draft if rejected; marks under a pending scheme cannot be published until it is approved; superadmin may enforce on all branches (admin changes then need superadmin approval + reason); drafts and templates private by default, shareable to branch. Nothing is hard-coded to 30/70 or 40/60.
-- [ ] **Report-card layouts (P2e):** several fixed-coded layouts with options (logo, signature line, next-term date), chosen per branch by admin or superadmin; legacy layouts are coded and tagged `legacy = true`; the legacy sample is still needed from the maintainer (PDF or photo).
-- [ ] **Self-approval (P2e):** superadmin toggles it **per admin** (not a global setting); the superadmin is the default approver; the superadmin may assign an unseen reviewer in their place. Built default stays: only a superadmin may self-approve.
-- [ ] **Verification page (P2e):** bare minimum always shown (school, branch, class, term, publish date, "valid"); the superadmin selects additional fields (pupil name form, subject, marks, grade) per branch or for all branches; an admin's change to their branch requires superadmin approval. The existing test pinning an exact field list must become "minimum + configured fields", never looser than configured.
-- [ ] **Attendance permissions (own slice after P2e):** who may take attendance for an arm: (1) the class/form teacher of that arm (teaching or non-teaching staff), (2) anyone granted explicit permission by an admin or superadmin for named arms or groups of arms, (3) admins/superadmins always may; everyone else is refused. Deploy: backfill each teacher's currently assigned arms as starting grants so no one loses access on ship day.
+- [x] **CA/exam scheme (slice P2e):** any number of CA parts (1, 2, 3 …) plus an exam; parts are **not optional** (at least one CA + the exam); CA parts may be named — **default names "CA", "Project", "Exam"**; parts must total exactly 100; scopes teacher-subject > class-group > branch > global; a teacher's subject scheme is usable while pending, stays a draft if rejected; marks under a pending scheme cannot be published until it is approved; superadmin may enforce on all branches (admin changes then need superadmin approval + reason); drafts and templates private by default, shareable to branch. Nothing is hard-coded to 30/70 or 40/60.
+- [x] **Report-card layouts (P2e):** several fixed-coded layouts with options (logo, signature line, next-term date), chosen per branch by admin or superadmin; legacy layouts are coded and tagged `legacy = true`; the legacy sample is still needed from the maintainer (PDF or photo).
+- [x] **Self-approval (P2e):** superadmin toggles it **per admin** (not a global setting); the superadmin is the default approver; the superadmin may assign an unseen reviewer in their place. Built default stays: only a superadmin may self-approve.
+- [x] **Verification page (P2e):** bare minimum always shown (school, branch, class, term, publish date, "valid"); the superadmin selects additional fields (pupil name form, subject, marks, grade) per branch or for all branches; an admin's change to their branch requires superadmin approval. The existing test pinning an exact field list must become "minimum + configured fields", never looser than configured.
+- [x] **Attendance permissions (own slice after P2e):** who may take attendance for an arm: (1) the class/form teacher of that arm (teaching or non-teaching staff), (2) anyone granted explicit permission by an admin or superadmin for named arms or groups of arms, (3) admins/superadmins always may; everyone else is refused. Deploy: backfill each teacher's currently assigned arms as starting grants so no one loses access on ship day.
 
 ## 1. Waiting on the maintainer
 
@@ -45,6 +45,9 @@ None of these has been run on the live database by me (I never touch it); apply 
 5. `20261014120000_results`
 6. `20261014130000_results_workflow`
 7. `20261014140000_report_remarks`
+8. `20261015100000_p2e_settings_and_approvals`
+9. `20261015110000_attendance_permissions`
+10. `20261016100000_p3_timetable_and_announcements`
 
 ## 3. Not built
 
@@ -53,9 +56,10 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [ ] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh.
 - [ ] PDF download of the report card (printing from the browser is built).
 - [ ] A history dialog in the Review tab (the history API exists).
-- [ ] **P2e** settings + approvals layer, scheme levels, layouts, verification fields, self-approval toggle (see §0b above — design first, then build in stages before P3).
-- [ ] **Attendance-permissions slice** (after P2e — see §0b above).
-- [ ] **P3** timetable and announcements; **P4** finance F1-F4 (F4 online payment with Paystack is optional per branch).
+- [x] **P2e** settings + approvals layer, scheme levels, layouts, verification fields, self-approval toggle (PR #44).
+- [x] **Attendance-permissions slice** (PR #45).
+- [x] **P3** timetable and announcements (Task 0021: Completed, PR to dev).
+- [ ] **P4** finance F1-F4 (F4 online payment with Paystack is optional per branch).
 - [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
 - [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
 
