@@ -30,6 +30,7 @@
 | 0017 | [`0017-p2d-results-screens.md`](0017-p2d-results-screens.md) | P2d: the Results screens | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #41](https://github.com/roji-tech/AlEemaan/pull/41) (`claude/p2d-results-screens`) |
 | 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) (`claude/p2e-settings-approvals`) |
 | 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions`) |
+| 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | `claude/pwa-and-quick-tools` |
 
 ---
 
@@ -93,4 +94,14 @@
 - [x] Protected API routes: `GET /api/v1/academics/attendance/arms`, `POST /api/v1/academics/attendance`, `GET/POST /api/v1/academics/attendance/grants`, `DELETE /api/v1/academics/attendance/grants/[id]`, `PATCH /api/v1/academics/arms/[id]/class-teacher`.
 - [x] Dedicated `/attendance` page and accessible `AttendancePanel` & `AttendanceGrantModal` UI.
 - [x] Automated test suite: unit (2), integration (6), API (3), regression (17), and E2E (8 desktop + mobile with WCAG 2.2 AA Axe checks).
+
+### TASK-0020: PWA Foundation & Global Quick-Tools Dock
+- **Status:** Completed (`claude/pwa-and-quick-tools` -> `dev`).
+- [x] Progressive Web App manifest, icons, offline caching service worker (`public/sw.js`), and `/offline` fallback page.
+- [x] Floating quick-tools dock with `Cmd+K` / `Alt+T` global keyboard shortcut trigger.
+- [x] Universal school calculator with Shunting-Yard math evaluator and calculation history tape.
+- [x] Quick student admission number / name lookup with branch scoping.
+- [x] Scratchpad with persistent user- and branch-isolated `localStorage` notes.
+- [x] 12/12 unit tests passing in `tests/unit/quick-tools.spec.ts`; 0 typecheck, lint, or build errors.
+
 
