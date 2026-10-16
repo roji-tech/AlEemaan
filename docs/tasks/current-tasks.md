@@ -30,7 +30,7 @@
 | 0017 | [`0017-p2d-results-screens.md`](0017-p2d-results-screens.md) | P2d: the Results screens | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #41](https://github.com/roji-tech/AlEemaan/pull/41) (`claude/p2d-results-screens`) |
 | 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) (`claude/p2e-settings-approvals`) |
 | 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions`) |
-| 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | `claude/pwa-and-quick-tools` |
+| 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) (`claude/pwa-and-quick-tools`) |
 
 ---
 
