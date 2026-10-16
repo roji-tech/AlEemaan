@@ -45,7 +45,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0018 | P2e | Settings + Approvals layer, CA schemes, report layouts, self-approval toggle | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) | Passing |
 | 0019 | — | Attendance permissions (arm-scoped teacher role & grants with backfill) | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) | Passing |
 | 0020 | — | PWA Foundation & Global Quick-Tools Dock | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) | Passing |
-| 0021 | P3 | Timetable Canvas & Announcements Broadcast | `claude/p3-timetable-announcements` | Passing (unit, API, E2E a11y) |
+| 0021 | P3 | Timetable Canvas & Announcements Broadcast | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) | Passing (unit, API, E2E a11y) |
 
 ---
 

@@ -4,7 +4,7 @@
 - **Status:** [x] Completed
 - **Priority:** High
 - **Assignee:** Antigravity / Engineering Team
-- **Target Branch / PR:** `claude/p3-timetable-announcements` -> `dev`
+- **Target Branch / PR:** [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) (`claude/p3-timetable-announcements` -> `dev`)
 - **Started:** 2026-10-16 16:30:00 UTC
 - **Ended:** 2026-10-16 20:30:00 UTC
 - **Duration:** ~4 hours

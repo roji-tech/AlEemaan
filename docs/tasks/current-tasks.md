@@ -31,7 +31,7 @@
 | 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) (`claude/p2e-settings-approvals`) |
 | 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions`) |
 | 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) (`claude/pwa-and-quick-tools`) |
-| 0021 | [`0021-p3-timetable-and-announcements.md`](0021-p3-timetable-and-announcements.md) | Slice P3: Timetable Canvas & Announcements Broadcast | Completed | 2026-10-16 UTC | 2026-10-16 UTC | `claude/p3-timetable-announcements` |
+| 0021 | [`0021-p3-timetable-and-announcements.md`](0021-p3-timetable-and-announcements.md) | Slice P3: Timetable Canvas & Announcements Broadcast | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) (`claude/p3-timetable-announcements`) |
 
 ---
 
