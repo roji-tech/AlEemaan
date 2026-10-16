@@ -4,7 +4,7 @@
 - **Status:** [x] Completed
 - **Priority:** High
 - **Assignee:** Antigravity / Engineering Team
-- **Target Branch / PR:** `claude/p4-finance-billing` -> `dev`
+- **Target Branch / PR:** [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing` -> `dev`)
 - **Started:** 2026-10-16 22:50:00 UTC
 - **Ended:** 2026-10-16 23:20:00 UTC
 - **Duration:** 30m
