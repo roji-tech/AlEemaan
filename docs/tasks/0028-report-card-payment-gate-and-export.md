@@ -4,7 +4,7 @@
 - **Status:** Complete
 - **Priority:** High
 - **Assignee:** Antigravity Agent
-- **Target Branch / PR:** `claude/task-0028-report-card-payment-gate-and-export`
+- **Target Branch / PR:** [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) (`claude/task-0028-report-card-payment-gate-and-export` -> `dev`)
 - **Started:** 2026-10-18 00:15:00 UTC
 - **Ended:** 2026-10-18 00:28:00 UTC
 - **Duration:** 13 minutes

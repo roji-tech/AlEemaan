@@ -52,7 +52,8 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0025 | P7 | Next-Term Student Promotion & Academic Rollover | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) | Passing (unit 19/19, API 2/2, E2E a11y 3/3) |
 | 0026 | P8 | Parent & Student Self-Service Portal | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal`) | Passing (unit 14/14, API 11/11, E2E a11y 1/1) |
 | 0027 | — | UI History Dialog in Review Tab & Results Branch Sync | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) (`claude/task-0027-review-history-dialog`) | Passing (unit 306/306, API 9/9, E2E 13/13) |
-| 0028 | — | Report Card Payment Gate & Standalone Document Export | `claude/task-0028-report-card-payment-gate-and-export` | Passing (unit 308/308, build 72/72 routes) |
+| 0028 | — | Report Card Payment Gate & Standalone Document Export | [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) (`claude/task-0028-report-card-payment-gate-and-export`) | Passing (unit 308/308, build 72/72 routes) |
+
 
 ---
 
