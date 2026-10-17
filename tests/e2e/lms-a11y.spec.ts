@@ -37,9 +37,7 @@ test.beforeEach(async () => {
 });
 
 test.describe("Slice P5 — LMS & Coursework Accessibility & Interactive Workflows", () => {
-  test("renders Coursework LMS Console, tests tabs, modals, speed grader, and passes WCAG 2.2 AA", async ({
-    page,
-  }) => {
+  test("renders Coursework LMS Console, tests tabs, modals, speed grader, and passes WCAG 2.2 AA", async ({ page }) => {
     const branch = await seedInstance();
     const admin = await createUser({ role: Role.ADMIN, name: "LMS Admin", superAdmin: false });
 

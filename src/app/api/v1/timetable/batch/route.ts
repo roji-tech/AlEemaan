@@ -34,9 +34,7 @@ export const POST = withAuth(
       return ok({ count: result.length, slots: result }, {}, 201);
     } catch (error) {
       if (error instanceof TimetableClashError) {
-        return fail(error.message, 409, "SCHEDULE_CLASH", [
-          { path: "clashes", message: JSON.stringify(error.clashes) },
-        ]);
+        return fail(error.message, 409, "SCHEDULE_CLASH", [{ path: "clashes", message: JSON.stringify(error.clashes) }]);
       }
       console.error("[TIMETABLE_BATCH_ERROR]", error);
       return fail("Unable to process batch timetable slots", 500, "INTERNAL");

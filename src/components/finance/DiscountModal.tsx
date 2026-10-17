@@ -14,15 +14,7 @@ export interface DiscountModalProps {
   totalAmount: number;
 }
 
-export function DiscountModal({
-  isOpen,
-  onClose,
-  onSaved,
-  branchId,
-  invoiceId,
-  invoiceNo,
-  totalAmount,
-}: DiscountModalProps) {
+export function DiscountModal({ isOpen, onClose, onSaved, branchId, invoiceId, invoiceNo, totalAmount }: DiscountModalProps) {
   const formId = useId();
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");

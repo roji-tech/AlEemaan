@@ -13,11 +13,7 @@ interface QuickToolsDrawerProps {
   initialTool?: QuickToolId;
 }
 
-export function QuickToolsDrawer({
-  open,
-  onClose,
-  initialTool = "calculator",
-}: QuickToolsDrawerProps) {
+export function QuickToolsDrawer({ open, onClose, initialTool = "calculator" }: QuickToolsDrawerProps) {
   const [selectedTool, setSelectedTool] = useState<QuickToolId | null>(null);
   const activeTool = selectedTool ?? initialTool;
 
@@ -61,11 +57,7 @@ export function QuickToolsDrawer({
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
     >
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={onClose} aria-hidden="true" />
 
       {/* Drawer / Bottom Sheet Container */}
       <div className="relative z-10 flex max-h-[90vh] sm:max-h-[85vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-3xl border border-line bg-surface shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
@@ -94,9 +86,7 @@ export function QuickToolsDrawer({
                   type="button"
                   onClick={() => setSelectedTool(t.id)}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
-                    selected
-                      ? "bg-surface text-fg shadow-xs ring-1 ring-line"
-                      : "text-fg-muted hover:text-fg"
+                    selected ? "bg-surface text-fg shadow-xs ring-1 ring-line" : "text-fg-muted hover:text-fg"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />

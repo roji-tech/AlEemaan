@@ -14,15 +14,7 @@ export interface TimetableCanvasProps {
   onRefresh: () => void;
 }
 
-export function TimetableCanvas({
-  branchId,
-  slots,
-  classArms,
-  subjects,
-  teachers,
-  readOnly = false,
-  onRefresh,
-}: TimetableCanvasProps) {
+export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers, readOnly = false, onRefresh }: TimetableCanvasProps) {
   const [selectedArmId, setSelectedArmId] = useState<string>("ALL");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -82,7 +74,9 @@ export function TimetableCanvas({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div>
-            <label htmlFor="filter-arm" className="sr-only">Filter by Class Arm</label>
+            <label htmlFor="filter-arm" className="sr-only">
+              Filter by Class Arm
+            </label>
             <select
               id="filter-arm"
               value={selectedArmId}
@@ -99,7 +93,9 @@ export function TimetableCanvas({
           </div>
 
           <div>
-            <label htmlFor="filter-teacher" className="sr-only">Filter by Teacher</label>
+            <label htmlFor="filter-teacher" className="sr-only">
+              Filter by Teacher
+            </label>
             <select
               id="filter-teacher"
               value={selectedTeacherId}
@@ -152,15 +148,10 @@ export function TimetableCanvas({
       {viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-5 gap-4">
           {activeDays.map((day) => {
-            const daySlots = filteredSlots
-              .filter((s) => s.dayOfWeek === day)
-              .sort((a, b) => a.startTime.localeCompare(b.startTime));
+            const daySlots = filteredSlots.filter((s) => s.dayOfWeek === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
             return (
-              <div
-                key={day}
-                className="flex flex-col rounded-2xl border border-line bg-surface overflow-hidden min-h-87.5 shadow-sm"
-              >
+              <div key={day} className="flex flex-col rounded-2xl border border-line bg-surface overflow-hidden min-h-87.5 shadow-sm">
                 {/* Day Header */}
                 <div className="flex items-center justify-between border-b border-line bg-surface-2 px-3 py-2.5">
                   <div className="flex items-center gap-2">
@@ -185,9 +176,7 @@ export function TimetableCanvas({
                 {/* Day Slots List */}
                 <div className="flex-1 p-2 space-y-2 overflow-y-auto">
                   {daySlots.length === 0 ? (
-                    <div className="flex h-32 items-center justify-center text-xs text-fg-muted italic">
-                      No periods scheduled
-                    </div>
+                    <div className="flex h-32 items-center justify-center text-xs text-fg-muted italic">No periods scheduled</div>
                   ) : (
                     daySlots.map((slot) => {
                       const isClashing = clashSlotIds.has(slot.id);
@@ -217,29 +206,23 @@ export function TimetableCanvas({
 
                           <div className="text-xs font-semibold text-fg flex items-center justify-between">
                             <span>{slot.subject?.name ?? "Subject"}</span>
-                            {slot.periodNumber && (
-                              <span className="text-[10px] text-fg-muted">P{slot.periodNumber}</span>
-                            )}
+                            {slot.periodNumber && <span className="text-[10px] text-fg-muted">P{slot.periodNumber}</span>}
                           </div>
 
                           <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-brand-fg">
-                            <span>⏱ {slot.startTime} – {slot.endTime}</span>
+                            <span>
+                              ⏱ {slot.startTime} – {slot.endTime}
+                            </span>
                           </div>
 
                           <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] text-fg-muted">
-                            <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">
-                              {slot.classArm?.name ?? "Arm"}
-                            </span>
+                            <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">{slot.classArm?.name ?? "Arm"}</span>
                             {slot.staffRecord && (
                               <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">
                                 👤 {slot.staffRecord.firstName} {slot.staffRecord.lastName}
                               </span>
                             )}
-                            {slot.room && (
-                              <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">
-                                📍 {slot.room}
-                              </span>
-                            )}
+                            {slot.room && <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">📍 {slot.room}</span>}
                           </div>
                         </div>
                       );
@@ -287,11 +270,7 @@ export function TimetableCanvas({
                       <td className="px-4 py-3">{slot.periodNumber ? `P${slot.periodNumber}` : "—"}</td>
                       <td className="px-4 py-3">{slot.classArm?.name ?? "—"}</td>
                       <td className="px-4 py-3 font-semibold">{slot.subject?.name ?? "—"}</td>
-                      <td className="px-4 py-3">
-                        {slot.staffRecord
-                          ? `${slot.staffRecord.firstName} ${slot.staffRecord.lastName}`
-                          : "—"}
-                      </td>
+                      <td className="px-4 py-3">{slot.staffRecord ? `${slot.staffRecord.firstName} ${slot.staffRecord.lastName}` : "—"}</td>
                       <td className="px-4 py-3">{slot.room ?? "—"}</td>
                       <td className="px-4 py-3">
                         {isClashing ? (

@@ -58,9 +58,7 @@ export function AnnouncementComposerModal({
   const [classArmId, setClassArmId] = useState<string>(initialAnnouncement?.classArmId ?? "");
   const [status, setStatus] = useState<AnnouncementStatus>(initialAnnouncement?.status ?? AnnouncementStatus.PUBLISHED);
   const [isPinned, setIsPinned] = useState<boolean>(initialAnnouncement?.isPinned ?? false);
-  const [expiresAt, setExpiresAt] = useState<string>(
-    initialAnnouncement?.expiresAt ? initialAnnouncement.expiresAt.slice(0, 10) : "",
-  );
+  const [expiresAt, setExpiresAt] = useState<string>(initialAnnouncement?.expiresAt ? initialAnnouncement.expiresAt.slice(0, 10) : "");
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -204,9 +202,7 @@ export function AnnouncementComposerModal({
 
           {/* Audience Roles Selection */}
           <div>
-            <label className="block text-xs font-medium text-fg-muted mb-1.5">
-              Target Audience Roles (Leave empty for Everyone)
-            </label>
+            <label className="block text-xs font-medium text-fg-muted mb-1.5">Target Audience Roles (Leave empty for Everyone)</label>
             <div className="flex flex-wrap gap-2">
               {TARGETABLE_ROLES.map(({ role, label }) => {
                 const isSelected = targetRoles.includes(role);
@@ -216,9 +212,7 @@ export function AnnouncementComposerModal({
                     type="button"
                     onClick={() => toggleRole(role)}
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium border transition ${
-                      isSelected
-                        ? "border-brand-fg bg-brand/10 text-brand-fg"
-                        : "border-line bg-field text-fg-muted hover:text-fg"
+                      isSelected ? "border-brand-fg bg-brand/10 text-brand-fg" : "border-line bg-field text-fg-muted hover:text-fg"
                     }`}
                   >
                     {isSelected ? `✓ ${label}` : `+ ${label}`}
@@ -307,7 +301,9 @@ export function AnnouncementComposerModal({
               >
                 {deleting ? "Deleting..." : "Delete"}
               </button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
 
             <div className="flex items-center gap-2">
               <button

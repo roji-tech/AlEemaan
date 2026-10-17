@@ -58,10 +58,7 @@ export async function listTemplates(branchId: string, query?: QueryTemplatesInpu
     ...(query?.channel ? { channel: query.channel } : {}),
     ...(query?.search
       ? {
-          OR: [
-            { name: { contains: query.search, mode: "insensitive" } },
-            { code: { contains: query.search, mode: "insensitive" } },
-          ],
+          OR: [{ name: { contains: query.search, mode: "insensitive" } }, { code: { contains: query.search, mode: "insensitive" } }],
         }
       : {}),
   };
@@ -145,11 +142,7 @@ export async function createTemplate(branchId: string, input: CreateTemplateInpu
 /**
  * Update an existing template.
  */
-export async function updateTemplate(
-  branchId: string,
-  id: string,
-  input: UpdateTemplateInput,
-): Promise<TemplateListItem> {
+export async function updateTemplate(branchId: string, id: string, input: UpdateTemplateInput): Promise<TemplateListItem> {
   const t = await prisma.notificationTemplate.update({
     where: {
       branchId_id: { branchId, id },
@@ -427,9 +420,7 @@ export async function broadcastMessage(
   }
 
   // Deduplicate by recipient address
-  const uniqueRecipients = Array.from(
-    new Map(recipients.map((r) => [r.address.toLowerCase(), r])).values(),
-  );
+  const uniqueRecipients = Array.from(new Map(recipients.map((r) => [r.address.toLowerCase(), r])).values());
 
   if (uniqueRecipients.length === 0) {
     return { count: 0, dispatches: [] };

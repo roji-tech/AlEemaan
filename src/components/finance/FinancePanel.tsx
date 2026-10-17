@@ -12,15 +12,8 @@ export interface FinancePanelProps {
   userBranchId?: string | null;
 }
 
-export function FinancePanel({
-  branches,
-  isSuperAdmin = false,
-  canManage = true,
-  userBranchId,
-}: FinancePanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(
-    userBranchId || branches[0]?.id || ""
-  );
+export function FinancePanel({ branches, isSuperAdmin = false, canManage = true, userBranchId }: FinancePanelProps) {
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
   const [activeTab, setActiveTab] = useState<"invoices" | "fee_structures">("invoices");
 
   const [invoices, setInvoices] = useState<InvoiceItemSummary[]>([]);
@@ -116,9 +109,7 @@ export function FinancePanel({
           aria-selected={activeTab === "invoices"}
           onClick={() => setActiveTab("invoices")}
           className={`pb-3 px-1 border-b-2 transition ${
-            activeTab === "invoices"
-              ? "border-brand-strong text-fg font-bold"
-              : "border-transparent text-fg-muted hover:text-fg"
+            activeTab === "invoices" ? "border-brand-strong text-fg font-bold" : "border-transparent text-fg-muted hover:text-fg"
           }`}
         >
           Student Invoices & Payments
@@ -129,9 +120,7 @@ export function FinancePanel({
           aria-selected={activeTab === "fee_structures"}
           onClick={() => setActiveTab("fee_structures")}
           className={`pb-3 px-1 border-b-2 transition ${
-            activeTab === "fee_structures"
-              ? "border-brand-strong text-fg font-bold"
-              : "border-transparent text-fg-muted hover:text-fg"
+            activeTab === "fee_structures" ? "border-brand-strong text-fg font-bold" : "border-transparent text-fg-muted hover:text-fg"
           }`}
         >
           Fee Schedules & Structures

@@ -57,13 +57,7 @@ export interface InvoiceDetailModalProps {
   onRefresh: () => void;
 }
 
-export function InvoiceDetailModal({
-  isOpen,
-  onClose,
-  invoice,
-  canManage = true,
-  onRefresh,
-}: InvoiceDetailModalProps) {
+export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true, onRefresh }: InvoiceDetailModalProps) {
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
 
@@ -91,9 +85,8 @@ export function InvoiceDetailModal({
                 {invoice.student.firstName} {invoice.student.lastName}
               </p>
               <p className="text-xs text-fg-muted mt-0.5">
-                Adm No: <span className="font-mono text-fg">{invoice.student.admissionNo}</span> •{" "}
-                {invoice.period.branch?.name ?? "Branch"} • {invoice.period.label} (
-                {invoice.period.session?.label ?? ""})
+                Adm No: <span className="font-mono text-fg">{invoice.student.admissionNo}</span> • {invoice.period.branch?.name ?? "Branch"}{" "}
+                • {invoice.period.label} ({invoice.period.session?.label ?? ""})
               </p>
             </div>
             <div>
@@ -108,14 +101,10 @@ export function InvoiceDetailModal({
                 </span>
               )}
               {!isPaid && !isPartial && !isWaived && (
-                <span className="rounded-full bg-red-500/20 border border-red-500/30 px-3 py-1 text-xs font-bold text-red-400">
-                  UNPAID
-                </span>
+                <span className="rounded-full bg-red-500/20 border border-red-500/30 px-3 py-1 text-xs font-bold text-red-400">UNPAID</span>
               )}
               {isWaived && (
-                <span className="rounded-full bg-surface border border-line px-3 py-1 text-xs font-bold text-fg-muted">
-                  WAIVED
-                </span>
+                <span className="rounded-full bg-surface border border-line px-3 py-1 text-xs font-bold text-fg-muted">WAIVED</span>
               )}
             </div>
           </div>
@@ -175,10 +164,7 @@ export function InvoiceDetailModal({
             ) : (
               <div className="space-y-2">
                 {invoice.payments.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between rounded-xl border border-line bg-surface p-3 text-xs"
-                  >
+                  <div key={p.id} className="flex items-center justify-between rounded-xl border border-line bg-surface p-3 text-xs">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-fg">{p.receiptNo || "No Receipt #"}</span>

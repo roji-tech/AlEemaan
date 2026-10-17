@@ -3,7 +3,10 @@ import { AssignmentStatus, SubmissionStatus, QuizStatus, Prisma } from "@prisma/
 import { resolveSubmissionStatus, evaluateQuizAttempt, type QuizAnswerItem } from "./rules";
 
 export class LmsError extends Error {
-  constructor(message: string, public statusCode: number = 400) {
+  constructor(
+    message: string,
+    public statusCode: number = 400,
+  ) {
     super(message);
     this.name = "LmsError";
   }
@@ -64,10 +67,7 @@ export async function createAssignment(params: CreateAssignmentParams) {
   });
 }
 
-export async function listAssignments(
-  branchId: string,
-  filter?: { subjectId?: string; classGroupId?: string; status?: AssignmentStatus }
-) {
+export async function listAssignments(branchId: string, filter?: { subjectId?: string; classGroupId?: string; status?: AssignmentStatus }) {
   return prisma.assignment.findMany({
     where: {
       branchId,
@@ -108,11 +108,7 @@ export async function getAssignmentById(branchId: string, id: string) {
   return assignment;
 }
 
-export async function updateAssignment(
-  branchId: string,
-  id: string,
-  data: Partial<CreateAssignmentParams>
-) {
+export async function updateAssignment(branchId: string, id: string, data: Partial<CreateAssignmentParams>) {
   await getAssignmentById(branchId, id);
 
   return prisma.assignment.update({
@@ -149,12 +145,7 @@ export interface SubmitAssignmentParams {
   attachments?: { title: string; url: string }[];
 }
 
-export async function submitAssignment(
-  branchId: string,
-  assignmentId: string,
-  studentId: string,
-  params: SubmitAssignmentParams
-) {
+export async function submitAssignment(branchId: string, assignmentId: string, studentId: string, params: SubmitAssignmentParams) {
   const assignment = await getAssignmentById(branchId, assignmentId);
   const now = new Date();
 
@@ -197,7 +188,7 @@ export async function gradeSubmission(
   assignmentId: string,
   submissionId: string,
   data: { score: number; feedback?: string | null; status?: SubmissionStatus },
-  staffId?: string | null
+  staffId?: string | null,
 ) {
   const submission = await prisma.assignmentSubmission.findFirst({
     where: { id: submissionId, assignmentId, branchId },
@@ -278,10 +269,7 @@ export async function createMaterial(params: CreateMaterialParams) {
   });
 }
 
-export async function listMaterials(
-  branchId: string,
-  filter?: { subjectId?: string; classGroupId?: string }
-) {
+export async function listMaterials(branchId: string, filter?: { subjectId?: string; classGroupId?: string }) {
   return prisma.learningMaterial.findMany({
     where: {
       branchId,
@@ -312,11 +300,7 @@ export async function getMaterialById(branchId: string, id: string) {
   return material;
 }
 
-export async function updateMaterial(
-  branchId: string,
-  id: string,
-  data: Partial<CreateMaterialParams>
-) {
+export async function updateMaterial(branchId: string, id: string, data: Partial<CreateMaterialParams>) {
   await getMaterialById(branchId, id);
 
   return prisma.learningMaterial.update({
@@ -406,10 +390,7 @@ export async function createQuiz(params: CreateQuizParams) {
   });
 }
 
-export async function listQuizzes(
-  branchId: string,
-  filter?: { subjectId?: string; status?: QuizStatus }
-) {
+export async function listQuizzes(branchId: string, filter?: { subjectId?: string; status?: QuizStatus }) {
   return prisma.quiz.findMany({
     where: {
       branchId,
@@ -458,12 +439,7 @@ export async function archiveQuiz(branchId: string, id: string) {
   });
 }
 
-export async function attemptQuiz(
-  branchId: string,
-  quizId: string,
-  studentId: string,
-  answers: QuizAnswerItem[]
-) {
+export async function attemptQuiz(branchId: string, quizId: string, studentId: string, answers: QuizAnswerItem[]) {
   const quiz = await getQuizById(branchId, quizId);
   const questions = quiz.questions.map((q) => ({
     id: q.id,

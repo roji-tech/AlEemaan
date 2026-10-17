@@ -23,15 +23,7 @@ export interface FeeStructureModalProps {
   initialItem?: FeeStructureItem | null;
 }
 
-export function FeeStructureModal({
-  isOpen,
-  onClose,
-  onSaved,
-  branchId,
-  periods,
-  classGroups,
-  initialItem,
-}: FeeStructureModalProps) {
+export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods, classGroups, initialItem }: FeeStructureModalProps) {
   const formId = useId();
   const [name, setName] = useState(initialItem?.name ?? "");
   const [amount, setAmount] = useState(initialItem ? String(initialItem.amount) : "");
@@ -62,9 +54,7 @@ export function FeeStructureModal({
     setError(null);
 
     try {
-      const url = initialItem
-        ? `/api/v1/finance/fee-structures/${initialItem.id}?branchId=${branchId}`
-        : "/api/v1/finance/fee-structures";
+      const url = initialItem ? `/api/v1/finance/fee-structures/${initialItem.id}?branchId=${branchId}` : "/api/v1/finance/fee-structures";
       const method = initialItem ? "PATCH" : "POST";
 
       const res = await fetch(url, {
@@ -94,11 +84,7 @@ export function FeeStructureModal({
   }
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      title={initialItem ? "Edit Fee Structure Item" : "Create New Fee Structure Item"}
-    >
+    <Dialog open={isOpen} onClose={onClose} title={initialItem ? "Edit Fee Structure Item" : "Create New Fee Structure Item"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500" role="alert">

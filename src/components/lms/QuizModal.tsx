@@ -20,14 +20,7 @@ interface QuestionDraft {
   points: number;
 }
 
-export function QuizModal({
-  isOpen,
-  onClose,
-  onSuccess,
-  branchId,
-  subjects,
-  classGroups,
-}: QuizModalProps) {
+export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups }: QuizModalProps) {
   const [title, setTitle] = useState("");
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
   const [classGroupId, setClassGroupId] = useState("");
@@ -82,9 +75,7 @@ export function QuizModal({
   };
 
   const updateQuestion = (idx: number, patch: Partial<QuestionDraft>) => {
-    setQuestions((prev) =>
-      prev.map((q, i) => (i === idx ? { ...q, ...patch } : q))
-    );
+    setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -152,10 +143,7 @@ export function QuizModal({
     <Dialog open={isOpen} onClose={onClose} title="Create Interactive Quiz / Test">
       <form onSubmit={handleSubmit} className="space-y-5 max-h-[75vh] overflow-y-auto px-1">
         {error && (
-          <div
-            role="alert"
-            className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-          >
+          <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
             {error}
           </div>
         )}
@@ -226,9 +214,7 @@ export function QuizModal({
               max={360}
               placeholder="30"
               value={timeLimitMinutes}
-              onChange={(e) =>
-                setTimeLimitMinutes(e.target.value ? Number(e.target.value) : "")
-              }
+              onChange={(e) => setTimeLimitMinutes(e.target.value ? Number(e.target.value) : "")}
               className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -244,9 +230,7 @@ export function QuizModal({
               max={100}
               placeholder="60"
               value={passingScore}
-              onChange={(e) =>
-                setPassingScore(e.target.value ? Number(e.target.value) : "")
-              }
+              onChange={(e) => setPassingScore(e.target.value ? Number(e.target.value) : "")}
               className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -285,30 +269,17 @@ export function QuizModal({
         <div className="pt-4 border-t border-border space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-foreground">Questions ({questions.length})</h4>
-            <button
-              type="button"
-              onClick={handleAddQuestion}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
+            <button type="button" onClick={handleAddQuestion} className="text-xs font-semibold text-primary hover:underline">
               + Add Question
             </button>
           </div>
 
           {questions.map((q, idx) => (
-            <div
-              key={idx}
-              className="p-4 rounded-xl border border-border bg-card space-y-3"
-            >
+            <div key={idx} className="p-4 rounded-xl border border-border bg-card space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted-foreground">
-                  Question #{idx + 1}
-                </span>
+                <span className="text-xs font-bold text-muted-foreground">Question #{idx + 1}</span>
                 {questions.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveQuestion(idx)}
-                    className="text-xs text-destructive hover:underline"
-                  >
+                  <button type="button" onClick={() => handleRemoveQuestion(idx)} className="text-xs text-destructive hover:underline">
                     Remove
                   </button>
                 )}
@@ -370,9 +341,7 @@ export function QuizModal({
                     type="number"
                     min={1}
                     value={q.points}
-                    onChange={(e) =>
-                      updateQuestion(idx, { points: Number(e.target.value) || 1 })
-                    }
+                    onChange={(e) => updateQuestion(idx, { points: Number(e.target.value) || 1 })}
                     className="w-full rounded-md border border-input bg-background px-2 py-1 shadow-sm"
                   />
                 </div>
@@ -381,9 +350,7 @@ export function QuizModal({
               {/* Options for MULTIPLE_CHOICE */}
               {q.questionType === "MULTIPLE_CHOICE" && (
                 <div className="space-y-2 pt-2">
-                  <span className="text-xs font-medium text-foreground block">
-                    Options & Correct Answer:
-                  </span>
+                  <span className="text-xs font-medium text-foreground block">Options & Correct Answer:</span>
                   {q.options.map((opt, oIdx) => (
                     <div key={opt.id} className="flex items-center gap-2">
                       <input
@@ -451,9 +418,7 @@ export function QuizModal({
               {/* Input for SHORT_ANSWER */}
               {q.questionType === "SHORT_ANSWER" && (
                 <div className="pt-1">
-                  <label className="block text-xs text-muted-foreground mb-1">
-                    Expected exact keyword or phrase
-                  </label>
+                  <label className="block text-xs text-muted-foreground mb-1">Expected exact keyword or phrase</label>
                   <input
                     type="text"
                     required

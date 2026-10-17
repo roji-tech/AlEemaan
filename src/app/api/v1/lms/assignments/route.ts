@@ -34,7 +34,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve assignments", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.STUDENT, Role.PARENT] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.STUDENT, Role.PARENT] },
 );
 
 /**
@@ -61,5 +61,5 @@ export const POST = withAuth(
       return fail("Unable to create assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );

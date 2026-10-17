@@ -37,9 +37,7 @@ test.beforeEach(async () => {
 });
 
 test.describe("Slice P6 — Multi-Channel Communication Console & WCAG 2.2 AA", () => {
-  test("renders Communication Console, navigates tabs, composes broadcast, and passes WCAG 2.2 AA", async ({
-    page,
-  }) => {
+  test("renders Communication Console, navigates tabs, composes broadcast, and passes WCAG 2.2 AA", async ({ page }) => {
     const admin = await createUser({ role: Role.ADMIN, name: "Comm Admin", superAdmin: false });
 
     // 1. Sign in as admin

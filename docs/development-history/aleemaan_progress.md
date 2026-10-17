@@ -271,4 +271,19 @@ Adapted legacy golden promotion rules into AlEemaan's modernized single-tenant m
 4. **REST Endpoints:** 4 endpoints under `/api/v1/academics/promotion/` (`preview`, `execute`, `batches`, `batches/[id]`).
 5. **UI & WCAG 2.2 AA Accessibility:** Accessible `PromotionConsole`, `PromotionPreviewTable`, `PromotionConfirmModal`, `PromotionHistoryView` with semantic high contrast tokens. Verified 100% with Axe on desktop and mobile.
 
+---
+
+## Slice P8 — Parent & Student Self-Service Portal (Task 0026, 2026-10-17)
+**100% Built and Verified ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52) on branch `claude/p8-parent-student-portal`).**
+Established a dedicated, mobile-first, WCAG 2.2 AA compliant self-service portal (`/portal`) for parents, guardians, and students:
+1. **Authentication & Session Isolation:** Strict child-ownership enforcement (ADR 0012). Dual login paths: passwordless 1-tap entry via `GuardianLinkToken` and direct credential verification (admission number + date of birth or guardian phone). Stateless HMAC-signed session cookies with 30-day sliding expiry.
+2. **Sibling Switcher:** Automatic discovery and multi-child selector allowing parents with multiple enrolled students across branches/classes to toggle between children seamlessly without re-authenticating.
+3. **Unified Single-Pane Capabilities:**
+   - **Overview:** Attendance rates, enrolled class & arm, emergency contact details, recent broadcast announcements.
+   - **Results & Report Cards:** Published and locked term results with subject breakdowns, CA/exam components, WAEC grades, class teacher and principal remarks.
+   - **Finance & Fee Clearance:** Itemized invoice list, outstanding balance, past payment receipts, and direct Paystack payment link initialization.
+   - **Coursework & Learning (LMS):** Published class assignments with due dates, maximum points, homework descriptions, and subject learning materials.
+4. **API Endpoints:** 5 REST endpoints under `/api/v1/portal/` (`session`, `overview`, `results`, `invoices`, `lms`) with strict authorization guards.
+5. **Accessibility & Quality Gates:** Zero Axe violations across desktop and mobile viewports. 0 TypeScript errors, 0 ESLint warnings, 14 unit tests, 11 API integration tests, and 1 comprehensive E2E journey test.
+
 

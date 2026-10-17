@@ -39,9 +39,7 @@ test.beforeEach(async () => {
 });
 
 test.describe("Slice P7 — Student Promotion & Academic Rollover UI & WCAG 2.2 AA", () => {
-  test("renders Promotion console, calculates preview, manages overrides, verifies modal, and passes WCAG 2.2 AA", async ({
-    page,
-  }) => {
+  test("renders Promotion console, calculates preview, manages overrides, verifies modal, and passes WCAG 2.2 AA", async ({ page }) => {
     // 1. Create Admin
     const admin = await createUser({ role: Role.ADMIN, name: "Academic Admin", superAdmin: false });
     const branch = await db.branch.findFirstOrThrow();

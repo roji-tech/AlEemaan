@@ -29,12 +29,8 @@ export interface ClassArmMinimal {
  * Per legacy specification (§4.6): average of averages across all term result documents found (1, 2, or 3).
  * Returns null if no valid term averages exist.
  */
-export function computeStudentSessionAverage(
-  termAverages: (number | null | undefined)[]
-): number | null {
-  const validScores = termAverages.filter(
-    (score): score is number => typeof score === "number" && !Number.isNaN(score)
-  );
+export function computeStudentSessionAverage(termAverages: (number | null | undefined)[]): number | null {
+  const validScores = termAverages.filter((score): score is number => typeof score === "number" && !Number.isNaN(score));
 
   if (validScores.length === 0) {
     return null;
@@ -51,7 +47,7 @@ export function computeStudentSessionAverage(
 export function evaluatePromotionRecommendation(
   overallAverage: number | null,
   isTerminalClass: boolean,
-  passMark: number = DEFAULT_PASS_MARK
+  passMark: number = DEFAULT_PASS_MARK,
 ): EvaluationResult {
   if (overallAverage === null) {
     return {
@@ -86,18 +82,14 @@ export function evaluatePromotionRecommendation(
  */
 export function resolveNextClassGroup(
   currentClass: ClassGroupMinimal,
-  allClasses: ClassGroupMinimal[]
+  allClasses: ClassGroupMinimal[],
 ): {
   nextClass: ClassGroupMinimal | null;
   isTerminalClass: boolean;
 } {
-  const activeClasses = allClasses
-    .filter((c) => !c.archivedAt && c.id !== currentClass.id)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const activeClasses = allClasses.filter((c) => !c.archivedAt && c.id !== currentClass.id).sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const higherClasses = activeClasses.filter(
-    (c) => c.sortOrder > currentClass.sortOrder
-  );
+  const higherClasses = activeClasses.filter((c) => c.sortOrder > currentClass.sortOrder);
 
   if (higherClasses.length === 0) {
     return {
@@ -116,10 +108,7 @@ export function resolveNextClassGroup(
  * Resolves target class arm for promoted students.
  * Matches arm name if exists in target class (e.g. "Gold" -> "Gold"), otherwise falls back to first arm.
  */
-export function resolveTargetArm(
-  sourceArmName: string | null | undefined,
-  targetArms: ClassArmMinimal[]
-): string | null {
+export function resolveTargetArm(sourceArmName: string | null | undefined, targetArms: ClassArmMinimal[]): string | null {
   if (targetArms.length === 0) {
     return null;
   }
@@ -139,9 +128,7 @@ export function resolveTargetArm(
  * Validates whether the branch's active period is the final period of the session.
  * Promotion is gated to the final term (e.g. 3rd Term for 3-term sessions, 2nd Term for 2-term sessions).
  */
-export function validateSessionPromotionEligibility(
-  periods: { ordinal: number; isCurrent: boolean }[]
-): {
+export function validateSessionPromotionEligibility(periods: { ordinal: number; isCurrent: boolean }[]): {
   eligible: boolean;
   finalPeriodOrdinal: number;
   reason?: string;

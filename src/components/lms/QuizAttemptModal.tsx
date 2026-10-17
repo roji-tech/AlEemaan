@@ -45,9 +45,7 @@ export function QuizAttemptModal({
   onComplete,
 }: QuizAttemptModalProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number | null>(
-    timeLimitMinutes ? timeLimitMinutes * 60 : null
-  );
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number | null>(timeLimitMinutes ? timeLimitMinutes * 60 : null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AttemptResult | null>(null);
@@ -132,14 +130,10 @@ export function QuizAttemptModal({
               {result.passed ? "Assessment Passed!" : "Assessment Incomplete / Try Again"}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              You scored <span className="font-semibold text-foreground">{result.score}</span> out
-              of {result.totalPoints} points ({result.percentageScore}%).
+              You scored <span className="font-semibold text-foreground">{result.score}</span> out of {result.totalPoints} points (
+              {result.percentageScore}%).
             </p>
-            {passingScore !== null && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Required passing grade: {passingScore}%
-              </p>
-            )}
+            {passingScore !== null && <p className="text-xs text-muted-foreground mt-0.5">Required passing grade: {passingScore}%</p>}
           </div>
 
           <div className="pt-4 border-t border-border flex justify-center">
@@ -155,10 +149,7 @@ export function QuizAttemptModal({
       ) : (
         <div className="space-y-6 max-h-[75vh] overflow-y-auto px-1">
           {error && (
-            <div
-              role="alert"
-              className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-            >
+            <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
               {error}
             </div>
           )}
@@ -166,11 +157,7 @@ export function QuizAttemptModal({
           {timeLeftSeconds !== null && (
             <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
               <span className="font-medium text-primary">Time Remaining:</span>
-              <span
-                className={`font-mono font-bold ${
-                  timeLeftSeconds < 120 ? "text-destructive animate-pulse" : "text-primary"
-                }`}
-              >
+              <span className={`font-mono font-bold ${timeLeftSeconds < 120 ? "text-destructive animate-pulse" : "text-primary"}`}>
                 {formatTimer(timeLeftSeconds)}
               </span>
             </div>
@@ -178,10 +165,7 @@ export function QuizAttemptModal({
 
           <div className="space-y-6">
             {questions.map((q, idx) => (
-              <div
-                key={q.id}
-                className="p-4 rounded-xl border border-border bg-card space-y-3"
-              >
+              <div key={q.id} className="p-4 rounded-xl border border-border bg-card space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="text-sm font-semibold text-foreground">
                     <span className="text-muted-foreground mr-1.5">{idx + 1}.</span>

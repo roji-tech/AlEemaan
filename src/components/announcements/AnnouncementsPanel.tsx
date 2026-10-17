@@ -12,13 +12,7 @@ export interface AnnouncementsPanelProps {
   currentUserId: string;
 }
 
-export function AnnouncementsPanel({
-  branches,
-  isSuperAdmin,
-  canCreate,
-  userBranchId,
-  currentUserId,
-}: AnnouncementsPanelProps) {
+export function AnnouncementsPanel({ branches, isSuperAdmin, canCreate, userBranchId, currentUserId }: AnnouncementsPanelProps) {
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [classArms, setClassArms] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,11 +59,7 @@ export function AnnouncementsPanel({
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-text">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-text">{error}</div>}
 
       <AnnouncementsFeed
         announcements={announcements}

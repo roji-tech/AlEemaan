@@ -33,14 +33,7 @@ export interface InvoicesDashboardProps {
   onRefresh: () => void;
 }
 
-export function InvoicesDashboard({
-  branchId,
-  invoices,
-  periods,
-  classGroups,
-  canManage = true,
-  onRefresh,
-}: InvoicesDashboardProps) {
+export function InvoicesDashboard({ branchId, invoices, periods, classGroups, canManage = true, onRefresh }: InvoicesDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [periodFilter, setPeriodFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -133,9 +126,7 @@ export function InvoicesDashboard({
                 type="button"
                 onClick={() => setStatusFilter(st)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-                  statusFilter === st
-                    ? "bg-brand-strong text-white"
-                    : "text-fg-muted hover:text-fg"
+                  statusFilter === st ? "bg-brand-strong text-white" : "text-fg-muted hover:text-fg"
                 }`}
               >
                 {st === "ALL" ? "All Statuses" : st.replace("_", " ")}
@@ -185,9 +176,7 @@ export function InvoicesDashboard({
       {/* Invoices Roll Table */}
       <div className="rounded-2xl border border-line bg-surface overflow-hidden shadow-sm">
         {filteredInvoices.length === 0 ? (
-          <div className="p-8 text-center text-xs text-fg-muted">
-            No invoices found matching the current filter criteria.
-          </div>
+          <div className="p-8 text-center text-xs text-fg-muted">No invoices found matching the current filter criteria.</div>
         ) : (
           <div className="divide-y divide-line overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -212,12 +201,8 @@ export function InvoicesDashboard({
                     </td>
                     <td className="px-4 py-3 font-mono text-fg-muted">{inv.student.admissionNo}</td>
                     <td className="px-4 py-3 text-fg-muted">{inv.period.label}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-fg">
-                      {formatNaira(inv.totalAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-emerald-400 font-medium">
-                      {formatNaira(inv.amountPaid)}
-                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-fg">{formatNaira(inv.totalAmount)}</td>
+                    <td className="px-4 py-3 text-right text-emerald-400 font-medium">{formatNaira(inv.amountPaid)}</td>
                     <td className="px-4 py-3 text-center">
                       {inv.status === InvoiceStatus.PAID && (
                         <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">

@@ -33,7 +33,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve submissions", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );
 
 /**
@@ -77,5 +77,5 @@ export const POST = withAuth(
       return fail("Unable to submit assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.STUDENT, Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.STUDENT, Role.ADMIN, Role.TEACHING_STAFF] },
 );

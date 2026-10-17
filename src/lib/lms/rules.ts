@@ -12,7 +12,7 @@ export interface SubmissionStatusResolution {
 export function resolveSubmissionStatus(
   dueDate: Date | string | null | undefined,
   allowLate: boolean = true,
-  submittedAt: Date = new Date()
+  submittedAt: Date = new Date(),
 ): SubmissionStatusResolution {
   if (!dueDate) {
     return { status: SubmissionStatus.SUBMITTED, isLate: false, isAllowed: true };
@@ -56,7 +56,7 @@ export interface QuizScoreResult {
 export function evaluateQuizAttempt(
   questions: QuizQuestionItem[],
   answers: QuizAnswerItem[],
-  passingScore?: number | null
+  passingScore?: number | null,
 ): QuizScoreResult {
   const answerMap = new Map<string, string>();
   for (const a of answers) {

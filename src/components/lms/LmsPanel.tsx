@@ -13,14 +13,8 @@ export interface LmsPanelProps {
 
 type TabType = "assignments" | "materials" | "quizzes";
 
-export function LmsPanel({
-  branches,
-  userRole = "ADMIN",
-  userBranchId,
-}: LmsPanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(
-    userBranchId || branches[0]?.id || ""
-  );
+export function LmsPanel({ branches, userRole = "ADMIN", userBranchId }: LmsPanelProps) {
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
   const [activeTab, setActiveTab] = useState<TabType>("assignments");
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
   const [classGroups, setClassGroups] = useState<{ id: string; name: string }[]>([]);
@@ -112,11 +106,7 @@ export function LmsPanel({
 
       {/* Accessible Tab Navigation */}
       <div className="border-b border-border">
-        <div
-          role="tablist"
-          aria-label="Coursework sections"
-          className="flex space-x-4 overflow-x-auto"
-        >
+        <div role="tablist" aria-label="Coursework sections" className="flex space-x-4 overflow-x-auto">
           {tabs.map((tab, idx) => {
             const isSelected = activeTab === tab.id;
             return (
@@ -148,9 +138,7 @@ export function LmsPanel({
 
       {/* Tab Panels */}
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-          Loading coursework data...
-        </div>
+        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading coursework data...</div>
       ) : (
         <div>
           <div
@@ -161,12 +149,7 @@ export function LmsPanel({
             className={activeTab === "assignments" ? "block" : "hidden"}
           >
             {activeTab === "assignments" && (
-              <AssignmentsList
-                branchId={selectedBranchId}
-                subjects={subjects}
-                classGroups={classGroups}
-                userRole={userRole}
-              />
+              <AssignmentsList branchId={selectedBranchId} subjects={subjects} classGroups={classGroups} userRole={userRole} />
             )}
           </div>
 
@@ -178,12 +161,7 @@ export function LmsPanel({
             className={activeTab === "materials" ? "block" : "hidden"}
           >
             {activeTab === "materials" && (
-              <MaterialsList
-                branchId={selectedBranchId}
-                subjects={subjects}
-                classGroups={classGroups}
-                userRole={userRole}
-              />
+              <MaterialsList branchId={selectedBranchId} subjects={subjects} classGroups={classGroups} userRole={userRole} />
             )}
           </div>
 
@@ -195,12 +173,7 @@ export function LmsPanel({
             className={activeTab === "quizzes" ? "block" : "hidden"}
           >
             {activeTab === "quizzes" && (
-              <QuizConsole
-                branchId={selectedBranchId}
-                subjects={subjects}
-                classGroups={classGroups}
-                userRole={userRole}
-              />
+              <QuizConsole branchId={selectedBranchId} subjects={subjects} classGroups={classGroups} userRole={userRole} />
             )}
           </div>
         </div>

@@ -211,9 +211,7 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-semibold text-muted-foreground">{t.code}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground">
-                    {t.channel}
-                  </span>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground">{t.channel}</span>
                 </div>
                 <h3 className="font-semibold text-foreground text-sm line-clamp-1">{t.name}</h3>
                 {t.subjectTemplate && (
@@ -221,28 +219,18 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
                     <span className="font-medium">Subject:</span> {t.subjectTemplate}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground font-mono bg-muted/40 p-2.5 rounded-lg line-clamp-3">
-                  {t.bodyTemplate}
-                </p>
+                <p className="text-xs text-muted-foreground font-mono bg-muted/40 p-2.5 rounded-lg line-clamp-3">{t.bodyTemplate}</p>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-border mt-4 text-xs font-medium">
                 <span className="text-muted-foreground">{t.isSystem ? "System" : "Custom"}</span>
                 <div className="space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTemplate(t)}
-                    className="text-primary hover:underline"
-                  >
+                  <button type="button" onClick={() => setPreviewTemplate(t)} className="text-primary hover:underline">
                     Preview
                   </button>
                   {!t.isSystem && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(t)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
+                      <button type="button" onClick={() => handleOpenEdit(t)} className="text-muted-foreground hover:text-foreground">
                         Edit
                       </button>
                       <button
@@ -263,11 +251,7 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
 
       {/* Preview Modal */}
       {previewTemplate && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-        >
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-semibold text-foreground">{previewTemplate.name}</h3>
@@ -282,8 +266,12 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
 
             <div className="space-y-3 text-sm">
               <div className="text-xs text-muted-foreground flex gap-4">
-                <span>Code: <strong className="text-foreground">{previewTemplate.code}</strong></span>
-                <span>Channel: <strong className="text-foreground">{previewTemplate.channel}</strong></span>
+                <span>
+                  Code: <strong className="text-foreground">{previewTemplate.code}</strong>
+                </span>
+                <span>
+                  Channel: <strong className="text-foreground">{previewTemplate.channel}</strong>
+                </span>
               </div>
               {previewTemplate.subjectTemplate && (
                 <div>
@@ -326,19 +314,13 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
 
       {/* Create / Edit Modal */}
       {isModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-        >
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <form
             onSubmit={handleSave}
             className="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-semibold text-foreground">
-                {editingTemplate ? "Edit Template" : "New Custom Template"}
-              </h3>
+              <h3 className="font-semibold text-foreground">{editingTemplate ? "Edit Template" : "New Custom Template"}</h3>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
@@ -349,7 +331,10 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
             </div>
 
             {formError && (
-              <div role="alert" className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200">
+              <div
+                role="alert"
+                className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200"
+              >
                 {formError}
               </div>
             )}

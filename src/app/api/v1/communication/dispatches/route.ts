@@ -30,5 +30,5 @@ export const GET = withAuth(
       return fail("Unable to retrieve communication dispatches", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

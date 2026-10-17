@@ -32,7 +32,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.STUDENT, Role.PARENT] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.STUDENT, Role.PARENT] },
 );
 
 /**
@@ -63,7 +63,7 @@ export const PATCH = withAuth(
       return fail("Unable to update assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );
 
 /**
@@ -89,5 +89,5 @@ export const DELETE = withAuth(
       return fail("Unable to archive assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );

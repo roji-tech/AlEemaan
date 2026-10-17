@@ -32,10 +32,7 @@ export default async function TimetablePage() {
           You don&apos;t belong to a branch with timetable access yet.
         </p>
       ) : (
-        <TimetablePanel
-          branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-          isAdmin={isAdmin}
-        />
+        <TimetablePanel branches={branches.map((b) => ({ id: b.id, name: b.name }))} isAdmin={isAdmin} />
       )}
     </div>
   );

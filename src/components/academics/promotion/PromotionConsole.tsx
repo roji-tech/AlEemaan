@@ -249,9 +249,7 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
             aria-selected={activeTab === "rollover"}
             onClick={() => setActiveTab("rollover")}
             className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-              activeTab === "rollover"
-                ? "bg-brand-strong text-white shadow-sm"
-                : "text-fg-muted hover:text-fg"
+              activeTab === "rollover" ? "bg-brand-strong text-white shadow-sm" : "text-fg-muted hover:text-fg"
             }`}
           >
             Rollover Console
@@ -262,9 +260,7 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
             aria-selected={activeTab === "history"}
             onClick={() => setActiveTab("history")}
             className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-              activeTab === "history"
-                ? "bg-brand-strong text-white shadow-sm"
-                : "text-fg-muted hover:text-fg"
+              activeTab === "history" ? "bg-brand-strong text-white shadow-sm" : "text-fg-muted hover:text-fg"
             }`}
           >
             Audit History
@@ -272,9 +268,7 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
         </div>
       </div>
 
-      {executionNotice && (
-        <Alert variant={executionNotice.variant}>{executionNotice.message}</Alert>
-      )}
+      {executionNotice && <Alert variant={executionNotice.variant}>{executionNotice.message}</Alert>}
 
       {activeTab === "history" ? (
         <PromotionHistoryView branchId={selectedBranchId} />
@@ -284,8 +278,8 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
           <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
             <h3 className="text-base font-semibold text-fg">Promotion Setup</h3>
             <p className="mt-1 text-xs text-fg-muted">
-              Select the source academic session to evaluate from, the target academic session to enroll into,
-              and the source class. The system automatically evaluates multi-term results against the pass mark.
+              Select the source academic session to evaluate from, the target academic session to enroll into, and the source class. The
+              system automatically evaluates multi-term results against the pass mark.
             </p>
 
             <form onSubmit={handleGeneratePreview} className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -394,8 +388,7 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
               <div className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h4 className="text-sm font-semibold text-fg">
-                    Class Progression:{" "}
-                    <span className="font-bold text-fg">{preview.sourceClassGroup.name}</span> &rarr;{" "}
+                    Class Progression: <span className="font-bold text-fg">{preview.sourceClassGroup.name}</span> &rarr;{" "}
                     <span className="font-bold text-fg">
                       {preview.targetClassGroup ? preview.targetClassGroup.name : "Graduated (Terminal Class)"}
                     </span>
@@ -407,12 +400,7 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
                 </div>
 
                 {canManage && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={preview.students.length === 0}
-                  >
+                  <Button type="button" variant="primary" onClick={() => setConfirmOpen(true)} disabled={preview.students.length === 0}>
                     Review & Execute Rollover ({preview.students.length})
                   </Button>
                 )}

@@ -53,16 +53,14 @@ export function PromotionConfirmModal({
       title="Confirm Academic Rollover & Promotion"
       description={
         <span>
-          You are about to execute promotion for <strong>{preview.sourceClassGroup.name}</strong> from{" "}
-          <strong>{sourceSessionLabel}</strong> into <strong>{targetSessionLabel}</strong>.
+          You are about to execute promotion for <strong>{preview.sourceClassGroup.name}</strong> from <strong>{sourceSessionLabel}</strong>{" "}
+          into <strong>{targetSessionLabel}</strong>.
         </span>
       }
     >
       <div className="space-y-4 pt-2">
         <div className="rounded-xl border border-line bg-surface-2 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-            Execution Impact Summary
-          </h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Execution Impact Summary</h3>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-xs text-fg-muted">Total Students</dt>
@@ -70,9 +68,7 @@ export function PromotionConfirmModal({
             </div>
             <div>
               <dt className="text-xs text-fg-muted">Manual Overrides</dt>
-              <dd className="font-semibold text-fg">
-                {overrideCount}
-              </dd>
+              <dd className="font-semibold text-fg">{overrideCount}</dd>
             </div>
             <div>
               <dt className="text-xs text-fg-muted">Promoting to</dt>
@@ -104,34 +100,21 @@ export function PromotionConfirmModal({
         <Alert variant="warning" title="Important Notes:" announce={false}>
           <ul className="mt-1 list-disc pl-4 space-y-1 text-xs">
             <li>
-              Existing enrollments in <strong>{sourceSessionLabel}</strong> will be updated to their final
-              promotion status (PROMOTED, REPEATED, ALUMNI).
+              Existing enrollments in <strong>{sourceSessionLabel}</strong> will be updated to their final promotion status (PROMOTED,
+              REPEATED, ALUMNI).
             </li>
             <li>
               New enrollments will be created in <strong>{targetSessionLabel}</strong> for active students.
             </li>
-            <li>
-              This operation is idempotent and logged in the immutable promotion audit trail.
-            </li>
+            <li>This operation is idempotent and logged in the immutable promotion audit trail.</li>
           </ul>
         </Alert>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            disabled={loading}
-            data-initial-focus
-          >
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading} data-initial-focus>
             Cancel
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            onClick={onConfirm}
-            loading={loading}
-          >
+          <Button type="button" variant="primary" onClick={onConfirm} loading={loading}>
             {loading ? "Executing..." : "Confirm & Execute Promotion"}
           </Button>
         </div>

@@ -38,9 +38,7 @@ export function StudentLookupTool() {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await getJson(
-          `/api/v1/students?q=${encodeURIComponent(searchQuery.trim())}&status=live&limit=10`,
-        );
+        const res = await getJson(`/api/v1/students?q=${encodeURIComponent(searchQuery.trim())}&status=live&limit=10`);
         if (res.ok && res.data && typeof res.data === "object" && "students" in res.data) {
           setStudents((res.data as { students: StudentApiItem[] }).students);
         }
@@ -55,13 +53,7 @@ export function StudentLookupTool() {
   }, [searchQuery]);
 
   if (selectedStudent) {
-    const fullName = [
-      selectedStudent.firstName,
-      selectedStudent.middleName,
-      selectedStudent.lastName,
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const fullName = [selectedStudent.firstName, selectedStudent.middleName, selectedStudent.lastName].filter(Boolean).join(" ");
 
     const activeEnrollment = selectedStudent.enrollments?.[0];
 
@@ -69,11 +61,7 @@ export function StudentLookupTool() {
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-line pb-2">
           <span className="text-xs font-bold text-fg">Student Profile</span>
-          <button
-            type="button"
-            onClick={() => setSelectedStudent(null)}
-            className="text-xs font-semibold text-brand hover:underline"
-          >
+          <button type="button" onClick={() => setSelectedStudent(null)} className="text-xs font-semibold text-brand hover:underline">
             ← Back to search
           </button>
         </div>
@@ -81,17 +69,13 @@ export function StudentLookupTool() {
         <div className="rounded-2xl border border-line bg-surface p-4 space-y-3 text-xs">
           <div>
             <h3 className="text-sm font-bold text-fg">{fullName}</h3>
-            <p className="font-mono text-fg-muted text-[11px]">
-              {selectedStudent.admissionNo || "No Admission Number"}
-            </p>
+            <p className="font-mono text-fg-muted text-[11px]">{selectedStudent.admissionNo || "No Admission Number"}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-line pt-2 text-[11px]">
             <div>
               <span className="text-fg-muted block">Branch:</span>
-              <span className="font-semibold text-fg">
-                {selectedStudent.branch?.name || "Main Branch"}
-              </span>
+              <span className="font-semibold text-fg">{selectedStudent.branch?.name || "Main Branch"}</span>
             </div>
             <div>
               <span className="text-fg-muted block">Gender:</span>
@@ -107,9 +91,7 @@ export function StudentLookupTool() {
                 </div>
                 <div>
                   <span className="text-fg-muted block">Session:</span>
-                  <span className="font-semibold text-fg">
-                    {activeEnrollment.session?.label || "Active"}
-                  </span>
+                  <span className="font-semibold text-fg">{activeEnrollment.session?.label || "Active"}</span>
                 </div>
               </>
             )}
@@ -118,25 +100,17 @@ export function StudentLookupTool() {
           {(selectedStudent.guardianName || selectedStudent.guardianPhone) && (
             <div className="border-t border-line pt-2 text-[11px] space-y-1">
               <span className="text-fg-muted font-semibold block">Guardian Information:</span>
-              {selectedStudent.guardianName && (
-                <p className="text-fg">{selectedStudent.guardianName}</p>
-              )}
+              {selectedStudent.guardianName && <p className="text-fg">{selectedStudent.guardianName}</p>}
               {selectedStudent.guardianPhone && (
                 <p>
-                  <a
-                    href={`tel:${selectedStudent.guardianPhone}`}
-                    className="font-mono text-brand hover:underline"
-                  >
+                  <a href={`tel:${selectedStudent.guardianPhone}`} className="font-mono text-brand hover:underline">
                     📞 {selectedStudent.guardianPhone}
                   </a>
                 </p>
               )}
               {selectedStudent.guardianEmail && (
                 <p>
-                  <a
-                    href={`mailto:${selectedStudent.guardianEmail}`}
-                    className="font-mono text-brand hover:underline"
-                  >
+                  <a href={`mailto:${selectedStudent.guardianEmail}`} className="font-mono text-brand hover:underline">
                     ✉️ {selectedStudent.guardianEmail}
                   </a>
                 </p>
@@ -172,9 +146,7 @@ export function StudentLookupTool() {
           className="w-full rounded-xl border border-line bg-canvas px-4 py-2.5 text-xs text-fg placeholder:text-fg-muted focus:border-brand-strong focus:outline-none"
           autoFocus
         />
-        {searching && (
-          <span className="absolute right-3 top-3 text-[11px] text-fg-muted">Searching...</span>
-        )}
+        {searching && <span className="absolute right-3 top-3 text-[11px] text-fg-muted">Searching...</span>}
       </div>
 
       {visibleStudents.length > 0 && (
@@ -197,11 +169,7 @@ export function StudentLookupTool() {
                     {s.admissionNo || "No ID"} {cls ? `· ${cls} ${arm || ""}` : ""}
                   </p>
                 </div>
-                {s.branch?.name && (
-                  <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[10px] text-fg-muted">
-                    {s.branch.name}
-                  </span>
-                )}
+                {s.branch?.name && <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[10px] text-fg-muted">{s.branch.name}</span>}
               </button>
             );
           })}

@@ -1,9 +1,4 @@
-import type {
-  InitializePaymentParams,
-  InitializePaymentResult,
-  VerifyTransactionResult,
-  PaystackGateway,
-} from "./paystack-types";
+import type { InitializePaymentParams, InitializePaymentResult, VerifyTransactionResult, PaystackGateway } from "./paystack-types";
 import { mockPaystack } from "./mock-paystack";
 
 export * from "./paystack-types";

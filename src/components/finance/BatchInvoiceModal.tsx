@@ -12,14 +12,7 @@ export interface BatchInvoiceModalProps {
   classGroups: { id: string; name: string }[];
 }
 
-export function BatchInvoiceModal({
-  isOpen,
-  onClose,
-  onGenerated,
-  branchId,
-  periods,
-  classGroups,
-}: BatchInvoiceModalProps) {
+export function BatchInvoiceModal({ isOpen, onClose, onGenerated, branchId, periods, classGroups }: BatchInvoiceModalProps) {
   const formId = useId();
   const [periodId, setPeriodId] = useState(periods[0]?.id || "");
   const [classGroupId, setClassGroupId] = useState("");
@@ -78,8 +71,8 @@ export function BatchInvoiceModal({
 
         {result && (
           <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-xs text-green-400" role="status">
-            Invoicing Complete: <strong>{result.created}</strong> new invoices created,{" "}
-            <strong>{result.skipped}</strong> existing invoices skipped.
+            Invoicing Complete: <strong>{result.created}</strong> new invoices created, <strong>{result.skipped}</strong> existing invoices
+            skipped.
           </div>
         )}
 

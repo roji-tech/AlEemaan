@@ -35,11 +35,7 @@ export default async function CommunicationPage() {
           You don&apos;t have access to any school branch communications yet.
         </p>
       ) : (
-        <CommunicationPanel
-          branches={branches}
-          userRole={primaryRole}
-          userBranchId={userBranchId}
-        />
+        <CommunicationPanel branches={branches} userRole={primaryRole} userBranchId={userBranchId} />
       )}
     </div>
   );

@@ -23,12 +23,14 @@ export const createAssignmentSchema = z.object({
 
 export const updateAssignmentSchema = createAssignmentSchema.partial().omit({ branchId: true });
 
-export const submitAssignmentSchema = z.object({
-  content: z.string().optional().nullable(),
-  attachments: z.array(attachmentSchema).default([]),
-}).refine((data) => data.content?.trim() || data.attachments.length > 0, {
-  message: "Either submission text content or at least one attachment must be provided",
-});
+export const submitAssignmentSchema = z
+  .object({
+    content: z.string().optional().nullable(),
+    attachments: z.array(attachmentSchema).default([]),
+  })
+  .refine((data) => data.content?.trim() || data.attachments.length > 0, {
+    message: "Either submission text content or at least one attachment must be provided",
+  });
 
 export const gradeSubmissionSchema = z.object({
   score: z.number().min(0, "Score cannot be negative"),

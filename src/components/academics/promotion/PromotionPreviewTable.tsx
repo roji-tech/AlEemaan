@@ -18,13 +18,7 @@ interface PromotionPreviewTableProps {
   canManage: boolean;
 }
 
-export function PromotionPreviewTable({
-  preview,
-  overrides,
-  onOverrideChange,
-  onClearOverride,
-  canManage,
-}: PromotionPreviewTableProps) {
+export function PromotionPreviewTable({ preview, overrides, onOverrideChange, onClearOverride, canManage }: PromotionPreviewTableProps) {
   const tableId = useId();
 
   const getDecisionBadge = (decision: PromotionDecision) => {
@@ -77,28 +71,16 @@ export function PromotionPreviewTable({
           <p className="mt-1 text-2xl font-bold text-fg">{preview.summary.totalEvaluated}</p>
         </div>
         <div className="rounded-xl border border-ok-line bg-ok-bg p-4 shadow-sm">
-          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">
-            Promoted
-          </p>
-          <p className="mt-1 text-2xl font-bold text-ok-fg">
-            {preview.summary.totalPromoted}
-          </p>
+          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">Promoted</p>
+          <p className="mt-1 text-2xl font-bold text-ok-fg">{preview.summary.totalPromoted}</p>
         </div>
         <div className="rounded-xl border border-danger-line bg-danger-bg p-4 shadow-sm">
-          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">
-            Repeated
-          </p>
-          <p className="mt-1 text-2xl font-bold text-danger-fg">
-            {preview.summary.totalRepeated}
-          </p>
+          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">Repeated</p>
+          <p className="mt-1 text-2xl font-bold text-danger-fg">{preview.summary.totalRepeated}</p>
         </div>
         <div className="rounded-xl border border-info-line bg-info-bg p-4 shadow-sm">
-          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">
-            Graduated / Alumni
-          </p>
-          <p className="mt-1 text-2xl font-bold text-info-fg">
-            {preview.summary.totalGraduated}
-          </p>
+          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">Graduated / Alumni</p>
+          <p className="mt-1 text-2xl font-bold text-info-fg">{preview.summary.totalGraduated}</p>
         </div>
       </div>
 
@@ -133,14 +115,30 @@ export function PromotionPreviewTable({
           </caption>
           <thead className="border-b border-line bg-surface-muted text-xs font-semibold text-fg-muted uppercase">
             <tr>
-              <th scope="col" className="px-4 py-3">Student</th>
-              <th scope="col" className="px-4 py-3">Current Arm</th>
-              <th scope="col" className="px-4 py-3 text-center">Term Scores</th>
-              <th scope="col" className="px-4 py-3 text-right">Session Avg</th>
-              <th scope="col" className="px-4 py-3 text-center">Recommendation</th>
-              <th scope="col" className="px-4 py-3">Final Decision</th>
-              <th scope="col" className="px-4 py-3">Target Arm</th>
-              <th scope="col" className="px-4 py-3">Override Reason</th>
+              <th scope="col" className="px-4 py-3">
+                Student
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Current Arm
+              </th>
+              <th scope="col" className="px-4 py-3 text-center">
+                Term Scores
+              </th>
+              <th scope="col" className="px-4 py-3 text-right">
+                Session Avg
+              </th>
+              <th scope="col" className="px-4 py-3 text-center">
+                Recommendation
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Final Decision
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Target Arm
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Override Reason
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -160,9 +158,7 @@ export function PromotionPreviewTable({
                 return (
                   <tr
                     key={student.studentId}
-                    className={`transition-colors hover:bg-surface-muted/50 ${
-                      isOverridden ? "bg-amber-500/5" : ""
-                    }`}
+                    className={`transition-colors hover:bg-surface-muted/50 ${isOverridden ? "bg-amber-500/5" : ""}`}
                   >
                     <td className="px-4 py-3">
                       <div className="font-medium text-fg">
@@ -170,9 +166,7 @@ export function PromotionPreviewTable({
                       </div>
                       <div className="text-xs text-fg-muted">{student.admissionNo}</div>
                     </td>
-                    <td className="px-4 py-3 text-fg-muted">
-                      {student.currentArmName || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-fg-muted">{student.currentArmName || "—"}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex flex-wrap justify-center gap-1.5">
                         {preview.academicPeriods.map((period) => {
@@ -199,9 +193,7 @@ export function PromotionPreviewTable({
                       {student.overallAverage !== null ? (
                         <span
                           className={`font-semibold font-mono ${
-                            student.overallAverage >= preview.passMark
-                              ? "text-ok-fg"
-                              : "text-danger-fg"
+                            student.overallAverage >= preview.passMark ? "text-ok-fg" : "text-danger-fg"
                           }`}
                         >
                           {student.overallAverage.toFixed(2)}%
@@ -210,9 +202,7 @@ export function PromotionPreviewTable({
                         <span className="text-fg-muted">N/A</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {getDecisionBadge(student.recommendedDecision)}
-                    </td>
+                    <td className="px-4 py-3 text-center">{getDecisionBadge(student.recommendedDecision)}</td>
                     <td className="px-4 py-3">
                       {canManage ? (
                         <select

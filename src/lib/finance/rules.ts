@@ -41,7 +41,7 @@ export function toNairaDecimal(kobo: number): Prisma.Decimal {
 export function resolveInvoiceStatus(
   totalDue: DecimalLike,
   amountPaid: DecimalLike,
-  options?: { isWaived?: boolean; isCancelled?: boolean }
+  options?: { isWaived?: boolean; isCancelled?: boolean },
 ): InvoiceStatus {
   if (options?.isCancelled) {
     return InvoiceStatus.CANCELLED;
@@ -67,11 +67,12 @@ export function resolveInvoiceStatus(
  * Format: INV-<BRANCH_PREFIX>-<YEAR>-<NNNN>
  */
 export function generateInvoiceNumber(branchCode: string, year: number, seq: number): string {
-  const code = branchCode
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 6) || "ALM";
+  const code =
+    branchCode
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 6) || "ALM";
   const paddedSeq = String(seq).padStart(4, "0");
   return `INV-${code}-${year}-${paddedSeq}`;
 }
@@ -81,11 +82,12 @@ export function generateInvoiceNumber(branchCode: string, year: number, seq: num
  * Format: RCP-<BRANCH_PREFIX>-<YEAR>-<NNNN>
  */
 export function generateReceiptNumber(branchCode: string, year: number, seq: number): string {
-  const code = branchCode
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 6) || "ALM";
+  const code =
+    branchCode
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 6) || "ALM";
   const paddedSeq = String(seq).padStart(4, "0");
   return `RCP-${code}-${year}-${paddedSeq}`;
 }
@@ -106,7 +108,7 @@ export function generatePaymentReference(provider: PaymentProvider = PaymentProv
  */
 export function computeInvoiceBreakdown(
   lineItems: { amount: DecimalLike }[],
-  discounts: { amount: DecimalLike }[] = []
+  discounts: { amount: DecimalLike }[] = [],
 ): { grossAmount: Prisma.Decimal; totalDiscount: Prisma.Decimal; netAmount: Prisma.Decimal } {
   let gross = new Prisma.Decimal(0);
   for (const item of lineItems) {

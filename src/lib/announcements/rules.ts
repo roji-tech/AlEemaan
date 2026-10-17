@@ -135,10 +135,7 @@ export function canAuthorAnnouncements(role: Role, isSuperAdmin = false): boolea
 /**
  * Evaluates whether a user can edit/delete a given announcement.
  */
-export function canManageAnnouncement(
-  announcement: Pick<AnnouncementLike, "authorUserId" | "branchId">,
-  viewer: ViewerProfile,
-): boolean {
+export function canManageAnnouncement(announcement: Pick<AnnouncementLike, "authorUserId" | "branchId">, viewer: ViewerProfile): boolean {
   if (viewer.isSuperAdmin) return true;
   if (viewer.role === Role.ADMIN && viewer.branchId && announcement.branchId === viewer.branchId) return true;
   return viewer.userId === announcement.authorUserId;

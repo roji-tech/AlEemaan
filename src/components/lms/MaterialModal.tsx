@@ -12,20 +12,11 @@ export interface MaterialModalProps {
   classGroups: { id: string; name: string }[];
 }
 
-export function MaterialModal({
-  isOpen,
-  onClose,
-  onSuccess,
-  branchId,
-  subjects,
-  classGroups,
-}: MaterialModalProps) {
+export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups }: MaterialModalProps) {
   const [title, setTitle] = useState("");
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
   const [classGroupId, setClassGroupId] = useState("");
-  const [materialType, setMaterialType] = useState<
-    "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER"
-  >("DOCUMENT");
+  const [materialType, setMaterialType] = useState<"DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER">("DOCUMENT");
   const [url, setUrl] = useState("");
   const [content, setContent] = useState("");
   const [description, setDescription] = useState("");
@@ -81,10 +72,7 @@ export function MaterialModal({
     <Dialog open={isOpen} onClose={onClose} title="Add Learning Material">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div
-            role="alert"
-            className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-          >
+          <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
             {error}
           </div>
         )}
@@ -150,11 +138,7 @@ export function MaterialModal({
           <select
             id={materialTypeId}
             value={materialType}
-            onChange={(e) =>
-              setMaterialType(
-                e.target.value as "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER"
-              )
-            }
+            onChange={(e) => setMaterialType(e.target.value as "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER")}
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="DOCUMENT">Document / PDF</option>

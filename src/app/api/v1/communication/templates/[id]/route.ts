@@ -34,7 +34,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve notification template", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );
 
 /**
@@ -63,7 +63,7 @@ export const PATCH = withAuth(
       return fail("Unable to update notification template", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );
 
 /**
@@ -91,5 +91,5 @@ export const DELETE = withAuth(
       return fail("Unable to delete notification template", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

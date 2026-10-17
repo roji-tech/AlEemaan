@@ -87,9 +87,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
     setSelectedBatchId(id);
     setLoadingDetail(true);
     try {
-      const res = await fetch(
-        `/api/v1/academics/promotion/batches/${encodeURIComponent(id)}?branchId=${encodeURIComponent(branchId)}`
-      );
+      const res = await fetch(`/api/v1/academics/promotion/batches/${encodeURIComponent(id)}?branchId=${encodeURIComponent(branchId)}`);
       if (!res.ok) throw new Error("Failed to load batch details");
       const json = await res.json();
       setBatchDetail(json.data);
@@ -110,16 +108,9 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-base font-semibold text-fg">Promotion Audit Log</h3>
-          <p className="text-xs text-fg-muted">
-            Historical rollover runs, evaluated student totals, and manual override records.
-          </p>
+          <p className="text-xs text-fg-muted">Historical rollover runs, evaluated student totals, and manual override records.</p>
         </div>
-        <Button
-          variant="ghost"
-          className="min-h-9 px-3 py-1.5 text-xs"
-          onClick={loadBatches}
-          disabled={loading}
-        >
+        <Button variant="ghost" className="min-h-9 px-3 py-1.5 text-xs" onClick={loadBatches} disabled={loading}>
           {loading ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
@@ -127,9 +118,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
       {error && <Alert variant="error">{error}</Alert>}
 
       {loading ? (
-        <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-fg-muted">
-          Loading promotion history...
-        </div>
+        <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-fg-muted">Loading promotion history...</div>
       ) : batches.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">
           No promotion batches have been executed for this branch yet.
@@ -139,14 +128,30 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
           <table className="w-full text-left text-sm text-fg" aria-label="Promotion history batches">
             <thead className="border-b border-line bg-surface-muted text-xs font-semibold uppercase text-fg-muted">
               <tr>
-                <th scope="col" className="px-4 py-3">Date</th>
-                <th scope="col" className="px-4 py-3">Class Transition</th>
-                <th scope="col" className="px-4 py-3">Sessions</th>
-                <th scope="col" className="px-4 py-3 text-center">Evaluated</th>
-                <th scope="col" className="px-4 py-3 text-center">Promoted</th>
-                <th scope="col" className="px-4 py-3 text-center">Repeated</th>
-                <th scope="col" className="px-4 py-3">Executed By</th>
-                <th scope="col" className="px-4 py-3 text-right">Action</th>
+                <th scope="col" className="px-4 py-3">
+                  Date
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Class Transition
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Sessions
+                </th>
+                <th scope="col" className="px-4 py-3 text-center">
+                  Evaluated
+                </th>
+                <th scope="col" className="px-4 py-3 text-center">
+                  Promoted
+                </th>
+                <th scope="col" className="px-4 py-3 text-center">
+                  Repeated
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Executed By
+                </th>
+                <th scope="col" className="px-4 py-3 text-right">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -163,17 +168,13 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-fg">{b.sourceClassGroup.name}</div>
-                    <div className="text-xs text-fg-muted">
-                      &rarr; {b.targetClassGroup ? b.targetClassGroup.name : "Graduated"}
-                    </div>
+                    <div className="text-xs text-fg-muted">&rarr; {b.targetClassGroup ? b.targetClassGroup.name : "Graduated"}</div>
                   </td>
                   <td className="px-4 py-3 text-xs">
                     <span className="font-medium text-fg">{b.sourceSession.label}</span>
                     <span className="text-fg-muted"> &rarr; {b.targetSession.label}</span>
                   </td>
-                  <td className="px-4 py-3 text-center font-mono font-medium">
-                    {b.totalEvaluated}
-                  </td>
+                  <td className="px-4 py-3 text-center font-mono font-medium">{b.totalEvaluated}</td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                       {b.totalPromoted}
@@ -184,15 +185,9 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                       {b.totalRepeated}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-fg-muted">
-                    {b.initiatedByUser.email}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-fg-muted">{b.initiatedByUser.email}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="ghost"
-                      className="min-h-9 px-3 py-1.5 text-xs"
-                      onClick={() => viewDetails(b.id)}
-                    >
+                    <Button variant="ghost" className="min-h-9 px-3 py-1.5 text-xs" onClick={() => viewDetails(b.id)}>
                       View Details
                     </Button>
                   </td>
@@ -246,12 +241,24 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                 <table className="w-full text-left text-xs" aria-label="Batch student records">
                   <thead className="sticky top-0 border-b border-line bg-surface-muted font-semibold uppercase text-fg-muted">
                     <tr>
-                      <th scope="col" className="px-3 py-2">Student</th>
-                      <th scope="col" className="px-3 py-2 text-right">Session Avg</th>
-                      <th scope="col" className="px-3 py-2 text-center">Recommended</th>
-                      <th scope="col" className="px-3 py-2 text-center">Final Decision</th>
-                      <th scope="col" className="px-3 py-2">Target Arm</th>
-                      <th scope="col" className="px-3 py-2">Override Notes</th>
+                      <th scope="col" className="px-3 py-2">
+                        Student
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-right">
+                        Session Avg
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center">
+                        Recommended
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center">
+                        Final Decision
+                      </th>
+                      <th scope="col" className="px-3 py-2">
+                        Target Arm
+                      </th>
+                      <th scope="col" className="px-3 py-2">
+                        Override Notes
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line bg-surface">
@@ -282,14 +289,10 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                             {r.finalDecision}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-fg">
-                          {r.targetClassArm?.name || "—"}
-                        </td>
+                        <td className="px-3 py-2 text-fg">{r.targetClassArm?.name || "—"}</td>
                         <td className="px-3 py-2 text-fg-muted">
                           {r.decisionMode === "MANUAL_OVERRIDE" ? (
-                            <span className="text-amber-600 dark:text-amber-400">
-                              Override: {r.overrideReason || "Manual adjustment"}
-                            </span>
+                            <span className="text-amber-600 dark:text-amber-400">Override: {r.overrideReason || "Manual adjustment"}</span>
                           ) : (
                             <span className="text-fg-muted">Automatic</span>
                           )}

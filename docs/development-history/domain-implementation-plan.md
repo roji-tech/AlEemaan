@@ -1567,3 +1567,29 @@ A superadmin sets the global default; a branch admin may override it (creates a 
   - `TemplatesManager`: Visual template editor with variable placeholders.
 - Full WCAG 2.2 AA compliance validated with automated Axe accessibility suites.
 
+---
+
+#### Build design & As built — Slice P7: Next-Term Student Promotion & Academic Rollover (2026-10-17; Task 0025)
+
+**Objective & Architecture.** Adapting legacy golden promotion rules into AlEemaan's modernized single-tenant multi-branch architecture:
+1. **Schema & Migration:** `PromotionBatch`, `PromotionRecord`, and associated enums in `prisma/schema/promotion.prisma`. Additive migration `20261017140000_p7_student_promotion`.
+2. **Rules & Pure Engine:** Gated to the session's final term (3rd Term in English branches, 2nd Term in Arabic branches). Session average computed across published term averages. Configurable pass mark (>= 50.0% -> `PROMOTED` or `GRADUATED` for terminal classes; < 50.0% -> `REPEATED`). Class progression rungs derived from `ClassGroup.sortOrder`, case-insensitive target arm resolution with first arm fallback.
+3. **Idempotent Enrollment Transitions:** Atomic transaction closing source enrollment and creating target enrollment in the next session.
+4. **REST APIs & Route Governance:** 4 endpoints under `/api/v1/academics/promotion/` (`preview`, `execute`, `batches`, `batches/[id]`).
+5. **UI & Accessibility:** `PromotionConsole` with preview, manual overrides, confirmation modal, and history view. WCAG 2.2 AA compliant.
+
+---
+
+#### Build design & As built — Slice P8: Parent & Student Self-Service Portal (2026-10-17; Task 0026)
+
+**Objective & Architecture.** Modernized self-service portal (`/portal`) empowering parents, guardians, and students with single-pane visibility across academic records, report cards, fees, and coursework:
+1. **Authentication & Session Security:** Dual-mode authentication (magic link claim via `GuardianLinkToken` and direct admission number + date of birth or guardian phone verification). Stateless HMAC-signed session cookies with 30-day sliding expiry and strict child-ownership enforcement (ADR 0012).
+2. **Sibling Selector:** Seamless multi-child switcher discovering all enrolled siblings associated with the guardian's contact information.
+3. **Single-Pane Hub (`/portal`):**
+   - **Overview:** Attendance rates, enrolled class & arm, emergency contact details, and school broadcasts.
+   - **Results:** Published and locked term results with subject breakdowns, scores, WAEC grades, and teacher/principal remarks.
+   - **Finance:** Itemized invoices, payment history receipts, and Paystack direct settlement links.
+   - **LMS:** Published assignments with due dates, point maximums, homework descriptions, and learning resources.
+4. **REST APIs:** `/api/v1/portal/session`, `/api/v1/portal/overview`, `/api/v1/portal/results`, `/api/v1/portal/invoices`, `/api/v1/portal/lms`.
+5. **WCAG 2.2 AA Accessibility:** 100% compliant across mobile and desktop viewports, 0 Axe violations, full keyboard navigation.
+

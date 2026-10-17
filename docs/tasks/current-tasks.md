@@ -36,6 +36,7 @@
 | 0023 | [`0023-p5-lms-assignments.md`](0023-p5-lms-assignments.md) | Slice P5: Learning Management System (LMS) & Assignments | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) |
 | 0024 | [`0024-p6-communication-messaging.md`](0024-p6-communication-messaging.md) | Slice P6: Multi-Channel Messaging & Communication Engine | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging`) |
 | 0025 | [`0025-p7-student-promotion.md`](0025-p7-student-promotion.md) | Slice P7: Next-Term Student Promotion & Academic Rollover | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) |
+| 0026 | [`0026-p8-parent-student-portal.md`](0026-p8-parent-student-portal.md) | Slice P8: Parent & Student Self-Service Portal | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal`) |
 
 ---
 
@@ -150,6 +151,15 @@
 - [x] Sub-phase C: Services & API Endpoints (`service.ts`, 4 REST endpoints under `/api/v1/academics/promotion/`, 2 API tests passing)
 - [x] Sub-phase D: UI Consoles & Accessibility (`PromotionConsole`, `PromotionPreviewTable`, `PromotionConfirmModal`, `PromotionHistoryView`, `/academics` integration, WCAG 2.2 AA compliant, 3 E2E tests passing)
 - [x] Sub-phase E: Quality Gates & Handover (0 type errors, 0 lint errors, 299 unit tests, 100% green tests)
+
+### TASK-0026: Slice P8 — Parent & Student Self-Service Portal
+- **Status:** Completed ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52) `claude/p8-parent-student-portal` -> `dev`).
+- [x] Sub-phase A: Data Architecture & Session Helpers (`src/lib/portal/auth.ts`, session token HMAC, magic link claim, admission number direct verification)
+- [x] Sub-phase B: Pure Rules & Portal Services (`src/lib/portal/service.ts`, student overview, results, invoices, LMS, 14 unit tests)
+- [x] Sub-phase C: API Endpoints & Route Governance (`/api/v1/portal/*`, route role guard, 11 API integration tests)
+- [x] Sub-phase D: Responsive Accessible UI Consoles (`/portal`, child switcher, results, fees, LMS, mobile-friendly design)
+- [x] Sub-phase E: E2E Accessibility & Verification (Axe WCAG 2.2 AA audit passed desktop & mobile, 0 type errors, 0 lint errors, 100% green tests)
+
 
 
 

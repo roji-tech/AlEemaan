@@ -12,14 +12,7 @@ export interface AssignmentModalProps {
   classGroups: { id: string; name: string }[];
 }
 
-export function AssignmentModal({
-  isOpen,
-  onClose,
-  onSuccess,
-  branchId,
-  subjects,
-  classGroups,
-}: AssignmentModalProps) {
+export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups }: AssignmentModalProps) {
   const [title, setTitle] = useState("");
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
   const [classGroupId, setClassGroupId] = useState("");

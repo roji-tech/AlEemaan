@@ -59,10 +59,7 @@ export async function generateGuardianMagicLink(params: GenerateGuardianLinkPara
  * Verifies a guardian magic link token against the stored hash.
  * Ensures the token is valid, not expired, and optionally marks it as used.
  */
-export async function verifyGuardianMagicLink(
-  token: string,
-  options?: { markUsed?: boolean },
-) {
+export async function verifyGuardianMagicLink(token: string, options?: { markUsed?: boolean }) {
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
   const link = await prisma.guardianLinkToken.findFirst({

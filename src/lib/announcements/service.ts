@@ -16,10 +16,7 @@ export class AnnouncementPermissionError extends Error {
   }
 }
 
-export async function listAnnouncements(
-  viewer: ViewerProfile,
-  filter?: { branchId?: string; status?: AnnouncementStatus },
-) {
+export async function listAnnouncements(viewer: ViewerProfile, filter?: { branchId?: string; status?: AnnouncementStatus }) {
   const where: Record<string, unknown> = {};
 
   if (filter?.status) {
@@ -68,11 +65,7 @@ export async function getAnnouncement(id: string, viewer: ViewerProfile) {
   return item;
 }
 
-export async function createAnnouncement(
-  authorUserId: string,
-  viewer: ViewerProfile,
-  input: CreateAnnouncementInput,
-) {
+export async function createAnnouncement(authorUserId: string, viewer: ViewerProfile, input: CreateAnnouncementInput) {
   if (!canAuthorAnnouncements(viewer.role, viewer.isSuperAdmin)) {
     throw new AnnouncementPermissionError("You do not have permission to publish announcements");
   }
@@ -103,11 +96,7 @@ export async function createAnnouncement(
   });
 }
 
-export async function updateAnnouncement(
-  id: string,
-  viewer: ViewerProfile,
-  input: UpdateAnnouncementInput,
-) {
+export async function updateAnnouncement(id: string, viewer: ViewerProfile, input: UpdateAnnouncementInput) {
   const existing = await prisma.announcement.findUnique({ where: { id } });
   if (!existing) {
     return null;

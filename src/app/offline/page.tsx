@@ -6,13 +6,7 @@ export default function OfflinePage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-12 text-center">
       <div className="mx-auto max-w-md rounded-2xl border border-line bg-surface p-8 shadow-sm">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-          <svg
-            className="h-7 w-7"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
+          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -23,7 +17,8 @@ export default function OfflinePage() {
 
         <h1 className="mt-5 text-lg font-bold text-fg">You are currently offline</h1>
         <p className="mt-2 text-xs leading-relaxed text-fg-muted">
-          {brand.name} is operating in offline mode. You can still use the <strong>Quick Tools</strong> floating dock to perform calculations, take memos, and access student records.
+          {brand.name} is operating in offline mode. You can still use the <strong>Quick Tools</strong> floating dock to perform
+          calculations, take memos, and access student records.
         </p>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">

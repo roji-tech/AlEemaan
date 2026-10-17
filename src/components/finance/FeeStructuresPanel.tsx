@@ -13,22 +13,13 @@ export interface FeeStructuresPanelProps {
   onRefresh: () => void;
 }
 
-export function FeeStructuresPanel({
-  branchId,
-  items,
-  periods,
-  classGroups,
-  canManage = true,
-  onRefresh,
-}: FeeStructuresPanelProps) {
+export function FeeStructuresPanel({ branchId, items, periods, classGroups, canManage = true, onRefresh }: FeeStructuresPanelProps) {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeeStructureItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const filteredItems = selectedPeriodId === "ALL"
-    ? items
-    : items.filter((item) => item.periodId === selectedPeriodId);
+  const filteredItems = selectedPeriodId === "ALL" ? items : items.filter((item) => item.periodId === selectedPeriodId);
 
   const totalFeeAmount = filteredItems.reduce((acc, item) => acc + Number(item.amount), 0);
 
@@ -107,9 +98,7 @@ export function FeeStructuresPanel({
       {/* Fee Items List */}
       <div className="rounded-2xl border border-line bg-surface overflow-hidden shadow-sm">
         {filteredItems.length === 0 ? (
-          <div className="p-8 text-center text-xs text-fg-muted">
-            No fee schedule items configured for this selection.
-          </div>
+          <div className="p-8 text-center text-xs text-fg-muted">No fee schedule items configured for this selection.</div>
         ) : (
           <div className="divide-y divide-line overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -138,9 +127,7 @@ export function FeeStructuresPanel({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-fg">
-                      {formatNaira(item.amount)}
-                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-fg">{formatNaira(item.amount)}</td>
                     {canManage && (
                       <td className="px-4 py-3 text-right space-x-2">
                         <button
