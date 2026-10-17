@@ -50,11 +50,13 @@ None of these has been run on the live database by me (I never touch it); apply 
 10. `20261016100000_p3_timetable_and_announcements`
 11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
 12. `20261017100000_p5_lms_and_assignments` (Assignments, submissions, learning materials, quizzes, questions, attempts)
+13. `20261017120000_p6_communication_messaging` (Notification templates, dispatches, guardian link tokens, audit logs)
+14. `20261017140000_p7_student_promotion` (Promotion batches, promotion records, enrollment status transitions)
 
 ## 3. Not built
 
 - [ ] Student and parent access to report cards (there is no parent-to-child link yet - a decision of its own).
-- [ ] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages).
+- [x] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages) — built in Slice P7 (`claude/p7-student-promotion`).
 - [ ] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh.
 - [ ] PDF download of the report card (printing from the browser is built).
 - [ ] A history dialog in the Review tab (the history API exists).
@@ -63,6 +65,7 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [x] **P3** timetable and announcements (Task 0021: Completed, PR #47 to dev).
 - [x] **P4** finance F1-F4 (fee structures, batch invoicing, manual recorded payments, receipting, dual-mode Paystack checkout, webhooks) (PR #48).
 - [x] **P5** learning management system (LMS) & assignments (Task 0023: Completed, PR #49 to dev).
+- [x] **P6** multi-channel messaging & communication engine (Task 0024: Completed, [PR #50](https://github.com/roji-tech/AlEemaan/pull/50)).
 - [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
 - [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
 

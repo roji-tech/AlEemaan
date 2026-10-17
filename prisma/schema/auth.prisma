@@ -59,6 +59,8 @@ model User {
   unseenReviewsAssigned AdminSelfApprovalGrant[] @relation("SelfApprovalReviewer")
   attendanceGrantsGranted AttendanceGrant[] @relation("AttendanceGrantsGranted")
   announcements         Announcement[]
+  notificationDispatches NotificationDispatch[]
+  executedPromotions    PromotionBatch[]         @relation("PromotionExecutor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

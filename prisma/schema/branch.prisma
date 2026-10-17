@@ -49,6 +49,11 @@ model Branch {
   quizzes             Quiz[]
   quizQuestions       QuizQuestion[]
   quizAttempts        QuizAttempt[]
+  notificationTemplates NotificationTemplate[]
+  notificationDispatches NotificationDispatch[]
+  guardianLinkTokens    GuardianLinkToken[]
+  notificationAuditLogs NotificationAuditLog[]
+  promotionBatches      PromotionBatch[]
 
   createdAt DateTime @default(now())
 }
