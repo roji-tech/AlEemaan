@@ -33,6 +33,8 @@ branches not tenants) — recorded as a divergence; its roles/audit-append-only 
 | **Slice P6: Multi-Channel Messaging & Communication Engine** | ✅ built & verified ([PR #50](https://github.com/roji-tech/AlEemaan/pull/50)) |
 | **Slice P7: Next-Term Student Promotion & Academic Rollover** | ✅ built & verified ([PR #51](https://github.com/roji-tech/AlEemaan/pull/51)) |
 | **Slice P8: Parent & Student Self-Service Portal** | ✅ built & verified ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52)) |
+| **Staging Candidate Release v0.6.0 (`dev` -> `master`)** | ✅ merged ([PR #53](https://github.com/roji-tech/AlEemaan/pull/53)) |
+| **Production Release v0.6.0 (`master` -> `prod`)** | 🟡 open for maintainer approval ([PR #54](https://github.com/roji-tech/AlEemaan/pull/54)) |
 
 ---
 

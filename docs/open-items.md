@@ -33,7 +33,8 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **What may the public verification page show?** — answered 2026-10-15: bare minimum (school, branch, class, term, publish date, "valid") always; everything else is superadmin-configured per branch. *(Was item in §1.)*
 - [x] **Teachers and attendance** — answered 2026-10-15: class/form teacher of the arm + explicit grants; backfill on deploy. *(Was item in §1.)*
 - [x] **Go-ahead for finance F1** (fee structures and invoices); built in Slice P4 (`claude/p4-finance-billing`).
-- [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17. Production (`master` -> `prod`) remains gated.
+- [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17.
+- [ ] **Approval of `master` -> `prod` PR** — [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) open and awaiting maintainer approval for live release v0.6.0.
 
 ## 2. Built on `dev` & `master`, not yet live: run the migrations BEFORE the code
 

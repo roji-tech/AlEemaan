@@ -1,9 +1,9 @@
 # AlEemaan — Project Status & Handover Documentation
 
-> **Last Updated:** 2026-10-17 (Post-P7 implementation & verification)  
+> **Last Updated:** 2026-10-17 (Post-P8 implementation & Staging PR #53 merged; Prod PR #54 open)  
 > **Scope:** AlEemaan School Management System (Single-Tenant, Multi-Branch Architecture)  
 > **Repository:** `roji-tech/AlEemaan`  
-> **Branch Context:** `claude/p7-student-promotion` (Target: `dev`)
+> **Branch Context:** `master` -> `prod` ([PR #54](https://github.com/roji-tech/AlEemaan/pull/54))
 
 ---
 
@@ -85,15 +85,16 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 ---
 
 ## 4. Sequential Road Ahead
-
+ 
 ```
-[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, P3 Timetable, P4 Finance, P5 LMS, P6 Communication]
+[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, P3 Timetable, P4 Finance, P5 LMS, P6 Comms, P7 Promotion, P8 Portal]
           │
           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Next-Term Student Promotion & Academic Rollover             │
-│ OR Pre-Production Staging Verification & Release v0.6.0     │
-│ OR Phase 6 Family / Student Self-Service Portal             │
+│ Pre-Production Staging Verification (master: PR #53 merged) │
+│                        │                                    │
+│                        ▼                                    │
+│ Production Release v0.6.0 (prod: PR #54 open)               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -101,7 +102,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ## 5. Production Database Migrations Register
 
-The following 10 additive migrations have been applied and tested on development and test databases, but **must be executed against the live production database in exact order** prior to deploying corresponding code:
+The following 14 additive migrations have been applied and tested on development and test databases, but **must be executed against the live production database in exact order** prior to deploying corresponding code:
 
 1. `20261011120000_super_admin_flag` (*Awaiting maintainer's `admins:list` review*)
 2. `20261014090000_academic_structure` (Classes, arms, subjects, offerings)
@@ -124,4 +125,4 @@ The following 10 additive migrations have been applied and tested on development
 
 1. **Live Administrator Review:** Run `pnpm admins:list` on the live AlEemaan database to confirm which accounts retain `SUPER_ADMIN` status before running migration `20261011120000_super_admin_flag`.
 2. **Legacy Report Card Visual:** Provide a photo or PDF sample of the legacy report card to code the exact `LegacyLayout` (`legacy = true`).
-3. **Approval of any `dev` -> `master` PR** and production deployment steps.
+3. **Approval of Production Release:** Review and approve [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) (`master` -> `prod`).
