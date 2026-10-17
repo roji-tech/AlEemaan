@@ -28,23 +28,50 @@ export default async function VerifyPage({ params }: { params: Promise<{ token: 
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-fg-muted">School</dt>
               <dd className="text-fg">
-                {v.school} · {v.branch}
+                {String(v.school)} · {String(v.branch)}
               </dd>
-              <dt className="text-fg-muted">Pupil</dt>
-              <dd className="text-fg">{v.pupil}</dd>
+              {typeof v.pupil === "string" && (
+                <>
+                  <dt className="text-fg-muted">Pupil</dt>
+                  <dd className="text-fg">{v.pupil}</dd>
+                </>
+              )}
               <dt className="text-fg-muted">Class</dt>
-              <dd className="text-fg">{v.className}</dd>
+              <dd className="text-fg">{String(v.className)}</dd>
               <dt className="text-fg-muted">Term</dt>
-              <dd className="text-fg">{v.period}</dd>
-              <dt className="text-fg-muted">Subject</dt>
-              <dd className="text-fg">{v.subject}</dd>
+              <dd className="text-fg">{String(v.period)}</dd>
+              {typeof v.subject === "string" && (
+                <>
+                  <dt className="text-fg-muted">Subject</dt>
+                  <dd className="text-fg">{v.subject}</dd>
+                </>
+              )}
+              {v.finalScore !== undefined && (
+                <>
+                  <dt className="text-fg-muted">Mark</dt>
+                  <dd className="text-fg">{String(v.finalScore)}</dd>
+                </>
+              )}
+              {typeof v.grade === "string" && (
+                <>
+                  <dt className="text-fg-muted">Grade</dt>
+                  <dd className="text-fg font-bold">{v.grade}</dd>
+                </>
+              )}
               <dt className="text-fg-muted">Published</dt>
               <dd className="text-fg">
-                {new Date(v.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
+                {new Date(String(v.publishedAt)).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "UTC",
+                })}
               </dd>
             </dl>
             <p className="text-xs text-fg-muted">
-              This page confirms the result exists and was published by the school. It does not show the marks.
+              {v.finalScore !== undefined
+                ? "This page confirms the result exists and was published by the school."
+                : "This page confirms the result exists and was published by the school. It does not show the marks."}
             </p>
           </div>
         )}

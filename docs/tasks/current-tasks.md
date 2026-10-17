@@ -28,8 +28,12 @@
 | 0015 | [`0015-p2b-results-workflow.md`](0015-p2b-results-workflow.md) | P2b: results review workflow | Completed | 2026-10-14 UTC | 2026-10-14 UTC | [PR #39](https://github.com/roji-tech/AlEemaan/pull/39) (`claude/p2b-results-workflow`) |
 | 0016 | [`0016-p2c-report-card-verification.md`](0016-p2c-report-card-verification.md) | P2c: report card, remarks, public verification | Completed | 2026-10-14 UTC | 2026-10-14 UTC | [PR #40](https://github.com/roji-tech/AlEemaan/pull/40) (`claude/p2c-report-card`) |
 | 0017 | [`0017-p2d-results-screens.md`](0017-p2d-results-screens.md) | P2d: the Results screens | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #41](https://github.com/roji-tech/AlEemaan/pull/41) (`claude/p2d-results-screens`) |
-| 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | [~] In Progress (Design confirmed & committed; implementation pending) | 2026-10-15 UTC | — | `claude/docs-decisions-2026-10-15` |
-| 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Upcoming (scheduled after P2e) | — | — | — |
+| 0018 | [`0018-p2e-settings-and-approvals.md`](0018-p2e-settings-and-approvals.md) | P2e: Settings + Approvals layer, CA/exam schemes, report layouts, verification fields, self-approval toggle | Completed | 2026-10-15 UTC | 2026-10-15 UTC | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) (`claude/p2e-settings-approvals`) |
+| 0019 | [`0019-attendance-permissions.md`](0019-attendance-permissions.md) | Attendance permissions (arm-scoped teacher role & grants with deploy backfill) | Completed | 2026-10-15 UTC | 2026-10-16 UTC | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) (`claude/aleemaan-attendance-permissions`) |
+| 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) (`claude/pwa-and-quick-tools`) |
+| 0021 | [`0021-p3-timetable-and-announcements.md`](0021-p3-timetable-and-announcements.md) | Slice P3: Timetable Canvas & Announcements Broadcast | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) (`claude/p3-timetable-announcements`) |
+| 0022 | [`0022-p4-finance-and-billing.md`](0022-p4-finance-and-billing.md) | Slice P4: Finance & Fee Invoicing Foundation | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing`) |
+| 0023 | [`0023-p5-lms-assignments.md`](0023-p5-lms-assignments.md) | Slice P5: Learning Management System (LMS) & Assignments | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) |
 
 ---
 
@@ -79,14 +83,53 @@
 - [x] Full suite 1275 passed, 1 sign-in timeout under load (passed 3/3 alone).
 
 ### TASK-0018: Slice P2e — Settings + Approvals Layer & Multi-Scope Schemes
-- **Status:** [~] In Progress (Design confirmed and committed; implementation pending).
-- [ ] Schema & migration: `SettingValue`, `SettingScope`, `SettingStatus`, `SettingApproval`, `SettingAudit`.
-- [ ] Multi-scope CA/exam schemes (teacher subject > class group > branch default > global default), 100-sum check, default names "CA", "Project", "Exam".
-- [ ] Report-card layout selection (fixed coded layouts, legacy flag).
-- [ ] Self-approval toggle per administrator (superadmin exclusive, unseen reviewer delegation).
-- [ ] Configurable public verification fields (minimum guaranteed: school, branch, class, term, publish date, "valid").
+- **Status:** Completed (PR #44 opened into `dev`).
+- [x] Schema & additive migration: `AssessmentScheme`, `AssessmentSchemeComponent`, `AssessmentSchemeApprovalRequest`, `BranchSelfApprovalOverride`, `ReportCardLayoutConfig`, `VerificationPageConfig`.
+- [x] Multi-scope CA/exam schemes (teacher subject > class group > branch default > global default), 100-sum check, publishing guard.
+- [x] Report-card layout selection (fixed coded layouts, legacy flag, signature lines, next term date).
+- [x] Self-approval toggle per administrator (superadmin exclusive, unseen reviewer delegation/redaction).
+- [x] Configurable public verification fields (minimum guaranteed: school, branch, pupil, class, term, publish date, genuine badge).
 
 ### TASK-0019: Attendance Permissions
-- **Status:** Upcoming (scheduled post-P2e).
-- [ ] Arm-scoped teacher assignments, explicit attendance grants, and zero-downtime deploy backfill.
+- **Status:** Completed (PR #45 opened into `dev` on branch `claude/aleemaan-attendance-permissions`).
+- [x] Additive migration `20261015110000_attendance_permissions` (`ClassArm.classTeacherId`, `AttendanceGrant`, and deploy backfill).
+- [x] Access control service `src/lib/attendance/access.ts` (Form teacher, explicit grants, admin scoping).
+- [x] Protected API routes: `GET /api/v1/academics/attendance/arms`, `POST /api/v1/academics/attendance`, `GET/POST /api/v1/academics/attendance/grants`, `DELETE /api/v1/academics/attendance/grants/[id]`, `PATCH /api/v1/academics/arms/[id]/class-teacher`.
+- [x] Dedicated `/attendance` page and accessible `AttendancePanel` & `AttendanceGrantModal` UI.
+- [x] Automated test suite: unit (2), integration (6), API (3), regression (17), and E2E (8 desktop + mobile with WCAG 2.2 AA Axe checks).
+
+### TASK-0020: PWA Foundation & Global Quick-Tools Dock
+- **Status:** Completed (`claude/pwa-and-quick-tools` -> `dev`).
+- [x] Progressive Web App manifest, icons, offline caching service worker (`public/sw.js`), and `/offline` fallback page.
+- [x] Floating quick-tools dock with `Cmd+K` / `Alt+T` global keyboard shortcut trigger.
+- [x] Universal school calculator with Shunting-Yard math evaluator and calculation history tape.
+- [x] Quick student admission number / name lookup with branch scoping.
+- [x] Scratchpad with persistent user- and branch-isolated `localStorage` notes.
+- [x] 12/12 unit tests passing in `tests/unit/quick-tools.spec.ts`; 0 typecheck, lint, or build errors.
+
+### TASK-0021: Slice P3 — Timetable Canvas & Announcements Broadcast
+- **Status:** Completed (`claude/p3-timetable-announcements` -> `dev`).
+- [x] Sub-phase A: Data Architecture & Schema (`prisma/schema/timetable.prisma`, `prisma/schema/announcements.prisma`, branch/academics/auth relations)
+- [x] Sub-phase B: Database Migrations (`20261016100000_p3_timetable_and_announcements`)
+- [x] Sub-phase C: Pure Domain Rules & Validation (`rules.ts`, `validation.ts`, 26 unit tests)
+- [x] Sub-phase D: Services & API Endpoints (`/api/v1/timetable`, `/api/v1/timetable/batch`, `/api/v1/timetable/[id]`, `/api/v1/announcements`, `/api/v1/announcements/[id]`, 3 API tests)
+- [x] Sub-phase E: UI Consoles & Accessibility (`TimetableCanvas`, `SlotEditModal`, `AnnouncementsFeed`, `AnnouncementComposerModal`, WCAG 2.2 AA compliant, 5 E2E tests)
+- [x] Sub-phase F: Testing & Quality Gates (0 type errors, 0 lint errors, 26 unit tests, 3 API tests, 5 E2E tests, 58/58 build routes)
+
+### TASK-0022: Slice P4 — Finance & Fee Invoicing Foundation
+- **Status:** Completed (`claude/p4-finance-billing` -> `dev`).
+- [x] Sub-phase A: Data Architecture & Schema (`prisma/schema/finance.prisma`, migration `20261016120000_p4_finance_and_billing`)
+- [x] Sub-phase B: Pure Rules & Computation Engine (`rules.ts`, `format.ts`, `crypto.ts`, `validation.ts`, 17 unit tests)
+- [x] Sub-phase C: Gateway Client & Dual-Mode Paystack Engine (`mock-paystack.ts`, `paystack.ts`)
+- [x] Sub-phase D: Services & API Endpoints (`service.ts`, 8 REST endpoints under `/api/v1/finance` and `/api/v1/webhooks/paystack`, 3 API tests)
+- [x] Sub-phase E: UI Consoles & Accessibility (`FinancePanel`, `InvoicesDashboard`, `FeeStructuresPanel`, modals, WCAG 2.2 AA compliant, 5 E2E tests)
+- [x] Sub-phase F: Quality Gates & Handover (0 type errors, 0 lint errors, 17 unit tests, 3 API tests, 5 E2E tests, 61/61 build routes)
+
+### TASK-0023: Slice P5 — Learning Management System (LMS) & Assignments
+- **Status:** Completed (`claude/p5-lms-assignments` -> `dev`).
+- [x] Sub-phase A: Data Architecture & Schema (`prisma/schema/lms.prisma`, migration `20261017100000_p5_lms_and_assignments`)
+- [x] Sub-phase B: Pure Rules & Computation Engine (`rules.ts`, `validation.ts`, 8 unit tests)
+- [x] Sub-phase C: Services & API Endpoints (`service.ts`, 9 REST endpoints under `/api/v1/lms`, 3 API tests)
+- [x] Sub-phase D: UI Consoles & Accessibility (`/lms`, `LmsPanel`, `AssignmentsList`, `SpeedGraderModal`, `MaterialsList`, `QuizConsole`, WCAG 2.2 AA compliant, 5 E2E tests)
+- [x] Sub-phase E: Quality Gates & Handover (0 type errors, 0 lint errors, 8 unit tests, 3 API tests, 5 E2E tests, 64/64 build routes)
 

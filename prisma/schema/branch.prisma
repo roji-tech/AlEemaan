@@ -27,6 +27,28 @@ model Branch {
   assessmentComps   AssessmentComponent[]
   gradeScales       GradeScale[]
   gradeBands        GradeBand[]
+  settingValues       SettingValue[]
+  settingApprovals    SettingApproval[]
+  settingAudits       SettingAudit[]
+  schemeScopes        AssessmentSchemeScope[]
+  schemeDrafts        AssessmentSchemeDraft[]
+  selfApprovalGrants  AdminSelfApprovalGrant[]
+  verificationConfig  VerificationPageConfig?
+  attendanceGrants    AttendanceGrant[]
+  timetableSlots      TimetableSlot[]
+  announcements       Announcement[]
+  feeStructures       FeeStructure[]
+  invoices            Invoice[]
+  payments            Payment[]
+  invoiceDiscounts    InvoiceDiscount[]
+  receiptCounters     ReceiptCounter[]
+  invoiceCounters     InvoiceCounter[]
+  assignments         Assignment[]
+  submissions         AssignmentSubmission[]
+  learningMaterials   LearningMaterial[]
+  quizzes             Quiz[]
+  quizQuestions       QuizQuestion[]
+  quizAttempts        QuizAttempt[]
 
   createdAt DateTime @default(now())
 }

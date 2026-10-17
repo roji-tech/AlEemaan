@@ -8,6 +8,7 @@ import { MobileNav } from "./MobileNav";
 import { ProfileMenu } from "./ProfileMenu";
 import { SidebarNav } from "./SidebarNav";
 import { initialsOf } from "./nav";
+import { QuickToolsTrigger } from "@/components/tools/QuickToolsTrigger";
 
 export type ShellUser = {
   name: string | null;
@@ -105,6 +106,8 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         isSuperAdmin={user.isSuperAdmin}
         isTeacher={user.isTeacher}
       />
+
+      <QuickToolsTrigger />
     </div>
   );
 }

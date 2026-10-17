@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
@@ -17,7 +19,8 @@ async function expectAccessible(page: Page, what: string) {
     `accessibility violations on ${what}`,
   ).toEqual([]);
 }
-const SHOTS = "/home/rojitech/Desktop/CODEC/out/screenshots";
+const SHOTS = path.resolve(__dirname, "../../out/screenshots");
+fs.mkdirSync(SHOTS, { recursive: true });
 const dialog = (page: Page) => page.getByRole("dialog");
 
 let tag = "";

@@ -20,6 +20,14 @@ const fixed = (hundredths: number) => (hundredths / 100).toFixed(2);
 
 export const MAX_COMPONENTS = 10;
 export const COMPONENT_NAME_MAX = 40;
+export const DEFAULT_PART_NAMES = ["CA", "Project", "Exam"] as const;
+export const PART_NAME_MAX = 64;
+
+export type CaPartInput = { name?: string; maxScore: number };
+export type HierarchicalSchemeInput = {
+  examMax: number;
+  caParts: readonly CaPartInput[];
+};
 
 export type ComponentInput = { name: string; maxScore: number };
 export type SchemeInput = { totalMax: number; examMax: number; components: readonly ComponentInput[] };

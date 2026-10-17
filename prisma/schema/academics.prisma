@@ -56,6 +56,8 @@ model AcademicPeriod {
   session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   results Result[]
   remarks ReportRemark[]
+  feeStructures FeeStructure[]
+  invoices      Invoice[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
@@ -81,7 +83,12 @@ model ClassGroup {
   branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
   arms      ClassArm[]
   offerings SubjectOffering[]
-  schemes   AssessmentScheme[]
+  schemes      AssessmentScheme[]
+  schemeScopes AssessmentSchemeScope[]
+  feeStructures FeeStructure[]
+  lmsAssignments    Assignment[]
+  learningMaterials LearningMaterial[]
+  quizzes           Quiz[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -94,18 +101,25 @@ model ClassArm {
   classGroupId String
   name         String
   capacity     Int?
+  classTeacherId String?
   archivedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
-  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  classGroup  ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
-  enrollments StudentEnrollment[]
-  assignments StaffSubjectAssignment[]
-  results     Result[]
+  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup       ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  classTeacher     StaffRecord?             @relation("ClassTeacherArms", fields: [branchId, classTeacherId], references: [branchId, id], onDelete: NoAction)
+  enrollments      StudentEnrollment[]
+  assignments      StaffSubjectAssignment[]
+  results          Result[]
+  attendanceGrants AttendanceGrant[]
+  timetableSlots   TimetableSlot[]
+  announcements    Announcement[]
+  lmsAssignments   Assignment[]
 
   @@unique([branchId, id])
   @@index([branchId, classGroupId])
+  @@index([branchId, classTeacherId])
 }
 
 /// A subject taught in one branch. `code` is upper-cased and unique among the branch's live subjects when present (partial index).
@@ -121,7 +135,13 @@ model Subject {
   branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   offerings   SubjectOffering[]
   assignments StaffSubjectAssignment[]
-  results     Result[]
+  results      Result[]
+  schemeScopes AssessmentSchemeScope[]
+  schemeDrafts AssessmentSchemeDraft[]
+  timetableSlots TimetableSlot[]
+  lmsAssignments    Assignment[]
+  learningMaterials LearningMaterial[]
+  quizzes           Quiz[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -170,6 +190,7 @@ model AssessmentScheme {
   successors AssessmentScheme[]    @relation("SchemeVersions")
   components AssessmentComponent[]
   results    Result[]
+  scopes     AssessmentSchemeScope[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -255,9 +276,16 @@ model StaffRecord {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
 
-  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  membership  Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
-  assignments StaffSubjectAssignment[]
+  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  membership       Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
+  assignments      StaffSubjectAssignment[]
+  teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
+  attendanceGrants AttendanceGrant[]
+  timetableSlots   TimetableSlot[]
+  createdAssignments Assignment[]
+  gradedSubmissions  AssignmentSubmission[]
+  createdMaterials   LearningMaterial[]
+  createdQuizzes     Quiz[]
 
   @@unique([branchId, id])
   @@index([branchId])

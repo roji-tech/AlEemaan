@@ -99,6 +99,7 @@ export function serverEnv(appUrl: string): Record<string, string> {
     DEV_TOOLS: "",
     DEV_TOOLS_TOKEN: "",
     PWNED_PASSWORD_CHECK: "off",
+    USE_MOCK_PAYSTACK: "true",
   };
 }
 

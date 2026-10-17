@@ -1,0 +1,30 @@
+// --- Timetable & Curriculum Scheduling (Slice P3) ---
+//
+// Recurring weekly schedule per class arm, subject, teacher, day of week, and time interval.
+// dayOfWeek: 1 = Monday ... 7 = Sunday (ISO-8601 standard weekday format).
+// startTime / endTime: "HH:MM" e.g. "08:00" to "08:45" (24-hour format).
+
+model TimetableSlot {
+  id            String   @id @default(cuid())
+  branchId      String
+  classArmId    String
+  subjectId     String
+  staffRecordId String
+  dayOfWeek     Int // 1 = Monday ... 7 = Sunday
+  periodNumber  Int? // Optional period index (1, 2, 3...)
+  startTime     String // "08:00"
+  endTime       String // "08:45"
+  room          String? // Optional room / lab label
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  branch      Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classArm    ClassArm    @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: Cascade)
+  subject     Subject     @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: Cascade)
+  staffRecord StaffRecord @relation(fields: [branchId, staffRecordId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, classArmId])
+  @@index([branchId, staffRecordId])
+  @@index([branchId, dayOfWeek])
+}
