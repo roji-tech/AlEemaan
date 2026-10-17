@@ -1058,11 +1058,10 @@ everything above being schema-stable, for obvious reasons.
   inconvenience.
 
 - **Phase 7 — Data Migration & Cutover.** Depends on every schema above being stable. Maps the 4
-  separate Firestore projects' data into one Postgres database. Blocked on a real answer to the
-  audit's open question first: what's actually populating the two Arabic branches' data today, since
-  no admin/teacher portal exists for them in any of the 5 repos read — that changes how much of this
-  phase is "migrate real records" versus "start those two branches from zero." Ask the school before
-  this phase's design pass gets written, not during it.
+  separate Firestore projects' data into one Postgres database. **Answered 2026-10-13 by the
+  maintainer:** the two Arabic branches' data is not available at all, so the school starts those two branches
+  from zero through the normal admin and teacher portal - this phase migrates the two ENGLISH branches' Firestore
+  projects only (no import or reconciliation for the Arabic ones). Its design pass can now be written.
 
 ## Next action
 
@@ -1170,3 +1169,427 @@ Built as designed above (Decisions 1–10), in the order: additive migration →
 
 #### As built — a person may belong to several branches (2026-10-07)
 Built as Decisions M1–M7 above, on the same branch (PR #11), in this order: design (committed alone, `d02c1d8`) → migration `20261008090000_invitation_per_branch` (an index swap) → `createInvitation` / `acceptInvitation` per (person, branch) → `BRANCH_TAKEN` and `signedOut` in the members service/routes → dialog wording → tests → docs. One addition to the design: the deactivate **response** carries `signedOut`, and the notice says "They keep their other branches" when they do. Mutation pass: not run (pending, end of Phase 2); the list is in M6.
+
+### Fix design — attendance is scoped to the caller's branch (found by code review 2026-10-11; written before any code)
+
+**What was found (read from the code, not yet reproduced by a test).** `GET/POST /api/v1/attendance` and `GET /api/v1/students/[id]/attendance` only check the caller's *role* somewhere in the school. (1) The role for a branch is taken from the caller's membership *in that branch*, but when there is none it falls back to `TEACHING_STAFF`, and the service never checks membership — so any staff member can read or write any branch's roll call. (2) `markBranchAttendance` upserts on `(studentId, date)` without checking the student belongs to the branch (or exists): a caller can overwrite another branch's record (the update path never changes `branchId`), and an unknown id aborts the transaction with a 500. (3) The student history route has no branch check. (4) The roll-call GET does not validate `date` (a malformed one reaches Prisma and 500s). (5) Marking does not require an active session although reading does.
+
+**Decisions.**
+- **A1 — who may touch a branch.** An `ADMIN` membership anywhere may (as everywhere in AlEemaan); anyone else needs an **active membership in that branch**. Otherwise the answer is the same `404 NOT_FOUND` as for an unknown branch (nothing says whether the branch exists). The effective role for the edit-window rule is the caller's role *in that branch*, never a default.
+- **A2 — marking only enrolled students.** Every `studentId` in a POST must be a non-archived student of that branch with an `ACTIVE` enrolment in the branch's active session; any other id (foreign, archived, not enrolled, unknown) refuses the **whole** request with `400 VALIDATION` before any write, naming the ids' positions (`records.N.studentId`), never another branch's data. Duplicate ids in one request are refused. Marking needs an active session (`409 SESSION_NOT_ACTIVE`), as reading does.
+- **A3 — the upsert cannot move a record between branches.** Inside the transaction an existing record for `(student, date)` must already belong to this branch, else the request is refused and rolled back.
+- **A4 — student history.** A staff caller needs an active membership in the *student's* branch (ADMIN anywhere may); otherwise `404`.
+- **A5 — input.** The roll-call GET validates `date` (real `YYYY-MM-DD`) and `className`/`arm` lengths with the same zod fields the POST uses (`400 VALIDATION`).
+- **A6 — one helper.** `resolveBranchRole(userId, branchId)` in `lib/attendance/access.ts` returns the effective role or `null`; both routes and the service use it (no copy of the fallback).
+
+**Tests (written with the code).** *Unit:* none new (pure rules unchanged). *API:* a teacher with a membership in branch A only gets 404 on GET/POST for branch B and on a branch-B student's history; a branch-B student id inside a branch-A POST is a 400 and nothing is written (and a pre-existing branch-B record is unchanged); an archived / unenrolled / unknown id is a 400 with nothing written; duplicate ids refused; POST with no active session is 409; malformed `date` on GET is 400; an ADMIN still reaches every branch; the existing tests still pass. *Integration:* the transaction rolls back wholly when one id is refused (no partial marks).
+
+**Not in this change.** The student import's missing row cap and raw error text, and moving the new routes onto the shared `validate()` helper, are separate items on the tracker. Mutation pass: not run — pending, end of Phase 2 (targets: the membership check, the branch-equals check on each student, the active-session check, the duplicate-id check).
+
+#### Design addendum — student reads are staff-only and branch-scoped (found 2026-10-11 while auditing for the same flaw; written before the code)
+
+**Finding.** `GET /api/v1/students` and `GET /api/v1/students/[id]` are wrapped in `withAuth` with **no `roles`**, so any signed-in user — including a `STUDENT` or `PARENT` membership, or anyone with an account and no membership — can list every student of every branch and read one student's record, which includes the guardian's name, phone and email and the date of birth. (`GET /settings/school` and `GET /academics/sessions` are also open to every signed-in user; their content is the school profile and session dates, which a parent legitimately needs, so they are left as they are and noted.)
+
+**Decisions.**
+- **A7 — who reads students.** Both routes require a staff role (`ADMIN`, `TEACHING_STAFF`, `NON_TEACHING_STAFF`). A non-admin sees only students of branches where they hold an active membership; `?branchId=` for a branch they do not belong to is the same 404 as an unknown branch, and the list without `branchId` is restricted to their branches. `ADMIN` anywhere sees all (as in A1).
+- **A8 — one place for the rule.** `lib/attendance/access.ts` becomes `lib/auth/branch-access.ts` (`resolveBranchRole`, `branchIdsFor(userId)`), used by attendance and students alike.
+- **A9 — tests.** API: a `STUDENT`, a `PARENT` and a user with no membership get 403 on both routes; a teacher of branch A lists only branch-A students and gets 404 for a branch-B student and for `?branchId=<B>`; an administrator still sees all; guardian fields are present for staff as before.
+
+**ADR.** ADR 0012 is widened from "attendance" to "people data is scoped to role and branch" (still Proposed).
+Mutation pass: not run — pending, end of Phase 2 (targets: the role list on both routes, the branch filter, the 404-vs-403 difference).
+
+#### As built — attendance and student reads are scoped to role and branch (2026-10-11)
+
+Record: task `docs/tasks/0005-aleemaan-attendance-branch-scoping-fix.md`; ADR 0012 (Accepted 2026-10-11); issues ISS-0001…0005, 0009 in `docs/issues/README.md`. Built as decisions A1–A9, with these notes: (a) the helper lives in `src/lib/auth/branch-access.ts` (`resolveBranchRole`, `branchIdsFor`), used by attendance and students; (b) the cross-branch record guard (A3) is a read inside the transaction followed by a throw, which rolls back the whole request (ADR 0002 of Octalve) and is answered as the same 400 as an unenrolled student; (c) `GET /students` for a non-admin with no `branchId` lists only their branches, and `?branchId=` outside them is a 404; (d) the student detail answer no longer carries anything for a branch the caller cannot see (404). Not changed: the student import cap and raw error text (ISS-0006) and the `validate()` migration (ISS-0007), both on the register. Mutation pass: not run — pending, end of Phase 2.
+
+#### Guard design — every API handler declares who may call it (2026-10-11; written before the test)
+
+**Why.** The student-list leak (ISS-0003) was a handler wrapped in `withAuth` with no `roles`, i.e. "any signed-in user". Nothing flagged it. A source-level test can: it needs no server and no database.
+
+**Rule (G1).** For every exported HTTP handler (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) in `src/app/api/**/route.ts`, the handler's own source must contain `roles:` **or** the handler is on an explicit allowlist in the test with a one-line reason. The allowlist is grouped: *public by design* (login, forgot/reset password, email-change confirm, invitation preview/accept, logout, setup, dev inbox), *own-account only* (profile, change password, sessions, MFA, `auth/me`, email-change request), and *read content a parent legitimately needs* (school profile, academic sessions). A new handler without `roles:` fails the test until someone either adds `roles:` or writes the reason down — that is the point.
+**G2.** The allowlist cannot silently grow stale: the test also fails for an allowlist entry that matches no handler, or that now has `roles:`.
+**G3.** The `dev/email-inbox` handlers are public in source; the test only records that fact. Whether they refuse in production is a separate item on the register (suspect), not decided here.
+
+Test: `tests/unit/route-role-guard.spec.ts` (unit project). Mutation pass: not run — pending, end of Phase 2 (target: the regex that finds handlers, the allowlist staleness check).
+
+#### Decision update — per-branch roles (maintainer, 2026-10-11)
+The maintainer answered the question raised by ADR 0012: **a person may hold different roles in different branches, and a branch is a boundary for staff.** Built (this branch): `resolveBranchRole` returns the *staff* role held in that branch (STUDENT/PARENT memberships give nothing); marking attendance requires ADMIN or TEACHING_STAFF in that branch; `branchIdsFor` counts staff memberships only. **Interim:** an ADMIN membership in any branch is still school-wide. **Next design (not started, needs the maintainer's go on the schema change):** branch admins (admin in their own branch) and superadmins (admin everywhere) — additive migration backfilling existing admins as superadmins, a review of every `Role.ADMIN` route, the last-admin rule (ADR 0005) counting both kinds, and a superseding ADR for 0001. Tests added: teacher here / non-teaching there; staff here / PARENT there.
+
+### Build design — branch administrators and superadmins (2026-10-11, written before any code; **awaiting the maintainer's go-ahead before the migration**)
+
+**Why.** The maintainer decided (2026-10-11) that branches are boundaries for staff (ADR 0012) and that the end state is *an administrator of a branch* plus *superadmins who administer everywhere*. Today an `ADMIN` membership in **any** branch administers the whole school (ADR 0001), and 15 handlers/libs assume it. This design replaces that interim rule. It will be recorded as a new ADR that supersedes the last sentence of ADR 0001 and the interim clause of ADR 0012 (not yet written: ADRs are proposed together with the code that enforces them, and only the maintainer can accept them).
+
+**S1 — the model: a flag on the person, not a new role.** `User.isSuperAdmin Boolean @default(false)`. A superadmin is a *person* with school-wide authority; their memberships still say which branches they teach/work in. Rejected: a `SUPER_ADMIN` value in `Role` (a role is per-branch by ADR 0007, a school-wide authority does not belong in a per-branch row; adding an enum value is also the harder migration to reverse), and "ADMIN in all four branches" (the next new branch silently breaks it).
+**S2 — meaning of `ADMIN`.** An `ADMIN` membership now administers **that branch only**. A superadmin administers every branch. One helper decides: `canAdminister(userId, branchId)` = superadmin OR active `ADMIN` membership in that branch (in `lib/auth/branch-access.ts`, which already holds `resolveBranchRole`; for a superadmin `resolveBranchRole` returns `ADMIN` for every branch).
+**S3 — who may do what.**
+| Action | Superadmin | Branch admin (own branch) | Other |
+|---|---|---|---|
+| Create/rename/archive a branch; school settings (PATCH); initial setup | yes | no | no |
+| Grant or revoke superadmin | yes (re-types their password; audited; not themselves if last) | no | no |
+| Invite / change role / deactivate / reactivate a member | any branch, any role incl. `ADMIN` | **own branch only, roles below ADMIN only** (cannot create or touch an admin, cannot grant `CAN_MANAGE_USERS` — as ADR 0006 of Octalve) | no |
+| Academic sessions and periods, students (create/update/archive/restore/import), attendance (any date) | all branches | own branch | staff per ADR 0012 |
+| Read school profile and session dates | everyone signed in (unchanged, ISS-0008) | | |
+**S4 — migration (additive, live-data safe).** `ALTER TABLE "User" ADD COLUMN "isSuperAdmin" BOOLEAN NOT NULL DEFAULT false;` then, **in the same migration**, `UPDATE "User" SET "isSuperAdmin" = true WHERE id IN (SELECT "userId" FROM "Membership" WHERE role = 'ADMIN' AND "deactivatedAt" IS NULL);` — every current administrator keeps exactly the authority they have today, so nobody is locked out and nothing changes for the live school on day one. Idempotent (re-running changes nothing). Run the migration **before** the code (ADR 0003); old code ignores the column. The maintainer then demotes people to branch admin by choice, from the Users page.
+**S5 — last-superadmin rule (extends ADR 0005).** The school must always have at least one active superadmin. `hasAnotherActiveAdmin` becomes `hasAnotherActiveSuperAdmin` (distinct *persons*, `FOR UPDATE`, excluding the person being changed); revoking the last superadmin, or deactivating a superadmin's last active membership, is refused (`LAST_SUPERADMIN`). Demoting/deactivating a *branch* admin has no such rule (a superadmin can always fix a branch). A superadmin needs at least one active membership to sign in (as today).
+**S6 — recovery.** A script `scripts/make-superadmin.mjs <email>` (like `mfa-reset.mjs`): sets the flag directly, prints who was changed, writes an audit row. This is the only way to create the first superadmin on a fresh install (the setup wizard marks the first administrator a superadmin) and the way back if all are lost.
+**S7 — the places that change.** `withAuth` gains `superAdmin: true` (the caller must be a superadmin) next to `roles`; the 15 `Role.ADMIN` call sites are reviewed one by one against S3 (list in the task file); the route-role guard test (`tests/unit/route-role-guard.spec.ts`) gets a second assertion: a handler that takes a `branchId`/entity of a branch must call `canAdminister`/`resolveBranchRole` (source scan, allowlist with reasons); sign-in's shorter-session rule for admins applies to superadmins and branch admins alike; the Users page shows "Administrator of <branch>" and "Superadmin", hides controls the caller may not use (the API still enforces).
+**S8 — tests (with the code).** *Integration:* the migration backfills exactly the current admins and is idempotent; last-superadmin rule incl. the race (two superadmins revoking each other leave exactly one) and one person with two ADMIN memberships counting once. *API:* a branch admin gets 404 for another branch's students/sessions/members and 403 on settings/branches; cannot invite or edit an `ADMIN`; cannot grant a permission; a superadmin can do all of it; grant/revoke superadmin needs the password and is audited. *E2E:* Users page for each kind of caller; axe on the new states. *Unit:* `canAdminister` truth table.
+
+**Open questions for the maintainer (each has a default; say if you want otherwise).**
+1. Flag on the person (default) or a new `SUPER_ADMIN` role?
+2. May a branch admin create *another* branch admin (default **no**, only a superadmin does) — answered 2026-10-11: accepted?
+3. Should everyone who is an administrator today become a superadmin on migration (default **yes**, so nothing changes until you choose)?
+4. Do branch admins manage *academic sessions* of their branch (default **yes**) or only superadmins?
+
+**Order of work.** a) this design (committed alone) → b) your answers → c) migration + `canAdminister` + tests → d) member/invitation routes → e) the other admin routes → f) Users page → g) docs, ADR (Proposed), full suite → h) PR into `dev`. Mutation pass: not run — pending, end of Phase 2 (targets: the backfill predicate, the last-superadmin count, the branch comparison in `canAdminister`, the "cannot touch an admin" rule).
+
+#### Maintainer's answers to the branch-admin / superadmin questions (2026-10-11)
+All four defaults accepted: (1) `User.isSuperAdmin` **flag on the person**, not a new role; (2) a branch admin **cannot create another branch admin** (only a superadmin can); (3) every current administrator **becomes a superadmin on migration** (nothing changes for the live school until the maintainer demotes someone by choice); (4) **branch admins manage the academic sessions of their branch**. The design (S1–S8) stands as written. Status: answered; the migration has not been written (it is built after the attendance/student-read fix is merged to `dev`, and runs on the dev database first).
+
+#### As built — branch administrators and superadmins (2026-10-11; ADR 0014, Proposed)
+Record: task `docs/tasks/0006-aleemaan-branch-admins-and-superadmins.md`; issue ISS-0013. Built as designed (S1–S8), with these notes:
+- **S1/S4 flag and migration.** `User.isSuperAdmin`; migration `20261011120000_super_admin_flag` adds the column and backfills every person with an active ADMIN membership in the same file (idempotent, tested on legacy rows: active admin, deactivated admin, teacher, parent, nobody, a person with two ADMIN memberships). Applied to the docker dev database (no users there, so the test is what exercises the backfill).
+- **S2 helpers.** `lib/auth/branch-access.ts`: `isSuperAdmin`, `canAdminister`, `adminScope` (`{ superAdmin, branchIds }`), `mayAdminister`, `EVERY_BRANCH`; `resolveBranchRole` / `branchIdsFor` read the flag. A superadmin counts only while they hold an active membership.
+- **S3 rules in the services.** Members and invitations services take a **required** `AdminScope` (a forgotten scope is a compile error, not a fail-open); routes get it from `scopeOrForbidden` (403 if the caller has no authority at that instant). Students, academic sessions/periods use `lib/students/scope.ts` (`studentOutOfScope` 404, `branchOutOfScope` 403); `POST /branches` and `PATCH /settings/school` are `superAdmin: true`; `GET /branches` is scoped for a branch administrator.
+- **S5 last superadmin.** `LAST_ADMIN` became `LAST_SUPERADMIN`. A role or branch change never removes authority (the flag stays), so the rule triggers only on deactivating a superadmin's last active membership or revoking the flag. The superadmin `User` rows are locked `FOR UPDATE` **before** counting, and the count is a second statement (READ COMMITTED), so the loser of a race sees the winner's commit. Races tested for deactivate-each-other and revoke-each-other.
+- **S6.** `PATCH /api/v1/members/[id]/superadmin { superAdmin, password }` (superadmin; re-types the caller's own password; wrong passwords rate-limited, a right one refunded; strict body; audited; not one's own); `scripts/make-superadmin.mjs` (`pnpm superadmin:make -- <email>`); the setup wizard marks the first administrator a superadmin.
+- **S7.** `withAuth({ superAdmin: true })`; an `ADMIN` in `roles` is satisfied by a superadmin; the sign-in shorter-session rule covers superadmins; `requirePageSession` returns `isSuperAdmin`; Branches and Settings are superadmin pages and nav entries; the Users page shows a "Superadmin" badge, hides controls the API would refuse, and a superadmin gets "Make / Remove superadmin" (password dialog). The route-role guard test has a second assertion (a handler that names a branch must call a branch helper or be allowlisted); checked non-vacuous by removing one call.
+- **Deviations / not done.** `CAN_MANAGE_USERS` delegation does not exist here yet, so "branch admin cannot grant it" has nothing to refuse. The `roles` option still means "a role somewhere"; making the branch part of the guard (`withAuth({ roles, branch })`) is a follow-up under its own ADR. The student list/detail read routes were already scoped by ADR 0012.
+- **Tests.** `tests/integration/super-admin.spec.ts` (6), `tests/integration/members.spec.ts` rewritten (28), `tests/integration/make-superadmin-script.spec.ts` (3), `tests/api/branch-admins.spec.ts` (13), `tests/api/branch-admin-scope.spec.ts` (7), `tests/unit/route-role-guard.spec.ts` (+2). Mutation pass: not run — pending, end of Phase 2 (targets: backfill predicate, last-superadmin count and lock order, branch comparison in `canAdminister`, "cannot touch an admin").
+
+
+### Build design — porting Octalve Edu's academics, results, timetable, announcements and finance (2026-10-13, written before any code; P1 go-ahead: the maintainer's "go with your suggestions" / "proceed", 2026-10-14; P1's own design follows below)
+
+**Where AlEemaan stands.** It has sessions and terms, students (with `className`/`arm` as plain strings on the enrolment), attendance, users and invitations, settings. It has **no** class groups or arms as rows, no subjects, no staff records or teaching assignments, no assessment schemes, grade scales, results, timetable, announcements or finance. Octalve Edu has all of them (Phase 1.1–1.6) with its tenant model; AlEemaan has branches, not tenants (ADR 0001), so every ported table carries a `branchId` instead of a `tenantId` and the guard is the branch helpers (ADR 0012/0014, and ADR 0015 if accepted), not row-level security.
+
+**Why the order matters.** Results need subjects, class arms and "this teacher teaches this subject to this arm"; the timetable needs staff records and arms; invoices need students and periods. So the foundation comes first, and nothing is ported "as is": each slice is re-read against AlEemaan's branch rules.
+
+| Slice | What | Needs first | Notes for the design pass |
+|---|---|---|---|
+| **P1 — academic structure** | class groups, arms, subjects, subject offerings, assessment schemes and components, grade scales and bands; staff records and teaching assignments (the one place a person who never signs in, such as a security guard, is recorded) | nothing | **Decision:** replace the `className`/`arm` strings with real arms. Additive: new tables, enrolments gain an optional `classArmId`, a backfill creates arms from the strings that exist, the strings stay until Phase 7 is done. A class group belongs to ONE branch (or the whole school for a shared level). |
+| **P2 — results** | per-period subject results, the draft → submitted → approved → published → locked workflow with authorship and no self-approval, report cards, public verification token | P1, attendance | Octalve's public verification shows the student's name in full and no admission number (ISS-0008 there); copy the decision, not the old behaviour. Who approves is per branch. |
+| **P3 — timetable and announcements** | slots (arm, subject, teacher, day, time), clash checks; announcements by branch / class | P1 (staff, arms) | Campus-admin rules do not apply; branch admins are the analogue. |
+| **P4 — finance** | fee structures, invoices, discounts, manual payments, online payment (Paystack), receipts | P1, results is not needed | Needs maintainer input: which gateway the school uses, currency, who records cash. Webhooks and money rounding were the riskiest parts in Octalve (ISS-0014 there: invoice visibility): port the tests first. |
+
+**Rules for every slice (the same as the rest of this repo):** design committed alone first; additive migrations that run before the code; tests first and seen failing; the route-role guard (and the branch guard) cover every new route; a full suite before the PR; documentation and the issues register updated; mutation passes recorded as not run until the end of Phase 2.
+
+**Interaction with Phase 7 (data migration).** Phase 7 now covers only the two English branches' Firestore projects (the Arabic branches start fresh, 2026-10-13). P1 therefore must hold what those projects actually store: class lists and arms as the teacher portals use them, subject lists per class, the CA/Exam mark split (primary 30/70, secondary 40/60 in the legacy code) as an assessment scheme per branch. The P1 design pass reads `docs/legacy-feature-inventory.md` for exactly that.
+
+**Open for the maintainer (none blocks writing P1's design):** (1) go-ahead for P1; (2) whether the school wants finance at all in this phase or only results and timetable; (3) the payment gateway and currency if finance is wanted; (4) whether report cards must match the legacy printed layout.
+
+#### Build design — Slice P1: academic structure (2026-10-14, written before any code)
+
+**Scope.** Class groups and arms, subjects and subject offerings, assessment schemes and components, grade scales and bands, staff records and teaching assignments - the foundation P2 (results) and P3 (timetable) stand on. Ported from Octalve Edu's Phase 1.1/1.2 re-read for branches: **every table carries `branchId`, there is no row-level security, and the guard is `withBranch` (ADR 0015)**. All additive: new tables only, plus one nullable column on `StudentEnrollment`; nothing existing changes meaning; migrations run before the code.
+
+**Decisions (each with the alternative not taken).**
+1. **Everything belongs to exactly ONE branch** (`branchId` required). Octalve allows "school-wide" rows (`campusId` null); AlEemaan's branches teach different programmes (JSS/SS, Nursery-Primary 5, Ibtidaiyah...), and the legacy projects keep separate lists per section, so a shared row would be wrong for most branches. Not taken: school-wide groups/subjects (a future "copy from another branch" action is cheaper than a shared row that every branch must tolerate).
+2. **Composite keys keep a child in its parent's branch:** `@@unique([branchId, id])` on parents and composite foreign keys `(branchId, parentId)`, as Octalve does with `tenantId` - a database refusal, not only a code check (an arm cannot point at another branch's class group).
+3. **Real arms replace the `className`/`arm` strings, without breaking them.** `StudentEnrollment` gains a nullable `classArmId`. The migration backfills one `ClassGroup` per distinct `(branch, className)` and one `ClassArm` per distinct `(branch, className, arm)` that exist in enrollments (an enrolment with no arm string gets an arm named "Main"), then links the enrolments. The strings stay and keep being written/accepted by the existing student routes; when the strings match an existing arm of that branch the service also sets `classArmId`; when they do not, `classArmId` stays null and the class page shows an "unmatched enrolments" count. The strings are dropped only after Phase 7. Not taken: making `classArmId` required now (it would change the live student API).
+4. **Class group `sortOrder`** (progression rung for promotion, later) and `archivedAt` instead of delete (nothing is ever deleted - the rule of the whole repo). Arm `capacity` is display only.
+5. **Subjects and offerings** per branch; `code` upper-cased and unique among live subjects of the branch. "This class studies this subject" is `SubjectOffering` (real DELETE until something references it; a test fails the day something does, forcing archive-on-reference - Octalve's rule).
+6. **Assessment schemes** (CA components + exam, summing exactly to `totalMax`) are per branch, optionally narrowed to a class group; one default per branch (`classGroupId` null). Seed on first use per branch from the legacy split: the legacy inventory says secondary 30 CA / 70 exam and primary 40 CA / 60 exam; the administrator confirms the split when a branch's first scheme is created, nothing is seeded silently. **Versioned and lockable:** edited in place only while `lockedAt` is null; the first result to reference one (P2) locks it, a trigger then refuses any change to it or its components, and a later change is a new version that `supersedes` it. P1 ships the column, the trigger and the new-version action; nothing locks them until P2.
+7. **Grade scales** per branch as data (bands `[min,max)` contiguous 0-100, letter, remark), exactly one live default per branch (partial unique index), same versioning/lock. The legacy WAEC-style scale (A1...F9) is offered as a template the administrator applies, not inserted silently.
+8. **Staff records** (`StaffRecord`): a person employed at a branch who may or may not sign in (a security guard, a driver). Optional `userId` linking to that person's membership **in the same branch** (composite FK `(userId, branchId)` to `Membership`); `category` TEACHING / NON_TEACHING / OTHER; `email` unique among live records of the branch. **Teaching assignments** (`StaffSubjectAssignment`: staff x subject x arm, all in one branch). Creating a staff record does NOT create a login; inviting stays on the Users page.
+9. **Who may do what (all through `withBranch`):** read = `staff-read` (any staff role held in the branch; a teacher sees the structure of their own branches only); write = `administer` (superadmin or ADMIN of that branch). No change to who can take attendance - **the teacher-arm rule of Octalve (ISS-0013) is deliberately NOT applied to AlEemaan in P1**; assignments make it possible later and it is a separate decision for the maintainer.
+10. **Audit:** each create/update/archive/lock/new-version writes `AuditLog` (before/after), as the sessions routes do.
+
+**Slices inside P1 (each: tests first and seen failing, gate, its own PR into `dev`).**
+- **P1a - classes, arms, subjects, offerings:** migration (tables, composite keys, enrolment column, backfill), service, routes `academics/class-groups`, `academics/arms`, `academics/subjects`, offerings under a class group; the student services set `classArmId` when strings match. Tests: integration (composite keys refuse a cross-branch child; backfill on legacy-shaped rows, idempotent; partial unique indexes), API (who may read/write, branch scoping 404/403, archive not delete, audit), route guard (new routes wrapped).
+- **P1b - assessment schemes and grade scales:** tables, lock/immutability trigger, scoring helpers (sum check, band contiguity) ported with their unit tests, routes, "apply template". Tests: unit for the maths, integration for the trigger and the one-default index, API.
+- **P1c - staff records and assignments:** tables, routes, link to membership. Tests: integration (same-branch link only), API, guard.
+- **P1d - screens:** the Academic setup page gains Classes, Subjects, Grading and Assessment sections and a People/Staff section; read-only for staff, full for the branch administrator, both themes, axe, phone width; the "unmatched enrolments" notice.
+
+**Migration safety for the live school.** All four are additive; the backfill is a pure INSERT ... SELECT inside the migration (no DELETE/UPDATE of existing rows except setting the new nullable column), tested on legacy-shaped rows; it is idempotent (running it twice adds nothing). The administrator list for ADR 0014 is unrelated and still gates the earlier migration.
+
+**Not decided / for the maintainer later:** the CA/exam split per branch when the first scheme is created (legacy: secondary 30/70, primary 40/60 - confirm); whether teachers may only take attendance for arms they are assigned to; whether a branch may copy another branch's structure.
+
+#### Build design — Slice P1c: staff records and teaching assignments (2026-10-14, written before any code; refines decision 8 above)
+
+**Tables (migration `20261014110000_staff_assignments`, additive, run before the code).**
+- `StaffRecord`: `branchId`, optional `userId`, `category` (`TEACHING` / `NON_TEACHING`), `firstName`, `lastName`, optional `phone` and lower-cased `email`, `archivedAt`. **Deviation from decision 8:** two categories, not three. A security guard or driver is `NON_TEACHING` with no account - exactly Octalve's model, and a third `OTHER` value would add a case nothing needs. Composite key `(branchId, id)`; the account link is a composite foreign key `(userId, branchId)` to `Membership`, so a record can only link a person who is a member of THE SAME branch. A partial unique index makes one account link to one record per branch, another keeps live emails unique per branch (lower-cased). CHECKs: names 1-80 characters, phone shape, email shape.
+- `StaffSubjectAssignment`: staff x subject x arm, all three through composite `(branchId, id)` keys; unique per triple. A real DELETE for now (nothing references it); the day P2/P3 do, a test is meant to fail and force archive-on-reference.
+
+**Rules.** Creating a record never creates a login (inviting stays on the Users page). Linking needs an ACTIVE membership in the branch whose role fits the category (`TEACHING` -> `TEACHING_STAFF`, `NON_TEACHING` -> `NON_TEACHING_STAFF`); one account, one record; a linked record keeps its category. A subject can be assigned to an arm only when the arm's class studies it (`SubjectOffering`); archived subjects, arms or classes are refused; archiving a record is refused while it has assignments. Nothing is deleted except assignments. Every change is audited.
+
+**Who may do what (`withBranch`).** Read (list, one record with its assignments) = any staff role held in that branch; write (create, edit, archive, restore, link, unlink, assign, unassign) = administrator of the branch. A record of another branch is the same 404 as an unknown id; a branch named in a body that is not the caller's is 403. This does **not** change who may take attendance (the teacher-arm rule stays a separate decision for the maintainer).
+
+**Routes.** `GET/POST /api/v1/staff`, `GET/PATCH /api/v1/staff/[id]`, `POST .../archive`, `POST .../restore`, `PUT/DELETE .../account` (link / unlink), `POST .../assignments`, `DELETE .../assignments/[assignmentId]`.
+
+**Tests (to be written with the code, honestly labelled if not seen failing).** Integration: cross-branch link refused by the database, one account per record, live email unique, checks, cross-branch assignment refused, duplicate triple refused. API: who may read / write, branch scoping 404/403, link rules (role fit, deactivated member, taken account), assignment rules (not offered, archived), archive refused with assignments, audit rows, no exception text. Route guard: the new routes are wrapped. Mutation pass: NOT RUN - pending, end of Phase 2.
+
+#### Build design — Slice P1d: the screens (2026-10-14, written before any code)
+
+**What.** The Academics page (`/academics`, already built for Classes and Subjects in P1a) becomes three sections behind one accessible tab list: **Classes and subjects** (as today), **Assessment and grading** (P1b's API) and **Staff** (P1c's API). No new routes, no migration: the screens call the APIs that already enforce everything. The page stays display-only - hiding a button is a courtesy, the API decides on every request.
+
+**Layout and behaviour.**
+- A tab list (`role="tablist"`; Left/Right/Home/End move between tabs; only the active panel is mounted). The branch choice stays inside each panel as today; switching tabs resets it to the first branch (accepted for now - one branch is the common case, and lifting it is a later polish).
+- **Assessment and grading.** Two lists. *Schemes:* name, scope ("Branch default" or one class), exam mark and components as chips, version, a "Locked" badge once a result uses it. *Grade scales:* name, "Default" badge, version, "Locked", the bands as a compact table. A branch administrator sees New scheme, New grade scale, Edit (while unlocked) or New version (once locked), Make default, Archive; a teacher sees the lists only. The dialogs are the wide dialog with rows: components (name + marks, add/remove) with a live "adds up to N of 100" line, bands (from, to, letter, remark) with a "Use the WAEC-style template" button (the API's template, never applied silently). The server's own sentence for a broken rule (gap, overlap, sum mismatch) is shown as returned.
+- **Staff.** A list of the branch's staff (name, category, email/phone, "Has a sign-in" / "No sign-in", assignment count), search box, Live/Archived filter. Administrator: New staff record, Edit, Archive/Restore, "Link sign-in" (a select of the branch's linkable members from the API) and "Unlink", and a record dialog listing its assignments with an add form (subject + class arm, both from the branch's classes) and a Remove button per assignment. Teachers see names and categories and assignments, no controls.
+- Every outcome has its own honest message (signed out, offline, rate-limited, conflict); the same `say()` helper as the Classes panel.
+
+**Phone.** Lists collapse to stacked cards; tab list scrolls horizontally if it must; dialogs are full width. The bottom tab bar already has five tabs plus More for a superadmin (Academics made it five); I will look at it in the phone screenshots and move Settings into More only if it is genuinely cramped (a one-line change to `nav.ts`, tested by the shell spec).
+
+**Tests.** E2E (real browser, desktop and phone, BOTH themes, axe on each section and each dialog): a branch administrator creates a scheme (and sees the sum line), applies the template and creates a grade scale, makes it default; creates a staff record, links a sign-in, assigns a subject to an arm, removes it, archives; a teacher sees the lists without controls; a broken scheme shows the server's sentence. Screenshots to `out/screenshots` for the maintainer. Mutation passes: NOT RUN - pending, end of Phase 2.
+
+#### As built — Slice P1 (2026-10-14; tasks 0010, 0011, 0012, 0013)
+P1a classes, arms, subjects (migration `20261014090000`), P1b assessment schemes and grade scales with lock triggers (`20261014100000`), P1c staff records and teaching assignments (`20261014110000`), P1d the screens. All four are merged to `dev` (P1d when its PR merges) and every migration is additive and runs before the code. Built as designed, with these notes:
+- **Staff categories:** two (TEACHING / NON_TEACHING), not three - a guard or driver is NON_TEACHING with no account (as Octalve).
+- **Nothing is locked yet:** `lockScheme` / `lockScale` exist and the triggers are tested, but the first caller is Slice P2 (results); until then every scheme and scale is editable in place.
+- **Nothing is seeded:** the WAEC-style scale is a template the administrator applies; the CA/exam split per branch is chosen at first use (legacy: secondary 30/70, primary 40/60 - still to be confirmed by the maintainer).
+- **Screens:** one Academics page with three tab sections. The branch choice is per section. Phone: the bottom bar is Overview, Branches, Academics, Users, More for a superadmin (Settings moved into the More sheet because five tabs plus More overflowed the bar - found in the phone screenshots).
+- **Not decided here (maintainer):** whether teachers may only take attendance for arms they are assigned to; whether a branch may copy another branch's structure.
+- **Mutation passes:** NOT RUN - pending, end of Phase 2.
+
+#### Build design — Slice P2: results (2026-10-14, written before any code)
+
+**Scope.** Per-period subject results for a branch's students: entry by the teacher who teaches the subject, a review workflow with authorship, publishing with a verification token, locking, an append-only history, and the report card (totals, average, position, remarks). Ported from Octalve Edu's Phase 1.4 **with the fixes of its review (ISS-0003)** and re-read for branches (`branchId` on every table, no row-level security, `withBranch`, ADR 0015). Built on P1: arms, subjects, offerings, schemes, scales, staff assignments. Additive migrations, run before the code.
+
+**What the legacy system did (inventory 2 and 4.5-4.6) and what changes.** A teacher saved one document per student/class/term/session with every subject inside; position was "count of strictly higher averages + 1" computed in the browser; a student saw their result only if an admin had flipped `hasPaid`; the scheme snapshot was stored with each result; promotion was a separate admin batch. New: one row per student x subject x period (queryable, lockable), position computed on the server, the scheme and scale **snapshotted onto the result** (history cannot change when a scheme later does - and the scheme/scale are locked by the first result, which finally gives P1b's `lockScheme` / `lockScale` a caller), the payment gate becomes a superadmin setting that waits for finance (below), promotion stays out of P2.
+
+**Decisions (each with the alternative not taken).**
+1. **Result row** = `branchId`, student, subject, period, **`classArmId` as it was when entered** (a student is promoted later; the report card must still say which class this result came from), `schemeId`, `scaleId`, `componentScores` (JSON: each part's name, max and score), `examScore`, `caTotal`, `total`, `maxScore`, `gradeLetter`, `gradeRemark` (letter and remark copied, not looked up later), `status`, who/when for each step, `publishedAt`, `lockedAt`, `verificationToken` (unique) and `verificationHash` (SHA-256 of the canonical content at publish time, as in Octalve). `Decimal(6,2)`; all arithmetic through `scoring.ts` (hundredths). One live row per (student, subject, period) - a unique index. Not taken: storing every subject inside one JSON document per student (no per-subject state, no per-subject lock, no query).
+2. **Composite keys keep a result in its branch** (student, subject, period, arm, scheme, scale all through `(branchId, id)`), as everywhere in P1.
+3. **Status machine:** `DRAFT -> SUBMITTED -> APPROVED -> PUBLISHED -> LOCKED`; back-steps `SUBMITTED -> DRAFT` (return for correction) and `APPROVED -> SUBMITTED`; **`LOCKED -> unlock` only by an administrator with a written reason** (audited, then back to `APPROVED`). A database CHECK ties the dates to the status; a trigger refuses any change to the scores, snapshot, student, subject, period or arm of a result that is not `DRAFT` or `SUBMITTED` returned to draft (the lock-trigger idea of P1b).
+4. **Who may do what (the ISS-0003 lessons built in):**
+   - *Enter / edit a draft:* a teacher **assigned to that subject and arm** (`StaffSubjectAssignment` of the staff record linked to their account, in this branch) or an administrator of the branch. This is the first real use of assignments and it is **results only** - who may take attendance is unchanged (still the maintainer's separate decision).
+   - *Submit* (`DRAFT -> SUBMITTED`): the person who entered it, or an administrator.
+   - *Approve* (`SUBMITTED -> APPROVED`), *return*, *revert*: an administrator of the branch. **No self-approval:** an administrator may not approve a result they entered themselves unless they are a superadmin (a one-administrator branch must still be able to finish) - stated here as the rule, to be confirmed.
+   - *Publish* `APPROVED -> PUBLISHED` (all of an arm's results for a period, or one subject's): an administrator. *Lock* `PUBLISHED -> LOCKED`: automatically when the period is closed, or by an administrator.
+   - A batch transition is **all-or-nothing** and refused naming nothing about other branches; every other branch's result is the same 404 as an unknown id.
+5. **Append-only history:** `ResultAudit` (from/to status, from/to score, actor, reason, time); a trigger refuses UPDATE and DELETE (TRUNCATE is left alone so test resets work - the row triggers are the guard, the limit is stated). Every transition, edit and unlock writes a row **in the same transaction** as the change.
+6. **Report card (computed, not stored):** per student per period: each published subject (CA parts, exam, total, letter, remark), total and average (over subjects with a result), **position in the arm** by standard competition ranking (1, 2, 2, 4 - the legacy formula gave the same), class size, plus the **teacher's and principal's remark** per student per period (`ReportRemark`, editable until published). Only `PUBLISHED`/`LOCKED` results appear on a card shown outside the staff. Print and PDF: the browser's print stylesheet first (no new dependency); a PDF file download is a later decision.
+7. **Public verification (Octalve ISS-0008 decision copied, not the old behaviour):** `/verify/<token>` shows the branch name, the class, the period, that the result is genuine and when it was published, and the student as **first name and last initial only** - no admission number, no scores, no other pupils. A forged or revoked token is the same plain "not found". The token is 256 bits of randomness, only stored once published. *Open question for the maintainer: is first name + initial acceptable, or should it show nothing about the pupil?*
+8. **The payment gate (legacy `hasPaid`).** Decided 2026-10-14: blocking report-card downloads for unpaid fees is a **superadmin setting, off by default**, and it never touches attendance or exams. Because finance is not built, P2 only adds the *place* for it: one function `reportCardVisibleTo(student, viewer)` that today always answers yes, with the setting and the invoice check added in finance slice F3. Not taken: a manual `hasPaid` flag per student (it would be a second source of truth beside invoices).
+9. **Not in P2:** student/parent portal sign-in (AlEemaan has no parent-to-child link yet - a decision of its own), promotion between classes (legacy 4.6: promote at average >= 50%, Third Term only - a later slice that needs P2's averages), result import from the legacy projects (Phase 7).
+
+**Slices (each: tests first and seen failing where possible, gate, own PR into `dev`).**
+- **P2a - tables, entry, history:** migration (`Result`, `ResultAudit`, `ReportRemark`, CHECKs, partial/unique indexes, the immutability and append-only triggers); `lib/academics/results.ts` (enter/edit draft with scoring.ts, snapshot scheme/scale, lock them, audit); routes for a class-subject entry grid (`GET` the sheet: students of an arm x the subject's parts; `PUT` the scores) and one result. Tests: integration (composite keys, unique row, triggers, append-only), API (assigned teacher only, admin, other teacher 403, other branch 404, out-of-range score, scheme/scale locked after the first result, audit).
+- **P2b - workflow:** submit / return / approve / revert / publish / lock / unlock with all the rules above, batch all-or-nothing, verification token and hash. Tests: every transition table row, the ISS-0003 cases (second teacher cannot submit another's; no self-approval; teacher cannot pull back), unlock needs a reason.
+- **P2c - report card and verification:** the computation (position ties, subjects without a result), remarks, `/verify/<token>`, the `reportCardVisibleTo` hook. Tests: unit for averages and ranking, API for who sees a card, the verification page leaks nothing beyond decision 7.
+- **P2d - screens:** the entry grid (live totals and letters as a teacher types, invalid cells flagged, save), the approval queue, the report card with a print stylesheet, both themes, axe, phone width. Browser tests for the whole flow.
+
+**Migration safety for the live school.** Additive (three new tables, triggers on them only); nothing existing changes; no data is moved. Run before the code; the legacy Firestore results are Phase 7's problem, not P2's.
+
+**Open for the maintainer (defaults stand until told otherwise):** (a) the CA/exam split per branch when the first scheme is made (legacy: secondary 30/70, primary 40/60); (b) whether report cards must match the legacy printed layout (the default is the legacy *content* - school header, student block, subject table with CA parts, total, grade, remark, performance bar, summary tiles, teacher's and principal's remarks, grading legend - in the new design language); (c) whether an administrator may approve their own entries (default: only a superadmin); (d) what the public verification page may show about the pupil (default: first name and last initial).
+
+Mutation passes: NOT RUN - pending, end of Phase 2 (targets: the status-transition table, the no-self-approval check, the assignment check, the position ranking, the immutability trigger).
+
+#### Build design — Slice P2d: the results screens (2026-10-15, written before any code)
+
+**What.** A **Results** page (`/results`, a new nav item for administrators and teachers) over the P2a-P2c APIs, in three sections behind the same accessible tab list as Academics: **Enter marks**, **Review** (administrators) and **Report cards**. Plus a printable report card at `/results/card`. No new migration. Two small read endpoints are added because the screens need them and the existing ones do not give them: `GET result-sheets/options` (the terms of the active session and the subject-and-arm pairs this person may enter: all offered pairs for an administrator, only assigned ones for a teacher) and `GET academics/arms/[id]/roster` (the students of an arm for a term, for the report-card picker). Both read-only, branch-checked like everything else.
+
+**Enter marks.** Choose branch (if more than one), term, class arm and subject from the options; the grid lists the arm's students with one input per scheme part plus the exam, a live total, percentage and letter as the teacher types (computed in the browser from the scheme and scale **for display only** - the server recomputes and is the truth), invalid cells flagged with the reason, a status chip per row. Rows past DRAFT are read-only with their status; "Save drafts" sends the sheet; "Submit" moves the arm's drafts to SUBMITTED; clearing a draft row's marks and saving removes the draft (the legacy "remove subject" behaviour). The server's own sentence for a refusal is shown at the top. A teacher with no assignments sees a plain "You are not assigned to any subject yet - ask an administrator" instead of an empty form.
+
+**Review (administrators).** The term's queue (arm x subject with counts by status) with buttons for the whole group: Approve (the server refuses your own - its sentence is shown), Return, Publish, Lock, Revert, Unlock (asks for a reason in a dialog). Group actions use the queue's result ids; a result history dialog per group shows who did what.
+
+**Report cards.** Choose term and arm, pick a student from the roster, see the card; administrators get a "Preview with unpublished results" switch and a remarks form (teacher's and principal's remark; disabled with the reason once published). "Print" opens the print view: `@media print` hides the shell and shows the school header, student block, subjects table (parts, exam, total, grade, remark), summary tiles (total, average, position of size), remarks, legend and - per published subject - the verification link as text. No PDF dependency in P2.
+
+**Nav and phone.** Results is a normal tab. The phone bar then has Overview, Academics, Results, Users + More for a superadmin once **Branches and Settings both move into the More sheet** (`inMore`), and Overview, Results + More for a teacher. `navFor` learns a teacher flag so the item shows for teaching staff.
+
+**Tests.** E2E in a real browser, desktop and phone, BOTH themes, axe on every section, dialog and the print view: a teacher enters marks (live total and letter), a validation sentence from the server, saves, submits; an administrator approves (own entries refused, a second administrator approves), publishes, sees the card with position and remarks, prints (checking the print stylesheet hides the shell by emulating print media), verifies the public page from the card's link; a teacher without assignments sees the message. Screenshots to `out/screenshots`. Mutation passes: NOT RUN - pending, end of Phase 2.
+
+#### As built — Slice P2 (2026-10-15; tasks 0014-0017)
+P2a entry and history (migration `20261014120000`), P2b workflow (`...130000`), P2c report card, remarks and verification (`...140000`), P2d the screens. P2a-P2c are merged to `dev` (P2d when its PR merges); every migration is additive and runs before the code. Built as designed, with these notes:
+- **Remarks moved to P2c**, and entry has no single-result route (the sheet is the only entry point).
+- **Unlock** also works on a PUBLISHED result (with a reason): otherwise a published result could not be corrected before its term closes. Closing a session locks its published results by a database trigger, so it holds whichever code closes it.
+- **Public verification** shows school, branch, class, term, **subject**, publish date and the pupil as first name + last initial - the subject was added to the design's list (a token verifies one subject's result). No scores, grade, admission number, id or last name; a test pins an exact field list.
+- **The payment gate** is one function (`reportCardVisibleTo`) that always lets staff through; finance F3 fills it in.
+- **Teachers and results:** entry needs an assignment to that subject and arm (results only); attendance is unchanged - still the maintainer's separate decision.
+- **Screens:** one Results page, three sections. Printing is inline (no separate route, no PDF dependency). On a phone Branches and Settings live in the More sheet.
+- **Known flaky test:** `account-self-service.spec.ts:349` (a wall-clock comparison with a 40 ms threshold) failed once under load in the P2b full run and passed on re-runs; not changed. If it fails on a quiet machine it is a real timing difference and a bug.
+- **Not in P2 (open):** student/parent access (no parent-to-child link yet), promotion between classes, import of legacy results (Phase 7), a PDF download, a history screen in Review.
+- **Mutation passes:** NOT RUN - pending, end of Phase 2 (targets: the transition table, no-self-approval, the all-or-nothing count, the ranking, the published-only filter, the public field list, the immutability and session-close triggers).
+
+#### Build design — Slice P4: finance (2026-10-14, written before any code; the maintainer's answers recorded)
+
+**Research behind it (2026-10-14; mostly vendor, news and academic material - no survey with numbers exists, so treat it as a likely picture).** Nigerian schools collect fees mainly by bank transfer plus proof of payment confirmed by hand, cash and POS at the bursary, and rolling part-payments; the community Islamiyyah pattern is nominal fees, cash and paper receipts, the modern dual-curriculum pattern is corporate accounts and electronic payment. The pain is manual reconciliation and "fake alert" / forged-receipt fraud. Paystack has a schools rate (0.7% on local cards capped at N1,500, flat N300 for everything else) that a school must apply for; standard is 1.5% + N100 capped at N2,000 (Paystack help centre, checked 2026-10-14; an older copy showed a flat N300 only - re-check before promising it). A blanket BVN/NIN rule for per-student virtual accounts is reported by Monnify, not confirmed from a CBN text.
+
+**Decisions of the maintainer (2026-10-14).**
+1. **Paystack (and its education rate) is OPTIONAL and selectable.** A branch may run with no gateway at all. The gateway is a per-branch setting, and "education rate applied" is an informational flag the administrator sets - nothing depends on it.
+2. **Payment methods are selectable per branch, for every branch (not only Arabic ones):** cash, POS, bank transfer (with proof), online. A community-style branch can run cash only; a corporate one transfer + online. The screens show only what the branch enabled.
+3. **Blocking report-card downloads for unpaid fees is a SUPERADMIN setting** (school-wide, default OFF). It blocks the parent's digital download only - never a child's attendance or examinations - and a superadmin can switch it off at any time.
+4. **No BVN/NIN is collected, and therefore no per-student dedicated virtual accounts.** The original phase 3 is dropped. Reconciliation is by the proof-of-payment queue and, when the gateway is on, by its webhook.
+
+**What is built (four slices, each tests-first with its own PR; none depends on a gateway until F4).**
+- **F1 - fee structures and invoices.** Per branch: fee lines per academic term (name, amount, optionally one class, "tuition / boarding / uniform / books / Tahfeez..." are just lines), invoice generation per enrolled student per term (idempotent: one invoice per student per term, numbered `INV-<year>-<n>`), line items snapshotted on the invoice, open-balance (`amountPaid`, status UNPAID / PARTIALLY_PAID / PAID / WAIVED). Amounts are exact decimals (naira, 2 places), never floats.
+- **F2 - recording payments and receipts.** A bursar or administrator records cash, POS or a transfer against an invoice; part-payments are allowed and the receipt number `RCP-<year>-<n>` comes from a per-branch-per-year counter in the same transaction as the payment (a failed payment burns no number). **Proof-of-payment queue:** a parent (or the bursar) attaches a proof to a transfer; it stays PENDING and counts for nothing until a SECOND person with the right to approve confirms it (no self-approval); only then does it become a payment with a receipt. Nothing is ever marked paid because someone was shown a screenshot or an SMS - the screen says so. Discounts, scholarships and waivers need a reason, are recorded under who applied them, and affect the balance only through the ledger. Sibling discount = a discount line applied by an administrator (no automation in F2).
+- **F3 - roles, parent view, defaulters, report-card rule.** Who may do what, per branch: administrators of the branch, and a new per-branch **BURSAR** permission (a Permission value on the membership, not a new Role - reuse of the existing permission mechanism) that may record and approve payments but not change fee structures; parents see only their own children's invoices and receipts (a parent linked to no student sees nothing); a defaulters list by class and term; the superadmin report-card setting (default off) and where it is enforced once results exist (P2).
+- **F4 - online payment (optional, per branch).** Paystack checkout from the parent's invoice, a webhook (HMAC-SHA512 signature over the raw body, idempotent by provider reference, the exact body never stored - only its hash), a server-side verify call before an invoice flips to PAID, and the school absorbing the fee by default (a per-branch surcharge option exists but is off). Ported from Octalve Edu's tested implementation (its riskiest parts - webhook retry, no fallback secret, invoice visibility - are ported WITH their tests first).
+
+**Branch rules.** Every table carries `branchId` and composite keys keep a child in its branch (as P1). Reads and writes go through `withBranch` (ADR 0015): read an invoice = a staff role in the branch with the finance right, or the parent of that student; write = administrator or BURSAR of that branch; another branch is the same 404 as an unknown id.
+
+**Safety rules (non-negotiable).** Never trust an amount, status or "paid" from the browser; a payment's amount is validated against the invoice's open balance (no overpay without an explicit credit note, which is out of scope); a payment is created in the same transaction that updates the invoice; receipts and invoice numbers are never reused; every change is audited; money is Decimal(12,2); the finance area is NEVER readable by a future AlEemaan support view (the same rule as Octalve's ADR 0017).
+
+**Settings (where they live).** Per branch (administrator): enabled payment methods, gateway on/off, "education rate applied" flag, receipt footer text. School-wide (superadmin): block report-card download for unpaid fees (default off).
+
+**Out of scope.** Per-student virtual accounts and BVN/NIN capture (decided no); fixed instalment schedules (part-payment against the open balance only); late-fee automation; direct debit; refunds (a later decision); tax reporting beyond keeping tuition and ancillary lines separate.
+
+**Not decided / for later.** Whether a parent may upload proofs themselves in F2 or only the bursar does (default: the parent may, the bursar approves); the exact legal wording to show about report-card holds (the maintainer's lawyer to confirm); how arrears carry between terms.
+
+---
+
+#### Build design — Slice P2e: settings + approvals layer, CA/exam scheme levels, report-card layouts, verification fields, self-approval toggle (2026-10-15, written before any code; all seven follow-up questions answered by the maintainer 2026-10-15)
+
+**Why P2e before P3.** P2's assessment scheme is currently a simple flat record per branch. The maintainer's 2026-10-15 decisions require a multi-scope scheme (global default → branch default → class-group → teacher's subject), a shared approval workflow that carries settings through DRAFT → PENDING → APPROVED → REJECTED, and an attendance-permissions model. These change how P2 resolves which scheme a result uses; P3 (timetable) does not touch results, so P2e must land before P3.
+
+**One shared mechanism carries all five sub-items.** Build it once; put the scheme, layouts, verification fields and self-approval toggle on top of it.
+
+```
+SettingValue       - the leaf: one field's value (TEXT / INT / BOOL / JSON)
+SettingScope       - GLOBAL | BRANCH (which branch, null if global)
+SettingStatus      - DRAFT | PENDING | APPROVED | REJECTED
+SettingApproval    - request record: actor, reason, decider (nullable), decidedAt, visibility VISIBLE | HIDDEN_TO_SUBJECT
+SettingAudit       - append-only: who changed what, old value, new value, timestamp
+```
+
+A superadmin sets the global default; a branch admin may override it (creates a PENDING record if enforcement is on; goes straight to APPROVED if not enforced). The superadmin can enforce on all branches, after which any admin change is PENDING until the superadmin (or a delegated, invisible reviewer) approves it with a reason. The reviewer assignment is invisible to the admin whose change is under review (the superadmin picks a reviewer and neither the name nor existence is revealed).
+
+**Correction to earlier handoff defaults.** The handoff section 15 said the default CA part names are "CA" and "Exam". The maintainer's 2026-10-15 answer corrects this: the **three default names are "CA", "Project", and "Exam"**. Parts are not optional — a scheme must have at least one CA part and the exam part.
+
+---
+
+##### P2e sub-item A — CA/exam scheme levels (supersedes the existing flat `AssessmentScheme` per branch)
+
+**What changes.** The current `AssessmentScheme` belongs to one branch (ADR 0015). P2e adds:
+- A **scope hierarchy** resolved at result-entry time, most specific first: teacher's subject scheme > class-group scheme > branch default > global default.
+- **Class-group schemes** (e.g. Primary 1–3 one scheme, JSS 1–3 another, SS another); a class group already belongs to one branch.
+- **Teacher subject schemes** — a teacher may create one for a subject they teach, with a required reason/description; it enters the approval workflow automatically; the teacher may use it (enter and review marks) while PENDING; marks under a PENDING scheme cannot be published until the scheme is APPROVED; on REJECTED the scheme stays as a DRAFT on the teacher's side (never deleted).
+- **Superadmin enforcement** — when on for a branch, every admin scheme change becomes PENDING.
+- **Drafts and templates** — any of superadmin, admin and teacher may save a draft or template; templates are private to the creator by default; the creator may share to the branch.
+- **Parts must total exactly 100.** A scheme is invalid and cannot be saved if its parts sum to anything other than 100.
+- **Parts are not optional** — every scheme must have at least one CA part and exactly one Exam part. Default names: "CA", "Project", "Exam".
+- **Part names are optional** — a part may be left unnamed (the default name is used); a named part may be anything up to 64 chars.
+
+**Existing constraint respected:** `lockScheme` — the first result for an arm+period pair locks the scheme; a changed scheme must not rewrite existing results; results snapshot the resolved scheme at entry time (already built in P2a). A newly chosen or approved scheme applies only to results entered after the change.
+
+**Migration (additive).** New tables: `AssessmentSchemeScope` (links a scheme to a class-group or marks it as branch/global default), `AssessmentSchemeDraft` (teacher's pending or rejected schemes), `SettingApproval` (shared approval record). No existing column changes meaning; the existing `AssessmentScheme` becomes the "branch default" scope row.
+
+**API changes (new routes, existing routes unchanged).** `GET/POST /v1/academics/schemes/global`, `GET/POST/PATCH /v1/academics/schemes/class-group/[id]`, `GET/POST/PATCH /v1/academics/schemes/teacher/[id]`, `GET/PATCH /v1/settings/approval/[id]` (approve/reject). The result-entry route (`POST /v1/academics/result-sheets`) resolves the effective scheme at write time using the hierarchy.
+
+**Tests.** Unit: scope-resolution pure function (teacher scheme > class-group > branch > global, tie-break by specificity); parts-sum validation (exactly 100); template-sharing rules. Integration: pending scheme allows entry, blocks publish; rejected scheme stays as draft; approval unlocks publish; backfill after existing results does not rewrite them. API: teacher cannot approve their own scheme; a rejected scheme is not deleted; enforcement makes admin changes PENDING. Mutation targets (NOT RUN — end of Phase 2): the resolution order; the 100-sum check; the publish-block on PENDING.
+
+---
+
+##### P2e sub-item B — Report-card layouts
+
+**What changes.** The current report card has one coded layout. P2e adds multiple fixed-coded layouts, each with options (school logo shown/hidden, signature line shown/hidden, next-term date shown/hidden). A layout is selected per branch by the superadmin or the branch admin.
+
+**Decisions (2026-10-15).** Fixed set of coded layouts — not a free-form editor. The legacy layout is one of them, marked `legacy = true`. New layouts can be added by deploying new code (an admin does not write layout code). A legacy sample (PDF or photo) is still needed from the maintainer to faithfully reproduce the exact legacy look.
+
+**Migration (additive).** New column `ReportCardLayout.type` (enum: `DEFAULT` | `LEGACY` | ...) and `ReportCardLayout.options` (JSONB: `{ logo: bool, signatureLine: bool, nextTermDate: bool }`). A `BranchSetting` row per branch holds the selected layout id. No existing result or report-card row changes.
+
+**Tests.** Unit: layout-options validation; layout selection per branch falls back to DEFAULT when unset. API: superadmin and branch admin may change their branch layout; another branch's admin cannot; a teacher cannot. E2e: the report card renders each layout option correctly (screenshot, or `data-testid` assertion).
+
+---
+
+##### P2e sub-item C — Self-approval toggle
+
+**What changes.** The self-approval rule is currently hard-coded in `results-workflow.ts` (`only a superadmin may approve their own entries`). P2e makes it a per-admin setting controlled exclusively by the superadmin.
+
+**Decisions (2026-10-15).** This is **not** an admin-toggled setting. The superadmin toggles it **per admin** — it is a superadmin action, not a branch setting. The superadmin is always the default approver for all admins. The superadmin may assign another person to review and approve an admin's results; that reviewer is **invisible to the admin** (neither the name nor the existence of a delegated reviewer is shown). This is a superadmin-only action; the shared 15.1 enforce/approve mechanism does not apply here (there is no admin-level toggle to enforce or approve).
+
+**Built default stays unchanged:** only a superadmin may self-approve.
+
+**Migration (additive).** New table `AdminSelfApprovalGrant` (superadmin grants a named admin the right to self-approve, with optional delegated reviewer id). The workflow check in `results-workflow.ts` reads this table; the existing hard-coded superadmin check becomes the fallback.
+
+**Tests.** Unit: an admin without a grant cannot self-approve; a superadmin always can; an admin with a grant can. Integration: the reviewer assignment is not visible in any admin-facing API response. API: only a superadmin may create or revoke a grant; a grant cannot be self-issued.
+
+---
+
+##### P2e sub-item D — Verification page field configuration
+
+**What changes.** The public `/verify/[token]` page and its API currently return a pinned exact field list (school, branch, class, term, subject, publish date, pupil as first name + last initial). P2e makes the extra fields configurable by the superadmin per branch or for all branches.
+
+**Decisions (2026-10-15).** A bare minimum is always shown: school, branch, class, term, publish date, "valid". Everything else (pupil name form, subject, marks, grade) is opt-in and chosen by the superadmin. An admin may change the extra fields for their branch, but the change needs superadmin approval (using the shared approval mechanism from sub-item A). The existing test pinning the exact field list must be changed to assert "minimum + configured fields", never fewer than the minimum and never more than what is configured.
+
+**Migration (additive).** New `VerificationPageConfig` table (branchId nullable — null = global default; fields: `showPupilName` BOOL, `pupilNameFormat` ENUM(FULL, FIRST_LAST_INITIAL, INITIALS), `showSubject` BOOL, `showMarks` BOOL, `showGrade` BOOL). The API and page resolve the config by branch, falling back to the global default, then to the built-in minimum.
+
+**Tests.** Unit: config resolution (branch-specific > global > minimum). API: the bare minimum is always present; configured fields are included; unconfigured fields are absent; another branch's config cannot be read through a verify token from this branch. The existing exact-field-list test is updated to the "minimum + configured" assertion. Mutation targets (NOT RUN — end of Phase 2): the published-only filter; the minimum field guarantee.
+
+---
+
+##### P2e sub-item E — Attendance permissions (own slice, after the above four are merged)
+
+**Scope.** AlEemaan only (Octalve keeps its existing teacher-arm rule). Currently any teacher of the branch may take attendance for any arm. The new rule restricts this.
+
+**Who may take attendance for an arm (decisions 2026-10-15):**
+1. The **class/form teacher** of that arm (teaching or non-teaching staff). "Class teacher" is a new nullable FK on `ClassArm.classTeacherId` (a `StaffRecord.id`).
+2. Anyone given an **explicit attendance grant** by the branch admin or superadmin, naming specific arms or groups of arms (even arms outside their own class). A teacher with several classes may be granted more.
+3. Admins and superadmins always may.
+4. Everyone else is refused with a 403.
+
+**Deploy rule (confirmed 2026-10-15).** On the day this ships, each teacher's currently assigned arms (from `TeachingAssignment`) are automatically backfilled as starting grants, so no one loses access.
+
+**Migration (additive).** New column `ClassArm.classTeacherId` (nullable FK → `StaffRecord.id`). New table `AttendanceGrant` (branchId, staffRecordId, classArmId, grantedBy, grantedAt). A one-off migration step (or a deploy script) backfills one grant per teaching-assignment row.
+
+**API changes.** `GET /v1/academics/attendance/arms` (which arms the caller may take attendance for) — already uses `access.ts`; update the access check. The `POST /v1/academics/attendance` write route validates the caller has access to the arm via the new rule.
+
+**Tests.** Integration: a teacher with no class-teacher assignment and no grant sees no arms; a class teacher sees their arm; a granted teacher sees their granted arms; an admin always sees all arms; the backfill is idempotent. API: a grant from another branch is ignored; a teacher cannot self-grant.
+
+---
+
+**Build order for P2e.** Sub-items A–D share the settings/approval infrastructure and can be built in one PR per sub-item after the shared tables are landed. Sub-item E (attendance permissions) is an independent slice after A–D are merged. Design committed alone (this section) before any code; each sub-item gets a task file `0018-p2e-...md`.
+
+**Not in P2e.** The full mutation passes (end of Phase 2); P3 (timetable and announcements); finance F1 (on the maintainer's go).
+
+---
+
+#### Build design & As built — Slice P6: Multi-Channel Messaging & Communication Engine (2026-10-17; Task 0024)
+
+**Objective & Architecture.** Porting Phase 2 from Octalve Edu into AlEemaan's single-tenant multi-branch architecture, enabling institutional communication across Termii (SMS), Resend (Email), WhatsApp, and In-App notification feeds.
+
+**1. Schema & Migration:**
+- Added `prisma/schema/communication.prisma` with:
+  - `NotificationTemplate`: Reusable templates supporting system and custom types, HTML body/subject, variables list, and channel scoping.
+  - `NotificationDispatch`: Immutable dispatch log with target recipients (`PARENT`, `STUDENT`, `STAFF`, `ALL`), channels, rendered payload, delivery status (`QUEUED`, `PROCESSING`, `SENT`, `FAILED`, `RETRYING`), attempt counters, and error records.
+  - `GuardianLinkToken`: Cryptographic magic link tokens for friction-free access to student reports, fee invoices, and attendance logs.
+  - `NotificationAuditLog`: Append-only audit trail capturing dispatch operations, template edits, and retry triggers.
+- Applied additive migration `20261017120000_p6_communication_messaging` across development and test databases.
+
+**2. Pure Rules & Gateways:**
+- Safe token interpolation with HTML escaping (`escapeHtml`, `interpolateTokens`) preventing XSS injections.
+- Phone number normalizer for Nigerian MSISDN formats (`+234...`, `0...`).
+- Termii SMS gateway adapter and Resend Email gateway adapter with development mock fallbacks.
+- Single multi-channel dispatcher (`defaultNotificationDispatcher`) handling channel-specific routing.
+
+**3. REST APIs & Route Governance:**
+- `/api/v1/communication/templates` (GET, POST)
+- `/api/v1/communication/templates/[id]` (GET, PATCH, DELETE)
+- `/api/v1/communication/broadcast` (POST)
+- `/api/v1/communication/dispatches` (GET)
+- `/api/v1/communication/dispatches/[id]/retry` (POST)
+- Fully registered in `BRANCH_CHECKED_ELSEWHERE` and `NOT_WRAPPED` in `tests/unit/route-role-guard.spec.ts`.
+
+**4. UI & Accessibility:**
+- Accessible `/communication` hub with `CommunicationPanel` tabs:
+  - `BroadcastComposer`: Multi-channel targeting, live token preview, audience selector.
+  - `DispatchLogsView`: Live status filter, recipient search, instant retry action.
+  - `TemplatesManager`: Visual template editor with variable placeholders.
+- Full WCAG 2.2 AA compliance validated with automated Axe accessibility suites.
+
+---
+
+#### Build design & As built — Slice P7: Next-Term Student Promotion & Academic Rollover (2026-10-17; Task 0025)
+
+**Objective & Architecture.** Adapting legacy golden promotion rules into AlEemaan's modernized single-tenant multi-branch architecture:
+1. **Schema & Migration:** `PromotionBatch`, `PromotionRecord`, and associated enums in `prisma/schema/promotion.prisma`. Additive migration `20261017140000_p7_student_promotion`.
+2. **Rules & Pure Engine:** Gated to the session's final term (3rd Term in English branches, 2nd Term in Arabic branches). Session average computed across published term averages. Configurable pass mark (>= 50.0% -> `PROMOTED` or `GRADUATED` for terminal classes; < 50.0% -> `REPEATED`). Class progression rungs derived from `ClassGroup.sortOrder`, case-insensitive target arm resolution with first arm fallback.
+3. **Idempotent Enrollment Transitions:** Atomic transaction closing source enrollment and creating target enrollment in the next session.
+4. **REST APIs & Route Governance:** 4 endpoints under `/api/v1/academics/promotion/` (`preview`, `execute`, `batches`, `batches/[id]`).
+5. **UI & Accessibility:** `PromotionConsole` with preview, manual overrides, confirmation modal, and history view. WCAG 2.2 AA compliant.
+
+---
+
+#### Build design & As built — Slice P8: Parent & Student Self-Service Portal (2026-10-17; Task 0026)
+
+**Objective & Architecture.** Modernized self-service portal (`/portal`) empowering parents, guardians, and students with single-pane visibility across academic records, report cards, fees, and coursework:
+1. **Authentication & Session Security:** Dual-mode authentication (magic link claim via `GuardianLinkToken` and direct admission number + date of birth or guardian phone verification). Stateless HMAC-signed session cookies with 30-day sliding expiry and strict child-ownership enforcement (ADR 0012).
+2. **Sibling Selector:** Seamless multi-child switcher discovering all enrolled siblings associated with the guardian's contact information.
+3. **Single-Pane Hub (`/portal`):**
+   - **Overview:** Attendance rates, enrolled class & arm, emergency contact details, and school broadcasts.
+   - **Results:** Published and locked term results with subject breakdowns, scores, WAEC grades, and teacher/principal remarks.
+   - **Finance:** Itemized invoices, payment history receipts, and Paystack direct settlement links.
+   - **LMS:** Published assignments with due dates, point maximums, homework descriptions, and learning resources.
+4. **REST APIs:** `/api/v1/portal/session`, `/api/v1/portal/overview`, `/api/v1/portal/results`, `/api/v1/portal/invoices`, `/api/v1/portal/lms`.
+5. **WCAG 2.2 AA Accessibility:** 100% compliant across mobile and desktop viewports, 0 Axe violations, full keyboard navigation.
+

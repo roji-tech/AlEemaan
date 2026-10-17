@@ -2,6 +2,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { SessionStatus, PeriodKind } from "@prisma/client";
 
+/// A refusal whose message is written FOR the caller (a missing branch, a duplicate label). Routes may return its text; any other exception's text is
+/// never returned (ISS-0006) - it can name tables, columns and values.
+export class DomainError extends Error {}
+
 export const createSessionSchema = z
   .object({
     branchId: z.string().min(1, "Branch ID is required"),
@@ -74,7 +78,7 @@ export async function createSession(input: CreateSessionInput) {
     where: { id: data.branchId },
   });
   if (!branch) {
-    throw new Error(`Branch with ID "${data.branchId}" does not exist.`);
+    throw new DomainError(`Branch with ID "${data.branchId}" does not exist.`);
   }
 
   // 2. Check label uniqueness per branch
@@ -87,7 +91,7 @@ export async function createSession(input: CreateSessionInput) {
     },
   });
   if (existing) {
-    throw new Error(`An academic session with label "${data.label}" already exists for branch "${branch.name}".`);
+    throw new DomainError(`An academic session with label "${data.label}" already exists for branch "${branch.name}".`);
   }
 
   // 3. Determine number of terms based on branch convention (Arabic = 2 terms, English = 3 terms)
@@ -159,7 +163,7 @@ export async function updateSession(id: string, input: UpdateSessionInput) {
     where: { id },
   });
   if (!session) {
-    throw new Error(`Academic session with ID "${id}" not found.`);
+    throw new DomainError(`Academic session with ID "${id}" not found.`);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -195,10 +199,10 @@ export async function setCurrentPeriod(branchId: string, periodId: string) {
   });
 
   if (!period) {
-    throw new Error(`Academic period "${periodId}" not found.`);
+    throw new DomainError(`Academic period "${periodId}" not found.`);
   }
   if (period.branchId !== branchId) {
-    throw new Error(`Period does not belong to branch "${branchId}".`);
+    throw new DomainError(`Period does not belong to branch "${branchId}".`);
   }
 
   return prisma.$transaction(async (tx) => {

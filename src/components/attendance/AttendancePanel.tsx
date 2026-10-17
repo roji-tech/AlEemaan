@@ -8,6 +8,8 @@ import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { AttendanceStatus } from "@/lib/attendance/rules";
 import type { StudentRollCallEntry } from "@/lib/attendance/service";
+import type { AuthorizedAttendanceArm } from "@/lib/attendance/access";
+import { AttendanceGrantModal } from "./AttendanceGrantModal";
 
 export type BranchOption = { id: string; name: string };
 
@@ -24,7 +26,15 @@ type StudentEntry = {
 type OverrideMap = Record<string, { status?: AttendanceStatus; remarks?: string }>;
 type Notice = { variant: "success" | "error"; text: string } | null;
 
-export function AttendancePanel({ branches, readOnly = false }: { branches: BranchOption[]; readOnly?: boolean }) {
+export function AttendancePanel({
+  branches,
+  readOnly = false,
+  isAdmin: isAdminProp,
+}: {
+  branches: BranchOption[];
+  readOnly?: boolean;
+  isAdmin?: boolean;
+}) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [date, setDate] = useState(today);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
@@ -39,6 +49,33 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
   const [serverStudents, setServerStudents] = useState<StudentRollCallEntry[]>([]);
   const [canEditServer, setCanEditServer] = useState(true);
 
+  // Arm-scoped attendance permissions
+  const [authorizedArms, setAuthorizedArms] = useState<AuthorizedAttendanceArm[]>([]);
+  const [selectedArmId, setSelectedArmId] = useState<string>("");
+  const [grantModalOpen, setGrantModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!branchId) return;
+    void getJson(`/api/v1/academics/attendance/arms?branchId=${branchId}`).then((res) => {
+      if (res.ok && res.data) {
+        const armsList = res.data as unknown as AuthorizedAttendanceArm[];
+        setAuthorizedArms(armsList);
+        if (armsList.length > 0) {
+          setSelectedArmId((prev) => {
+            if (prev) return prev;
+            const first = armsList[0];
+            setClassName(first.classGroupName);
+            setArm(first.name);
+            return first.id;
+          });
+        }
+      }
+    });
+  }, [branchId]);
+
+  const isAdmin = useMemo(() => Boolean(isAdminProp || authorizedArms.some((a) => a.grantType === "ADMIN")), [isAdminProp, authorizedArms]);
+  const currentArmObj = useMemo(() => authorizedArms.find((a) => a.id === selectedArmId), [authorizedArms, selectedArmId]);
+
   // Fetch Roll Call
   const loadRollCall = useCallback(
     async (signal?: AbortSignal, flush = false) => {
@@ -49,9 +86,10 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
         className,
         date,
         ...(arm ? { arm } : {}),
+        ...(selectedArmId ? { classArmId: selectedArmId } : {}),
       });
 
-      const res = await getJson(`/api/v1/attendance?${query.toString()}`, signal);
+      const res = await getJson(`/api/v1/academics/attendance?${query.toString()}`, signal);
       if (signal?.aborted) return;
 
       const apply = () => {
@@ -70,7 +108,7 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
       if (flush) flushSync(apply);
       else apply();
     },
-    [branchId, className, arm, date],
+    [branchId, className, arm, date, selectedArmId],
   );
 
   useEffect(() => {
@@ -175,9 +213,10 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
         status: e.status,
         remarks: e.remarks.trim() || undefined,
       })),
+      classArmId: selectedArmId || undefined,
     };
 
-    const res = await sendJson("/api/v1/attendance", "POST", payload);
+    const res = await sendJson("/api/v1/academics/attendance", "POST", payload);
     setSaving(false);
 
     if (res.ok) {
@@ -221,6 +260,68 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
 
       {/* Control Bar: Branch, Class, Arm, Date Navigation */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end bg-surface-1 p-4 rounded-xl border border-line">
+        {/* Authorized Arm Quick Selector & Badge */}
+        {authorizedArms.length > 0 && (
+          <div className="sm:col-span-2 lg:col-span-5 flex flex-wrap items-center justify-between gap-3 bg-surface-base p-3 rounded-lg border border-line">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="authorized-arm-select" className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+                Authorized Arm:
+              </label>
+              <select
+                id="authorized-arm-select"
+                value={selectedArmId}
+                onChange={(e) => {
+                  const armId = e.target.value;
+                  setSelectedArmId(armId);
+                  const found = authorizedArms.find((a) => a.id === armId);
+                  if (found) {
+                    setClassName(found.classGroupName);
+                    setArm(found.name);
+                    setOverrides({});
+                  }
+                }}
+                className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-fg font-medium"
+              >
+                <option value="">Custom input below…</option>
+                {authorizedArms.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.classGroupName} {a.name} (
+                    {a.grantType === "CLASS_TEACHER" ? "Class Teacher" : a.grantType === "EXPLICIT_GRANT" ? "Granted" : "Admin"})
+                  </option>
+                ))}
+              </select>
+              {currentArmObj && (
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                    currentArmObj.grantType === "CLASS_TEACHER"
+                      ? "bg-brand-tint text-brand-fg border border-brand/30"
+                      : currentArmObj.grantType === "EXPLICIT_GRANT"
+                        ? "bg-ok-bg text-ok-fg border border-ok-line"
+                        : "bg-surface-2 text-fg border border-line"
+                  }`}
+                >
+                  {currentArmObj.grantType === "CLASS_TEACHER"
+                    ? "Class Teacher"
+                    : currentArmObj.grantType === "EXPLICIT_GRANT"
+                      ? "Explicit Grant"
+                      : "Admin"}
+                </span>
+              )}
+            </div>
+            {isAdmin && (
+              <Button type="button" variant="secondary" className="text-xs min-h-8 px-3" onClick={() => setGrantModalOpen(true)}>
+                Manage Permissions
+              </Button>
+            )}
+          </div>
+        )}
+
+        {!isAdmin && authorizedArms.length === 0 && (
+          <div className="sm:col-span-2 lg:col-span-5 p-3 rounded-lg border border-warn-border bg-warn-bg/20 text-xs text-warn-fg">
+            You do not currently have attendance permissions for any class arms in this branch. Please contact an administrator for access.
+          </div>
+        )}
+
         <div>
           <SelectField
             label="Branch"
@@ -329,28 +430,28 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
       {/* KPI Overview */}
       {entries.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="p-3 bg-surface-1 rounded-lg border border-line text-center">
-            <div className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Enrolled</div>
+          <div className="p-3 bg-surface-2 rounded-lg border border-line text-center">
+            <div className="text-xs text-fg-2 uppercase tracking-wider font-semibold">Enrolled</div>
             <div className="text-2xl font-bold text-fg mt-1">{summary.total}</div>
           </div>
-          <div className="p-3 bg-ok-bg/30 rounded-lg border border-ok-border text-center">
+          <div className="p-3 bg-ok-bg rounded-lg border border-ok-line text-center">
             <div className="text-xs text-ok-fg uppercase tracking-wider font-semibold">Present</div>
             <div className="text-2xl font-bold text-ok-fg mt-1">{summary.present}</div>
           </div>
-          <div className="p-3 bg-warn-bg/30 rounded-lg border border-warn-border text-center">
+          <div className="p-3 bg-warn-bg rounded-lg border border-warn-line text-center">
             <div className="text-xs text-warn-fg uppercase tracking-wider font-semibold">Late</div>
             <div className="text-2xl font-bold text-warn-fg mt-1">{summary.late}</div>
           </div>
-          <div className="p-3 bg-danger-bg/30 rounded-lg border border-danger-border text-center">
+          <div className="p-3 bg-danger-bg rounded-lg border border-danger-line text-center">
             <div className="text-xs text-danger-fg uppercase tracking-wider font-semibold">Absent</div>
             <div className="text-2xl font-bold text-danger-fg mt-1">{summary.absent}</div>
           </div>
-          <div className="p-3 bg-info-bg/30 rounded-lg border border-info-border text-center">
+          <div className="p-3 bg-info-bg rounded-lg border border-info-line text-center">
             <div className="text-xs text-info-fg uppercase tracking-wider font-semibold">Excused</div>
             <div className="text-2xl font-bold text-info-fg mt-1">{summary.excused}</div>
           </div>
           <div className="p-3 bg-surface-2 rounded-lg border border-line text-center">
-            <div className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Rate</div>
+            <div className="text-xs text-fg-2 uppercase tracking-wider font-semibold">Rate</div>
             <div className="text-2xl font-bold text-fg mt-1">{summary.rate}%</div>
           </div>
         </div>
@@ -405,8 +506,8 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
                   onClick={() => handleStatusChange(student.studentId, AttendanceStatus.PRESENT)}
                   className={`min-h-11 min-w-17.5 px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                     student.status === AttendanceStatus.PRESENT
-                      ? "bg-green-600 text-white shadow-sm ring-2 ring-green-500/50"
-                      : "bg-surface-2 text-fg-muted hover:bg-surface-3 hover:text-fg"
+                      ? "bg-brand-strong text-white shadow-sm ring-2 ring-brand"
+                      : "bg-surface-2 text-fg-2 hover:bg-surface-3 hover:text-fg"
                   } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   PRESENT
@@ -418,8 +519,8 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
                   onClick={() => handleStatusChange(student.studentId, AttendanceStatus.LATE)}
                   className={`min-h-11 min-w-17.5 px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                     student.status === AttendanceStatus.LATE
-                      ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-500/50"
-                      : "bg-surface-2 text-fg-muted hover:bg-surface-3 hover:text-fg"
+                      ? "bg-amber-500 text-slate-950 shadow-sm ring-2 ring-amber-600"
+                      : "bg-surface-2 text-fg-2 hover:bg-surface-3 hover:text-fg"
                   } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   LATE
@@ -431,8 +532,8 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
                   onClick={() => handleStatusChange(student.studentId, AttendanceStatus.ABSENT)}
                   className={`min-h-11 min-w-17.5 px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                     student.status === AttendanceStatus.ABSENT
-                      ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-500/50"
-                      : "bg-surface-2 text-fg-muted hover:bg-surface-3 hover:text-fg"
+                      ? "bg-rose-700 text-white shadow-sm ring-2 ring-rose-600"
+                      : "bg-surface-2 text-fg-2 hover:bg-surface-3 hover:text-fg"
                   } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   ABSENT
@@ -444,8 +545,8 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
                   onClick={() => handleStatusChange(student.studentId, AttendanceStatus.EXCUSED)}
                   className={`min-h-11 min-w-17.5 px-3 py-2 text-xs font-bold rounded-lg transition-all ${
                     student.status === AttendanceStatus.EXCUSED
-                      ? "bg-sky-600 text-white shadow-sm ring-2 ring-sky-500/50"
-                      : "bg-surface-2 text-fg-muted hover:bg-surface-3 hover:text-fg"
+                      ? "bg-sky-700 text-white shadow-sm ring-2 ring-sky-600"
+                      : "bg-surface-2 text-fg-2 hover:bg-surface-3 hover:text-fg"
                   } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   EXCUSED
@@ -482,6 +583,8 @@ export function AttendancePanel({ branches, readOnly = false }: { branches: Bran
           </Button>
         </div>
       )}
+      {/* Admin Grant Allocation Dialog */}
+      {isAdmin && <AttendanceGrantModal open={grantModalOpen} onClose={() => setGrantModalOpen(false)} branchId={branchId} />}
     </section>
   );
 }

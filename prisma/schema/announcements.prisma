@@ -1,0 +1,37 @@
+// --- Announcements & Broadcasts (Slice P3) ---
+//
+// Multi-audience targeting by Role[] (empty = everyone), branchId (null = all branches / school-wide),
+// and classArmId (null = all classes in branch).
+// Publication windows with publishedAt and optional expiresAt.
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Broadcast announcement targeted to specific roles, branches, or class arms.
+model Announcement {
+  id           String             @id @default(cuid())
+  branchId     String? // null = all branches (school-wide)
+  classArmId   String? // null = all classes
+  title        String
+  body         String             @db.Text
+  targetRoles  Role[]             @default([]) // empty = all roles (everyone)
+  status       AnnouncementStatus @default(PUBLISHED)
+  isPinned     Boolean            @default(false)
+  authorUserId String // author's User.id
+  publishedAt  DateTime           @default(now())
+  expiresAt    DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @default(now()) @updatedAt
+
+  branch   Branch?   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classArm ClassArm? @relation(fields: [classArmId], references: [id], onDelete: SetNull)
+  author   User      @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([branchId])
+  @@index([classArmId])
+  @@index([publishedAt])
+}

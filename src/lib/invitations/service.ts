@@ -2,12 +2,14 @@ import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { brand } from "@/lib/brand";
 import { maskEmail } from "@/lib/auth/mask-email";
+import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 import { INVITATION_TTL_MS, hashInvitationToken, newInvitationToken } from "./token";
 import { invitationStatus, isLiveInvitation, type InvitationStatus } from "./status";
 
 // Invitations (domain-implementation-plan.md "Build design — Users pages and invitations", a port of Octalve Edu's 0.5.4).
 //
-//   administrator's side (ADMIN only — enforced by the routes): create, resend, revoke, list
+//   administrator's side (administrators only — enforced by the routes; a branch administrator is limited by `scope` to their own branches and
+//   to roles below ADMIN, a superadmin to nothing): create, resend, revoke, list
 //   invitee's side (NO membership yet): preview and accept
 //
 // Every write is audited IN THE SAME TRANSACTION as the change, so a row never exists without its audit entry nor the entry without the
@@ -54,11 +56,16 @@ const toPublic = (row: InvitationRow, now: Date = new Date()): PublicInvitation 
   status: invitationStatus(row, now),
 });
 
+/// The invitations a caller may see and act on: a superadmin all of them; a branch administrator those of their own branches, and never one
+/// that would make an ADMIN (they cannot create or touch one, so they do not see one either).
+const visibleTo = (scope: AdminScope): Prisma.InvitationWhereInput =>
+  scope.superAdmin ? {} : { branchId: { in: [...scope.branchIds] }, role: { not: "ADMIN" } };
+
 // --- the administrator's side ---------------------------------------------------------------------------------------------
 
 export type CreateInvitationResult =
   | { ok: true; invitation: PublicInvitation; token: string }
-  | { ok: false; reason: "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "INVALID_BRANCH" };
+  | { ok: false; reason: "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "INVALID_BRANCH" | "OUT_OF_SCOPE" | "ADMIN_ONLY" };
 
 /// Invites `input.email` to a branch. One open invitation per (address, branch): an earlier open one is revoked (and audited) first, and a partial unique index
 /// is the guarantee under concurrency — an advisory lock on the address serialises two administrators inviting the same person at the same
@@ -67,6 +74,7 @@ export type CreateInvitationResult =
 export async function createInvitation(
   actorUserId: string,
   input: { email: string; role: Role; branchId: string },
+  scope: AdminScope,
 ): Promise<CreateInvitationResult> {
   return prisma.$transaction(async (tx) => {
     // (`$executeRaw`: the lock function returns `void`, which `$queryRaw` cannot deserialise.)
@@ -74,6 +82,8 @@ export async function createInvitation(
 
     const branch = await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true } });
     if (!branch) return { ok: false, reason: "INVALID_BRANCH" } as const;
+    if (!mayAdminister(scope, input.branchId)) return { ok: false, reason: "OUT_OF_SCOPE" } as const;
+    if (input.role === "ADMIN" && !scope.superAdmin) return { ok: false, reason: "ADMIN_ONLY" } as const; // only a superadmin makes an administrator
 
     // The rule is per (person, branch): a person may belong to several branches (plan, "a person may belong to several branches"). Refused: an
     // active membership in THIS branch; a deactivated one in this branch; or deactivated memberships and no active one anywhere (a
@@ -137,10 +147,11 @@ export async function createInvitation(
 export async function resendInvitation(
   actorUserId: string,
   invitationId: string,
+  scope: AdminScope,
 ): Promise<{ invitation: PublicInvitation; token: string } | null> {
   return prisma.$transaction(async (tx) => {
     const open = await tx.invitation.findFirst({
-      where: { id: invitationId, acceptedAt: null, revokedAt: null },
+      where: { id: invitationId, acceptedAt: null, revokedAt: null, ...visibleTo(scope) },
       select: { id: true, email: true },
     });
     if (!open) return null;
@@ -159,11 +170,11 @@ export async function resendInvitation(
 }
 
 /// Ends an open invitation. The conditional update is the gate: it changes exactly one row or the answer is "no such open invitation".
-export async function revokeInvitation(actorUserId: string, invitationId: string): Promise<boolean> {
+export async function revokeInvitation(actorUserId: string, invitationId: string, scope: AdminScope): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
     const target = await tx.invitation.findUnique({ where: { id: invitationId }, select: { email: true } });
     const claimed = await tx.invitation.updateMany({
-      where: { id: invitationId, acceptedAt: null, revokedAt: null },
+      where: { id: invitationId, acceptedAt: null, revokedAt: null, ...visibleTo(scope) },
       data: { revokedAt: new Date() },
     });
     if (claimed.count !== 1) return false;
@@ -181,11 +192,11 @@ export async function revokeInvitation(actorUserId: string, invitationId: string
 }
 
 /// The open invitations (pending, and expired ones that can still be resent), newest first.
-export async function listOpenInvitations(page: {
-  skip: number;
-  take: number;
-}): Promise<{ invitations: PublicInvitation[]; total: number }> {
-  const where: Prisma.InvitationWhereInput = { acceptedAt: null, revokedAt: null };
+export async function listOpenInvitations(
+  page: { skip: number; take: number },
+  scope: AdminScope,
+): Promise<{ invitations: PublicInvitation[]; total: number }> {
+  const where: Prisma.InvitationWhereInput = { acceptedAt: null, revokedAt: null, ...visibleTo(scope) };
   const [total, rows] = await Promise.all([
     prisma.invitation.count({ where }),
     prisma.invitation.findMany({

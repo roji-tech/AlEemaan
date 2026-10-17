@@ -11,16 +11,16 @@ export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { isAdmin } = await requirePageSession();
+  const { isSuperAdmin } = await requirePageSession();
 
-  if (!isAdmin) {
+  if (!isSuperAdmin) {
     return (
       <div className="space-y-6">
         <PageHeader title="Settings" />
         <div role="alert" className="rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-7">
           <h2 className="text-lg font-semibold text-fg">You don&apos;t have access to this page</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            Only administrators can view and manage school settings and academic structures.
+            Only superadmins can view and manage school settings and academic structures.
           </p>
           <Link
             href="/dashboard"

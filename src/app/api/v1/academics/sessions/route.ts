@@ -1,8 +1,10 @@
+import { z } from "zod";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { listSessions, createSession, createSessionSchema } from "@/lib/academics/sessions";
+import { withBranch } from "@/lib/auth/with-branch";
+import { listSessions, createSession, createSessionSchema, DomainError } from "@/lib/academics/sessions";
 
 /**
  * GET /api/v1/academics/sessions
@@ -23,7 +25,7 @@ export const GET = withAuth(async (req) => {
 
 /**
  * POST /api/v1/academics/sessions
- * Admin-only. Creates a new academic session with automated periods/terms.
+ * Administrators only (a branch administrator: their own branches). Creates a new academic session with automated periods/terms.
  */
 export const POST = withAuth(
   async (req, admin) => {
@@ -44,8 +46,17 @@ export const POST = withAuth(
       );
     }
 
+    // After the body is checked (as before): the caller must administer the branch they name (403 otherwise).
+    return createInBranch(req, admin, undefined, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
+
+const createInBranch = withBranch<z.infer<typeof createSessionSchema>, { userId: string }, unknown>(
+  { of: (input) => input.branchId, as: "administer", where: "body" },
+  async (_req, admin, _ctx, data) => {
     try {
-      const created = await createSession(parsed.data);
+      const created = await createSession(data);
 
       await prisma.auditLog.create({
         data: {
@@ -65,7 +76,7 @@ export const POST = withAuth(
 
       return ok({ session: created }, {}, 201);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to create academic session";
+      const msg = error instanceof DomainError ? error.message : "Failed to create academic session";
       if (msg.includes("already exists")) {
         return fail(msg, 409, "DUPLICATE_SESSION");
       }
@@ -73,5 +84,4 @@ export const POST = withAuth(
       return fail(msg, 400, "SESSION_CREATE_FAILED");
     }
   },
-  { roles: [Role.ADMIN] },
 );

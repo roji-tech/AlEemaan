@@ -1,5 +1,18 @@
 import type { ComponentType, SVGProps } from "react";
-import { BuildingIcon, HomeIcon, SlidersIcon, UsersIcon } from "@/components/ui/icons";
+import {
+  BookOpenIcon,
+  BuildingIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  ClipboardIcon,
+  CreditCardIcon,
+  GraduationCapIcon,
+  HomeIcon,
+  MailIcon,
+  MegaphoneIcon,
+  SlidersIcon,
+  UsersIcon,
+} from "@/components/ui/icons";
 
 export type NavItem = {
   label: string;
@@ -7,26 +20,49 @@ export type NavItem = {
   /// (the design artifact draws Settings and Users; a link to nothing would be a lie).
   href: string | null;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
-  /// Administrators only. Hiding an entry is a courtesy; the page and API behind it enforce it.
+  /// Administrators only (of any branch, or a superadmin). Hiding an entry is a courtesy; the page and API behind it enforce it.
   adminOnly?: boolean;
+  /// Superadmins only (school-wide: branches, school settings).
+  superAdminOnly?: boolean;
+  /// Administrators and teaching staff (marks and report cards).
+  staffOnly?: boolean;
+  /// Phone only: the bottom bar fits four tabs plus More, so a rarely used page lives in the More sheet instead of squeezing the bar (the sidebar still lists it).
+  inMore?: boolean;
 };
 
 /// The single source of truth for navigation: the sidebar, the phone tab bar and the "More"
 /// sheet are all derived from this list, so they can't disagree.
 export const NAV: readonly NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: HomeIcon },
-  { label: "Branches", href: "/branches", icon: BuildingIcon, adminOnly: true },
-  { label: "Settings", href: "/settings", icon: SlidersIcon, adminOnly: true },
+  { label: "Branches", href: "/branches", icon: BuildingIcon, superAdminOnly: true, inMore: true },
+  { label: "Settings", href: "/settings", icon: SlidersIcon, superAdminOnly: true, inMore: true },
+  { label: "Academics", href: "/academics", icon: GraduationCapIcon, adminOnly: true },
+  { label: "Coursework", href: "/lms", icon: BookOpenIcon, staffOnly: true },
+  { label: "Attendance", href: "/attendance", icon: CheckCircleIcon, staffOnly: true },
+  { label: "Results", href: "/results", icon: ClipboardIcon, staffOnly: true },
+  { label: "Timetable", href: "/timetable", icon: CalendarIcon, staffOnly: true },
+  { label: "Announcements", href: "/announcements", icon: MegaphoneIcon, inMore: true },
+  { label: "Communication", href: "/communication", icon: MailIcon, adminOnly: true, inMore: true },
+  { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
-export const navFor = (isAdmin: boolean): NavItem[] => NAV.filter((item) => isAdmin || !item.adminOnly);
+export const navFor = (isAdmin: boolean, isSuperAdmin: boolean, isTeacher = false): NavItem[] =>
+  NAV.filter((item) => (item.superAdminOnly ? isSuperAdmin : item.adminOnly ? isAdmin : item.staffOnly ? isAdmin || isTeacher : true));
 
 /// Second crumb of the top bar, by path (the first crumb is the person's section: "Admin", …).
 export const PAGE_LABELS: Record<string, string> = {
   "/dashboard": "Overview",
   "/branches": "Branches",
   "/settings": "Settings",
+  "/academics": "Academics",
+  "/lms": "Coursework",
+  "/attendance": "Attendance",
+  "/results": "Results",
+  "/timetable": "Timetable",
+  "/announcements": "Announcements",
+  "/communication": "Communication",
+  "/finance": "Finance",
   "/users": "Users",
   "/account": "Account",
 };

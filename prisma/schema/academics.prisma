@@ -28,8 +28,10 @@ model AcademicSession {
   updatedAt DateTime @default(now()) @updatedAt
 
   branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  periods     AcademicPeriod[]
-  enrollments StudentEnrollment[]
+  periods                AcademicPeriod[]
+  enrollments            StudentEnrollment[]
+  sourcePromotionBatches PromotionBatch[]    @relation("SourceSessionBatches")
+  targetPromotionBatches PromotionBatch[]    @relation("TargetSessionBatches")
 
   @@unique([branchId, label])
   @@index([branchId, status])
@@ -54,7 +56,366 @@ model AcademicPeriod {
 
   branch  Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
   session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results Result[]
+  remarks ReportRemark[]
+  feeStructures FeeStructure[]
+  invoices      Invoice[]
 
   @@unique([sessionId, ordinal])
+  @@unique([branchId, id])
   @@index([branchId, sessionId])
+}
+
+// --- Academic structure: classes, arms, subjects (Slice P1a; plan "Build design - Slice P1") ---
+//
+// Everything belongs to exactly ONE branch. A child is kept in its parent's branch by a composite key (branchId, id), so the database - not only the code -
+// refuses an arm that points at another branch's class group. Nothing is deleted: classes, arms and subjects are archived.
+
+/// A class ("JSS 1", "Primary 3", "Ibtidaiyah 2") of one branch. `sortOrder` is the progression rung promotion will use. Live names are unique per branch
+/// (ignoring case) by a partial index in the migration SQL.
+model ClassGroup {
+  id         String    @id @default(cuid())
+  branchId   String
+  name       String
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  arms      ClassArm[]
+  offerings SubjectOffering[]
+  schemes      AssessmentScheme[]
+  schemeScopes AssessmentSchemeScope[]
+  feeStructures FeeStructure[]
+  lmsAssignments    Assignment[]
+  learningMaterials      LearningMaterial[]
+  quizzes                Quiz[]
+  sourcePromotionBatches PromotionBatch[]        @relation("SourceClassBatches")
+  targetPromotionBatches PromotionBatch[]        @relation("TargetClassBatches")
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// An arm of a class ("A", "Gold"). Capacity lives on the arm and is display-only. Live names are unique per class (ignoring case) by a partial index.
+model ClassArm {
+  id           String    @id @default(cuid())
+  branchId     String
+  classGroupId String
+  name         String
+  capacity     Int?
+  classTeacherId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup       ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  classTeacher     StaffRecord?             @relation("ClassTeacherArms", fields: [branchId, classTeacherId], references: [branchId, id], onDelete: NoAction)
+  enrollments      StudentEnrollment[]
+  assignments      StaffSubjectAssignment[]
+  results          Result[]
+  attendanceGrants AttendanceGrant[]
+  timetableSlots   TimetableSlot[]
+  announcements    Announcement[]
+  lmsAssignments   Assignment[]
+
+  @@unique([branchId, id])
+  @@index([branchId, classGroupId])
+  @@index([branchId, classTeacherId])
+}
+
+/// A subject taught in one branch. `code` is upper-cased and unique among the branch's live subjects when present (partial index).
+model Subject {
+  id         String    @id @default(cuid())
+  branchId   String
+  name       String
+  code       String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  offerings   SubjectOffering[]
+  assignments StaffSubjectAssignment[]
+  results      Result[]
+  schemeScopes AssessmentSchemeScope[]
+  schemeDrafts AssessmentSchemeDraft[]
+  timetableSlots TimetableSlot[]
+  lmsAssignments    Assignment[]
+  learningMaterials LearningMaterial[]
+  quizzes           Quiz[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// "This class studies this subject." A real DELETE for now because nothing references it; the day a later slice adds a foreign key to it, a test fails and
+/// forces archive-on-reference.
+model SubjectOffering {
+  id           String   @id @default(cuid())
+  branchId     String
+  classGroupId String
+  subjectId    String
+  createdAt    DateTime @default(now())
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  subject    Subject    @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([classGroupId, subjectId])
+  @@index([branchId])
+}
+
+// --- Assessment schemes and grade scales (Slice P1b; plan "Build design - Slice P1", decisions 6 and 7) ---
+//
+// Both are VERSIONED so history cannot be rewritten: edited in place only while `lockedAt` is null; the first result that references one (P2) locks it, a trigger
+// then refuses any change to it or its children, and a change after that is a NEW VERSION that supersedes it. Per branch; nothing is deleted.
+
+/// How a mark is built: continuous-assessment components plus the exam, summing exactly to `totalMax`. classGroupId null = the branch default.
+model AssessmentScheme {
+  id           String    @id @default(cuid())
+  branchId     String
+  classGroupId String?
+  name         String
+  totalMax     Decimal   @default(100) @db.Decimal(6, 2)
+  examMax      Decimal   @db.Decimal(6, 2)
+  version      Int       @default(1)
+  lockedAt     DateTime?
+  supersedesId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch     Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup?           @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  supersedes AssessmentScheme?     @relation("SchemeVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors AssessmentScheme[]    @relation("SchemeVersions")
+  components AssessmentComponent[]
+  results    Result[]
+  scopes     AssessmentSchemeScope[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+model AssessmentComponent {
+  id        String  @id @default(cuid())
+  branchId  String
+  schemeId  String
+  name      String
+  maxScore  Decimal @db.Decimal(6, 2)
+  sortOrder Int
+
+  branch Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scheme AssessmentScheme @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, schemeId])
+}
+
+/// A grade scale as data: bands of score -> letter -> remark. Exactly one live DEFAULT per branch (partial unique index in the migration).
+model GradeScale {
+  id           String    @id @default(cuid())
+  branchId     String
+  name         String
+  isDefault    Boolean   @default(false)
+  version      Int       @default(1)
+  lockedAt     DateTime?
+  supersedesId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch     Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supersedes GradeScale?  @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors GradeScale[] @relation("ScaleVersions")
+  bands      GradeBand[]
+  results    Result[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// Half-open [minScore, maxScore), except the top band which is closed at 100; the bands of a scale are contiguous from 0 to 100 (checked by
+/// lib/academics/scoring.ts#checkBands, in the write transaction).
+model GradeBand {
+  id        String  @id @default(cuid())
+  branchId  String
+  scaleId   String
+  minScore  Decimal @db.Decimal(5, 2)
+  maxScore  Decimal @db.Decimal(5, 2)
+  letter    String
+  remark    String
+  sortOrder Int
+
+  branch Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scale  GradeScale @relation(fields: [branchId, scaleId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, scaleId])
+}
+
+// --- Staff records and teaching assignments (Slice P1c; plan "Build design - Slice P1c") ---
+
+enum StaffCategory {
+  TEACHING
+  NON_TEACHING
+}
+
+/// A member of staff as the BRANCH knows them - not a sign-in account. `userId` is null for someone who never signs in (a security guard, a driver); when set it
+/// must be a member of this same branch (composite key to Membership) and is unique per branch (partial unique index). `email` is lower-cased and unique among
+/// the branch's live records (partial index). Creating a record never creates a login.
+model StaffRecord {
+  id         String        @id @default(cuid())
+  branchId   String
+  userId     String?
+  category   StaffCategory
+  firstName  String
+  lastName   String
+  phone      String?
+  email      String?
+  archivedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @default(now()) @updatedAt
+
+  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  membership       Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
+  assignments      StaffSubjectAssignment[]
+  teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
+  attendanceGrants AttendanceGrant[]
+  timetableSlots   TimetableSlot[]
+  createdAssignments Assignment[]
+  gradedSubmissions  AssignmentSubmission[]
+  createdMaterials   LearningMaterial[]
+  createdQuizzes     Quiz[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// "This person teaches this subject to this arm." A real DELETE for now (nothing references it); the day a later slice does, a test fails and forces
+/// archive-on-reference.
+model StaffSubjectAssignment {
+  id            String   @id @default(cuid())
+  branchId      String
+  staffRecordId String
+  subjectId     String
+  classArmId    String
+  createdAt     DateTime @default(now())
+
+  branch      Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staffRecord StaffRecord @relation(fields: [branchId, staffRecordId], references: [branchId, id], onDelete: NoAction)
+  subject     Subject     @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+  classArm    ClassArm    @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([staffRecordId, subjectId, classArmId])
+  @@index([branchId])
+}
+
+// --- Results (Slice P2a; plan "Build design - Slice P2") ---
+
+enum ResultStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PUBLISHED
+  LOCKED
+}
+
+/// One student's result in one subject for one period. The arm, scheme and scale are SNAPSHOTTED onto it (the arm the student was in when it was entered; the
+/// scheme and scale that built the numbers, which the first result locks), and the letter and remark are copied, not looked up later - so history cannot change when
+/// a scheme, a scale or the student's class does. Content (scores, snapshot) can change only while the row is a DRAFT; the status machine, the dates and the
+/// verification token are enforced by CHECKs and triggers in the migration SQL. One live row per student x subject x period.
+model Result {
+  id                String       @id @default(cuid())
+  branchId          String
+  studentId         String
+  subjectId         String
+  periodId          String
+  classArmId        String
+  schemeId          String
+  scaleId           String
+  /// [{ name, max, score }] in the scheme's order.
+  componentScores   Json
+  examScore         Decimal      @db.Decimal(6, 2)
+  examMax           Decimal      @db.Decimal(6, 2)
+  caTotal           Decimal      @db.Decimal(6, 2)
+  total             Decimal      @db.Decimal(6, 2)
+  maxScore          Decimal      @db.Decimal(6, 2)
+  gradeLetter       String
+  gradeRemark       String
+  status            ResultStatus @default(DRAFT)
+  enteredByUserId   String
+  submittedByUserId String?
+  submittedAt       DateTime?
+  approvedByUserId  String?
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  lockedAt          DateTime?
+  verificationToken String?      @unique
+  verificationHash  String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @default(now()) @updatedAt
+
+  branch      Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student     StudentRecord    @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  subject     Subject          @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+  period      AcademicPeriod   @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  classArm    ClassArm         @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
+  scheme      AssessmentScheme @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+  scale       GradeScale       @relation(fields: [branchId, scaleId], references: [branchId, id], onDelete: NoAction)
+  enteredBy   User             @relation("ResultsEntered", fields: [enteredByUserId], references: [id], onDelete: NoAction)
+  submittedBy User?            @relation("ResultsSubmitted", fields: [submittedByUserId], references: [id], onDelete: NoAction)
+  approvedBy  User?            @relation("ResultsApproved", fields: [approvedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, subjectId, periodId])
+  @@unique([branchId, id])
+  @@index([branchId, periodId, classArmId])
+  @@index([branchId, studentId, periodId])
+}
+
+/// Append-only history of every result: each entry, edit, transition and unlock, in the same transaction as the change. UPDATE and DELETE are refused by triggers.
+/// `resultId` carries no foreign key on purpose: a draft that is deleted keeps its trail. `actorUserId` is null for the system (a term closing locks its published results).
+model ResultAudit {
+  id          String        @id @default(cuid())
+  branchId    String
+  resultId    String
+  actorUserId String?
+  action      String
+  fromStatus  ResultStatus?
+  toStatus    ResultStatus?
+  fromTotal   Decimal?      @db.Decimal(6, 2)
+  toTotal     Decimal?      @db.Decimal(6, 2)
+  reason      String?
+  createdAt   DateTime      @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  actor  User?  @relation("ResultAudits", fields: [actorUserId], references: [id], onDelete: NoAction)
+
+  @@index([branchId, resultId])
+  @@index([createdAt])
+}
+
+/// The teacher's and the principal's remark on a student's report card for one term (Slice P2c). Editable until any of the student's results for that term is
+/// published (a service rule, stated in the plan). One row per student and term.
+model ReportRemark {
+  id              String   @id @default(cuid())
+  branchId        String
+  studentId       String
+  periodId        String
+  teacherRemark   String?
+  principalRemark String?
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  branch    Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord  @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  period    AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  updatedBy User           @relation("RemarksUpdated", fields: [updatedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, periodId])
+  @@index([branchId, periodId])
 }

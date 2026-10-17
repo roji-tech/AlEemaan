@@ -1,5 +1,5 @@
 # 0001 — One school; branches are not tenants; roles apply school-wide
-Status: accepted · Decided: Phase 0 · Recorded: 2026-10-07
+Status: accepted, partly superseded by [0012](0012-staff-act-in-a-branch-through-the-role-they-hold-there.md) (roles apply per branch for staff; the school-wide ADMIN stays until the superadmin ADR) · Decided: Phase 0 · Recorded: 2026-10-07
 
 ## Context
 AlEemaan replaces one live school (four branches: Secondary/Primary × English/Arabic). Its sibling, Octalve Edu, is multi-tenant. Importing tenant machinery here would add risk to a live system for no benefit.

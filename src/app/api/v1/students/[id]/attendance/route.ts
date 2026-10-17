@@ -13,14 +13,14 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Authenticated staff. Retrieves attendance history and rate for a student.
  */
 export const GET = withAuth(
-  async (_req, _auth, ctx: RouteContext) => {
+  async (_req, auth, ctx: RouteContext) => {
     try {
       const { id } = await ctx.params;
       if (!id) {
         return fail("Student ID is required", 400, "VALIDATION");
       }
 
-      const result = await getStudentAttendanceHistory(id);
+      const result = await getStudentAttendanceHistory(id, auth.userId);
       if (!result.ok) {
         return attendanceFailure(result.failure);
       }

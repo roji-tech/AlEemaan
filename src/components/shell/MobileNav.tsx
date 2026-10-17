@@ -14,6 +14,8 @@ type MobileNavProps = {
   email: string | null;
   roleLabel: string;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isTeacher: boolean;
 };
 
 const TAB =
@@ -25,14 +27,15 @@ const SHEET_ROW =
 /// a "More" sheet for everything that doesn't fit — pages that aren't built yet, Profile, and
 /// Sign out. The sheet is a native modal `<dialog>`, so the focus trap, Escape, an inert page
 /// behind it and focus returning to "More" come from the platform rather than hand-rolled code.
-export function MobileNav({ name, email, roleLabel, isAdmin }: MobileNavProps) {
+export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTeacher }: MobileNavProps) {
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { signOut, pending, error } = useSignOut();
 
-  const items = navFor(isAdmin);
-  const tabs = items.filter((item) => item.href);
+  const items = navFor(isAdmin, isSuperAdmin, isTeacher);
+  const tabs = items.filter((item) => item.href && !item.inMore);
+  const moreLinks = items.filter((item) => item.href && item.inMore);
   const soon = items.filter((item) => !item.href);
   const displayName = name?.trim() || email || "Account";
 
@@ -43,7 +46,7 @@ export function MobileNav({ name, email, roleLabel, isAdmin }: MobileNavProps) {
 
   return (
     <>
-      <nav aria-label="Main" className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav aria-label="Main" className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
         <ul className="flex gap-1 rounded-2xl border border-line bg-surface p-1.5 shadow-menu">
           {tabs.map(({ label, href, icon: Icon }) => (
             <li key={label} className="flex-1">
@@ -108,6 +111,14 @@ export function MobileNav({ name, email, roleLabel, isAdmin }: MobileNavProps) {
           </div>
 
           <ul className="mt-3 border-t border-line pt-2">
+            {moreLinks.map(({ label, href, icon: Icon }) => (
+              <li key={label}>
+                <Link href={href!} aria-current={isActive(pathname, href!) ? "page" : undefined} className={`${SHEET_ROW} ${FOCUS_RING}`}>
+                  <Icon className="h-5 w-5" />
+                  {label}
+                </Link>
+              </li>
+            ))}
             {soon.map(({ label, icon: Icon }) => (
               <li key={label}>
                 <span className={`${SHEET_ROW} text-fg-muted hover:bg-transparent hover:text-fg-muted`}>

@@ -32,6 +32,9 @@ model User {
   image         String?
   /// Nullable — an invited-but-not-yet-activated user has none.
   passwordHash  String?
+  /// A person with school-wide authority: administers every branch (a plain ADMIN membership administers only its own branch). A flag on the
+  /// person, not a role — roles are per branch (ADR 0007). Granted/revoked only by a superadmin, or by `pnpm superadmin:make` (plan S1–S6).
+  isSuperAdmin  Boolean   @default(false)
 
   sessions            Session[]
   resetTokens         PasswordResetToken[]
@@ -39,9 +42,25 @@ model User {
   memberships         Membership[]
   invitationsSent     Invitation[]         @relation("InvitationsSent")
   invitationsAccepted Invitation[]         @relation("InvitationsAccepted")
+  resultsEntered      Result[]             @relation("ResultsEntered")
+  resultsSubmitted    Result[]             @relation("ResultsSubmitted")
+  resultsApproved     Result[]             @relation("ResultsApproved")
+  resultAudits        ResultAudit[]        @relation("ResultAudits")
+  remarksUpdated      ReportRemark[]       @relation("RemarksUpdated")
   mfaCredential       MfaCredential?
   mfaRecoveryCodes    MfaRecoveryCode[]
   mfaChallenges       MfaChallenge[]
+  approvalsRequested  SettingApproval[]        @relation("ApprovalActor")
+  approvalsDecided    SettingApproval[]        @relation("ApprovalDecider")
+  schemeScopes        AssessmentSchemeScope[]  @relation("TeacherSchemeScope")
+  schemeDrafts        AssessmentSchemeDraft[]  @relation("TeacherSchemeDrafts")
+  selfApprovalGrants  AdminSelfApprovalGrant[] @relation("AdminSelfApproval")
+  selfApprovalsGranted AdminSelfApprovalGrant[] @relation("SelfApprovalGrantedBy")
+  unseenReviewsAssigned AdminSelfApprovalGrant[] @relation("SelfApprovalReviewer")
+  attendanceGrantsGranted AttendanceGrant[] @relation("AttendanceGrantsGranted")
+  announcements         Announcement[]
+  notificationDispatches NotificationDispatch[]
+  executedPromotions    PromotionBatch[]         @relation("PromotionExecutor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

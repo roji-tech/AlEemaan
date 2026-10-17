@@ -38,12 +38,11 @@ test.describe("desktop: sidebar and top bar", () => {
     await expect(nav.getByRole("link", { name: "Branches" })).not.toHaveAttribute("aria-current", "page");
     await expect(page.getByText("AlEemaan", { exact: true }).first()).toBeVisible();
 
-    // Not-yet-built pages are honest: visible, marked, and not links.
-    await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(0);
-    await expect(nav.getByText("Settings")).toBeVisible();
+    // Every page in the list is built now (Settings since 0.5.2), so each is a real link and nothing is marked "coming soon".
+    await expect(nav.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
     await expect(nav.getByRole("link", { name: "Users" })).toHaveAttribute("href", "/users");
-    await expect(nav.getByText("coming soon")).toHaveCount(1); // the screen-reader text
-    await expect(nav.getByText("Soon", { exact: true })).toHaveCount(1); // the visible pill
+    await expect(nav.getByText("coming soon")).toHaveCount(0);
+    await expect(nav.getByText("Soon", { exact: true })).toHaveCount(0);
 
     // The signed-in person sits at the foot of the sidebar.
     const sidebar = page.locator("div.fixed", { has: nav });
@@ -178,21 +177,22 @@ test.describe("a session that ends underneath the shell", () => {
     await signInThroughUi(page, admin);
     await db.session.deleteMany({ where: { userId: admin.id } });
 
-    // Not a page load: a client-side navigation to a page whose layout is already on screen.
-    await mainNav(page).getByRole("link", { name: "Branches" }).click();
+    // Not a page load: a client-side navigation to a page whose layout is already on screen (Users: a tab on a phone as well as in the sidebar).
+    await mainNav(page).getByRole("link", { name: "Users" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByText("Secondary (English)")).toHaveCount(0); // and no branch data was ever shown
   });
 });
 
 test.describe("someone who is not an administrator", () => {
-  test("sees only what is theirs: Overview alone in the navigation, their own branches, no Settings", async ({ page, isMobile }) => {
+  test("sees only what is theirs: Overview and Results in the navigation, their own branches, no Settings", async ({ page, isMobile }) => {
     const teacher = await createUser({ role: Role.TEACHING_STAFF, name: "Zainab Bello" });
     await signInThroughUi(page, teacher);
 
     await expect(page.getByRole("heading", { level: 1, name: "Welcome, Zainab" })).toBeVisible();
-    await expect(mainNav(page).getByRole("link")).toHaveCount(1);
+    await expect(mainNav(page).getByRole("link")).toHaveCount(2); // Overview and Results (a teacher enters marks)
     await expect(mainNav(page).getByRole("link", { name: "Overview" })).toBeVisible();
+    await expect(mainNav(page).getByRole("link", { name: "Results" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);
     await expect(page.getByText("Settings")).toHaveCount(0);
     // Their own memberships, and no school-wide figures.
@@ -233,19 +233,30 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
   const tabBar = (page: Page) => mainNav(page);
   const moreButton = (page: Page) => tabBar(page).getByRole("button", { name: "More" });
 
-  test("a tab bar replaces the sidebar: Overview, Branches, Users, More — and the current page is marked", async ({ page }) => {
+  test("a tab bar replaces the sidebar: Overview, Academics, Results, Users, More (Branches and Settings are in More) — and the current page is marked", async ({
+    page,
+  }) => {
     const admin = await createUser({ role: Role.ADMIN });
     await signInThroughUi(page, admin);
 
     await expect(tabBar(page)).toBeVisible();
-    await expect(tabBar(page).getByRole("link")).toHaveCount(3); // built pages only; the rest live in More
+    await expect(tabBar(page).getByRole("link")).toHaveCount(4); // the built pages that fit; Branches and Settings live in the More sheet so the bar is not cramped
     await expect(tabBar(page).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
     await expect(moreButton(page)).toHaveAttribute("aria-haspopup", "dialog");
     await expect(moreButton(page)).toHaveAttribute("aria-expanded", "false");
 
-    await tabBar(page).getByRole("link", { name: "Branches" }).click();
+    await tabBar(page).getByRole("link", { name: "Results" }).click();
+    await expect(page).toHaveURL(/\/results$/);
+    await expect(tabBar(page).getByRole("link", { name: "Results" })).toHaveAttribute("aria-current", "page");
+    await expect(tabBar(page).getByRole("link", { name: "Branches" })).toHaveCount(0);
+    await moreButton(page).click();
+    await page.getByRole("dialog").getByRole("link", { name: "Branches" }).click(); // rarely used on a phone: one tap further, in the More sheet
     await expect(page).toHaveURL(/\/branches$/);
-    await expect(tabBar(page).getByRole("link", { name: "Branches" })).toHaveAttribute("aria-current", "page");
+
+    await expect(tabBar(page).getByRole("link", { name: "Settings" })).toHaveCount(0);
+    await moreButton(page).click();
+    await page.getByRole("dialog").getByRole("link", { name: "Settings" }).click(); // Settings is one tap further, in the More sheet
+    await expect(page).toHaveURL(/\/settings$/);
   });
 
   test("the tab bar never covers the end of a long page", async ({ page }) => {
@@ -278,8 +289,9 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     await expect(moreButton(page)).toHaveAttribute("aria-expanded", "true");
     await expect(sheet).toContainText("Amina Yusuf");
     await expect(sheet).toContainText("Administrator");
-    await expect(sheet.getByText("Users")).toHaveCount(0); // built now: it is a tab, not a "Soon" row in the sheet
-    await expect(sheet.getByText("Settings")).toBeVisible();
+    await expect(sheet.getByText("Users")).toHaveCount(0); // built: it is a tab, not a "Soon" row in the sheet
+    await expect(sheet.getByRole("link", { name: "Settings" })).toBeVisible(); // built, so a real link in the sheet (not a "Soon" row)
+    await expect(sheet.getByText("Soon", { exact: true })).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "Profile" })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Sign out" })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Amina Yusuf" })).toBeVisible(); // it is named
@@ -347,10 +359,10 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     expect(await db.session.count({ where: { tokenHash: sha256Hex(token) } })).toBe(0);
   });
 
-  test("a non-administrator's tab bar is just Overview and More", async ({ page }) => {
+  test("a teacher's tab bar is Overview, Results and More; an administrator-only page is not in it", async ({ page }) => {
     const teacher = await createUser({ role: Role.TEACHING_STAFF });
     await signInThroughUi(page, teacher);
-    await expect(tabBar(page).getByRole("link")).toHaveCount(1);
+    await expect(tabBar(page).getByRole("link")).toHaveCount(2); // Overview and Results
     await moreButton(page).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText("Settings")).toHaveCount(0);

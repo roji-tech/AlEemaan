@@ -14,7 +14,8 @@ import { DeactivateDialog } from "./DeactivateDialog";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { InvitationsList } from "./InvitationsList";
 import { InviteDialog } from "./InviteDialog";
-import { ROLE_OPTIONS, displayName, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
+import { SuperAdminDialog } from "./SuperAdminDialog";
+import { ROLE_OPTIONS, displayName, roleOptionsFor, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
 
 const PAGE_SIZE = 20;
 const ROW = "md:grid md:grid-cols-[minmax(0,2.2fr)_9rem_minmax(0,1.2fr)_6.5rem_auto] md:items-center md:gap-4";
@@ -31,9 +32,18 @@ const failureText = (status: number, message?: string) =>
         : (message ?? "That didn't work. Please try again in a moment.");
 
 /// The Users page (plan §0.5.4): the school's people with filters and paging, the open invitations, and the four things an administrator does —
-/// invite, change role/branch, deactivate, reactivate. Everything goes through the API (which enforces who may do what); this only shows the
+/// invite, change role/branch, deactivate, reactivate; a superadmin also makes or removes superadmins. A branch administrator sees and acts on
+/// their own branches only and never touches an administrator or a superadmin — controls that would be refused are not drawn (a courtesy). Everything goes through the API (which enforces who may do what); this only shows the
 /// answer. Results are announced in one polite live region, and focus is never left on a control that has just disappeared.
-export function UsersPanel({ branches, currentUserId }: { branches: BranchOption[]; currentUserId: string }) {
+export function UsersPanel({
+  branches,
+  currentUserId,
+  isSuperAdmin,
+}: {
+  branches: BranchOption[];
+  currentUserId: string;
+  isSuperAdmin: boolean;
+}) {
   const [searchText, setSearchText] = useState("");
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
@@ -51,6 +61,7 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
   const [inviteKey, setInviteKey] = useState(0);
   const [editing, setEditing] = useState<Member | null>(null);
   const [deactivating, setDeactivating] = useState<Member | null>(null);
+  const [superAdminFor, setSuperAdminFor] = useState<Member | null>(null);
   const [busyUser, setBusyUser] = useState<string | null>(null);
   const [busyInvitation, setBusyInvitation] = useState<string | null>(null);
   const summaryRef = useRef<HTMLParagraphElement>(null);
@@ -275,6 +286,8 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
                 const name = displayName(member);
                 const self = member.userId === currentUserId;
                 const busy = busyUser === member.id;
+                // Only a superadmin touches an administrator or a superadmin (the API refuses a branch administrator who tries).
+                const locked = !isSuperAdmin && (member.role === "ADMIN" || member.isSuperAdmin);
                 return (
                   <li key={member.id} className={`flex flex-col gap-3 p-4 ${ROW}`}>
                     <div className="flex min-w-0 items-center gap-3">
@@ -297,10 +310,15 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
                     <p className="text-sm text-fg-2">
                       <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Role: </span>
                       {ROLE_LABELS[member.role]}
+                      {member.isSuperAdmin && (
+                        <span className="ml-2 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold text-brand-fg">
+                          Superadmin
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-fg-2">
                       <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Branch: </span>
-                      {member.role === "ADMIN" ? "All branches" : member.branchName}
+                      {member.isSuperAdmin ? "All branches" : member.branchName}
                     </p>
                     <p>
                       <span
@@ -310,7 +328,7 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
                       </span>
                     </p>
                     <div className="flex gap-2 md:w-64 md:justify-end">
-                      {self ? null : member.status === "active" ? (
+                      {self || locked ? null : member.status === "active" ? (
                         <>
                           <Button
                             variant="secondary"
@@ -328,6 +346,16 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
                           >
                             Deactivate
                           </Button>
+                          {isSuperAdmin && (
+                            <Button
+                              variant="ghost"
+                              className="flex-1 md:flex-none"
+                              onClick={() => setSuperAdminFor(member)}
+                              aria-label={`${member.isSuperAdmin ? "Remove superadmin from" : "Make superadmin"} ${name}`}
+                            >
+                              {member.isSuperAdmin ? "Remove superadmin" : "Make superadmin"}
+                            </Button>
+                          )}
                         </>
                       ) : (
                         <Button
@@ -387,6 +415,7 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
         open={inviting}
         onClose={() => setInviting(false)}
         branches={branches}
+        roleOptions={roleOptionsFor(isSuperAdmin)}
         onInvited={(invitation) => {
           flushSync(() => setInviting(false)); // the dialog is closed (and focus handed back) before the lists are reloaded
           setNotice({ variant: "success", text: `Invitation sent to ${invitation.email}. The link works for 7 days.` });
@@ -397,15 +426,28 @@ export function UsersPanel({ branches, currentUserId }: { branches: BranchOption
         member={editing}
         onClose={() => setEditing(null)}
         branches={branches}
+        roleOptions={roleOptionsFor(isSuperAdmin)}
         onSaved={(member, changed) => {
           flushSync(() => setEditing(null));
           setNotice({
             variant: "success",
             text: changed
-              ? `Saved. ${displayName(member)} is now ${ROLE_LABELS[member.role]}${member.role === "ADMIN" ? "" : ` at ${member.branchName}`}.`
+              ? `Saved. ${displayName(member)} is now ${ROLE_LABELS[member.role]}${member.isSuperAdmin ? "" : ` at ${member.branchName}`}.`
               : "Nothing needed changing.",
           });
           void refresh();
+        }}
+      />
+      <SuperAdminDialog
+        member={superAdminFor}
+        onClose={() => setSuperAdminFor(null)}
+        onDone={(member, granted) => {
+          flushSync(() => setSuperAdminFor(null));
+          setNotice({
+            variant: "success",
+            text: granted ? `${displayName(member)} is now a superadmin.` : `${displayName(member)} is no longer a superadmin.`,
+          });
+          void afterChange();
         }}
       />
       <DeactivateDialog

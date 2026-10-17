@@ -3,6 +3,7 @@ import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { scopeOrForbidden } from "@/lib/members/http";
 
 const createBranchSchema = z.object({
   name: z.string().trim().min(1, "Branch name is required").max(100),
@@ -10,12 +11,18 @@ const createBranchSchema = z.object({
 
 /**
  * GET /api/v1/branches
- * Admin-only. Lists every branch. (401 = not signed in, 403 = signed in but
+ * Administrators only: every branch for a superadmin, the caller's own branches for a branch administrator. (401 = not signed in, 403 = signed in but
  * not an admin — the old requireAdmin() returned 401 for both.)
  */
 export const GET = withAuth(
-  async () => {
-    const branches = await prisma.branch.findMany({ orderBy: { createdAt: "asc" } });
+  async (_req, auth) => {
+    // A superadmin sees every branch; a branch administrator only the ones they administer (the branch pickers on the Users pages).
+    const scope = await scopeOrForbidden(auth.userId);
+    if (scope instanceof Response) return scope;
+    const branches = await prisma.branch.findMany({
+      where: scope.superAdmin ? {} : { id: { in: [...scope.branchIds] } },
+      orderBy: { createdAt: "asc" },
+    });
     return ok({ branches: branches.map((b) => ({ id: b.id, name: b.name })) });
   },
   { roles: [Role.ADMIN] },
@@ -23,7 +30,7 @@ export const GET = withAuth(
 
 /**
  * POST /api/v1/branches
- * Admin-only. Creates a new branch, audit-logged. No PATCH/DELETE yet — see
+ * Superadmin only. Creates a new branch, audit-logged. No PATCH/DELETE yet — see
  * domain-implementation-plan.md §0.5.1.3 for why that's deliberately out of
  * scope for this phase.
  */
@@ -67,5 +74,5 @@ export const POST = withAuth(
       return fail("An unexpected error occurred. Please try again.", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] },
+  { superAdmin: true },
 );

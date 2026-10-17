@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Role } from "@prisma/client";
 import { fail } from "@/lib/api/envelope";
+import { adminScope, type AdminScope } from "@/lib/auth/branch-access";
 import type { MemberFailure } from "./service";
 
 // The HTTP face of the members/invitations rules: one place that turns a refusal into a status, a stable `code` and words a person can
@@ -29,8 +30,12 @@ export function memberFailure(reason: MemberFailure): Response {
       return notFound("member");
     case "SELF":
       return fail("You can't change your own access here. Ask another administrator.", 409, "SELF");
-    case "LAST_ADMIN":
-      return fail("This is the school's last administrator. Make someone else an administrator first.", 409, "LAST_ADMIN");
+    case "LAST_SUPERADMIN":
+      return fail("This is the school's last superadmin. Make someone else a superadmin first.", 409, "LAST_SUPERADMIN");
+    case "ADMIN_ONLY":
+      return fail("Only a superadmin can make or change an administrator or a superadmin.", 403, "FORBIDDEN");
+    case "OUT_OF_SCOPE":
+      return fail("You can only manage people in the branches you administer.", 403, "FORBIDDEN");
     case "INVALID_BRANCH":
       return fail("Choose one of the school's branches.", 400, "VALIDATION", [
         { path: "body.branchId", message: "Choose one of the school's branches." },
@@ -42,4 +47,12 @@ export function memberFailure(reason: MemberFailure): Response {
     case "DEACTIVATED":
       return fail("This person is deactivated. Reactivate them first.", 409, "DEACTIVATED");
   }
+}
+
+/// The caller's administration scope at THIS moment, or the 403 the `roles` gate gives when they have none (a membership deactivated between
+/// the gate and here must not turn into a 404 about someone else's member). Every administrator route starts from this.
+export async function scopeOrForbidden(userId: string): Promise<AdminScope | Response> {
+  const scope = await adminScope(userId);
+  if (!scope.superAdmin && scope.branchIds.length === 0) return fail("You don't have permission to do that", 403, "FORBIDDEN");
+  return scope;
 }

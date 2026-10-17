@@ -1,0 +1,162 @@
+// --- Finance & Billing (Slice P4: Fee Structures, Invoices, Payments, Dual-Mode Paystack & Webhooks) ---
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  WAIVED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  MANUAL
+  PAYSTACK
+  FLUTTERWAVE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum DiscountWorkflowMode {
+  MANUAL_OVERRIDE
+  SCHOLARSHIP
+  SIBLING_DISCOUNT
+  STAFF_CHILD
+}
+
+/// Fee structure item per academic period, optionally scoped to a class group (null = applies to all classes in branch).
+model FeeStructure {
+  id           String   @id @default(cuid())
+  branchId     String
+  periodId     String
+  classGroupId String?
+  name         String // "Tuition", "Sports Levy", "PTA", "Books", etc.
+  amount       Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  period     AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: Cascade)
+  classGroup ClassGroup?    @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, periodId])
+  @@index([branchId, classGroupId])
+}
+
+/// Student term invoice with line-items snapshot and live payment balance.
+model Invoice {
+  id          String        @id @default(cuid())
+  branchId    String
+  studentId   String
+  periodId    String
+  invoiceNo   String // e.g. INV-2026-0001
+  totalAmount Decimal       @db.Decimal(12, 2)
+  amountPaid  Decimal       @default(0) @db.Decimal(12, 2)
+  status      InvoiceStatus @default(UNPAID)
+  dueDate     DateTime?     @db.Date
+  lineItems   Json? // Snapshot of fee structures [{ name, amount, feeStructureId }]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
+
+  branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord     @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  period    AcademicPeriod    @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: Cascade)
+  payments  Payment[]
+  discounts InvoiceDiscount[]
+
+  @@unique([branchId, studentId, periodId])
+  @@unique([invoiceNo])
+  @@unique([branchId, id])
+  @@index([branchId, status])
+  @@index([branchId, periodId])
+  @@index([branchId, studentId])
+}
+
+/// Payment transaction record (online gateway or recorded manual payment).
+model Payment {
+  id                 String          @id @default(cuid())
+  branchId           String
+  invoiceId          String
+  amount             Decimal         @db.Decimal(12, 2)
+  provider           PaymentProvider @default(PAYSTACK)
+  providerRef        String // Unique transaction reference
+  status             PaymentStatus   @default(PENDING)
+  verifiedServerSide Boolean         @default(false)
+  channel            String? // "card", "bank_transfer", "cash", "pos", "mock"
+  paidAt             DateTime?
+  receiptNo          String? // RCP-2026-0001
+  metadata           Json?
+  recordedByUserId   String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @default(now()) @updatedAt
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [branchId, invoiceId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([provider, providerRef])
+  @@unique([branchId, id])
+  @@index([branchId, invoiceId])
+  @@index([branchId, status])
+  @@index([branchId, providerRef])
+}
+
+/// Audited fee discounts, waivers or scholarships applied to an invoice.
+model InvoiceDiscount {
+  id               String               @id @default(cuid())
+  branchId         String
+  invoiceId        String
+  amount           Decimal              @db.Decimal(12, 2)
+  reason           String
+  mode             DiscountWorkflowMode @default(MANUAL_OVERRIDE)
+  appliedByUserId  String
+  approvedByUserId String?
+  createdAt        DateTime             @default(now())
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [branchId, invoiceId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, invoiceId])
+}
+
+/// Webhook audit ledger recording incoming gateway deliveries and signature verifications.
+model PaymentWebhookEvent {
+  id             String          @id @default(cuid())
+  provider       PaymentProvider @default(PAYSTACK)
+  eventId        String // Provider event/delivery ID
+  eventType      String? // e.g. "charge.success"
+  signatureValid Boolean
+  processedAt    DateTime?
+  rawPayloadHash String // SHA-256 hash of exact raw body, NEVER raw payload
+  error          String?
+  receivedAt     DateTime        @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, receivedAt])
+}
+
+/// Per-branch, per-year receipt sequence
+model ReceiptCounter {
+  branchId String
+  year     Int
+  next     Int    @default(1)
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, year])
+}
+
+/// Per-branch, per-year invoice sequence counter
+model InvoiceCounter {
+  branchId String
+  year     Int
+  next     Int    @default(1)
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, year])
+}

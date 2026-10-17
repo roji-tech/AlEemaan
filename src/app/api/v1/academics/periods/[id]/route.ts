@@ -2,7 +2,8 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
-import { setCurrentPeriod } from "@/lib/academics/sessions";
+import { withBranch } from "@/lib/auth/with-branch";
+import { setCurrentPeriod, DomainError } from "@/lib/academics/sessions";
 import { z } from "zod";
 
 type Context = { params: Promise<{ id: string }> };
@@ -18,8 +19,6 @@ const patchPeriodSchema = z.object({
  */
 export const PATCH = withAuth<Context>(
   async (req, admin, context) => {
-    const { id } = await context.params;
-
     let body: unknown;
     try {
       body = await req.json();
@@ -32,8 +31,18 @@ export const PATCH = withAuth<Context>(
       return fail(parsed.error.issues[0]?.message ?? "Invalid payload", 400, "VALIDATION");
     }
 
+    // After the body is checked (as before): the caller must administer the branch they name (403 otherwise).
+    return setCurrentInBranch(req, admin, context, parsed.data);
+  },
+  { roles: [Role.ADMIN] },
+);
+
+const setCurrentInBranch = withBranch<z.infer<typeof patchPeriodSchema>, { userId: string }, Context>(
+  { of: (input) => input.branchId, as: "administer", where: "body" },
+  async (_req, admin, context, data) => {
+    const { id } = await context.params;
     try {
-      const updated = await setCurrentPeriod(parsed.data.branchId, id);
+      const updated = await setCurrentPeriod(data.branchId, id);
 
       await prisma.auditLog.create({
         data: {
@@ -53,10 +62,9 @@ export const PATCH = withAuth<Context>(
 
       return ok({ period: updated });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to set current term";
+      const msg = error instanceof DomainError ? error.message : "Failed to set current term";
       console.error("[ACADEMIC_PERIOD_PATCH_ERROR]", error);
       return fail(msg, 400, "PERIOD_UPDATE_FAILED");
     }
   },
-  { roles: [Role.ADMIN] },
 );

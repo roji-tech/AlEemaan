@@ -1,0 +1,76 @@
+// --- Student Promotion & Academic Rollover (Plan §Roadmap Slice P7) ---
+
+enum PromotionBatchStatus {
+  PREVIEW
+  COMMITTED
+  REVERTED
+}
+
+enum PromotionDecision {
+  PROMOTED
+  REPEATED
+  GRADUATED
+  WITHDRAWN
+}
+
+enum DecisionMode {
+  AUTOMATIC
+  OVERRIDDEN
+}
+
+/// A bulk promotion run for a class group between two academic sessions.
+model PromotionBatch {
+  id                 String               @id @default(cuid())
+  branchId           String
+  sourceSessionId    String
+  targetSessionId    String
+  sourceClassGroupId String
+  targetClassGroupId String? // null if terminal graduating class
+  status             PromotionBatchStatus @default(COMMITTED)
+  passMark           Float                @default(50.0)
+  totalEvaluated     Int                  @default(0)
+  totalPromoted      Int                  @default(0)
+  totalRepeated      Int                  @default(0)
+  totalGraduated     Int                  @default(0)
+  executedById       String
+  notes              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  branch           Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sourceSession    AcademicSession @relation("SourceSessionBatches", fields: [sourceSessionId], references: [id], onDelete: Cascade)
+  targetSession    AcademicSession @relation("TargetSessionBatches", fields: [targetSessionId], references: [id], onDelete: Cascade)
+  sourceClassGroup ClassGroup      @relation("SourceClassBatches", fields: [branchId, sourceClassGroupId], references: [branchId, id], onDelete: Cascade)
+  targetClassGroup ClassGroup?     @relation("TargetClassBatches", fields: [branchId, targetClassGroupId], references: [branchId, id], onDelete: NoAction)
+  executedBy       User            @relation("PromotionExecutor", fields: [executedById], references: [id], onDelete: Cascade)
+  records          PromotionRecord[]
+
+  @@unique([branchId, id])
+  @@index([branchId, sourceSessionId])
+  @@index([branchId, targetSessionId])
+}
+
+/// An individual student's evaluation and outcome in a promotion batch.
+model PromotionRecord {
+  id                 String            @id @default(cuid())
+  batchId            String
+  studentId          String
+  sourceEnrollmentId String
+  targetEnrollmentId String? // null if graduated or not re-enrolled
+  overallAverage     Float?
+  termAverages       Json? // e.g. { "1": 65.4, "2": 72.1, "3": 58.0 }
+  decision           PromotionDecision
+  decisionMode       DecisionMode      @default(AUTOMATIC)
+  overrideReason     String?
+
+  createdAt DateTime @default(now())
+
+  batch            PromotionBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  student          StudentRecord      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sourceEnrollment StudentEnrollment  @relation("SourceEnrollmentRecords", fields: [sourceEnrollmentId], references: [id], onDelete: Cascade)
+  targetEnrollment StudentEnrollment? @relation("TargetEnrollmentRecords", fields: [targetEnrollmentId], references: [id], onDelete: SetNull)
+
+  @@index([batchId])
+  @@index([studentId])
+}

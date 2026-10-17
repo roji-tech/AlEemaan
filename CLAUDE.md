@@ -90,6 +90,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 
 ## Files that are stable reference — read once, trust, don't expect them to move
 
+- `docs/issues/README.md` — the **issues register** (known and suspected problems by severity and type, with an evidence level and a taxonomy of issue kinds). Add an issue the moment one is suspected, update it as it moves, link it from the task that fixes it; see its "How this register is used".
 - `docs/adr/` — short ADRs (one per decision someone might reverse by mistake); read the index before changing RLS, locks, permissions, deactivation or migrations. Rules are in its README: never edit an accepted decision, supersede it.
 - `docs/legacy-feature-inventory.md` — a frozen factual snapshot of the 5 legacy repos as read on
   2026-09-28. Won't change unless the legacy system itself is re-audited.
@@ -141,6 +142,8 @@ one-off pattern sources, referenced once for a specific technique and then done:
    page calls `requirePageSession()` itself** (a layout isn't re-run on client-side navigation, so it is
    display, never the guard). Navigation is one list, `components/shell/nav.ts`. Design and numbers: plan
    §0.5.A; work log: `docs/development-history/phases/phase-0.5.A-design-language.md`.
+
+9. **`ADMIN` administers one branch; school-wide authority is `User.isSuperAdmin` (ADR 0014).** Decide who may act with `canAdminister(userId, branchId)` / `adminScope(userId)` (`lib/auth/branch-access.ts`) — never from `withAuth({ roles })` alone, which only means "a role somewhere". A route that names a branch or a branch-owned entity must call a branch helper (`resolveBranchRole`, `canAdminister`, `adminScope`, `scopeOrForbidden`, `branchOutOfScope`, `studentOutOfScope`) or be allowlisted with a reason in `tests/unit/route-role-guard.spec.ts`. An entity of another branch is a 404 like an unknown id; a branch named in a body that is not the caller's is a 403. Branches, school settings and granting superadmin are `withAuth({ superAdmin: true })`. The members/invitations services take a required `AdminScope`. The school always has a superadmin (`LAST_SUPERADMIN`); recovery is `pnpm superadmin:make -- <email>`. In tests, `createUser({ role: ADMIN })` is a superadmin (as after the migration); a branch administrator is `superAdmin: false`.
 
 ## Current state, as of 2026-09-30 (verify against `aleemaan_progress.md` — it may have moved since)
 
