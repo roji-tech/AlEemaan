@@ -4,7 +4,7 @@
 - **Status:** [x] Completed
 - **Priority:** High
 - **Assignee:** Antigravity / Engineering Team
-- **Target Branch / PR:** `claude/p7-student-promotion` -> `dev`
+- **Target Branch / PR:** [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion` -> `dev`)
 - **Started:** 2026-10-17 06:00:00 UTC
 - **Ended:** 2026-10-17 15:30:00 UTC
 - **Duration:** 9h 30m
