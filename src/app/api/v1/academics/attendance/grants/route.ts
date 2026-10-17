@@ -75,8 +75,8 @@ export const POST = withAuth(
           });
           return ok({ grant }, {}, 201);
         } catch (error) {
-          const msg = error instanceof Error ? error.message : "Failed to create attendance grant";
-          return fail(msg, 400, "BAD_REQUEST");
+          console.error("[attendance-grants] create failed:", error);
+          return fail("Failed to create attendance grant", 400, "BAD_REQUEST");
         }
       },
     ),

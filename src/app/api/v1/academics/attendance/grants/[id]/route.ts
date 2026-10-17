@@ -53,8 +53,8 @@ const revokeInBranch = withBranch<z.infer<typeof querySchema>, AuthContext, { id
       });
       return ok({ revoked: true });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to revoke attendance grant";
-      return fail(msg, 400, "BAD_REQUEST");
+      console.error("[attendance-grants] revoke failed:", error);
+      return fail("Failed to revoke attendance grant", 400, "BAD_REQUEST");
     }
   },
 );

@@ -39,6 +39,8 @@ model StudentRecord {
   results           Result[]
   remarks           ReportRemark[]
   invoices          Invoice[]
+  assignmentSubmissions AssignmentSubmission[]
+  quizAttempts          QuizAttempt[]
 
   @@unique([branchId, id])
   @@index([branchId])

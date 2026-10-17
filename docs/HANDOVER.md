@@ -47,6 +47,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0020 | — | PWA Foundation & Global Quick-Tools Dock | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) | Passing |
 | 0021 | P3 | Timetable Canvas & Announcements Broadcast | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) | Passing (unit, API, E2E a11y) |
 | 0022 | P4 | Finance & Fee Invoicing Foundation | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing`) | Passing (unit 17/17, API 3/3, E2E a11y 5/5) |
+| 0023 | P5 | Learning Management System (LMS) & Assignments | `claude/p5-lms-assignments` | Passing (unit 8/8, API 3/3, E2E a11y 5/5) |
 
 ---
 
@@ -111,6 +112,7 @@ The following 10 additive migrations have been applied and tested on development
 9. `20261015110000_attendance_permissions` (Attendance grants & class teacher assignment)
 10. `20261016100000_p3_timetable_and_announcements` (Timetable slots & multi-audience announcements)
 11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
+12. `20261017100000_p5_lms_and_assignments` (Assignments, submissions, learning materials, quizzes, questions, attempts)
 
 ---
 

@@ -86,6 +86,9 @@ model ClassGroup {
   schemes      AssessmentScheme[]
   schemeScopes AssessmentSchemeScope[]
   feeStructures FeeStructure[]
+  lmsAssignments    Assignment[]
+  learningMaterials LearningMaterial[]
+  quizzes           Quiz[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -112,6 +115,7 @@ model ClassArm {
   attendanceGrants AttendanceGrant[]
   timetableSlots   TimetableSlot[]
   announcements    Announcement[]
+  lmsAssignments   Assignment[]
 
   @@unique([branchId, id])
   @@index([branchId, classGroupId])
@@ -135,6 +139,9 @@ model Subject {
   schemeScopes AssessmentSchemeScope[]
   schemeDrafts AssessmentSchemeDraft[]
   timetableSlots TimetableSlot[]
+  lmsAssignments    Assignment[]
+  learningMaterials LearningMaterial[]
+  quizzes           Quiz[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -275,6 +282,10 @@ model StaffRecord {
   teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
   attendanceGrants AttendanceGrant[]
   timetableSlots   TimetableSlot[]
+  createdAssignments Assignment[]
+  gradedSubmissions  AssignmentSubmission[]
+  createdMaterials   LearningMaterial[]
+  createdQuizzes     Quiz[]
 
   @@unique([branchId, id])
   @@index([branchId])

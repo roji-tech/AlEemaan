@@ -43,6 +43,12 @@ model Branch {
   invoiceDiscounts    InvoiceDiscount[]
   receiptCounters     ReceiptCounter[]
   invoiceCounters     InvoiceCounter[]
+  assignments         Assignment[]
+  submissions         AssignmentSubmission[]
+  learningMaterials   LearningMaterial[]
+  quizzes             Quiz[]
+  quizQuestions       QuizQuestion[]
+  quizAttempts        QuizAttempt[]
 
   createdAt DateTime @default(now())
 }

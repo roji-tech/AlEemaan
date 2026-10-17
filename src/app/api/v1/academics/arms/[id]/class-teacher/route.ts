@@ -35,8 +35,8 @@ export const PATCH = withAuth<Context>(
           });
           return ok(updated);
         } catch (error) {
-          const msg = error instanceof Error ? error.message : "Failed to assign class teacher";
-          return fail(msg, 400, "BAD_REQUEST");
+          console.error("[class-teacher] assign failed:", error);
+          return fail("Failed to assign class teacher", 400, "BAD_REQUEST");
         }
       },
     ),
