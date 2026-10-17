@@ -33,9 +33,9 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **What may the public verification page show?** — answered 2026-10-15: bare minimum (school, branch, class, term, publish date, "valid") always; everything else is superadmin-configured per branch. *(Was item in §1.)*
 - [x] **Teachers and attendance** — answered 2026-10-15: class/form teacher of the arm + explicit grants; backfill on deploy. *(Was item in §1.)*
 - [x] **Go-ahead for finance F1** (fee structures and invoices); built in Slice P4 (`claude/p4-finance-billing`).
-- [ ] Approval of any `dev` -> `master` PR (none is open) and any `prod` step.
+- [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17. Production (`master` -> `prod`) remains gated.
 
-## 2. Built on `dev`, not yet live: run the migrations BEFORE the code
+## 2. Built on `dev` & `master`, not yet live: run the migrations BEFORE the code
 
 None of these has been run on the live database by me (I never touch it); apply in this order with `pnpm exec prisma migrate deploy`, then deploy the code. All are additive.
 1. `20261011120000_super_admin_flag` - **needs the `admins:list` answer first** (it backfills every current administrator as a superadmin).
@@ -55,8 +55,8 @@ None of these has been run on the live database by me (I never touch it); apply 
 
 ## 3. Not built
 
-- [ ] Student and parent access to report cards (there is no parent-to-child link yet - a decision of its own).
-- [x] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages) — built in Slice P7 (`claude/p7-student-promotion`).
+- [x] Student and parent access to report cards, attendance, fees, and LMS coursework — built in Slice P8 ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52)).
+- [x] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages) — built in Slice P7 ([PR #51](https://github.com/roji-tech/AlEemaan/pull/51)).
 - [ ] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh.
 - [ ] PDF download of the report card (printing from the browser is built).
 - [ ] A history dialog in the Review tab (the history API exists).
@@ -66,6 +66,7 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [x] **P4** finance F1-F4 (fee structures, batch invoicing, manual recorded payments, receipting, dual-mode Paystack checkout, webhooks) (PR #48).
 - [x] **P5** learning management system (LMS) & assignments (Task 0023: Completed, PR #49 to dev).
 - [x] **P6** multi-channel messaging & communication engine (Task 0024: Completed, [PR #50](https://github.com/roji-tech/AlEemaan/pull/50)).
+- [x] **Slice P8** parent & student self-service portal (Task 0026: Completed, [PR #52](https://github.com/roji-tech/AlEemaan/pull/52)).
 - [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
 - [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
 
