@@ -175,3 +175,17 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Print stylesheets for official student report cards */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

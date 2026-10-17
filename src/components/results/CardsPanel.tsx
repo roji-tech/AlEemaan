@@ -8,6 +8,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 import { ReportCard, type Card } from "@/components/results/ReportCard";
+import { downloadReportCardHtml } from "@/lib/academics/report-card-export";
 
 // Report cards (Slice P2d, over P2c): pick a term, a class arm and a student, read the card, print it. Administrators may preview with unpublished results and write
 // the two remarks (frozen by the server once a result is published). Everything outside the card itself is hidden when printing.
@@ -161,9 +162,15 @@ export function CardsPanel({
 
       {card && (
         <>
-          <div className="flex justify-end print:hidden">
+          <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
             <Button variant="secondary" onClick={() => window.print()}>
               Print this report card
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => downloadReportCardHtml(card, typeof window === "undefined" ? "" : window.location.origin)}
+            >
+              Download report card
             </Button>
           </div>
           <ReportCard card={card} origin={typeof window === "undefined" ? "" : window.location.origin} />

@@ -36,10 +36,11 @@
 | 0023 | [`0023-p5-lms-assignments.md`](0023-p5-lms-assignments.md) | Slice P5: Learning Management System (LMS) & Assignments | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) |
 | 0024 | [`0024-p6-communication-messaging.md`](0024-p6-communication-messaging.md) | Slice P6: Multi-Channel Messaging & Communication Engine | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging`) |
 | 0025 | [`0025-p7-student-promotion.md`](0025-p7-student-promotion.md) | Slice P7: Next-Term Student Promotion & Academic Rollover | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) |
-| 0026 | [`0026-p8-parent-student-portal.md`](0026-p8-parent-student-portal.md) | Slice P8: Parent & Student Self-Service Portal | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal`) |
-| 0027 | [`0027-p2-review-history-dialog.md`](0027-p2-review-history-dialog.md) | Task 0027: UI History Dialog in Review Tab & Results Branch Sync | Completed | 2026-10-17 UTC | 2026-10-17 UTC | `claude/task-0027-review-history-dialog` |
+| 0027 | [`0027-p2-review-history-dialog.md`](0027-p2-review-history-dialog.md) | Task 0027: UI History Dialog in Review Tab & Results Branch Sync | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) (`claude/task-0027-review-history-dialog`) |
+| 0028 | [`0028-report-card-payment-gate-and-export.md`](0028-report-card-payment-gate-and-export.md) | Task 0028: Report Card Payment Gate & Standalone Document Export | Completed | 2026-10-18 UTC | 2026-10-18 UTC | `claude/task-0028-report-card-payment-gate-and-export` |
 
 ---
+
 
 ## Detailed Milestone Status Overview
 
@@ -162,8 +163,16 @@
 - [x] Sub-phase E: E2E Accessibility & Verification (Axe WCAG 2.2 AA audit passed desktop & mobile, 0 type errors, 0 lint errors, 100% green tests)
 
 ### TASK-0027: UI History Dialog in Review Tab & Results Branch Sync
-- **Status:** Completed (`claude/task-0027-review-history-dialog`).
+- **Status:** Completed ([PR #55](https://github.com/roji-tech/AlEemaan/pull/55) `claude/task-0027-review-history-dialog` -> `dev`).
 - [x] Sub-phase A: Workflow Service & Audit Model Enhancement (`resultHistory` in `src/lib/academics/results-workflow.ts` includes `actor` name/email).
 - [x] Sub-phase B: Results Screen Branch Synchronization (Preserve `selectedBranchId` in `ResultsSections.tsx`, `EntryPanel.tsx`, `ReviewPanel.tsx`, `CardsPanel.tsx`).
 - [x] Sub-phase C: Interactive History Dialog in Review Tab (`HistoryDialog` in `ReviewPanel.tsx` with student picker, transition badges, actor and score diffs, reason quotes).
 - [x] Sub-phase D: Quality Gates & Handover (0 type errors, 0 lint errors, 306/306 unit tests passed, 9/9 workflow API tests passed, 13/13 E2E tests passed, 72/72 routes compiled successfully).
+
+### TASK-0028: Report Card Payment Gate & Standalone Document Export
+- **Status:** Completed (`claude/task-0028-report-card-payment-gate-and-export`).
+- [x] Sub-phase A: Report Card Payment Gate Service (`reportCardVisibleTo` in `src/lib/academics/report-card.ts`, checks `block_unpaid_report_cards` superadmin setting, enforces zero unpaid invoices for portal viewers while preserving unblocked staff access).
+- [x] Sub-phase B: Student Portal Integration & Restricted Access UI (`getStudentPortalResults` in `src/lib/portal/service.ts`, access-restricted banner with direct fee settlement action in `PortalResultsTab.tsx`).
+- [x] Sub-phase C: Standalone Document Export & Print Optimization (`generateReportCardHtml` and `downloadReportCardHtml` in `src/lib/academics/report-card-export.ts`, "Download report card" button in `CardsPanel.tsx` & `PortalResultsTab.tsx`, `@media print` A4 CSS rules in `globals.css`).
+- [x] Sub-phase D: Quality Gates & Handover (0 type errors, 0 lint errors, 308/308 unit tests passed, 72/72 routes compiled successfully).
+
