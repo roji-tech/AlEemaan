@@ -37,7 +37,7 @@ test.beforeAll(async () => {
 
 /// A fresh person with one membership; returns the person and the membership's id (what every action addresses).
 async function newMember(role: Role = Role.TEACHING_STAFF, name = "New Member", branch = 0) {
-  const user = await createUser({ name });
+  const user = await createUser({ name, superAdmin: role === Role.ADMIN }); // an ADMIN here is a superadmin, as after the migration
   const m = await db.membership.create({ data: { userId: user.id, branchId: branches[branch].id, role } });
   return { ...user, membershipId: m.id };
 }
@@ -55,6 +55,7 @@ test.describe("GET /members", () => {
       "branchName",
       "email",
       "id",
+      "isSuperAdmin",
       "joinedAt",
       "name",
       "role",
@@ -322,12 +323,12 @@ test.describe("POST /members/[id]/deactivate and /reactivate", () => {
     expect((await reactivate(mine)).json.error.code).toBe("SELF");
   });
 
-  test("two administrators deactivating EACH OTHER at the same instant over HTTP: exactly one succeeds, and the school keeps an administrator", async () => {
-    // Every OTHER active administrator (earlier tests promoted some) sits this out, deactivated behind the API's back, so the two racers are
-    // the only administrators and the count after the race is exact.
-    const bystanders = (await db.membership.findMany({ where: { role: Role.ADMIN, deactivatedAt: null }, select: { id: true } })).map(
-      (m) => m.id,
-    );
+  test("two superadmins deactivating EACH OTHER at the same instant over HTTP: exactly one succeeds, and the school keeps a superadmin", async () => {
+    // Every OTHER active superadmin (earlier tests made some) sits this out, deactivated behind the API's back, so the two racers are the
+    // only superadmins and the count after the race is exact.
+    const bystanders = (
+      await db.membership.findMany({ where: { deactivatedAt: null, user: { isSuperAdmin: true } }, select: { id: true } })
+    ).map((m) => m.id);
     await db.membership.updateMany({ where: { id: { in: bystanders } }, data: { deactivatedAt: new Date() } });
     try {
       for (let round = 0; round < 3; round++) {
@@ -342,7 +343,7 @@ test.describe("POST /members/[id]/deactivate and /reactivate", () => {
           results.filter((r) => r.status === 200),
           `round ${round}`,
         ).toHaveLength(1);
-        // the loser is told LAST_ADMIN, or (if the winner signed them out first) is no longer an administrator at all
+        // the loser is told LAST_SUPERADMIN, or (if the winner signed them out first) is no longer an administrator at all
         expect(
           results.filter((r) => r.status !== 200).every((r) => [401, 403, 409].includes(r.status)),
           `round ${round}`,
@@ -351,7 +352,7 @@ test.describe("POST /members/[id]/deactivate and /reactivate", () => {
           await db.membership.count({ where: { id: { in: [x.membershipId, y.membershipId] }, role: "ADMIN", deactivatedAt: null } }),
           `round ${round}`,
         ).toBe(1);
-        await db.membership.updateMany({ where: { id: { in: [x.membershipId, y.membershipId] } }, data: { role: Role.PARENT } }); // retire the pair
+        await db.user.updateMany({ where: { id: { in: [x.id, y.id] } }, data: { isSuperAdmin: false } }); // retire the pair (a role change would not: authority is the flag)
       }
     } finally {
       await db.membership.updateMany({ where: { id: { in: bystanders } }, data: { deactivatedAt: null } });

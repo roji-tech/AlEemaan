@@ -6,7 +6,7 @@ import { invitationEmail } from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
 import { resendInvitation } from "@/lib/invitations/service";
 import { INVITATION_TTL_DAYS } from "@/lib/invitations/token";
-import { isPlausibleId, notFound } from "@/lib/members/http";
+import { isPlausibleId, notFound, scopeOrForbidden } from "@/lib/members/http";
 import { ROLE_LABELS } from "@/lib/roles";
 
 // POST /api/v1/invitations/[id]/resend                                 (Users pages — a port of Octalve Edu's 0.5.4)
@@ -23,7 +23,9 @@ export const POST = withAuth(
     if (!(await reserveAttempt(`invite:resend:${id}`, PER_INVITATION))) {
       return fail("That invitation was resent several times just now. Please wait a few minutes.", 429, "RATE_LIMITED");
     }
-    const result = await resendInvitation(auth.userId, id);
+    const scope = await scopeOrForbidden(auth.userId);
+    if (scope instanceof Response) return scope;
+    const result = await resendInvitation(auth.userId, id, scope);
     if (!result) return notFound("open invitation");
     const { invitation, token } = result;
 

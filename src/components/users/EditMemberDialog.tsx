@@ -6,20 +6,23 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, problemFor, sendJson } from "@/components/auth/postJson";
-import { ROLE_OPTIONS, displayName, type BranchOption, type Member, type RoleName } from "./model";
+import type { SelectOption } from "@/components/ui/SelectField";
+import { displayName, type BranchOption, type Member, type RoleName } from "./model";
 
 /// Change one person's role and/or branch. Only what changed is sent. The server enforces the authority rules (not yourself, never the school's
-/// last administrator, a real branch) and its message is shown as it is — those are the cases a person can act on. (Extra permissions are a
+/// last superadmin, a real branch) and its message is shown as it is — those are the cases a person can act on. (Extra permissions are a
 /// separate port: Octalve Edu's 1.0.)
 export function EditMemberDialog({
   member,
   onClose,
   branches,
+  roleOptions,
   onSaved,
 }: {
   member: Member | null;
   onClose: () => void;
   branches: BranchOption[];
+  roleOptions: SelectOption[];
   onSaved: (member: Member, changed: boolean) => void;
 }) {
   return (
@@ -29,7 +32,9 @@ export function EditMemberDialog({
       title={member ? `Change access for ${displayName(member)}` : "Change access"}
       description="Takes effect on their next request."
     >
-      {member && <EditForm key={member.id} member={member} onClose={onClose} branches={branches} onSaved={onSaved} />}
+      {member && (
+        <EditForm key={member.id} member={member} onClose={onClose} branches={branches} roleOptions={roleOptions} onSaved={onSaved} />
+      )}
     </Dialog>
   );
 }
@@ -38,11 +43,13 @@ function EditForm({
   member,
   onClose,
   branches,
+  roleOptions,
   onSaved,
 }: {
   member: Member;
   onClose: () => void;
   branches: BranchOption[];
+  roleOptions: SelectOption[];
   onSaved: (member: Member, changed: boolean) => void;
 }) {
   const [role, setRole] = useState<RoleName>(member.role);
@@ -81,7 +88,7 @@ function EditForm({
         name="role"
         value={role}
         onChange={(e) => setRole(e.target.value as RoleName)}
-        options={ROLE_OPTIONS}
+        options={roleOptions}
         disabled={pending}
       />
       <SelectField
@@ -94,7 +101,7 @@ function EditForm({
         }}
         options={branches.map((b) => ({ value: b.id, label: b.name }))}
         error={branchError}
-        hint={role === "ADMIN" ? "Administrators can see every branch whatever is chosen here." : undefined}
+        hint={role === "ADMIN" ? "Administers this branch. Superadmin is set separately, from the list." : undefined}
         disabled={pending}
       />
       {formError && <Alert variant="error">{formError}</Alert>}

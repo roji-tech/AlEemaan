@@ -1,7 +1,7 @@
 import { fail, ok } from "@/lib/api/envelope";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
-import { isPlausibleId, memberFailure, notFound } from "@/lib/members/http";
+import { isPlausibleId, memberFailure, notFound, scopeOrForbidden } from "@/lib/members/http";
 import { reactivateMember } from "@/lib/members/service";
 
 // POST /api/v1/members/[id]/reactivate                                (Users pages — a port of Octalve Edu's 0.5.4)
@@ -16,7 +16,9 @@ export const POST = withAuth(
     if (!(await reserveAttempt(`member:reactivate:${auth.userId}`, PER_WINDOW))) {
       return fail("Too many changes. Please try again in a few minutes.", 429, "RATE_LIMITED");
     }
-    const result = await reactivateMember(auth.userId, id);
+    const scope = await scopeOrForbidden(auth.userId);
+    if (scope instanceof Response) return scope;
+    const result = await reactivateMember(auth.userId, id, scope);
     return result.ok ? ok({ member: result.member, changed: result.changed }) : memberFailure(result.reason);
   },
   { roles: ["ADMIN"] },

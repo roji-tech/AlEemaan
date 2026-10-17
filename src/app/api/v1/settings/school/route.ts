@@ -1,6 +1,6 @@
-import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
+import { validate } from "@/lib/api/validate";
 import { withAuth } from "@/lib/auth/with-auth";
 import { getSchoolSettings, updateSchoolSettings, schoolSettingsUpdateSchema } from "@/lib/settings/school-settings";
 
@@ -20,30 +20,13 @@ export const GET = withAuth(async () => {
 
 /**
  * PATCH /api/v1/settings/school
- * Admin-only. Updates school profile / contact info.
+ * Superadmin only. Updates school profile / contact info.
  */
 export const PATCH = withAuth(
-  async (req, admin) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
-
-    const parsed = schoolSettingsUpdateSchema.safeParse(body);
-    if (!parsed.success) {
-      return fail(
-        parsed.error.issues[0]?.message ?? "Invalid settings payload",
-        400,
-        "VALIDATION",
-        parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-      );
-    }
-
+  validate({ body: schoolSettingsUpdateSchema }, async (_req, admin: { userId: string }, _ctx: unknown, { body }) => {
     try {
       const before = await getSchoolSettings();
-      const updated = await updateSchoolSettings(parsed.data);
+      const updated = await updateSchoolSettings(body);
 
       await prisma.auditLog.create({
         data: {
@@ -61,6 +44,6 @@ export const PATCH = withAuth(
       console.error("[SCHOOL_SETTINGS_PATCH_ERROR]", error);
       return fail("Failed to update school settings", 500, "INTERNAL");
     }
-  },
-  { roles: [Role.ADMIN] },
+  }),
+  { superAdmin: true },
 );

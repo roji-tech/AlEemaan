@@ -169,6 +169,8 @@ email (`RESEND_API_KEY` + `EMAIL_FROM`) for an address change.
 Design: plan §"Build design — Users pages and invitations" + "As built". Record: `phases/phase-0.5.H-users-and-invitations.md`; decisions: `docs/decisions/0002`, `0003`, `0005`. Branch `claude/aleemaan-users-invitations`, **based on `claude/aleemaan-0.5.G` (PR #10, open)**.
 An administrator can see the school's people (filters, paging), invite someone (hashed, single-use, 7-day link in the URL fragment, mailed after the response), change a role or branch, deactivate and reactivate a membership, and resend or revoke a pending invitation; the invitee accepts at `/accept-invite` (new account, or signed in as the existing one). **One additive migration** (`Membership.deactivatedAt`, `Invitation`) — safe for the live school's database, run before the code. **A deactivated membership is no membership in every reader**, and deactivating a person's last active membership also signs them out. **A person may belong to several branches** (maintainer's answer, 2026-10-07; ADR 0007, second migration `20261008090000_invitation_per_branch`). Full suite on the final tree (with the multi-branch change): **1051 passed, 0 failed, 18 designed skips** (1.1 h; the run before the change was 1042/0/18). Mutation pass **not run** (pending, end of Phase 2). Not in this port: permissions, admin-initiated email change, School Settings.
 
+**Attendance and student reads scoped to role and branch (2026-10-11, branch `claude/fix-attendance-branch-scoping`, not merged):** a code review found that any staff member could read/write any branch's attendance and that any signed-in user (incl. STUDENT/PARENT) could read all students with guardian contacts; fixed with tests (`attendance.spec` 15, `students.spec` 11 — 26 passed; the rest of the suite not yet re-run). Mutation pass: not run (pending, end of Phase 2).
+
 ## Next action
 
 **Phases 0.5.1.6 (the sync) and 0.5.A–0.5.F are merged to `master`** (the stacked PRs #4–#6 were merged into their stack bases rather
@@ -246,3 +248,42 @@ session-timeout + purge job, the active-devices UI, MFA, and the still-undecided
 question. **Update 2026-09-30 (later the same day):** email case-insensitivity and absolute expiry +
 purge are done (Phase 0.5.1.6); Octalve Edu's spike resolved Better Auth as *not adopted* (hashed
 tokens at rest aren't shipped there); the active-devices UI and MFA remain deferred.
+
+---
+
+## Slice P6 — Multi-Channel Messaging & Communication Engine (Task 0024, 2026-10-17)
+**100% Built and Verified (branch `claude/p6-communication-messaging`).**
+Ported Phase 2 from Octalve Edu into AlEemaan's single-tenant multi-branch architecture:
+1. **Schema & Migration:** `NotificationTemplate`, `NotificationDispatch`, `GuardianLinkToken`, `NotificationAuditLog` models in `prisma/schema/communication.prisma` with composite `(branchId, id)` unique constraints. Migration `20261017120000_p6_communication_messaging`.
+2. **Multi-Channel Gateways:** Termii SMS adapter with Nigerian MSISDN normalization, Resend Email adapter, In-App delivery, and mock development test harnesses.
+3. **Template Engine:** Pure token extraction, validation, XSS escaping, default system templates (`ATTENDANCE_ABSENCE`, `RESULTS_PUBLISHED`, `FEE_INVOICE_ISSUED`, `FEE_OVERDUE_REMINDER`, `BROADCAST_ANNOUNCEMENT`), and idempotent seeder `ensureSystemTemplates`.
+4. **API Endpoints:** 5 REST endpoints under `/api/v1/communication/` with strict role guards and branch scoping.
+5. **UI & Accessibility:** Dedicated `/communication` hub with accessible tab navigation (`BroadcastComposer`, `DispatchLogsView`, `TemplatesManager`) compliant with WCAG 2.2 AA.
+
+---
+
+## Slice P7 — Next-Term Student Promotion & Academic Rollover (Task 0025, 2026-10-17)
+**100% Built and Verified (branch `claude/p7-student-promotion`).**
+Adapted legacy golden promotion rules into AlEemaan's modernized single-tenant multi-branch architecture:
+1. **Schema & Migration:** `PromotionBatch`, `PromotionRecord`, enums (`PromotionBatchStatus`, `PromotionDecision`, `DecisionMode`) in `prisma/schema/promotion.prisma`. Additive migration `20261017140000_p7_student_promotion`.
+2. **Rules & Engine:** Gated to final academic period in session (3rd Term in English, 2nd Term in Arabic). Exact session average calculation across published term averages. Configurable pass mark (>= 50.0% -> `PROMOTED` or `GRADUATED`; < 50.0% -> `REPEATED`). Class progression rungs derived from `ClassGroup.sortOrder`, case-insensitive target arm resolution with fallback.
+3. **Idempotent Transitions & Audit Log:** Atomic transaction updates source `StudentEnrollment` (`PROMOTED`, `REPEATED`, `ALUMNI`) and creates target `StudentEnrollment` for active students in target session. Logged in `PromotionBatch` and `PromotionRecord`.
+4. **REST Endpoints:** 4 endpoints under `/api/v1/academics/promotion/` (`preview`, `execute`, `batches`, `batches/[id]`).
+5. **UI & WCAG 2.2 AA Accessibility:** Accessible `PromotionConsole`, `PromotionPreviewTable`, `PromotionConfirmModal`, `PromotionHistoryView` with semantic high contrast tokens. Verified 100% with Axe on desktop and mobile.
+
+---
+
+## Slice P8 — Parent & Student Self-Service Portal (Task 0026, 2026-10-17)
+**100% Built and Verified ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52) on branch `claude/p8-parent-student-portal`).**
+Established a dedicated, mobile-first, WCAG 2.2 AA compliant self-service portal (`/portal`) for parents, guardians, and students:
+1. **Authentication & Session Isolation:** Strict child-ownership enforcement (ADR 0012). Dual login paths: passwordless 1-tap entry via `GuardianLinkToken` and direct credential verification (admission number + date of birth or guardian phone). Stateless HMAC-signed session cookies with 30-day sliding expiry.
+2. **Sibling Switcher:** Automatic discovery and multi-child selector allowing parents with multiple enrolled students across branches/classes to toggle between children seamlessly without re-authenticating.
+3. **Unified Single-Pane Capabilities:**
+   - **Overview:** Attendance rates, enrolled class & arm, emergency contact details, recent broadcast announcements.
+   - **Results & Report Cards:** Published and locked term results with subject breakdowns, CA/exam components, WAEC grades, class teacher and principal remarks.
+   - **Finance & Fee Clearance:** Itemized invoice list, outstanding balance, past payment receipts, and direct Paystack payment link initialization.
+   - **Coursework & Learning (LMS):** Published class assignments with due dates, maximum points, homework descriptions, and subject learning materials.
+4. **API Endpoints:** 5 REST endpoints under `/api/v1/portal/` (`session`, `overview`, `results`, `invoices`, `lms`) with strict authorization guards.
+5. **Accessibility & Quality Gates:** Zero Axe violations across desktop and mobile viewports. 0 TypeScript errors, 0 ESLint warnings, 14 unit tests, 11 API integration tests, and 1 comprehensive E2E journey test.
+
+

@@ -2,9 +2,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// Known paths strictly limited to the twin workspaces
-const OCTALVE_EDU_PATH = "/home/rojitech/Desktop/CODEC/OCTALVE/octalve-edu";
-const ALEEMAAN_PATH = "/home/rojitech/Desktop/CODEC/NextJS/AlEemaan";
+// This checkout, and its sibling Octalve Edu (override with OCTALVE_EDU_PATH). Run from the repository root: `pnpm tasks:check`.
+const ALEEMAAN_PATH = process.cwd();
+const OCTALVE_EDU_PATH = process.env.OCTALVE_EDU_PATH ?? path.resolve(ALEEMAAN_PATH, "..", "..", "OCTALVE", "octalve-edu");
 
 function parseTasks(repoPath) {
   const currentTasksFile = path.join(repoPath, "docs", "tasks", "current-tasks.md");
@@ -71,9 +71,4 @@ if (aleemaanData.found && aleemaanData.tasks.length > 0) {
   console.log("    _No tasks recorded in docs/tasks/current-tasks.md_");
 }
 
-console.log("\n\x1b[1m\x1b[36m------------------------------------------------------------------------\x1b[0m");
-console.log("\x1b[1m▶ CROSS-PROJECT ALIGNMENT & PARITY STATUS\x1b[0m");
-console.log("  • \x1b[32m[✓] Auth & Users:\x1b[0m         Octalve (PR #11 merged) --> AlEemaan (PR #11 open, verified)");
-console.log("  • \x1b[32m[✓] Students / Override:\x1b[0m  Octalve (ADR-0014 built) --> AlEemaan (ADR-0011 ported & verified)");
-console.log("  • \x1b[36m[·] Attendance:\x1b[0m           Octalve (Phase 1.3 next) --> AlEemaan (Queued after settings)");
-console.log("\x1b[1m\x1b[36m========================================================================\x1b[0m\n");
+console.log("\n\x1b[1m\x1b[36m========================================================================\x1b[0m\n");

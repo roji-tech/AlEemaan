@@ -1,0 +1,183 @@
+// --- Learning Management System (LMS) & Coursework (Slice P5) ---
+//
+// Single-tenant multi-branch LMS data models: assignments, submissions, course materials, and online quizzes.
+// Every table carries branchId and composite foreign keys on [branchId, id].
+// Follows ADR 0015 single-tenant multi-branch isolation.
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+  RESUBMIT_REQUESTED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Assignment {
+  id           String           @id @default(cuid())
+  branchId     String
+  subjectId    String
+  classGroupId String?
+  classArmId   String?
+  title        String
+  description  String?
+  instructions String?
+  dueDate      DateTime?
+  totalPoints  Int              @default(100)
+  status       AssignmentStatus @default(DRAFT)
+  allowLate    Boolean          @default(true)
+  attachments  Json             @default("[]")
+  createdById  String?
+  archivedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @default(now()) @updatedAt
+
+  branch      Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  subject     Subject                @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+  classGroup  ClassGroup?            @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  classArm    ClassArm?              @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
+  creator     StaffRecord?           @relation(fields: [branchId, createdById], references: [branchId, id], onDelete: NoAction)
+  submissions AssignmentSubmission[]
+
+  @@unique([branchId, id])
+  @@index([branchId, subjectId])
+  @@index([branchId, classGroupId])
+  @@index([branchId, classArmId])
+  @@index([branchId, status])
+}
+
+model AssignmentSubmission {
+  id           String           @id @default(cuid())
+  branchId     String
+  assignmentId String
+  studentId    String
+  content      String?
+  attachments  Json             @default("[]")
+  status       SubmissionStatus @default(PENDING)
+  score        Float?
+  feedback     String?
+  gradedById   String?
+  gradedAt     DateTime?
+  submittedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @default(now()) @updatedAt
+
+  branch     Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  assignment Assignment    @relation(fields: [branchId, assignmentId], references: [branchId, id], onDelete: Cascade)
+  student    StudentRecord @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  grader     StaffRecord?  @relation(fields: [branchId, gradedById], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@unique([branchId, assignmentId, studentId])
+  @@index([branchId, assignmentId])
+  @@index([branchId, studentId])
+  @@index([branchId, status])
+}
+
+model LearningMaterial {
+  id           String    @id @default(cuid())
+  branchId     String
+  subjectId    String
+  classGroupId String?
+  title        String
+  description  String?
+  content      String?
+  attachments  Json      @default("[]")
+  createdById  String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  branch     Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  subject    Subject      @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+  classGroup ClassGroup?  @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  creator    StaffRecord? @relation(fields: [branchId, createdById], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, subjectId])
+  @@index([branchId, classGroupId])
+}
+
+model Quiz {
+  id               String       @id @default(cuid())
+  branchId         String
+  subjectId        String
+  classGroupId     String?
+  title            String
+  instructions     String?
+  timeLimitMinutes Int?
+  passingScore     Float?
+  status           QuizStatus   @default(DRAFT)
+  createdById      String?
+  archivedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @default(now()) @updatedAt
+
+  branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  subject    Subject        @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
+  classGroup ClassGroup?    @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  creator    StaffRecord?   @relation(fields: [branchId, createdById], references: [branchId, id], onDelete: NoAction)
+  questions  QuizQuestion[]
+  attempts   QuizAttempt[]
+
+  @@unique([branchId, id])
+  @@index([branchId, subjectId])
+  @@index([branchId, status])
+}
+
+model QuizQuestion {
+  id            String       @id @default(cuid())
+  branchId      String
+  quizId        String
+  prompt        String
+  questionType  QuestionType @default(MULTIPLE_CHOICE)
+  options       Json         @default("[]")
+  correctAnswer String
+  points        Int          @default(1)
+  sortOrder     Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  quiz   Quiz   @relation(fields: [branchId, quizId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, quizId])
+}
+
+model QuizAttempt {
+  id          String    @id @default(cuid())
+  branchId    String
+  quizId      String
+  studentId   String
+  answers     Json      @default("[]")
+  score       Float     @default(0)
+  isPassed    Boolean   @default(false)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  branch  Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  quiz    Quiz          @relation(fields: [branchId, quizId], references: [branchId, id], onDelete: Cascade)
+  student StudentRecord @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@index([branchId, quizId])
+  @@index([branchId, studentId])
+}

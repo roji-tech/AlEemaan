@@ -23,7 +23,7 @@ Plans and phase records link to the ADR instead of re-arguing the reason.
 ## Index
 | # | Decision | Status |
 |---|---|---|
-| [0001](0001-single-school-branches-are-not-tenants.md) | One school; branches are not tenants; roles apply school-wide | accepted |
+| [0001](0001-single-school-branches-are-not-tenants.md) | One school; branches are not tenants; roles apply school-wide | accepted, partly superseded by 0012 |
 | [0002](0002-deactivated-membership-is-no-membership.md) | A deactivated membership is no membership; the last one also signs the person out | accepted |
 | [0003](0003-live-data-safety.md) | Migrations are additive and tests never touch the live database | accepted |
 | [0004](0004-octalve-auth-is-canonical-constants-are-not-shared.md) | Octalve's auth design is canonical; product-specific constants are not shared | accepted |
@@ -34,3 +34,7 @@ Plans and phase records link to the ADR instead of re-arguing the reason.
 | [0009](0009-the-docker-database-is-a-local-dev-database.md) | The docker `aleemaan` database is a local dev database | accepted |
 | [0010](0010-commit-and-pr-messages-are-comprehensive.md) | Commit and PR messages are comprehensive | accepted |
 | [0011](0011-audited-override-for-namesake-student-registrations.md) | Audited in-place override for namesake student registrations | accepted |
+| [0012](0012-staff-act-in-a-branch-through-the-role-they-hold-there.md) | Staff act in a branch only through the role they hold there; people data is scoped to role and branch | accepted |
+| [0013](0013-dev-is-development-master-is-staging-prod-is-production.md) | `dev` is development, `master` is staging, `prod` is production | accepted |
+| [0014](0014-admin-is-one-branch-superadmin-is-a-flag-on-the-person.md) | An ADMIN membership administers one branch; school-wide authority is a flag on the person | accepted |
+| [0015](0015-branch-routes-are-guarded-by-a-combinator-that-names-where-the-branch-comes-from.md) | A route that acts on a branch is wrapped by a combinator that says where the branch comes from and what the caller must be there | **accepted** |

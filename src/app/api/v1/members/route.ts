@@ -3,11 +3,11 @@ import { fail, ok } from "@/lib/api/envelope";
 import { offsetMeta, parseOffsetPagination } from "@/lib/api/pagination";
 import { validate } from "@/lib/api/validate";
 import { withAuth } from "@/lib/auth/with-auth";
-import { branchIdField, roleField } from "@/lib/members/http";
+import { branchIdField, roleField, scopeOrForbidden } from "@/lib/members/http";
 import { listMembers } from "@/lib/members/service";
 
 // GET /api/v1/members                                                  (Users pages — a port of Octalve Edu's 0.5.4)
-// The school's people — ADMIN only. Offset-paged (the shared helpers: strict, never clamped) and filtered by role, branch, status
+// The school's people — administrators only: a superadmin sees everyone, a branch administrator the people of their own branches. Offset-paged (the shared helpers: strict, never clamped) and filtered by role, branch, status
 // (default: active) and a search over name and address. A person is returned as { id, userId, name, email, role, branch, status,
 // joinedAt } and nothing else of their account; `id` is the MEMBERSHIP's id, which every action addresses.
 const query = z.object({
@@ -23,7 +23,7 @@ const query = z.object({
 });
 
 export const GET = withAuth(
-  validate({ query }, async (req, _auth, _ctx: unknown, { query: filters }) => {
+  validate({ query }, async (req, auth, _ctx: unknown, { query: filters }) => {
     const page = parseOffsetPagination(req.nextUrl.searchParams);
     if (!page.ok)
       return fail(
@@ -32,7 +32,9 @@ export const GET = withAuth(
         "VALIDATION",
         page.issues.map((i) => ({ ...i, path: `query.${i.path}` })),
       );
-    const { members, total } = await listMembers(filters, page);
+    const scope = await scopeOrForbidden(auth.userId);
+    if (scope instanceof Response) return scope;
+    const { members, total } = await listMembers(filters, page, scope);
     return ok({ members }, offsetMeta({ page: page.page, limit: page.limit, total }));
   }),
   { roles: ["ADMIN"] },
