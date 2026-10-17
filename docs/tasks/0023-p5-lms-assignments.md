@@ -4,7 +4,7 @@
 - **Status:** [x] Completed
 - **Priority:** High
 - **Assignee:** Antigravity / Engineering Team
-- **Target Branch / PR:** `claude/p5-lms-assignments` -> `dev`
+- **Target Branch / PR:** [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments` -> `dev`)
 - **Started:** 2026-10-17 00:30:00 UTC
 - **Ended:** 2026-10-17 01:25:00 UTC
 - **Duration:** ~55 mins

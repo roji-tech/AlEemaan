@@ -33,7 +33,7 @@
 | 0020 | [`0020-pwa-and-quick-tools.md`](0020-pwa-and-quick-tools.md) | PWA Foundation & Global Quick-Tools Dock | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) (`claude/pwa-and-quick-tools`) |
 | 0021 | [`0021-p3-timetable-and-announcements.md`](0021-p3-timetable-and-announcements.md) | Slice P3: Timetable Canvas & Announcements Broadcast | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) (`claude/p3-timetable-announcements`) |
 | 0022 | [`0022-p4-finance-and-billing.md`](0022-p4-finance-and-billing.md) | Slice P4: Finance & Fee Invoicing Foundation | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing`) |
-| 0023 | [`0023-p5-lms-assignments.md`](0023-p5-lms-assignments.md) | Slice P5: Learning Management System (LMS) & Assignments | Completed | 2026-10-17 UTC | 2026-10-17 UTC | `claude/p5-lms-assignments` |
+| 0023 | [`0023-p5-lms-assignments.md`](0023-p5-lms-assignments.md) | Slice P5: Learning Management System (LMS) & Assignments | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) |
 
 ---
 
