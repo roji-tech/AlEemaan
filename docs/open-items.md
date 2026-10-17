@@ -64,7 +64,7 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [x] **P3** timetable and announcements (Task 0021: Completed, PR #47 to dev).
 - [x] **P4** finance F1-F4 (fee structures, batch invoicing, manual recorded payments, receipting, dual-mode Paystack checkout, webhooks) (PR #48).
 - [x] **P5** learning management system (LMS) & assignments (Task 0023: Completed, PR #49 to dev).
-- [x] **P6** multi-channel messaging & communication engine (Task 0024: Completed, branch `claude/p6-communication-messaging`).
+- [x] **P6** multi-channel messaging & communication engine (Task 0024: Completed, [PR #50](https://github.com/roji-tech/AlEemaan/pull/50)).
 - [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
 - [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
 

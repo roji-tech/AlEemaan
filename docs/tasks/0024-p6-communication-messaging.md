@@ -4,7 +4,7 @@
 - **Status:** [x] Completed
 - **Priority:** High
 - **Assignee:** Antigravity / Engineering Team
-- **Target Branch / PR:** `claude/p6-communication-messaging` -> `dev`
+- **Target Branch / PR:** [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging` -> `dev`)
 - **Started:** 2026-10-17 01:50:00 UTC
 - **Ended:** 2026-10-17 02:20:00 UTC
 - **Duration:** ~30 mins
