@@ -16,8 +16,21 @@ type Term = { id: string; label: string; session: string; isCurrent: boolean };
 type Group = { id: string; name: string; arms: { id: string; name: string }[] };
 type Student = { id: string; name: string; admissionNo: string };
 
-export function CardsPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+export function CardsPanel({
+  branches,
+  selectedBranchId,
+  onSelectBranch,
+}: {
+  branches: BranchChoice[];
+  selectedBranchId?: string;
+  onSelectBranch?: (id: string) => void;
+}) {
+  const [internalBranchId, setInternalBranchId] = useState(branches[0].id);
+  const branchId = selectedBranchId ?? internalBranchId;
+  const setBranchId = (id: string) => {
+    setInternalBranchId(id);
+    onSelectBranch?.(id);
+  };
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [terms, setTerms] = useState<Term[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);

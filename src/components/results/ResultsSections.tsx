@@ -15,6 +15,8 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
     { id: "cards", label: "Report cards" },
   ];
   const [active, setActive] = useState(sections[0].id);
+  const adminBranches = branches.filter((b) => b.canEdit);
+  const [selectedBranchId, setSelectedBranchId] = useState((adminBranches[0] ?? branches[0]).id);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -66,9 +68,11 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
         ))}
       </div>
       <div role="tabpanel" id={`rpanel-${active}`} aria-labelledby={`rtab-${active}`}>
-        {active === "enter" && <EntryPanel branches={branches} />}
-        {active === "review" && <ReviewPanel branches={branches} />}
-        {active === "cards" && <CardsPanel branches={branches} />}
+        {active === "enter" && <EntryPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />}
+        {active === "review" && (
+          <ReviewPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />
+        )}
+        {active === "cards" && <CardsPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />}
       </div>
     </div>
   );

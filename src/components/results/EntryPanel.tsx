@@ -53,8 +53,21 @@ function bandFor(bands: Band[], percent: number): Band | null {
   return bands.find((b) => (percent >= b.min && percent < b.max) || (percent === top && b.max === top && percent >= b.min)) ?? null;
 }
 
-export function EntryPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+export function EntryPanel({
+  branches,
+  selectedBranchId,
+  onSelectBranch,
+}: {
+  branches: BranchChoice[];
+  selectedBranchId?: string;
+  onSelectBranch?: (id: string) => void;
+}) {
+  const [internalBranchId, setInternalBranchId] = useState(branches[0].id);
+  const branchId = selectedBranchId ?? internalBranchId;
+  const setBranchId = (id: string) => {
+    setInternalBranchId(id);
+    onSelectBranch?.(id);
+  };
   const [options, setOptions] = useState<Option | null>(null);
   const [periodId, setPeriodId] = useState("");
   const [pair, setPair] = useState("");
@@ -256,7 +269,7 @@ export function EntryPanel({ branches }: { branches: BranchChoice[] }) {
               tabIndex={0}
               className="mt-3 overflow-x-auto rounded-2xl border border-line bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <table className="w-full min-w-[40rem] text-left text-sm">
+              <table className="w-full min-w-160 text-left text-sm">
                 <caption className="sr-only">Marks for {sheet.subject.name}</caption>
                 <thead>
                   <tr className="text-xs tracking-wide text-fg-2 uppercase">

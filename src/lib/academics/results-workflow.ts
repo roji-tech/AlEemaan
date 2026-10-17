@@ -180,11 +180,17 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
 
 /// The history of one result, oldest first (administrators).
 export async function resultHistory(branchId: string, resultId: string) {
-  const rows = await prisma.resultAudit.findMany({ where: { branchId, resultId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+  const rows = await prisma.resultAudit.findMany({
+    where: { branchId, resultId },
+    include: { actor: { select: { name: true, email: true } } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
   return rows.map((h) => ({
     id: h.id,
     action: h.action,
     actorUserId: h.actorUserId,
+    actorName: h.actor?.name ?? (h.actorUserId ? "Staff" : "System"),
+    actorEmail: h.actor?.email ?? null,
     fromStatus: h.fromStatus,
     toStatus: h.toStatus,
     fromTotal: h.fromTotal === null ? null : Number(h.fromTotal),
