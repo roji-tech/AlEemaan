@@ -286,4 +286,10 @@ Established a dedicated, mobile-first, WCAG 2.2 AA compliant self-service portal
 4. **API Endpoints:** 5 REST endpoints under `/api/v1/portal/` (`session`, `overview`, `results`, `invoices`, `lms`) with strict authorization guards.
 5. **Accessibility & Quality Gates:** Zero Axe violations across desktop and mobile viewports. 0 TypeScript errors, 0 ESLint warnings, 14 unit tests, 11 API integration tests, and 1 comprehensive E2E journey test.
 
+---
+
+## Release v0.6.0 Pipeline (2026-10-17)
+- **Staging Candidate Promotion (`dev` -> `master`):** [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master`. All 26 feature milestones (0001–0026) consolidated on staging.
+- **Production Candidate Release (`master` -> `prod`):** [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) open for maintainer approval and production migration run order execution.
+
 
