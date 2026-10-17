@@ -50,7 +50,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0023 | P5 | Learning Management System (LMS) & Assignments | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) | Passing (unit 8/8, API 3/3, E2E a11y 5/5) |
 | 0024 | P6 | Multi-Channel Messaging & Communication Engine | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging`) | Passing (unit 16/16, API 4/4, E2E a11y 3/3) |
 | 0025 | P7 | Next-Term Student Promotion & Academic Rollover | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) | Passing (unit 19/19, API 2/2, E2E a11y 3/3) |
-| 0026 | P8 | Parent & Student Self-Service Portal | `claude/p8-parent-student-portal` | Passing (unit 14/14, API 11/11, E2E a11y 1/1) |
+| 0026 | P8 | Parent & Student Self-Service Portal | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal`) | Passing (unit 14/14, API 11/11, E2E a11y 1/1) |
 
 ---
 

@@ -274,7 +274,7 @@ Adapted legacy golden promotion rules into AlEemaan's modernized single-tenant m
 ---
 
 ## Slice P8 — Parent & Student Self-Service Portal (Task 0026, 2026-10-17)
-**100% Built and Verified (branch `claude/p8-parent-student-portal`).**
+**100% Built and Verified ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52) on branch `claude/p8-parent-student-portal`).**
 Established a dedicated, mobile-first, WCAG 2.2 AA compliant self-service portal (`/portal`) for parents, guardians, and students:
 1. **Authentication & Session Isolation:** Strict child-ownership enforcement (ADR 0012). Dual login paths: passwordless 1-tap entry via `GuardianLinkToken` and direct credential verification (admission number + date of birth or guardian phone). Stateless HMAC-signed session cookies with 30-day sliding expiry.
 2. **Sibling Switcher:** Automatic discovery and multi-child selector allowing parents with multiple enrolled students across branches/classes to toggle between children seamlessly without re-authenticating.

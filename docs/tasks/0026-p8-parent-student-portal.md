@@ -3,7 +3,7 @@
 - **Status:** [x] Completed
 - **Priority:** High
 - **Assignee:** Antigravity / Engineering Team
-- **Target Branch / PR:** `claude/p8-parent-student-portal` -> `dev`
+- **Target Branch / PR:** [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal` -> `dev`)
 - **Started:** 2026-10-17 17:15:00 UTC
 - **Ended:** 2026-10-17 18:00:00 UTC
 - **Duration:** 45 minutes
