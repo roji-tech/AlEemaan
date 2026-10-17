@@ -84,14 +84,15 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 ## 4. Sequential Road Ahead
 
 ```
-[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, Slice P3 Timetable & Announcements]
+[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, P3 Timetable, P4 Finance, P5 LMS]
           │
           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Slice P4: Finance & Billing (F1 fee structures, F2 billing, │
-│ F3 receipting, F4 optional Paystack checkout)               │
+│ Slice P6: Multi-Channel Messaging & Communication Engine    │
+│ (SMS/Termii, Email/Resend, BullMQ queues & templates)       │
 │                                                             │
-│ OR Port Slice P4 LMS & Assignments from Octalve Edu         │
+│ OR Next-Term Student Promotion & Academic Rollover          │
+│ OR Pre-Production Staging Verification & Release v0.6.0     │
 └─────────────────────────────────────────────────────────────┘
 ```
 

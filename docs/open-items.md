@@ -49,6 +49,7 @@ None of these has been run on the live database by me (I never touch it); apply 
 9. `20261015110000_attendance_permissions`
 10. `20261016100000_p3_timetable_and_announcements`
 11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
+12. `20261017100000_p5_lms_and_assignments` (Assignments, submissions, learning materials, quizzes, questions, attempts)
 
 ## 3. Not built
 
@@ -59,8 +60,9 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [ ] A history dialog in the Review tab (the history API exists).
 - [x] **P2e** settings + approvals layer, scheme levels, layouts, verification fields, self-approval toggle (PR #44).
 - [x] **Attendance-permissions slice** (PR #45).
-- [x] **P3** timetable and announcements (Task 0021: Completed, PR to dev).
-- [x] **P4** finance F1-F4 (fee structures, batch invoicing, manual recorded payments, receipting, dual-mode Paystack checkout, webhooks).
+- [x] **P3** timetable and announcements (Task 0021: Completed, PR #47 to dev).
+- [x] **P4** finance F1-F4 (fee structures, batch invoicing, manual recorded payments, receipting, dual-mode Paystack checkout, webhooks) (PR #48).
+- [x] **P5** learning management system (LMS) & assignments (Task 0023: Completed, PR #49 to dev).
 - [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
 - [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
 
