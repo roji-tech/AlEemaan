@@ -28,8 +28,10 @@ model AcademicSession {
   updatedAt DateTime @default(now()) @updatedAt
 
   branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  periods     AcademicPeriod[]
-  enrollments StudentEnrollment[]
+  periods                AcademicPeriod[]
+  enrollments            StudentEnrollment[]
+  sourcePromotionBatches PromotionBatch[]    @relation("SourceSessionBatches")
+  targetPromotionBatches PromotionBatch[]    @relation("TargetSessionBatches")
 
   @@unique([branchId, label])
   @@index([branchId, status])
@@ -87,8 +89,10 @@ model ClassGroup {
   schemeScopes AssessmentSchemeScope[]
   feeStructures FeeStructure[]
   lmsAssignments    Assignment[]
-  learningMaterials LearningMaterial[]
-  quizzes           Quiz[]
+  learningMaterials      LearningMaterial[]
+  quizzes                Quiz[]
+  sourcePromotionBatches PromotionBatch[]        @relation("SourceClassBatches")
+  targetPromotionBatches PromotionBatch[]        @relation("TargetClassBatches")
 
   @@unique([branchId, id])
   @@index([branchId])

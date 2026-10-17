@@ -51,11 +51,12 @@ None of these has been run on the live database by me (I never touch it); apply 
 11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
 12. `20261017100000_p5_lms_and_assignments` (Assignments, submissions, learning materials, quizzes, questions, attempts)
 13. `20261017120000_p6_communication_messaging` (Notification templates, dispatches, guardian link tokens, audit logs)
+14. `20261017140000_p7_student_promotion` (Promotion batches, promotion records, enrollment status transitions)
 
 ## 3. Not built
 
 - [ ] Student and parent access to report cards (there is no parent-to-child link yet - a decision of its own).
-- [ ] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages).
+- [x] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages) — built in Slice P7 (`claude/p7-student-promotion`).
 - [ ] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh.
 - [ ] PDF download of the report card (printing from the browser is built).
 - [ ] A history dialog in the Review tab (the history API exists).

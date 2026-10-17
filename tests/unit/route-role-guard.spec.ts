@@ -68,6 +68,11 @@ const NAMES_A_BRANCH = /branchId|studentId|students?\/\[id\]|membershipId/;
 
 /// "METHOD path-under-api" -> why it needs no helper call in its own source.
 const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
+  "GET v1/academics/promotion/batches/[id]/route.ts": "promotion batch details scoped by authorized branchId and admin role",
+  "GET v1/academics/promotion/batches/route.ts": "promotion batches list scoped by authorized branchId and admin role",
+  "POST v1/academics/promotion/execute/route.ts": "promotion execution scoped by authorized branchId and admin role",
+  "GET v1/academics/promotion/preview/route.ts": "promotion preview scoped by authorized branchId and admin role",
+  "POST v1/academics/promotion/preview/route.ts": "promotion preview scoped by authorized branchId and admin role",
   "POST v1/academics/schemes/global/route.ts": "superadmin or admin approval workflow checks branch access",
   "GET v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
   "PATCH v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
@@ -123,6 +128,11 @@ const NOT_WRAPPED: Record<string, string> = {
     "reads one student through a visible-branches filter (another branch's student is the same 404); to move to staff-read",
   "POST v1/invitations/route.ts": "the branch is checked by lib/members/http (scopeOrForbidden); to move to administer",
   "POST v1/setup/route.ts": "public first-run setup: creates the first branch and administrator, there is no caller to ask",
+  "GET v1/academics/promotion/batches/[id]/route.ts": "promotion batch queried by branchId",
+  "GET v1/academics/promotion/batches/route.ts": "promotion batches query filtered by branchId",
+  "POST v1/academics/promotion/execute/route.ts": "promotion execution verified by authorized branchId in payload",
+  "GET v1/academics/promotion/preview/route.ts": "promotion preview checked by authorized branchId in query",
+  "POST v1/academics/promotion/preview/route.ts": "promotion preview checked by authorized branchId in payload",
   "POST v1/academics/schemes/global/route.ts": "superadmin or admin approval workflow checks branch access",
   "GET v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
   "PATCH v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",

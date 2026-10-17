@@ -42,6 +42,7 @@ model StudentRecord {
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
   guardianLinkTokens    GuardianLinkToken[]
+  promotionRecords      PromotionRecord[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -71,7 +72,9 @@ model StudentEnrollment {
   student  StudentRecord   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   branch   Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
   session  AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  classArm ClassArm?       @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
+  classArm               ClassArm?         @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
+  sourcePromotionRecords PromotionRecord[] @relation("SourceEnrollmentRecords")
+  targetPromotionRecords PromotionRecord[] @relation("TargetEnrollmentRecords")
 
   @@unique([studentId, sessionId])
   @@index([branchId, sessionId])

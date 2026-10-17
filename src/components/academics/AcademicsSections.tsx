@@ -4,14 +4,16 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { ClassesPanel } from "@/components/academics/ClassesPanel";
 import { GradingPanel } from "@/components/academics/GradingPanel";
 import { StaffPanel } from "@/components/academics/StaffPanel";
+import { PromotionConsole } from "@/components/academics/promotion/PromotionConsole";
 import type { BranchChoice } from "@/components/academics/common";
 
-// The Academics page's three sections behind one tab list (Slice P1d). Only the active section is mounted. Left/Right/Home/End move between tabs, as the
+// The Academics page's sections behind one tab list (Slice P1 & P7). Only the active section is mounted. Left/Right/Home/End move between tabs, as the
 // ARIA tabs pattern asks; Tab then goes into the panel. Presentation only - every list and button calls an API that decides who may do what.
 const SECTIONS = [
   { id: "classes", label: "Classes and subjects" },
   { id: "grading", label: "Assessment and grading" },
   { id: "staff", label: "Staff" },
+  { id: "promotion", label: "Promotion & rollover" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -70,6 +72,7 @@ export function AcademicsSections({ branches }: { branches: BranchChoice[] }) {
         {active === "classes" && <ClassesPanel branches={branches} />}
         {active === "grading" && <GradingPanel branches={branches} />}
         {active === "staff" && <StaffPanel branches={branches} />}
+        {active === "promotion" && <PromotionConsole branches={branches} />}
       </div>
     </div>
   );

@@ -53,6 +53,7 @@ model Branch {
   notificationDispatches NotificationDispatch[]
   guardianLinkTokens    GuardianLinkToken[]
   notificationAuditLogs NotificationAuditLog[]
+  promotionBatches      PromotionBatch[]
 
   createdAt DateTime @default(now())
 }

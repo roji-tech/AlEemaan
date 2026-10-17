@@ -260,3 +260,15 @@ Ported Phase 2 from Octalve Edu into AlEemaan's single-tenant multi-branch archi
 4. **API Endpoints:** 5 REST endpoints under `/api/v1/communication/` with strict role guards and branch scoping.
 5. **UI & Accessibility:** Dedicated `/communication` hub with accessible tab navigation (`BroadcastComposer`, `DispatchLogsView`, `TemplatesManager`) compliant with WCAG 2.2 AA.
 
+---
+
+## Slice P7 — Next-Term Student Promotion & Academic Rollover (Task 0025, 2026-10-17)
+**100% Built and Verified (branch `claude/p7-student-promotion`).**
+Adapted legacy golden promotion rules into AlEemaan's modernized single-tenant multi-branch architecture:
+1. **Schema & Migration:** `PromotionBatch`, `PromotionRecord`, enums (`PromotionBatchStatus`, `PromotionDecision`, `DecisionMode`) in `prisma/schema/promotion.prisma`. Additive migration `20261017140000_p7_student_promotion`.
+2. **Rules & Engine:** Gated to final academic period in session (3rd Term in English, 2nd Term in Arabic). Exact session average calculation across published term averages. Configurable pass mark (>= 50.0% -> `PROMOTED` or `GRADUATED`; < 50.0% -> `REPEATED`). Class progression rungs derived from `ClassGroup.sortOrder`, case-insensitive target arm resolution with fallback.
+3. **Idempotent Transitions & Audit Log:** Atomic transaction updates source `StudentEnrollment` (`PROMOTED`, `REPEATED`, `ALUMNI`) and creates target `StudentEnrollment` for active students in target session. Logged in `PromotionBatch` and `PromotionRecord`.
+4. **REST Endpoints:** 4 endpoints under `/api/v1/academics/promotion/` (`preview`, `execute`, `batches`, `batches/[id]`).
+5. **UI & WCAG 2.2 AA Accessibility:** Accessible `PromotionConsole`, `PromotionPreviewTable`, `PromotionConfirmModal`, `PromotionHistoryView` with semantic high contrast tokens. Verified 100% with Axe on desktop and mobile.
+
+

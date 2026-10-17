@@ -31,6 +31,7 @@ branches not tenants) — recorded as a divergence; its roles/audit-append-only 
 | **Slice P4: Finance & Fee Invoicing Foundation** | ✅ built & verified (PR #48) |
 | **Slice P5: Learning Management System (LMS) & Assignments** | ✅ built & verified (PR #49) |
 | **Slice P6: Multi-Channel Messaging & Communication Engine** | ✅ built & verified ([PR #50](https://github.com/roji-tech/AlEemaan/pull/50)) |
+| **Slice P7: Next-Term Student Promotion & Academic Rollover** | ✅ built & verified (`claude/p7-student-promotion`) |
 
 ---
 
