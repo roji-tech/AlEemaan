@@ -48,6 +48,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0021 | P3 | Timetable Canvas & Announcements Broadcast | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) | Passing (unit, API, E2E a11y) |
 | 0022 | P4 | Finance & Fee Invoicing Foundation | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing`) | Passing (unit 17/17, API 3/3, E2E a11y 5/5) |
 | 0023 | P5 | Learning Management System (LMS) & Assignments | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) | Passing (unit 8/8, API 3/3, E2E a11y 5/5) |
+| 0024 | P6 | Multi-Channel Messaging & Communication Engine | `claude/p6-communication-messaging` | Passing (unit 16/16, API 3/3, E2E a11y) |
 
 ---
 
@@ -84,15 +85,13 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 ## 4. Sequential Road Ahead
 
 ```
-[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, P3 Timetable, P4 Finance, P5 LMS]
+[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, P3 Timetable, P4 Finance, P5 LMS, P6 Communication]
           │
           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Slice P6: Multi-Channel Messaging & Communication Engine    │
-│ (SMS/Termii, Email/Resend, BullMQ queues & templates)       │
-│                                                             │
-│ OR Next-Term Student Promotion & Academic Rollover          │
+│ Next-Term Student Promotion & Academic Rollover             │
 │ OR Pre-Production Staging Verification & Release v0.6.0     │
+│ OR Phase 6 Family / Student Self-Service Portal             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -114,6 +113,7 @@ The following 10 additive migrations have been applied and tested on development
 10. `20261016100000_p3_timetable_and_announcements` (Timetable slots & multi-audience announcements)
 11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
 12. `20261017100000_p5_lms_and_assignments` (Assignments, submissions, learning materials, quizzes, questions, attempts)
+13. `20261017120000_p6_communication_messaging` (Notification templates, dispatches, guardian link tokens, audit logs)
 
 ---
 

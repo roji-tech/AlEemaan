@@ -248,3 +248,15 @@ session-timeout + purge job, the active-devices UI, MFA, and the still-undecided
 question. **Update 2026-09-30 (later the same day):** email case-insensitivity and absolute expiry +
 purge are done (Phase 0.5.1.6); Octalve Edu's spike resolved Better Auth as *not adopted* (hashed
 tokens at rest aren't shipped there); the active-devices UI and MFA remain deferred.
+
+---
+
+## Slice P6 — Multi-Channel Messaging & Communication Engine (Task 0024, 2026-10-17)
+**100% Built and Verified (branch `claude/p6-communication-messaging`).**
+Ported Phase 2 from Octalve Edu into AlEemaan's single-tenant multi-branch architecture:
+1. **Schema & Migration:** `NotificationTemplate`, `NotificationDispatch`, `GuardianLinkToken`, `NotificationAuditLog` models in `prisma/schema/communication.prisma` with composite `(branchId, id)` unique constraints. Migration `20261017120000_p6_communication_messaging`.
+2. **Multi-Channel Gateways:** Termii SMS adapter with Nigerian MSISDN normalization, Resend Email adapter, In-App delivery, and mock development test harnesses.
+3. **Template Engine:** Pure token extraction, validation, XSS escaping, default system templates (`ATTENDANCE_ABSENCE`, `RESULTS_PUBLISHED`, `FEE_INVOICE_ISSUED`, `FEE_OVERDUE_REMINDER`, `BROADCAST_ANNOUNCEMENT`), and idempotent seeder `ensureSystemTemplates`.
+4. **API Endpoints:** 5 REST endpoints under `/api/v1/communication/` with strict role guards and branch scoping.
+5. **UI & Accessibility:** Dedicated `/communication` hub with accessible tab navigation (`BroadcastComposer`, `DispatchLogsView`, `TemplatesManager`) compliant with WCAG 2.2 AA.
+

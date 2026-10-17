@@ -1532,3 +1532,38 @@ A superadmin sets the global default; a branch admin may override it (creates a 
 
 **Not in P2e.** The full mutation passes (end of Phase 2); P3 (timetable and announcements); finance F1 (on the maintainer's go).
 
+---
+
+#### Build design & As built — Slice P6: Multi-Channel Messaging & Communication Engine (2026-10-17; Task 0024)
+
+**Objective & Architecture.** Porting Phase 2 from Octalve Edu into AlEemaan's single-tenant multi-branch architecture, enabling institutional communication across Termii (SMS), Resend (Email), WhatsApp, and In-App notification feeds.
+
+**1. Schema & Migration:**
+- Added `prisma/schema/communication.prisma` with:
+  - `NotificationTemplate`: Reusable templates supporting system and custom types, HTML body/subject, variables list, and channel scoping.
+  - `NotificationDispatch`: Immutable dispatch log with target recipients (`PARENT`, `STUDENT`, `STAFF`, `ALL`), channels, rendered payload, delivery status (`QUEUED`, `PROCESSING`, `SENT`, `FAILED`, `RETRYING`), attempt counters, and error records.
+  - `GuardianLinkToken`: Cryptographic magic link tokens for friction-free access to student reports, fee invoices, and attendance logs.
+  - `NotificationAuditLog`: Append-only audit trail capturing dispatch operations, template edits, and retry triggers.
+- Applied additive migration `20261017120000_p6_communication_messaging` across development and test databases.
+
+**2. Pure Rules & Gateways:**
+- Safe token interpolation with HTML escaping (`escapeHtml`, `interpolateTokens`) preventing XSS injections.
+- Phone number normalizer for Nigerian MSISDN formats (`+234...`, `0...`).
+- Termii SMS gateway adapter and Resend Email gateway adapter with development mock fallbacks.
+- Single multi-channel dispatcher (`defaultNotificationDispatcher`) handling channel-specific routing.
+
+**3. REST APIs & Route Governance:**
+- `/api/v1/communication/templates` (GET, POST)
+- `/api/v1/communication/templates/[id]` (GET, PATCH, DELETE)
+- `/api/v1/communication/broadcast` (POST)
+- `/api/v1/communication/dispatches` (GET)
+- `/api/v1/communication/dispatches/[id]/retry` (POST)
+- Fully registered in `BRANCH_CHECKED_ELSEWHERE` and `NOT_WRAPPED` in `tests/unit/route-role-guard.spec.ts`.
+
+**4. UI & Accessibility:**
+- Accessible `/communication` hub with `CommunicationPanel` tabs:
+  - `BroadcastComposer`: Multi-channel targeting, live token preview, audience selector.
+  - `DispatchLogsView`: Live status filter, recipient search, instant retry action.
+  - `TemplatesManager`: Visual template editor with variable placeholders.
+- Full WCAG 2.2 AA compliance validated with automated Axe accessibility suites.
+

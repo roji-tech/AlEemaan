@@ -41,6 +41,7 @@ model StudentRecord {
   invoices          Invoice[]
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
+  guardianLinkTokens    GuardianLinkToken[]
 
   @@unique([branchId, id])
   @@index([branchId])

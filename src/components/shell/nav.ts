@@ -8,6 +8,7 @@ import {
   CreditCardIcon,
   GraduationCapIcon,
   HomeIcon,
+  MailIcon,
   MegaphoneIcon,
   SlidersIcon,
   UsersIcon,
@@ -41,6 +42,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Results", href: "/results", icon: ClipboardIcon, staffOnly: true },
   { label: "Timetable", href: "/timetable", icon: CalendarIcon, staffOnly: true },
   { label: "Announcements", href: "/announcements", icon: MegaphoneIcon, inMore: true },
+  { label: "Communication", href: "/communication", icon: MailIcon, adminOnly: true, inMore: true },
   { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
@@ -59,6 +61,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "/results": "Results",
   "/timetable": "Timetable",
   "/announcements": "Announcements",
+  "/communication": "Communication",
   "/finance": "Finance",
   "/users": "Users",
   "/account": "Account",
