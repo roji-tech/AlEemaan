@@ -45,6 +45,13 @@ const ALLOWED: Record<string, string> = {
   "GET v1/academics/sessions/route.ts": CONTENT,
   "GET v1/academics/sessions/[id]/route.ts": CONTENT,
   "POST v1/webhooks/paystack/route.ts": "public by design: incoming webhook from Paystack payment gateway, verified via HMAC signature",
+  "POST v1/portal/session/route.ts": "portal auth: login via magic token or admission number + secret",
+  "GET v1/portal/session/route.ts": "portal auth: returns active session from verified cookie",
+  "DELETE v1/portal/session/route.ts": "portal auth: clears portal session cookie",
+  "GET v1/portal/students/[studentId]/overview/route.ts": "portal student overview: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/results/route.ts": "portal student results: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/invoices/route.ts": "portal student invoices: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS: verified by HMAC portal session cookie and allowedStudentIds",
 };
 
 /// A handler declares who may call it with `roles:` or `superAdmin: true`.
@@ -184,6 +191,10 @@ const NOT_WRAPPED: Record<string, string> = {
   "POST v1/timetable/batch/route.ts": "batch timetable creation verified by branchId",
   "GET v1/timetable/route.ts": "timetable entries listed by branchId",
   "POST v1/timetable/route.ts": "timetable creation verified by branchId",
+  "GET v1/portal/students/[studentId]/overview/route.ts": "portal student overview verified by portal session cookie",
+  "GET v1/portal/students/[studentId]/results/route.ts": "portal student results verified by portal session cookie",
+  "GET v1/portal/students/[studentId]/invoices/route.ts": "portal student invoices verified by portal session cookie",
+  "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS verified by portal session cookie",
 };
 
 function routeFiles(dir: string): string[] {
