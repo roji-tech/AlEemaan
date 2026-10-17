@@ -1,11 +1,5 @@
 import { prisma } from "@/lib/db";
-import {
-  findSlotClashes,
-  findBatchClashes,
-  validateTimetableSlot,
-  type TimetableSlotInput,
-  type TimetableClash,
-} from "./rules";
+import { findSlotClashes, findBatchClashes, validateTimetableSlot, type TimetableSlotInput, type TimetableClash } from "./rules";
 import type { CreateTimetableSlotInput, UpdateTimetableSlotInput } from "./validation";
 
 export class TimetableClashError extends Error {
@@ -174,7 +168,7 @@ export async function updateTimetableSlot(branchId: string, id: string, input: U
       periodNumber: input.periodNumber,
       startTime: input.startTime,
       endTime: input.endTime,
-      room: input.room !== undefined ? input.room?.trim() ?? null : undefined,
+      room: input.room !== undefined ? (input.room?.trim() ?? null) : undefined,
     },
     include: {
       classArm: { select: { id: true, name: true } },

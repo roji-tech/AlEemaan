@@ -31,7 +31,7 @@ export const GET = withAuth(
           parsed.error.issues[0]?.message ?? "Invalid preview query parameters",
           400,
           "VALIDATION",
-          parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message }))
+          parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
         );
       }
 
@@ -42,7 +42,7 @@ export const GET = withAuth(
       return fail("Unable to generate promotion preview", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );
 
 /**
@@ -69,7 +69,7 @@ export const POST = withAuth(
           parsed.error.issues[0]?.message ?? "Invalid preview query parameters",
           400,
           "VALIDATION",
-          parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message }))
+          parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
         );
       }
 
@@ -80,5 +80,5 @@ export const POST = withAuth(
       return fail("Unable to generate promotion preview", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

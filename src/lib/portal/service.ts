@@ -101,10 +101,7 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
 /**
  * Authenticates a portal user using Admission Number + Verification Secret (Date of Birth or Guardian Phone).
  */
-export async function authenticatePortalViaAdmission(
-  admissionNo: string,
-  secret: string
-): Promise<PortalAuthResult> {
+export async function authenticatePortalViaAdmission(admissionNo: string, secret: string): Promise<PortalAuthResult> {
   const cleanAdmission = admissionNo.trim();
   const cleanSecret = secret.trim();
 
@@ -133,9 +130,7 @@ export async function authenticatePortalViaAdmission(
 
   const dobMatched = matchesDateOfBirth(cleanSecret, student.dateOfBirth);
   const phoneMatched = matchesPhone(cleanSecret, student.guardianPhone);
-  const emailMatched =
-    !!student.guardianEmail &&
-    student.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase();
+  const emailMatched = !!student.guardianEmail && student.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase();
 
   if (!dobMatched && !phoneMatched && !emailMatched) {
     return {
@@ -283,10 +278,7 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
   const announcements = await prisma.announcement.findMany({
     where: {
       status: "PUBLISHED",
-      OR: [
-        { branchId: student.branchId },
-        { branchId: null },
-      ],
+      OR: [{ branchId: student.branchId }, { branchId: null }],
     },
     orderBy: { publishedAt: "desc" },
     take: 5,
@@ -340,10 +332,7 @@ export async function getStudentPortalResults(studentId: string, allowedStudentI
       },
       classArm: true,
     },
-    orderBy: [
-      { period: { startDate: "desc" } },
-      { subject: { name: "asc" } },
-    ],
+    orderBy: [{ period: { startDate: "desc" } }, { subject: { name: "asc" } }],
   });
 
   const remarks = await prisma.reportRemark.findMany({
@@ -476,10 +465,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       branchId,
       status: AssignmentStatus.PUBLISHED,
       archivedAt: null,
-      OR: [
-        { classArmId },
-        { classArmId: null },
-      ],
+      OR: [{ classArmId }, { classArmId: null }],
     },
     include: {
       subject: true,
@@ -496,10 +482,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
     where: {
       branchId,
       archivedAt: null,
-      OR: [
-        ...(classGroupId ? [{ classGroupId }] : []),
-        { classGroupId: null },
-      ],
+      OR: [...(classGroupId ? [{ classGroupId }] : []), { classGroupId: null }],
     },
     include: {
       subject: true,

@@ -10,15 +10,10 @@ import type { QuickToolId } from "./types";
 export function QuickToolsTrigger() {
   const searchParams = useSearchParams();
   const requestedTool = searchParams.get("tool");
-  const isPwaTool =
-    requestedTool === "calculator" ||
-    requestedTool === "lookup" ||
-    requestedTool === "scratchpad";
+  const isPwaTool = requestedTool === "calculator" || requestedTool === "lookup" || requestedTool === "scratchpad";
 
   const [open, setOpen] = useState(isPwaTool);
-  const [initialTool] = useState<QuickToolId>(
-    isPwaTool ? (requestedTool as QuickToolId) : "calculator",
-  );
+  const [initialTool] = useState<QuickToolId>(isPwaTool ? (requestedTool as QuickToolId) : "calculator");
 
   // Global Keyboard Shortcut: Cmd+K / Ctrl+K or Alt+T
   useEffect(() => {
@@ -49,11 +44,7 @@ export function QuickToolsTrigger() {
         <WrenchIcon className="h-5 w-5" />
       </button>
 
-      <QuickToolsDrawer
-        open={open}
-        onClose={() => setOpen(false)}
-        initialTool={initialTool}
-      />
+      <QuickToolsDrawer open={open} onClose={() => setOpen(false)} initialTool={initialTool} />
 
       <ServiceWorkerRegister />
     </>

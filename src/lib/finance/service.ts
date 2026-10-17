@@ -61,7 +61,7 @@ export async function listFeeStructures(branchId: string, filter?: { periodId?: 
 
 export async function createFeeStructure(
   branchId: string,
-  data: { periodId: string; classGroupId?: string | null; name: string; amount: DecimalLike }
+  data: { periodId: string; classGroupId?: string | null; name: string; amount: DecimalLike },
 ) {
   // Validate period belongs to this branch
   await prisma.academicPeriod.findFirstOrThrow({
@@ -97,7 +97,7 @@ export async function createFeeStructure(
 export async function updateFeeStructure(
   branchId: string,
   id: string,
-  data: { name?: string; amount?: DecimalLike; classGroupId?: string | null }
+  data: { name?: string; amount?: DecimalLike; classGroupId?: string | null },
 ) {
   const existing = await prisma.feeStructure.findFirstOrThrow({
     where: { branchId, id },
@@ -142,7 +142,7 @@ export async function deleteFeeStructure(branchId: string, id: string) {
 
 export async function generateInvoices(
   branchId: string,
-  options: { periodId: string; classGroupId?: string | null; dueDate?: Date | null; actorUserId?: string }
+  options: { periodId: string; classGroupId?: string | null; dueDate?: Date | null; actorUserId?: string },
 ) {
   return prisma.$transaction(async (tx) => {
     const period = await tx.academicPeriod.findFirstOrThrow({
@@ -204,9 +204,7 @@ export async function generateInvoices(
 
       // Filter applicable fee structures: general (null classGroupId) or matching student's class group
       const studentClassGroupId = enrollment.classArm?.classGroupId ?? null;
-      const applicableFees = feeStructures.filter(
-        (f) => !f.classGroupId || f.classGroupId === studentClassGroupId
-      );
+      const applicableFees = feeStructures.filter((f) => !f.classGroupId || f.classGroupId === studentClassGroupId);
 
       if (applicableFees.length === 0) {
         skipped++;
@@ -250,7 +248,7 @@ export async function generateInvoices(
 
 export async function listInvoices(
   branchId: string,
-  filter?: { periodId?: string; studentId?: string; status?: InvoiceStatus; page?: number; limit?: number }
+  filter?: { periodId?: string; studentId?: string; status?: InvoiceStatus; page?: number; limit?: number },
 ) {
   const where: Prisma.InvoiceWhereInput = { branchId };
   if (filter?.periodId) where.periodId = filter.periodId;
@@ -305,7 +303,7 @@ export async function getInvoice(branchId: string, id: string) {
 
 export async function initializeGatewayPayment(
   branchId: string,
-  params: { invoiceId: string; email: string; amount?: number; callbackUrl?: string }
+  params: { invoiceId: string; email: string; amount?: number; callbackUrl?: string },
 ) {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirstOrThrow({
@@ -383,7 +381,7 @@ export async function recordManualPayment(
     paidAt?: Date;
     notes?: string;
     recordedByUserId?: string;
-  }
+  },
 ) {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirstOrThrow({
@@ -448,11 +446,7 @@ export async function recordManualPayment(
 /**
  * Atomically fulfills an online payment reference with concurrency locking.
  */
-export async function fulfillPayment(
-  reference: string,
-  verifiedAmountInKobo: number,
-  channel?: string
-) {
+export async function fulfillPayment(reference: string, verifiedAmountInKobo: number, channel?: string) {
   return prisma.$transaction(async (tx) => {
     // 1. Concurrency lock: update status to SUCCESS only if currently PENDING
     const updated = await tx.payment.updateMany({
@@ -490,9 +484,7 @@ export async function fulfillPayment(
     // 3. Verify amount in kobo matches payment expectation
     const expectedKobo = toKobo(payment.amount);
     if (verifiedAmountInKobo !== expectedKobo) {
-      throw new FinanceError(
-        `Amount mismatch: expected ${expectedKobo} kobo, received ${verifiedAmountInKobo} kobo`
-      );
+      throw new FinanceError(`Amount mismatch: expected ${expectedKobo} kobo, received ${verifiedAmountInKobo} kobo`);
     }
 
     // 4. Allocate receipt number
@@ -523,10 +515,7 @@ export async function fulfillPayment(
 
 // --- Paystack Webhook Handler ---
 
-export async function processPaystackWebhook(
-  rawBody: string | Buffer,
-  signatureHeader: string | null | undefined
-) {
+export async function processPaystackWebhook(rawBody: string | Buffer, signatureHeader: string | null | undefined) {
   const secretKey = process.env.PAYSTACK_SECRET_KEY || "mock_secret";
   const isValid = verifyPaystackSignature(rawBody, signatureHeader, secretKey);
   const rawPayloadHash = computePayloadHash(rawBody);
@@ -583,7 +572,7 @@ export async function applyDiscount(
     reason: string;
     mode: DiscountWorkflowMode;
     appliedByUserId: string;
-  }
+  },
 ) {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirstOrThrow({

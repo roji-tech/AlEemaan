@@ -161,12 +161,24 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
         <table className="w-full text-left text-sm">
           <thead className="bg-muted/50 border-b border-border text-xs uppercase text-muted-foreground font-semibold">
             <tr>
-              <th scope="col" className="px-4 py-3">Recipient</th>
-              <th scope="col" className="px-4 py-3">Channel</th>
-              <th scope="col" className="px-4 py-3">Status</th>
-              <th scope="col" className="px-4 py-3">Attempts</th>
-              <th scope="col" className="px-4 py-3">Sent / Dispatched</th>
-              <th scope="col" className="px-4 py-3 text-right">Actions</th>
+              <th scope="col" className="px-4 py-3">
+                Recipient
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Channel
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Status
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Attempts
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Sent / Dispatched
+              </th>
+              <th scope="col" className="px-4 py-3 text-right">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -194,11 +206,7 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
                     {d.sentAt ? new Date(d.sentAt).toLocaleString() : new Date(d.createdAt).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setInspectItem(d)}
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
+                    <button type="button" onClick={() => setInspectItem(d)} className="text-xs font-medium text-primary hover:underline">
                       View
                     </button>
                     {d.status === "FAILED" && (
@@ -246,11 +254,7 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
 
       {/* Inspect Modal */}
       {inspectItem && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-        >
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-semibold text-foreground">Dispatch Details</h3>
@@ -280,9 +284,7 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
               )}
               <div>
                 <span className="font-semibold text-muted-foreground">Content:</span>
-                <p className="mt-1 p-3 bg-muted rounded-lg whitespace-pre-wrap text-foreground font-mono text-xs">
-                  {inspectItem.body}
-                </p>
+                <p className="mt-1 p-3 bg-muted rounded-lg whitespace-pre-wrap text-foreground font-mono text-xs">{inspectItem.body}</p>
               </div>
               {inspectItem.lastError && (
                 <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200">

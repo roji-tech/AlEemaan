@@ -33,12 +33,7 @@ interface QuizConsoleProps {
   userRole?: string;
 }
 
-export function QuizConsole({
-  branchId,
-  subjects,
-  classGroups,
-  userRole = "ADMIN",
-}: QuizConsoleProps) {
+export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN" }: QuizConsoleProps) {
   const [quizzes, setQuizzes] = useState<QuizItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,20 +97,14 @@ export function QuizConsole({
     );
   });
 
-  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(
-    userRole
-  );
+  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(userRole);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Quizzes & Online Assessments
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Create auto-evaluated tests, objective quizzes, and check knowledge retention.
-          </p>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Quizzes & Online Assessments</h2>
+          <p className="text-sm text-muted-foreground">Create auto-evaluated tests, objective quizzes, and check knowledge retention.</p>
         </div>
         {canManage && (
           <button
@@ -165,25 +154,18 @@ export function QuizConsole({
       </div>
 
       {error && (
-        <div
-          role="alert"
-          className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-        >
+        <div role="alert" className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-          Loading assessments...
-        </div>
+        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading assessments...</div>
       ) : filteredQuizzes.length === 0 ? (
         <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
           <p className="text-sm font-medium text-foreground">No quizzes created</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {canManage
-              ? "Create your first interactive quiz using the button above."
-              : "No quizzes are available for this branch yet."}
+            {canManage ? "Create your first interactive quiz using the button above." : "No quizzes are available for this branch yet."}
           </p>
         </div>
       ) : (
@@ -195,9 +177,7 @@ export function QuizConsole({
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {quiz.subject.name}
-                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">{quiz.subject.name}</span>
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
                       quiz.status === "PUBLISHED"
@@ -211,35 +191,23 @@ export function QuizConsole({
 
                 <div>
                   <h3 className="font-semibold text-foreground text-base line-clamp-1">{quiz.title}</h3>
-                  {quiz.classGroup && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Class: {quiz.classGroup.name}
-                    </p>
-                  )}
+                  {quiz.classGroup && <p className="text-xs text-muted-foreground mt-0.5">Class: {quiz.classGroup.name}</p>}
                 </div>
 
-                {quiz.instructions && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{quiz.instructions}</p>
-                )}
+                {quiz.instructions && <p className="text-xs text-muted-foreground line-clamp-2">{quiz.instructions}</p>}
 
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-xs">
                   <div>
                     <span className="text-muted-foreground block">Questions</span>
-                    <span className="font-medium text-foreground">
-                      {quiz.questions?.length ?? 0}
-                    </span>
+                    <span className="font-medium text-foreground">{quiz.questions?.length ?? 0}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Time</span>
-                    <span className="font-medium text-foreground">
-                      {quiz.timeLimitMinutes ? `${quiz.timeLimitMinutes}m` : "Untimed"}
-                    </span>
+                    <span className="font-medium text-foreground">{quiz.timeLimitMinutes ? `${quiz.timeLimitMinutes}m` : "Untimed"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Pass Rate</span>
-                    <span className="font-medium text-foreground">
-                      {quiz.passingScore ? `${quiz.passingScore}%` : "None"}
-                    </span>
+                    <span className="font-medium text-foreground">{quiz.passingScore ? `${quiz.passingScore}%` : "None"}</span>
                   </div>
                 </div>
               </div>

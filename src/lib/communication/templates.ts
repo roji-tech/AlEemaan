@@ -163,12 +163,7 @@ export const DEFAULT_SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
  * Escapes HTML characters in variable values for Email body rendering to avoid XSS injection.
  */
 export function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 /**
@@ -216,11 +211,7 @@ export function validateTemplateVariables(
  * Pure interpolation of tokens in template string.
  * Escapes values if channel is EMAIL to prevent script injection.
  */
-export function interpolateTokens(
-  template: string,
-  variables: Record<string, unknown>,
-  channel?: NotificationChannel,
-): string {
+export function interpolateTokens(template: string, variables: Record<string, unknown>, channel?: NotificationChannel): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, token) => {
     const val = variables[token];
     if (val === undefined || val === null) {
@@ -242,9 +233,7 @@ export function renderTemplate(
   template: { subjectTemplate?: string | null; bodyTemplate: string; channel: NotificationChannel },
   variables: Record<string, unknown>,
 ): { subject?: string; body: string } {
-  const subject = template.subjectTemplate
-    ? interpolateTokens(template.subjectTemplate, variables, template.channel)
-    : undefined;
+  const subject = template.subjectTemplate ? interpolateTokens(template.subjectTemplate, variables, template.channel) : undefined;
 
   const body = interpolateTokens(template.bodyTemplate, variables, template.channel);
 

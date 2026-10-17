@@ -21,12 +21,7 @@ interface PortalHeaderProps {
   onSignOut: () => void;
 }
 
-export function PortalHeader({
-  students,
-  selectedStudentId,
-  onSelectStudent,
-  onSignOut,
-}: PortalHeaderProps) {
+export function PortalHeader({ students, selectedStudentId, onSelectStudent, onSignOut }: PortalHeaderProps) {
   const currentStudent = students.find((s) => s.id === selectedStudentId) || students[0];
 
   return (
@@ -40,16 +35,12 @@ export function PortalHeader({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-fg tracking-tight text-sm sm:text-base">
-                  AlEemaan Portal
-                </span>
+                <span className="font-bold text-fg tracking-tight text-sm sm:text-base">AlEemaan Portal</span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-2 text-fg border border-line">
                   {currentStudent?.branch.name || "School"}
                 </span>
               </div>
-              <p className="text-xs text-fg-muted">
-                Student & Guardian Self-Service
-              </p>
+              <p className="text-xs text-fg-muted">Student & Guardian Self-Service</p>
             </div>
           </div>
 
@@ -67,10 +58,7 @@ export function PortalHeader({
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {students.length > 1 && (
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <label
-                htmlFor="siblingSelect"
-                className="text-xs font-medium text-fg-muted whitespace-nowrap hidden md:inline"
-              >
+              <label htmlFor="siblingSelect" className="text-xs font-medium text-fg-muted whitespace-nowrap hidden md:inline">
                 Viewing Child:
               </label>
               <select
@@ -82,9 +70,7 @@ export function PortalHeader({
               >
                 {students.map((s) => {
                   const enrollment = s.enrollments?.[0];
-                  const classLabel = enrollment
-                    ? `${enrollment.className} ${enrollment.arm || ""}`
-                    : "";
+                  const classLabel = enrollment ? `${enrollment.className} ${enrollment.arm || ""}` : "";
                   return (
                     <option key={s.id} value={s.id}>
                       {s.firstName} {s.lastName} ({s.admissionNo}) {classLabel ? `· ${classLabel}` : ""}
@@ -100,14 +86,7 @@ export function PortalHeader({
             onClick={onSignOut}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-fg-muted hover:text-danger-text hover:bg-danger-bg rounded-xl border border-line transition-colors cursor-pointer"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              aria-hidden="true"
-            >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

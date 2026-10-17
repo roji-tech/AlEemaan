@@ -3,17 +3,13 @@
 import { useEffect, useState } from "react";
 
 export function ServiceWorkerRegister() {
-  const [isOffline, setIsOffline] = useState(
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
-  );
+  const [isOffline, setIsOffline] = useState(typeof navigator !== "undefined" ? !navigator.onLine : false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .catch((err) => {
-          console.warn("[PWA] Service worker registration ignored:", err);
-        });
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.warn("[PWA] Service worker registration ignored:", err);
+      });
     }
   }, []);
 

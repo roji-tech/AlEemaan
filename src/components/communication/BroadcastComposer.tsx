@@ -184,9 +184,7 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
 
       {/* Dynamic Placeholder Insertion Chips */}
       <div>
-        <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          Insert Personalization Tags
-        </span>
+        <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Insert Personalization Tags</span>
         <div className="flex flex-wrap gap-1.5">
           {availableVariables.map((v) => (
             <button
@@ -204,9 +202,7 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
       {/* Live Preview Box */}
       {body && (
         <div className="bg-muted/40 border border-border p-4 rounded-lg">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Live Preview ({channel})
-          </h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Live Preview ({channel})</h3>
           {subject && <p className="font-semibold text-sm text-foreground mb-1">{subject}</p>}
           <p className="text-sm text-foreground whitespace-pre-wrap">{body}</p>
         </div>

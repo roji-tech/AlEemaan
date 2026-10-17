@@ -1,10 +1,5 @@
 import crypto from "node:crypto";
-import type {
-  InitializePaymentParams,
-  InitializePaymentResult,
-  VerifyTransactionResult,
-  PaystackGateway,
-} from "./paystack-types";
+import type { InitializePaymentParams, InitializePaymentResult, VerifyTransactionResult, PaystackGateway } from "./paystack-types";
 
 interface MockTransactionRecord {
   reference: string;
@@ -103,7 +98,7 @@ export class MockPaystackGateway implements PaystackGateway {
     reference: string,
     secretKey: string,
     amountInKobo?: number,
-    email?: string
+    email?: string,
   ): { rawBody: string; signature: string } {
     const record = this.transactions.get(reference);
     const resolvedAmount = amountInKobo ?? (record ? record.amountInKobo : 100000);

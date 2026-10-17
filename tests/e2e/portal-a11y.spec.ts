@@ -38,9 +38,7 @@ test.beforeEach(async () => {
 });
 
 test.describe("Slice P8 — Parent & Student Portal UI & WCAG 2.2 AA", () => {
-  test("portal login, sibling switcher, results card, billing, LMS, and passes WCAG 2.2 AA", async ({
-    page,
-  }) => {
+  test("portal login, sibling switcher, results card, billing, LMS, and passes WCAG 2.2 AA", async ({ page }) => {
     const branch = await db.branch.findFirstOrThrow();
 
     // 1. Setup Academic Session, Class & Arm

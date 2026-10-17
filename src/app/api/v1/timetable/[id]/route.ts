@@ -4,12 +4,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateTimetableSlotSchema } from "@/lib/timetable/validation";
-import {
-  getTimetableSlot,
-  updateTimetableSlot,
-  deleteTimetableSlot,
-  TimetableClashError,
-} from "@/lib/timetable/service";
+import { getTimetableSlot, updateTimetableSlot, deleteTimetableSlot, TimetableClashError } from "@/lib/timetable/service";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -80,9 +75,7 @@ export const PATCH = withAuth<RouteParams>(
       return ok(updated);
     } catch (error) {
       if (error instanceof TimetableClashError) {
-        return fail(error.message, 409, "SCHEDULE_CLASH", [
-          { path: "clashes", message: JSON.stringify(error.clashes) },
-        ]);
+        return fail(error.message, 409, "SCHEDULE_CLASH", [{ path: "clashes", message: JSON.stringify(error.clashes) }]);
       }
       console.error("[TIMETABLE_UPDATE_ERROR]", error);
       return fail("Unable to update timetable slot", 500, "INTERNAL");

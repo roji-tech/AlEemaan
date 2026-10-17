@@ -63,7 +63,9 @@ export function AnnouncementsFeed({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div>
-            <label htmlFor="search-announcements" className="sr-only">Search Announcements</label>
+            <label htmlFor="search-announcements" className="sr-only">
+              Search Announcements
+            </label>
             <input
               id="search-announcements"
               type="text"
@@ -75,7 +77,9 @@ export function AnnouncementsFeed({
           </div>
 
           <div>
-            <label htmlFor="filter-branch" className="sr-only">Filter by Branch</label>
+            <label htmlFor="filter-branch" className="sr-only">
+              Filter by Branch
+            </label>
             <select
               id="filter-branch"
               value={selectedBranchId}
@@ -92,7 +96,9 @@ export function AnnouncementsFeed({
           </div>
 
           <div>
-            <label htmlFor="filter-status" className="sr-only">Filter by Status</label>
+            <label htmlFor="filter-status" className="sr-only">
+              Filter by Status
+            </label>
             <select
               id="filter-status"
               value={statusFilter}
@@ -136,9 +142,7 @@ export function AnnouncementsFeed({
               <div
                 key={ann.id}
                 className={`relative rounded-2xl border p-5 shadow-sm transition space-y-3 ${
-                  ann.isPinned
-                    ? "border-brand-fg/40 bg-surface-2/60"
-                    : "border-line bg-surface hover:border-line-strong"
+                  ann.isPinned ? "border-brand-fg/40 bg-surface-2/60" : "border-line bg-surface hover:border-line-strong"
                 }`}
               >
                 {/* Header row */}
@@ -166,9 +170,7 @@ export function AnnouncementsFeed({
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-fg-muted">
                       <span>Posted {new Date(ann.publishedAt).toLocaleDateString()}</span>
                       <span>•</span>
-                      <span>
-                        By {ann.author?.name ? ann.author.name : (ann.author?.email ?? "Administrator")}
-                      </span>
+                      <span>By {ann.author?.name ? ann.author.name : (ann.author?.email ?? "Administrator")}</span>
                       {ann.branch ? (
                         <>
                           <span>•</span>
@@ -207,9 +209,7 @@ export function AnnouncementsFeed({
                 </div>
 
                 {/* Message Body */}
-                <div className="text-sm text-fg-2 whitespace-pre-wrap leading-relaxed">
-                  {ann.body}
-                </div>
+                <div className="text-sm text-fg-2 whitespace-pre-wrap leading-relaxed">{ann.body}</div>
 
                 {/* Footer metadata */}
                 {ann.targetRoles && ann.targetRoles.length > 0 && (

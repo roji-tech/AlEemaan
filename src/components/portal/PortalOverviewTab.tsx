@@ -96,9 +96,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
             <span>Attendance Rate</span>
             <span
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                attendance.percentage >= 80
-                  ? "bg-ok-bg text-ok-fg"
-                  : "bg-warn-bg text-warn-fg"
+                attendance.percentage >= 80 ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"
               }`}
             >
               {attendance.percentage}%
@@ -108,8 +106,12 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
             {attendance.presentDays} <span className="text-sm font-medium text-fg-muted">/ {attendance.totalDays} Days Present</span>
           </div>
           <div className="flex items-center gap-4 mt-3 pt-3 border-t border-line text-xs text-fg-muted">
-            <span>Absent: <strong className="text-fg">{attendance.absentDays}</strong></span>
-            <span>Late: <strong className="text-fg">{attendance.lateDays}</strong></span>
+            <span>
+              Absent: <strong className="text-fg">{attendance.absentDays}</strong>
+            </span>
+            <span>
+              Late: <strong className="text-fg">{attendance.lateDays}</strong>
+            </span>
           </div>
         </div>
 
@@ -119,20 +121,20 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
             <span>School Fee Balance</span>
             <span
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                finance.outstandingBalance === 0
-                  ? "bg-ok-bg text-ok-fg"
-                  : "bg-danger-bg text-danger-text"
+                finance.outstandingBalance === 0 ? "bg-ok-bg text-ok-fg" : "bg-danger-bg text-danger-text"
               }`}
             >
               {finance.outstandingBalance === 0 ? "Clear" : "Balance Due"}
             </span>
           </div>
-          <div className="text-2xl font-black text-fg mt-1">
-            ₦{finance.outstandingBalance.toLocaleString()}
-          </div>
+          <div className="text-2xl font-black text-fg mt-1">₦{finance.outstandingBalance.toLocaleString()}</div>
           <div className="flex items-center gap-4 mt-3 pt-3 border-t border-line text-xs text-fg-muted">
-            <span>Paid: <strong className="text-fg">₦{finance.totalPaid.toLocaleString()}</strong></span>
-            <span>Total: <strong className="text-fg">₦{finance.totalInvoiced.toLocaleString()}</strong></span>
+            <span>
+              Paid: <strong className="text-fg">₦{finance.totalPaid.toLocaleString()}</strong>
+            </span>
+            <span>
+              Total: <strong className="text-fg">₦{finance.totalInvoiced.toLocaleString()}</strong>
+            </span>
           </div>
         </div>
 
@@ -140,18 +142,16 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
         <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between text-fg-muted text-xs font-semibold uppercase tracking-wider mb-2">
             <span>Academic Standing</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-info-bg text-info-fg">
-              Active Term
-            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-info-bg text-info-fg">Active Term</span>
           </div>
           <div className="text-lg font-bold text-fg mt-1">
             {enrollment?.className || "Class"} {enrollment?.arm || ""}
           </div>
-          <p className="text-xs text-fg-muted mt-1">
-            Branch: {student.branch.name}
-          </p>
+          <p className="text-xs text-fg-muted mt-1">Branch: {student.branch.name}</p>
           <div className="mt-3 pt-3 border-t border-line text-xs text-fg-muted flex items-center justify-between">
-            <span>Guardian: <strong className="text-fg">{student.guardianName || "N/A"}</strong></span>
+            <span>
+              Guardian: <strong className="text-fg">{student.guardianName || "N/A"}</strong>
+            </span>
             <button
               type="button"
               onClick={() => onNavigateTab("lms")}
@@ -166,14 +166,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
       {/* Announcements */}
       <div className="bg-surface border border-line rounded-2xl p-5 sm:p-6 shadow-sm">
         <h3 className="text-base font-bold text-fg mb-4 flex items-center gap-2">
-          <svg
-            className="w-5 h-5 text-brand-fg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
+          <svg className="w-5 h-5 text-brand-fg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -184,9 +177,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
         </h3>
 
         {announcements.length === 0 ? (
-          <p className="text-sm text-fg-muted py-4 text-center">
-            No active announcements broadcast at this time.
-          </p>
+          <p className="text-sm text-fg-muted py-4 text-center">No active announcements broadcast at this time.</p>
         ) : (
           <div className="divide-y divide-line">
             {announcements.map((ann) => (
@@ -201,9 +192,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
                     })}
                   </span>
                 </div>
-                <p className="text-xs text-fg-2 mt-1 leading-relaxed">
-                  {ann.body}
-                </p>
+                <p className="text-xs text-fg-2 mt-1 leading-relaxed">{ann.body}</p>
               </div>
             ))}
           </div>

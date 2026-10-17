@@ -42,7 +42,7 @@ export function tokenize(expr: string): string[] | null {
 
     if (/\d/.test(char) || char === ".") {
       let num = "";
-      while (i < clean.length && (/[\d.]/.test(clean[i]))) {
+      while (i < clean.length && /[\d.]/.test(clean[i])) {
         num += clean[i];
         i++;
       }
@@ -82,28 +82,17 @@ export function evaluateArithmetic(expr: string): number | null {
     } else if (token === "(") {
       operatorStack.push(token);
     } else if (token === ")") {
-      while (
-        operatorStack.length > 0 &&
-        operatorStack[operatorStack.length - 1] !== "("
-      ) {
+      while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== "(") {
         outputQueue.push(operatorStack.pop()!);
       }
-      if (
-        operatorStack.length === 0 ||
-        operatorStack[operatorStack.length - 1] !== "("
-      ) {
+      if (operatorStack.length === 0 || operatorStack[operatorStack.length - 1] !== "(") {
         return null;
       }
       operatorStack.pop();
     } else if (token in OPERATOR_PRECEDENCE) {
       const currentOp = normalizeOperator(token);
-      while (
-        operatorStack.length > 0 &&
-        operatorStack[operatorStack.length - 1] !== "("
-      ) {
-        const topOp = normalizeOperator(
-          operatorStack[operatorStack.length - 1],
-        );
+      while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== "(") {
+        const topOp = normalizeOperator(operatorStack[operatorStack.length - 1]);
         if (OPERATOR_PRECEDENCE[topOp] >= OPERATOR_PRECEDENCE[currentOp]) {
           outputQueue.push(operatorStack.pop()!);
         } else {

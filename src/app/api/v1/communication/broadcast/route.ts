@@ -30,5 +30,5 @@ export const POST = withAuth(
       return fail("Unable to dispatch broadcast campaign", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

@@ -27,12 +27,7 @@ interface AssignmentsListProps {
   userRole?: string;
 }
 
-export function AssignmentsList({
-  branchId,
-  subjects,
-  classGroups,
-  userRole = "ADMIN",
-}: AssignmentsListProps) {
+export function AssignmentsList({ branchId, subjects, classGroups, userRole = "ADMIN" }: AssignmentsListProps) {
   const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,17 +109,13 @@ export function AssignmentsList({
       ARCHIVED: "bg-slate-500/10 text-slate-500 border-slate-500/20",
     };
     return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.DRAFT}`}
-      >
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.DRAFT}`}>
         {status}
       </span>
     );
   };
 
-  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(
-    userRole
-  );
+  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(userRole);
 
   return (
     <div className="space-y-6">
@@ -132,9 +123,7 @@ export function AssignmentsList({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">Coursework Assignments</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage student assignments, grading rubrics, deadlines, and submissions.
-          </p>
+          <p className="text-sm text-muted-foreground">Manage student assignments, grading rubrics, deadlines, and submissions.</p>
         </div>
         {canManage && (
           <button
@@ -203,25 +192,18 @@ export function AssignmentsList({
 
       {/* Error / Loading / Content State */}
       {error && (
-        <div
-          role="alert"
-          className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-        >
+        <div role="alert" className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-          Loading coursework assignments...
-        </div>
+        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading coursework assignments...</div>
       ) : filteredAssignments.length === 0 ? (
         <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
           <p className="text-sm font-medium text-foreground">No assignments found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {canManage
-              ? "Create your first assignment using the button above."
-              : "No coursework has been assigned for this branch yet."}
+            {canManage ? "Create your first assignment using the button above." : "No coursework has been assigned for this branch yet."}
           </p>
         </div>
       ) : (
@@ -233,28 +215,16 @@ export function AssignmentsList({
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {assignment.subject.name}
-                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">{assignment.subject.name}</span>
                   {getStatusBadge(assignment.status)}
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-foreground text-base line-clamp-1">
-                    {assignment.title}
-                  </h3>
-                  {assignment.classGroup && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Class: {assignment.classGroup.name}
-                    </p>
-                  )}
+                  <h3 className="font-semibold text-foreground text-base line-clamp-1">{assignment.title}</h3>
+                  {assignment.classGroup && <p className="text-xs text-muted-foreground mt-0.5">Class: {assignment.classGroup.name}</p>}
                 </div>
 
-                {assignment.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {assignment.description}
-                  </p>
-                )}
+                {assignment.description && <p className="text-xs text-muted-foreground line-clamp-2">{assignment.description}</p>}
 
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
                   <div>

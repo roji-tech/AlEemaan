@@ -41,9 +41,7 @@ export function SpeedGraderModal({
   totalPoints,
   submissions: initialSubmissions,
 }: SpeedGraderModalProps) {
-  const [submissionsList, setSubmissionsList] = useState<SubmissionItem[]>(
-    initialSubmissions || []
-  );
+  const [submissionsList, setSubmissionsList] = useState<SubmissionItem[]>(initialSubmissions || []);
   const [loadingList, setLoadingList] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -61,9 +59,7 @@ export function SpeedGraderModal({
     if (!assignmentId || !branchId) return;
     setLoadingList(true);
     try {
-      const res = await fetch(
-        `/api/v1/lms/assignments/${assignmentId}/submissions?branchId=${branchId}`
-      );
+      const res = await fetch(`/api/v1/lms/assignments/${assignmentId}/submissions?branchId=${branchId}`);
       if (res.ok) {
         const body = await res.json();
         setSubmissionsList(body.data || []);
@@ -105,18 +101,15 @@ export function SpeedGraderModal({
 
     try {
       const parsedScore = score === "" ? null : Number(score);
-      const res = await fetch(
-        `/api/v1/lms/assignments/${assignmentId}/submissions/${selectedSub.id}/grade`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            branchId,
-            score: parsedScore,
-            feedback: feedback || null,
-          }),
-        }
-      );
+      const res = await fetch(`/api/v1/lms/assignments/${assignmentId}/submissions/${selectedSub.id}/grade`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchId,
+          score: parsedScore,
+          feedback: feedback || null,
+        }),
+      });
 
       if (!res.ok) {
         const body = await res.json();
@@ -124,9 +117,7 @@ export function SpeedGraderModal({
       }
 
       const updated = await res.json();
-      setSubmissionsList((prev) =>
-        prev.map((sub) => (sub.id === selectedSub.id ? updated.data : sub))
-      );
+      setSubmissionsList((prev) => prev.map((sub) => (sub.id === selectedSub.id ? updated.data : sub)));
 
       if (onSuccess) onSuccess();
 
@@ -142,21 +133,12 @@ export function SpeedGraderModal({
   };
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      title={`Speed Grader: ${assignmentTitle}`}
-      wide
-    >
+    <Dialog open={isOpen} onClose={onClose} title={`Speed Grader: ${assignmentTitle}`} wide>
       <div className="space-y-4">
         {loadingList ? (
-          <p className="py-8 text-center text-sm text-muted-foreground animate-pulse">
-            Loading student submissions...
-          </p>
+          <p className="py-8 text-center text-sm text-muted-foreground animate-pulse">Loading student submissions...</p>
         ) : submissionsList.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No student submissions recorded for this assignment yet.
-          </p>
+          <p className="py-8 text-center text-sm text-muted-foreground">No student submissions recorded for this assignment yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {/* Student Submissions List */}
@@ -171,9 +153,7 @@ export function SpeedGraderModal({
                     type="button"
                     onClick={() => setSelectedIndex(idx)}
                     className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors ${
-                      idx === selectedIndex
-                        ? "bg-primary text-primary-foreground font-medium"
-                        : "hover:bg-muted text-foreground"
+                      idx === selectedIndex ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -183,32 +163,18 @@ export function SpeedGraderModal({
                       {sub.score !== null ? (
                         <span
                           className={`text-xs ${
-                            idx === selectedIndex
-                              ? "text-primary-foreground/90 font-bold"
-                              : "text-emerald-600 font-semibold"
+                            idx === selectedIndex ? "text-primary-foreground/90 font-bold" : "text-emerald-600 font-semibold"
                           }`}
                         >
                           {sub.score}/{totalPoints}
                         </span>
                       ) : (
-                        <span
-                          className={`text-xs ${
-                            idx === selectedIndex
-                              ? "text-primary-foreground/75"
-                              : "text-muted-foreground"
-                          }`}
-                        >
+                        <span className={`text-xs ${idx === selectedIndex ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
                           Ungraded
                         </span>
                       )}
                     </div>
-                    <span
-                      className={`text-xs block ${
-                        idx === selectedIndex
-                          ? "text-primary-foreground/80"
-                          : "text-muted-foreground"
-                      }`}
-                    >
+                    <span className={`text-xs block ${idx === selectedIndex ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                       {sub.student.admissionNo}
                     </span>
                   </button>
@@ -228,9 +194,7 @@ export function SpeedGraderModal({
                         </h4>
                         <p className="text-xs text-muted-foreground">
                           Admission: {selectedSub.student.admissionNo} • Submitted:{" "}
-                          {selectedSub.submittedAt
-                            ? new Date(selectedSub.submittedAt).toLocaleString()
-                            : "Draft"}
+                          {selectedSub.submittedAt ? new Date(selectedSub.submittedAt).toLocaleString() : "Draft"}
                         </p>
                       </div>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
@@ -239,16 +203,12 @@ export function SpeedGraderModal({
                     </div>
 
                     {selectedSub.content && (
-                      <div className="p-3 rounded-md bg-muted/40 text-sm text-foreground whitespace-pre-wrap">
-                        {selectedSub.content}
-                      </div>
+                      <div className="p-3 rounded-md bg-muted/40 text-sm text-foreground whitespace-pre-wrap">{selectedSub.content}</div>
                     )}
 
                     {selectedSub.attachments && selectedSub.attachments.length > 0 && (
                       <div className="space-y-1">
-                        <span className="text-xs font-semibold text-muted-foreground block">
-                          Attachments:
-                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground block">Attachments:</span>
                         <ul className="space-y-1">
                           {selectedSub.attachments.map((att, i) => (
                             <li key={i}>
@@ -269,10 +229,7 @@ export function SpeedGraderModal({
 
                   <form onSubmit={handleGrade} className="space-y-3">
                     {error && (
-                      <div
-                        role="alert"
-                        className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-                      >
+                      <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                         {error}
                       </div>
                     )}

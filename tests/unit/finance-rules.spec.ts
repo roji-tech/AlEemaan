@@ -64,14 +64,8 @@ test.describe("Finance Rules — Invoice Status Resolution", () => {
 
 test.describe("Finance Rules — Breakdown & Reference Formatting", () => {
   test("computes gross, discounts, and net breakdown correctly", () => {
-    const items = [
-      { amount: 50000 },
-      { amount: 15000 },
-      { amount: 5000 },
-    ];
-    const discounts = [
-      { amount: 10000 },
-    ];
+    const items = [{ amount: 50000 }, { amount: 15000 }, { amount: 5000 }];
+    const discounts = [{ amount: 10000 }];
 
     const result = computeInvoiceBreakdown(items, discounts);
     expect(result.grossAmount.toNumber()).toBe(70000);

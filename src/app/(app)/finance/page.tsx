@@ -19,7 +19,8 @@ export default async function FinancePage() {
         <div role="alert" className="rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-7">
           <h2 className="text-lg font-semibold text-fg">You don&apos;t have access to this page</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            Only administrators can view and manage financial fee structures and billing invoices. If you think you should have access, ask your school administrator.
+            Only administrators can view and manage financial fee structures and billing invoices. If you think you should have access, ask
+            your school administrator.
           </p>
           <Link
             href="/dashboard"
@@ -52,12 +53,7 @@ export default async function FinancePage() {
           You don&apos;t belong to a branch with finance administration access yet.
         </p>
       ) : (
-        <FinancePanel
-          branches={branches}
-          isSuperAdmin={isSuperAdmin}
-          canManage={isAdmin}
-          userBranchId={userBranchId}
-        />
+        <FinancePanel branches={branches} isSuperAdmin={isSuperAdmin} canManage={isAdmin} userBranchId={userBranchId} />
       )}
     </div>
   );

@@ -28,13 +28,7 @@ export const PATCH = withAuth(
         return fail(parsed.error.issues[0]?.message ?? "Invalid grade payload", 400, "VALIDATION");
       }
 
-      const graded = await gradeSubmission(
-        branchId,
-        assignmentId,
-        subId,
-        parsed.data,
-        auth.userId
-      );
+      const graded = await gradeSubmission(branchId, assignmentId, subId, parsed.data, auth.userId);
 
       return ok(graded);
     } catch (error) {
@@ -44,5 +38,5 @@ export const PATCH = withAuth(
       return fail("Unable to grade submission", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );

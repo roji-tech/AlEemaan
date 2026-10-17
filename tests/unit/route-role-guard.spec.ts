@@ -48,9 +48,12 @@ const ALLOWED: Record<string, string> = {
   "POST v1/portal/session/route.ts": "portal auth: login via magic token or admission number + secret",
   "GET v1/portal/session/route.ts": "portal auth: returns active session from verified cookie",
   "DELETE v1/portal/session/route.ts": "portal auth: clears portal session cookie",
-  "GET v1/portal/students/[studentId]/overview/route.ts": "portal student overview: verified by HMAC portal session cookie and allowedStudentIds",
-  "GET v1/portal/students/[studentId]/results/route.ts": "portal student results: verified by HMAC portal session cookie and allowedStudentIds",
-  "GET v1/portal/students/[studentId]/invoices/route.ts": "portal student invoices: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/overview/route.ts":
+    "portal student overview: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/results/route.ts":
+    "portal student results: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/invoices/route.ts":
+    "portal student invoices: verified by HMAC portal session cookie and allowedStudentIds",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS: verified by HMAC portal session cookie and allowedStudentIds",
 };
 

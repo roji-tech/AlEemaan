@@ -50,5 +50,5 @@ export const POST = withAuth(
       return fail("Unable to submit quiz attempt", 500, "INTERNAL");
     }
   },
-  { roles: [Role.STUDENT, Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.STUDENT, Role.ADMIN, Role.TEACHING_STAFF] },
 );

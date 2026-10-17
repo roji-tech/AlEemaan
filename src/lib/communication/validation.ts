@@ -4,13 +4,7 @@ import { NotificationChannel, NotificationDispatchStatus } from "@prisma/client"
 export const NotificationChannelEnum = z.nativeEnum(NotificationChannel);
 export const NotificationDispatchStatusEnum = z.nativeEnum(NotificationDispatchStatus);
 
-export const TargetAudienceEnum = z.enum([
-  "ALL_PARENTS",
-  "CLASS_GROUP_PARENTS",
-  "CLASS_ARM_PARENTS",
-  "STAFF",
-  "STUDENTS",
-]);
+export const TargetAudienceEnum = z.enum(["ALL_PARENTS", "CLASS_GROUP_PARENTS", "CLASS_ARM_PARENTS", "STAFF", "STUDENTS"]);
 
 export type TargetAudience = z.infer<typeof TargetAudienceEnum>;
 

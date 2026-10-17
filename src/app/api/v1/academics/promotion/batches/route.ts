@@ -25,5 +25,5 @@ export const GET = withAuth(
       return fail("Unable to list promotion batches", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

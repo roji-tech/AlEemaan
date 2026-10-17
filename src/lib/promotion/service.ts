@@ -1,11 +1,5 @@
 import { prisma as db } from "@/lib/db";
-import {
-  EnrollmentStatus,
-  PromotionDecision,
-  DecisionMode,
-  PromotionBatchStatus,
-  ResultStatus,
-} from "@prisma/client";
+import { EnrollmentStatus, PromotionDecision, DecisionMode, PromotionBatchStatus, ResultStatus } from "@prisma/client";
 import {
   computeStudentSessionAverage,
   evaluatePromotionRecommendation,
@@ -14,10 +8,7 @@ import {
   validateSessionPromotionEligibility,
   DEFAULT_PASS_MARK,
 } from "./rules";
-import type {
-  PromotionPreviewQuery,
-  ExecutePromotionInput,
-} from "./validation";
+import type { PromotionPreviewQuery, ExecutePromotionInput } from "./validation";
 
 export interface StudentPreviewRow {
   studentId: string;
@@ -75,9 +66,7 @@ export interface PromotionPreviewResponse {
 /**
  * Computes a dry-run preview of student performance and recommended promotion actions.
  */
-export async function previewPromotion(
-  query: PromotionPreviewQuery
-): Promise<PromotionPreviewResponse> {
+export async function previewPromotion(query: PromotionPreviewQuery): Promise<PromotionPreviewResponse> {
   const { branchId, sourceSessionId, targetSessionId, sourceClassGroupId, passMark } = query;
 
   // 1. Fetch source class and all classes in branch for progression resolution
@@ -127,10 +116,7 @@ export async function previewPromotion(
         select: { id: true, name: true },
       },
     },
-    orderBy: [
-      { student: { lastName: "asc" } },
-      { student: { firstName: "asc" } },
-    ],
+    orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }],
   });
 
   // 5. Fetch published results for all enrolled students in this session
@@ -162,9 +148,7 @@ export async function previewPromotion(
     },
     select: { studentId: true },
   });
-  const alreadyEnrolledStudentIds = new Set(
-    existingTargetEnrollments.map((e) => e.studentId)
-  );
+  const alreadyEnrolledStudentIds = new Set(existingTargetEnrollments.map((e) => e.studentId));
 
   // 7. Group results per student and period ordinal
   // studentId -> ordinal -> scores: number[]
@@ -198,8 +182,7 @@ export async function previewPromotion(
     for (const p of periods) {
       const scores = sMap?.get(p.ordinal);
       if (scores && scores.length > 0) {
-        const termAvg =
-          Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
+        const termAvg = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
         termAverages[p.ordinal] = termAvg;
         ordinalsList.push(termAvg);
       } else {
@@ -209,20 +192,14 @@ export async function previewPromotion(
     }
 
     const overallAverage = computeStudentSessionAverage(ordinalsList);
-    const recommendation = evaluatePromotionRecommendation(
-      overallAverage,
-      isTerminalClass,
-      passMark
-    );
+    const recommendation = evaluatePromotionRecommendation(overallAverage, isTerminalClass, passMark);
 
     if (recommendation.decision === PromotionDecision.PROMOTED) totalPromoted++;
     else if (recommendation.decision === PromotionDecision.GRADUATED) totalGraduated++;
     else totalRepeated++;
 
     const targetArmId =
-      recommendation.decision === PromotionDecision.PROMOTED
-        ? resolveTargetArm(enrol.classArm?.name, targetArms)
-        : enrol.classArmId;
+      recommendation.decision === PromotionDecision.PROMOTED ? resolveTargetArm(enrol.classArm?.name, targetArms) : enrol.classArmId;
 
     const targetArm = targetArms.find((a) => a.id === targetArmId);
 
@@ -274,10 +251,7 @@ export async function previewPromotion(
 /**
  * Commits a promotion batch, updating student enrollments atomically with idempotency guards.
  */
-export async function executePromotion(
-  input: ExecutePromotionInput,
-  actorId: string
-) {
+export async function executePromotion(input: ExecutePromotionInput, actorId: string) {
   const {
     branchId,
     sourceSessionId,
@@ -368,14 +342,9 @@ export async function executePromotion(
       let targetEnrollmentId: string | null = null;
 
       // Create or update target enrollment for promoted or repeating students
-      if (
-        decision === PromotionDecision.PROMOTED ||
-        decision === PromotionDecision.REPEATED
-      ) {
+      if (decision === PromotionDecision.PROMOTED || decision === PromotionDecision.REPEATED) {
         const isPromoted = decision === PromotionDecision.PROMOTED;
-        const targetClassGroup = isPromoted
-          ? preview.targetClassGroup
-          : preview.sourceClassGroup;
+        const targetClassGroup = isPromoted ? preview.targetClassGroup : preview.sourceClassGroup;
 
         const effectiveArmId = override?.targetClassArmId || student.targetClassArmId;
 
@@ -496,10 +465,7 @@ export async function getPromotionBatch(branchId: string, batchId: string) {
           sourceEnrollment: true,
           targetEnrollment: true,
         },
-        orderBy: [
-          { student: { lastName: "asc" } },
-          { student: { firstName: "asc" } },
-        ],
+        orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }],
       },
     },
   });

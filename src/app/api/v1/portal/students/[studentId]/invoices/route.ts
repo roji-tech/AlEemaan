@@ -7,10 +7,7 @@ import { getStudentPortalInvoices } from "@/lib/portal/service";
  * GET /api/v1/portal/students/[studentId]/invoices
  * Retrieves student invoices and payment history.
  */
-export async function GET(
-  req: NextRequest,
-  context?: { params?: Promise<{ studentId: string }> }
-) {
+export async function GET(req: NextRequest, context?: { params?: Promise<{ studentId: string }> }) {
   const session = getPortalSession(req);
   if (!session) {
     return noStore(fail("Portal session expired or unauthorized", 401));

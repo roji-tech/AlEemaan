@@ -1,12 +1,6 @@
 import "../support/env";
 import { test, expect } from "@playwright/test";
-import {
-  evaluateArithmetic,
-  tokenize,
-  formatCalculation,
-  applyDiscountWaiver,
-  applyTaxSurcharge,
-} from "@/lib/tools/calculator";
+import { evaluateArithmetic, tokenize, formatCalculation, applyDiscountWaiver, applyTaxSurcharge } from "@/lib/tools/calculator";
 import manifest from "@/app/manifest";
 
 test.describe("Quick Tools — Calculator Arithmetic Engine", () => {
@@ -90,7 +84,7 @@ test.describe("PWA Web App Manifest", () => {
         expect.objectContaining({ short_name: "Lookup", url: "/students?tool=lookup" }),
         expect.objectContaining({ short_name: "Attendance", url: "/attendance" }),
         expect.objectContaining({ short_name: "Notes", url: "/students?tool=scratchpad" }),
-      ])
+      ]),
     );
   });
 });

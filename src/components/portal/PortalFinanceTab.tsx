@@ -38,49 +38,29 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
   const outstandingBalance = Math.max(0, totalInvoiced - totalPaid);
 
   const allPayments = invoices.flatMap((inv) =>
-    inv.payments.map((p) => ({ ...p, invoiceNo: inv.invoiceNo, periodLabel: inv.period.label }))
+    inv.payments.map((p) => ({ ...p, invoiceNo: inv.invoiceNo, periodLabel: inv.period.label })),
   );
-  allPayments.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  allPayments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <div className="space-y-6">
       {/* Financial Summary KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm">
-          <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-1">
-            Total Invoiced
-          </span>
-          <div className="text-2xl font-black text-fg">
-            ₦{totalInvoiced.toLocaleString()}
-          </div>
-          <span className="text-xs text-fg-muted mt-1 block">
-            Across {invoices.length} billing terms
-          </span>
+          <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-1">Total Invoiced</span>
+          <div className="text-2xl font-black text-fg">₦{totalInvoiced.toLocaleString()}</div>
+          <span className="text-xs text-fg-muted mt-1 block">Across {invoices.length} billing terms</span>
         </div>
 
         <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm">
-          <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-1">
-            Total Paid
-          </span>
-          <div className="text-2xl font-black text-ok-fg">
-            ₦{totalPaid.toLocaleString()}
-          </div>
-          <span className="text-xs text-fg-muted mt-1 block">
-            Confirmed school receipts
-          </span>
+          <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-1">Total Paid</span>
+          <div className="text-2xl font-black text-ok-fg">₦{totalPaid.toLocaleString()}</div>
+          <span className="text-xs text-fg-muted mt-1 block">Confirmed school receipts</span>
         </div>
 
         <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm">
-          <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-1">
-            Outstanding Balance
-          </span>
-          <div
-            className={`text-2xl font-black ${
-              outstandingBalance === 0 ? "text-ok-fg" : "text-danger-text"
-            }`}
-          >
+          <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-1">Outstanding Balance</span>
+          <div className={`text-2xl font-black ${outstandingBalance === 0 ? "text-ok-fg" : "text-danger-text"}`}>
             ₦{outstandingBalance.toLocaleString()}
           </div>
           <span className="text-xs text-fg-muted mt-1 block">
@@ -99,9 +79,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
         </h3>
 
         {invoices.length === 0 ? (
-          <p className="text-xs text-fg-muted py-6 text-center">
-            No fee invoices generated for this student yet.
-          </p>
+          <p className="text-xs text-fg-muted py-6 text-center">No fee invoices generated for this student yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-line">
             <table className="w-full text-left border-collapse text-xs">
@@ -120,26 +98,20 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
                   const balance = Math.max(0, Number(inv.totalAmount) - Number(inv.amountPaid));
                   return (
                     <tr key={inv.id} className="hover:bg-surface-2/50 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-fg">
-                        {inv.invoiceNo}
-                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-fg">{inv.invoiceNo}</td>
                       <td className="py-3 px-4 text-fg-2">
                         {inv.period.session.label} · {inv.period.label}
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold text-fg">
-                        ₦{Number(inv.totalAmount).toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 text-right font-semibold text-ok-fg">
-                        ₦{Number(inv.amountPaid).toLocaleString()}
-                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-fg">₦{Number(inv.totalAmount).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-ok-fg">₦{Number(inv.amountPaid).toLocaleString()}</td>
                       <td className="py-3 px-4 text-center">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
                             inv.status === "PAID"
                               ? "bg-ok-bg text-ok-fg"
                               : inv.status === "PARTIALLY_PAID"
-                              ? "bg-warn-bg text-warn-fg"
-                              : "bg-danger-bg text-danger-text"
+                                ? "bg-warn-bg text-warn-fg"
+                                : "bg-danger-bg text-danger-text"
                           }`}
                         >
                           {inv.status}
@@ -168,9 +140,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
         <h3 className="text-base font-bold text-fg mb-4">Payment Receipts History</h3>
 
         {allPayments.length === 0 ? (
-          <p className="text-xs text-fg-muted py-4 text-center">
-            No payment transactions recorded yet.
-          </p>
+          <p className="text-xs text-fg-muted py-4 text-center">No payment transactions recorded yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-line">
             <table className="w-full text-left border-collapse text-xs">
@@ -187,9 +157,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
               <tbody className="divide-y divide-line">
                 {allPayments.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-2/50 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-fg">
-                      {p.receiptNo || "PENDING"}
-                    </td>
+                    <td className="py-3 px-4 font-mono font-bold text-fg">{p.receiptNo || "PENDING"}</td>
                     <td className="py-3 px-4 font-mono text-fg-muted">{p.invoiceNo}</td>
                     <td className="py-3 px-4 text-fg-2">
                       {new Date(p.createdAt).toLocaleDateString("en-GB", {
@@ -199,9 +167,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
                       })}
                     </td>
                     <td className="py-3 px-4 uppercase text-fg-muted">{p.provider}</td>
-                    <td className="py-3 px-4 text-right font-black text-ok-fg">
-                      ₦{Number(p.amount).toLocaleString()}
-                    </td>
+                    <td className="py-3 px-4 text-right font-black text-ok-fg">₦{Number(p.amount).toLocaleString()}</td>
                     <td className="py-3 px-4 text-center">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-ok-bg text-ok-fg">
                         {p.status}
@@ -252,15 +218,11 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
               </div>
               <div className="flex justify-between py-1 border-b border-line">
                 <span className="text-fg-muted">Total Invoiced:</span>
-                <span className="font-semibold text-fg">
-                  ₦{Number(selectedInvoice.totalAmount).toLocaleString()}
-                </span>
+                <span className="font-semibold text-fg">₦{Number(selectedInvoice.totalAmount).toLocaleString()}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-line">
                 <span className="text-fg-muted">Amount Paid:</span>
-                <span className="font-semibold text-ok-fg">
-                  ₦{Number(selectedInvoice.amountPaid).toLocaleString()}
-                </span>
+                <span className="font-semibold text-ok-fg">₦{Number(selectedInvoice.amountPaid).toLocaleString()}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-line">
                 <span className="text-fg-muted font-bold">Balance Remaining:</span>
@@ -273,7 +235,8 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
             <div className="p-3 rounded-xl bg-surface-2 border border-line text-xs text-fg-muted mb-4">
               <p className="font-semibold text-fg mb-1">Payment Instructions:</p>
               <p>
-                To pay via bank transfer or cash at the bursary, kindly quote student admission number <strong>{student.admissionNo}</strong> and invoice <strong>{selectedInvoice.invoiceNo}</strong>.
+                To pay via bank transfer or cash at the bursary, kindly quote student admission number{" "}
+                <strong>{student.admissionNo}</strong> and invoice <strong>{selectedInvoice.invoiceNo}</strong>.
               </p>
             </div>
 

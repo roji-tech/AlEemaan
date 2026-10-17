@@ -174,7 +174,11 @@ test.describe("Slice P7 — Student Promotion & Academic Rollover API", () => {
     // 6. Seed Results:
     // StudentPass: Term 1 (70%), Term 2 (80%), Term 3 (75%) -> Session Avg = 75.0% (PROMOTED)
     const now = new Date();
-    for (const [term, score] of [[term1, 70], [term2, 80], [term3, 75]] as const) {
+    for (const [term, score] of [
+      [term1, 70],
+      [term2, 80],
+      [term3, 75],
+    ] as const) {
       await db.result.create({
         data: {
           branchId: home.id,
@@ -205,7 +209,11 @@ test.describe("Slice P7 — Student Promotion & Academic Rollover API", () => {
       });
     }
 
-    for (const [term, score] of [[term1, 40], [term2, 35], [term3, 45]] as const) {
+    for (const [term, score] of [
+      [term1, 40],
+      [term2, 35],
+      [term3, 45],
+    ] as const) {
       await db.result.create({
         data: {
           branchId: home.id,
@@ -239,7 +247,7 @@ test.describe("Slice P7 — Student Promotion & Academic Rollover API", () => {
     // 7. Test Preview API
     const previewRes = await api(
       `/api/v1/academics/promotion/preview?branchId=${home.id}&sourceSessionId=${sourceSession.id}&targetSessionId=${targetSession.id}&sourceClassGroupId=${classP1.id}`,
-      { cookie: admin.cookie }
+      { cookie: admin.cookie },
     );
 
     expect(previewRes.status).toBe(200);

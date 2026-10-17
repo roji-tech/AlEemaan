@@ -49,9 +49,7 @@ test.describe("Portal Auth & Security Rules", () => {
       expect(verifyPortalSession(`${data}.${tamperedSig}`)).toBeNull();
 
       // Tamper payload data
-      const tamperedData = Buffer.from(
-        JSON.stringify({ ...payload, primaryStudentId: "student-hacked" })
-      ).toString("base64url");
+      const tamperedData = Buffer.from(JSON.stringify({ ...payload, primaryStudentId: "student-hacked" })).toString("base64url");
       expect(verifyPortalSession(`${tamperedData}.${sig}`)).toBeNull();
     });
 

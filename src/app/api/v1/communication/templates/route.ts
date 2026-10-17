@@ -19,9 +19,10 @@ export const GET = withAuth(
       }
 
       const channelParam = searchParams.get("channel");
-      const channel = channelParam && Object.values(NotificationChannel).includes(channelParam as NotificationChannel)
-        ? (channelParam as NotificationChannel)
-        : undefined;
+      const channel =
+        channelParam && Object.values(NotificationChannel).includes(channelParam as NotificationChannel)
+          ? (channelParam as NotificationChannel)
+          : undefined;
       const search = searchParams.get("search") || undefined;
 
       const templates = await listTemplates(branchId, { channel, search });
@@ -31,7 +32,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve notification templates", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF] }
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );
 
 /**
@@ -59,5 +60,5 @@ export const POST = withAuth(
       return fail("Unable to create notification template", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

@@ -30,7 +30,7 @@ export const POST = withAuth(
           parsed.error.issues[0]?.message ?? "Invalid promotion execution payload",
           400,
           "VALIDATION",
-          parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message }))
+          parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
         );
       }
 
@@ -41,5 +41,5 @@ export const POST = withAuth(
       return fail("Unable to execute student promotion", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

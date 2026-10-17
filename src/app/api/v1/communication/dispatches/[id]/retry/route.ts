@@ -40,5 +40,5 @@ export const POST = withAuth(
       return fail("Unable to retry message dispatch", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN] }
+  { roles: [Role.ADMIN] },
 );

@@ -1,10 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { SubmissionStatus } from "@prisma/client";
-import {
-  resolveSubmissionStatus,
-  evaluateQuizAttempt,
-  computePercentageScore,
-} from "../../src/lib/lms/rules";
+import { resolveSubmissionStatus, evaluateQuizAttempt, computePercentageScore } from "../../src/lib/lms/rules";
 
 test.describe("Slice P5 — LMS & Assignment Rules", () => {
   test.describe("Submission Status Resolution", () => {

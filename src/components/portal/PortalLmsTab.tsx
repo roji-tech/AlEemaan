@@ -44,15 +44,11 @@ export function PortalLmsTab({ lms }: PortalLmsTabProps) {
       <div className="bg-surface border border-line rounded-2xl p-5 sm:p-6 shadow-sm">
         <h3 className="text-base font-bold text-fg mb-4 flex items-center justify-between">
           <span>Assignments & Coursework</span>
-          <span className="text-xs font-normal text-fg-muted">
-            {assignments.length} Available
-          </span>
+          <span className="text-xs font-normal text-fg-muted">{assignments.length} Available</span>
         </h3>
 
         {assignments.length === 0 ? (
-          <p className="text-xs text-fg-muted py-6 text-center">
-            No coursework or homework assignments published for this class yet.
-          </p>
+          <p className="text-xs text-fg-muted py-6 text-center">No coursework or homework assignments published for this class yet.</p>
         ) : (
           <div className="divide-y divide-line">
             {assignments.map((a) => {
@@ -67,11 +63,7 @@ export function PortalLmsTab({ lms }: PortalLmsTabProps) {
                         </span>
                         <h4 className="text-sm font-bold text-fg">{a.title}</h4>
                       </div>
-                      {a.description && (
-                        <p className="text-xs text-fg-2 mt-1 leading-relaxed">
-                          {a.description}
-                        </p>
-                      )}
+                      {a.description && <p className="text-xs text-fg-2 mt-1 leading-relaxed">{a.description}</p>}
                     </div>
 
                     <div className="flex items-center gap-3 self-start sm:self-center">
@@ -85,9 +77,7 @@ export function PortalLmsTab({ lms }: PortalLmsTabProps) {
                               })
                             : "No deadline"}
                         </span>
-                        <span className="text-xs font-semibold text-fg">
-                          {a.totalPoints} pts
-                        </span>
+                        <span className="text-xs font-semibold text-fg">{a.totalPoints} pts</span>
                       </div>
 
                       <span
@@ -95,21 +85,18 @@ export function PortalLmsTab({ lms }: PortalLmsTabProps) {
                           submission?.status === "GRADED"
                             ? "bg-ok-bg text-ok-fg"
                             : submission?.status === "SUBMITTED"
-                            ? "bg-info-bg text-info-fg"
-                            : "bg-surface-2 text-fg-muted border border-line"
+                              ? "bg-info-bg text-info-fg"
+                              : "bg-surface-2 text-fg-muted border border-line"
                         }`}
                       >
-                        {submission?.status === "GRADED"
-                          ? `${submission.score}/${a.totalPoints}`
-                          : submission?.status || "PENDING"}
+                        {submission?.status === "GRADED" ? `${submission.score}/${a.totalPoints}` : submission?.status || "PENDING"}
                       </span>
                     </div>
                   </div>
 
                   {submission?.feedback && (
                     <div className="mt-2.5 p-2.5 rounded-lg bg-surface-2 border border-line text-xs text-fg-2">
-                      <strong className="text-fg">Teacher Feedback:</strong>{" "}
-                      {submission.feedback}
+                      <strong className="text-fg">Teacher Feedback:</strong> {submission.feedback}
                     </div>
                   )}
                 </div>
@@ -129,30 +116,19 @@ export function PortalLmsTab({ lms }: PortalLmsTabProps) {
         </h3>
 
         {materials.length === 0 ? (
-          <p className="text-xs text-fg-muted py-6 text-center">
-            No course materials or lesson notes uploaded yet.
-          </p>
+          <p className="text-xs text-fg-muted py-6 text-center">No course materials or lesson notes uploaded yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {materials.map((m) => (
-              <div
-                key={m.id}
-                className="p-4 rounded-xl border border-line bg-surface-2 flex flex-col justify-between"
-              >
+              <div key={m.id} className="p-4 rounded-xl border border-line bg-surface-2 flex flex-col justify-between">
                 <div>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface-2 text-fg border border-line inline-block mb-2">
                     {m.subjectName}
                   </span>
                   <h4 className="text-sm font-bold text-fg">{m.title}</h4>
-                  {m.description && (
-                    <p className="text-xs text-fg-muted mt-1 leading-relaxed">
-                      {m.description}
-                    </p>
-                  )}
+                  {m.description && <p className="text-xs text-fg-muted mt-1 leading-relaxed">{m.description}</p>}
                   {m.content && (
-                    <p className="text-xs text-fg-2 mt-2 line-clamp-3 bg-surface p-2.5 rounded-lg border border-line">
-                      {m.content}
-                    </p>
+                    <p className="text-xs text-fg-2 mt-2 line-clamp-3 bg-surface p-2.5 rounded-lg border border-line">{m.content}</p>
                   )}
                 </div>
                 <div className="mt-3 pt-3 border-t border-line text-[11px] text-fg-muted flex items-center justify-between">

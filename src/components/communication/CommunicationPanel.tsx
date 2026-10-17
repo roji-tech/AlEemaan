@@ -13,13 +13,8 @@ export interface CommunicationPanelProps {
 
 type TabType = "broadcast" | "logs" | "templates";
 
-export function CommunicationPanel({
-  branches,
-  userBranchId,
-}: CommunicationPanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(
-    userBranchId || branches[0]?.id || ""
-  );
+export function CommunicationPanel({ branches, userBranchId }: CommunicationPanelProps) {
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
   const [activeTab, setActiveTab] = useState<TabType>("broadcast");
 
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
@@ -77,11 +72,7 @@ export function CommunicationPanel({
 
       {/* Accessible Tab Navigation */}
       <div className="border-b border-border">
-        <div
-          role="tablist"
-          aria-label="Communication modules"
-          className="flex space-x-4 overflow-x-auto"
-        >
+        <div role="tablist" aria-label="Communication modules" className="flex space-x-4 overflow-x-auto">
           {tabs.map((tab, idx) => {
             const isActive = activeTab === tab.id;
             return (
@@ -111,27 +102,12 @@ export function CommunicationPanel({
       </div>
 
       {/* Tab Panels */}
-      <div
-        role="tabpanel"
-        id={`panel-${activeTab}`}
-        aria-labelledby={`tab-${activeTab}`}
-        tabIndex={0}
-        className="focus:outline-none"
-      >
-        {activeTab === "broadcast" && (
-          <BroadcastComposer
-            branchId={selectedBranchId}
-            onSuccess={() => setActiveTab("logs")}
-          />
-        )}
+      <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="focus:outline-none">
+        {activeTab === "broadcast" && <BroadcastComposer branchId={selectedBranchId} onSuccess={() => setActiveTab("logs")} />}
 
-        {activeTab === "logs" && (
-          <DispatchLogsView branchId={selectedBranchId} />
-        )}
+        {activeTab === "logs" && <DispatchLogsView branchId={selectedBranchId} />}
 
-        {activeTab === "templates" && (
-          <TemplatesManager branchId={selectedBranchId} />
-        )}
+        {activeTab === "templates" && <TemplatesManager branchId={selectedBranchId} />}
       </div>
     </div>
   );

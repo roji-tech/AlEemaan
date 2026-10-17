@@ -4,11 +4,7 @@ import { prisma } from "@/lib/db";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createAnnouncementSchema } from "@/lib/announcements/validation";
-import {
-  listAnnouncements,
-  createAnnouncement,
-  AnnouncementPermissionError,
-} from "@/lib/announcements/service";
+import { listAnnouncements, createAnnouncement, AnnouncementPermissionError } from "@/lib/announcements/service";
 import type { ViewerProfile } from "@/lib/announcements/rules";
 
 async function resolveViewer(userId: string, requestedBranchId?: string | null): Promise<ViewerProfile> {
@@ -24,9 +20,7 @@ async function resolveViewer(userId: string, requestedBranchId?: string | null):
   });
 
   const isSuper = Boolean(user?.isSuperAdmin);
-  const membership = requestedBranchId
-    ? user?.memberships.find((m) => m.branchId === requestedBranchId)
-    : user?.memberships[0];
+  const membership = requestedBranchId ? user?.memberships.find((m) => m.branchId === requestedBranchId) : user?.memberships[0];
 
   return {
     userId,

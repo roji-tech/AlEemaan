@@ -199,9 +199,7 @@ function PortalContent() {
   };
 
   const handleLoginSuccess = (data: { student: PortalStudentRecord; siblingStudents: PortalStudentRecord[] }) => {
-    const all = data.siblingStudents && data.siblingStudents.length > 0
-      ? data.siblingStudents
-      : [data.student];
+    const all = data.siblingStudents && data.siblingStudents.length > 0 ? data.siblingStudents : [data.student];
     setStudents(all);
     setSelectedStudentId(data.student.id);
     setAuthenticated(true);
@@ -239,10 +237,7 @@ function PortalContent() {
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-canvas flex items-center justify-center p-4 sm:p-6">
-        <PortalLoginCard
-          onSuccess={handleLoginSuccess}
-          initialToken={tokenParam}
-        />
+        <PortalLoginCard onSuccess={handleLoginSuccess} initialToken={tokenParam} />
       </div>
     );
   }
@@ -271,9 +266,7 @@ function PortalContent() {
             aria-selected={activeTab === "overview"}
             onClick={() => handleTabChange("overview")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "overview"
-                ? "bg-brand-strong text-brand-contrast shadow-xs"
-                : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "overview" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Overview
@@ -284,9 +277,7 @@ function PortalContent() {
             aria-selected={activeTab === "results"}
             onClick={() => handleTabChange("results")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "results"
-                ? "bg-brand-strong text-brand-contrast shadow-xs"
-                : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "results" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Academic Results
@@ -297,9 +288,7 @@ function PortalContent() {
             aria-selected={activeTab === "finance"}
             onClick={() => handleTabChange("finance")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "finance"
-                ? "bg-brand-strong text-brand-contrast shadow-xs"
-                : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "finance" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Fees & Billing
@@ -310,9 +299,7 @@ function PortalContent() {
             aria-selected={activeTab === "lms"}
             onClick={() => handleTabChange("lms")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "lms"
-                ? "bg-brand-strong text-brand-contrast shadow-xs"
-                : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "lms" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Coursework (LMS)
@@ -331,29 +318,11 @@ function PortalContent() {
         ) : (
           <div>
             {activeTab === "overview" && overviewData && (
-              <PortalOverviewTab
-                overview={overviewData}
-                onNavigateTab={(tab) => handleTabChange(tab)}
-              />
+              <PortalOverviewTab overview={overviewData} onNavigateTab={(tab) => handleTabChange(tab)} />
             )}
-            {activeTab === "results" && (
-              <PortalResultsTab
-                reportCards={resultsData}
-                student={currentStudent}
-              />
-            )}
-            {activeTab === "finance" && (
-              <PortalFinanceTab
-                invoices={financeData}
-                student={currentStudent}
-              />
-            )}
-            {activeTab === "lms" && (
-              <PortalLmsTab
-                lms={lmsData}
-                student={currentStudent}
-              />
-            )}
+            {activeTab === "results" && <PortalResultsTab reportCards={resultsData} student={currentStudent} />}
+            {activeTab === "finance" && <PortalFinanceTab invoices={financeData} student={currentStudent} />}
+            {activeTab === "lms" && <PortalLmsTab lms={lmsData} student={currentStudent} />}
           </div>
         )}
       </main>

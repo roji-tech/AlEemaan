@@ -76,9 +76,7 @@ export function CalculatorTool() {
     <div className="space-y-4">
       {/* Display Screen */}
       <div className="flex flex-col rounded-2xl border border-line bg-surface p-4 shadow-inner">
-        <div className="min-h-6 overflow-x-auto text-right font-mono text-xs text-fg-muted">
-          {expression || "0"}
-        </div>
+        <div className="min-h-6 overflow-x-auto text-right font-mono text-xs text-fg-muted">{expression || "0"}</div>
         <div className="mt-1 flex items-center justify-between">
           <button
             type="button"
@@ -89,10 +87,7 @@ export function CalculatorTool() {
             <CopyIcon className="h-3 w-3" />
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
-          <div
-            data-testid="calculator-result"
-            className="font-mono text-2xl font-bold tracking-tight text-fg"
-          >
+          <div data-testid="calculator-result" className="font-mono text-2xl font-bold tracking-tight text-fg">
             {result !== null ? formatCalculation(result) : "0"}
           </div>
         </div>

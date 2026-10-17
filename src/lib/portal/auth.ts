@@ -5,9 +5,7 @@ import { prisma } from "@/lib/db";
 export const PORTAL_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 const isHttps = (process.env.APP_URL ?? "").startsWith("https://");
-export const PORTAL_COOKIE_NAME = isHttps
-  ? "__Host-aleemaan.portal-session"
-  : "aleemaan.portal-session";
+export const PORTAL_COOKIE_NAME = isHttps ? "__Host-aleemaan.portal-session" : "aleemaan.portal-session";
 
 export const PORTAL_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -52,11 +50,7 @@ export interface PortalSessionPayload {
 }
 
 function getPortalSecret(): string {
-  return (
-    process.env.SESSION_SECRET ||
-    process.env.AUTH_SECRET ||
-    "aleemaan-portal-secure-hmac-secret-salt-2026"
-  );
+  return process.env.SESSION_SECRET || process.env.AUTH_SECRET || "aleemaan-portal-secure-hmac-secret-salt-2026";
 }
 
 /**
@@ -65,10 +59,7 @@ function getPortalSecret(): string {
 export function signPortalSession(payload: PortalSessionPayload): string {
   const secret = getPortalSecret();
   const serialized = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = crypto
-    .createHmac("sha256", secret)
-    .update(serialized)
-    .digest("base64url");
+  const signature = crypto.createHmac("sha256", secret).update(serialized).digest("base64url");
   return `${serialized}.${signature}`;
 }
 
@@ -88,10 +79,7 @@ export function verifyPortalSession(token: string | undefined | null): PortalSes
 
   const [serialized, signature] = parts;
   const secret = getPortalSecret();
-  const expectedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(serialized)
-    .digest("base64url");
+  const expectedSignature = crypto.createHmac("sha256", secret).update(serialized).digest("base64url");
 
   const sigBuffer = Buffer.from(signature);
   const expectedSigBuffer = Buffer.from(expectedSignature);
@@ -108,11 +96,7 @@ export function verifyPortalSession(token: string | undefined | null): PortalSes
     const rawJson = Buffer.from(serialized, "base64url").toString("utf-8");
     const payload = JSON.parse(rawJson) as PortalSessionPayload;
 
-    if (
-      !payload.primaryStudentId ||
-      !Array.isArray(payload.allowedStudentIds) ||
-      !payload.expiresAt
-    ) {
+    if (!payload.primaryStudentId || !Array.isArray(payload.allowedStudentIds) || !payload.expiresAt) {
       return null;
     }
 

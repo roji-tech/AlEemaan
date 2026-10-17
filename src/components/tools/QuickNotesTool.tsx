@@ -50,9 +50,7 @@ export function QuickNotesTool() {
   return (
     <div className="flex flex-col space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
-          Auto-saved Notes
-        </span>
+        <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Auto-saved Notes</span>
         <div className="flex items-center gap-1">
           <button
             type="button"

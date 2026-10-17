@@ -35,11 +35,7 @@ export default async function LmsPage() {
           You don&apos;t have access to any school branch coursework yet.
         </p>
       ) : (
-        <LmsPanel
-          branches={branches}
-          userRole={primaryRole}
-          userBranchId={userBranchId}
-        />
+        <LmsPanel branches={branches} userRole={primaryRole} userBranchId={userBranchId} />
       )}
     </div>
   );

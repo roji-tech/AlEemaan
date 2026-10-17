@@ -4,11 +4,7 @@ import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { createTimetableSlotSchema } from "@/lib/timetable/validation";
-import {
-  listTimetableSlots,
-  createTimetableSlot,
-  TimetableClashError,
-} from "@/lib/timetable/service";
+import { listTimetableSlots, createTimetableSlot, TimetableClashError } from "@/lib/timetable/service";
 
 /**
  * GET /api/v1/timetable?branchId=...&classArmId=...&staffRecordId=...&dayOfWeek=...
@@ -72,9 +68,7 @@ export const POST = withAuth(
       return ok(created, {}, 201);
     } catch (error) {
       if (error instanceof TimetableClashError) {
-        return fail(error.message, 409, "SCHEDULE_CLASH", [
-          { path: "clashes", message: JSON.stringify(error.clashes) },
-        ]);
+        return fail(error.message, 409, "SCHEDULE_CLASH", [{ path: "clashes", message: JSON.stringify(error.clashes) }]);
       }
       console.error("[TIMETABLE_CREATE_ERROR]", error);
       return fail("Unable to create timetable slot", 500, "INTERNAL");

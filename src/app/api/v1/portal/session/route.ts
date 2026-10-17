@@ -2,16 +2,8 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { ok, fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import {
-  PORTAL_COOKIE_NAME,
-  setPortalCookie,
-  clearPortalCookie,
-} from "@/lib/portal/auth";
-import {
-  authenticatePortalViaToken,
-  authenticatePortalViaAdmission,
-  resolvePortalSessionData,
-} from "@/lib/portal/service";
+import { PORTAL_COOKIE_NAME, setPortalCookie, clearPortalCookie } from "@/lib/portal/auth";
+import { authenticatePortalViaToken, authenticatePortalViaAdmission, resolvePortalSessionData } from "@/lib/portal/service";
 
 const loginSchema = z.union([
   z.object({
@@ -79,7 +71,7 @@ export async function GET(req: NextRequest) {
     ok({
       session: data.session,
       students: data.students,
-    })
+    }),
   );
 }
 

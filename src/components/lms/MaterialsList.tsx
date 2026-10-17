@@ -24,12 +24,7 @@ interface MaterialsListProps {
   userRole?: string;
 }
 
-export function MaterialsList({
-  branchId,
-  subjects,
-  classGroups,
-  userRole = "ADMIN",
-}: MaterialsListProps) {
+export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADMIN" }: MaterialsListProps) {
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +86,7 @@ export function MaterialsList({
     );
   });
 
-  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(
-    userRole
-  );
+  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(userRole);
 
   const typeLabels = {
     DOCUMENT: "Document",
@@ -107,9 +100,7 @@ export function MaterialsList({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Study Materials & Guides
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Study Materials & Guides</h2>
           <p className="text-sm text-muted-foreground">
             Centralized repository of lecture notes, reading materials, slides, and syllabus documents.
           </p>
@@ -162,18 +153,13 @@ export function MaterialsList({
       </div>
 
       {error && (
-        <div
-          role="alert"
-          className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-        >
+        <div role="alert" className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-          Loading learning resources...
-        </div>
+        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading learning resources...</div>
       ) : filteredMaterials.length === 0 ? (
         <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
           <p className="text-sm font-medium text-foreground">No study materials available</p>
@@ -192,9 +178,7 @@ export function MaterialsList({
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {mat.subject.name}
-                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">{mat.subject.name}</span>
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
                     {typeLabels[mat.materialType] || mat.materialType}
                   </span>
@@ -202,21 +186,13 @@ export function MaterialsList({
 
                 <div>
                   <h3 className="font-semibold text-foreground text-base line-clamp-1">{mat.title}</h3>
-                  {mat.classGroup && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Class: {mat.classGroup.name}
-                    </p>
-                  )}
+                  {mat.classGroup && <p className="text-xs text-muted-foreground mt-0.5">Class: {mat.classGroup.name}</p>}
                 </div>
 
-                {mat.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{mat.description}</p>
-                )}
+                {mat.description && <p className="text-xs text-muted-foreground line-clamp-2">{mat.description}</p>}
 
                 {mat.content && (
-                  <div className="p-2.5 rounded bg-muted/40 text-xs text-foreground font-mono line-clamp-3">
-                    {mat.content}
-                  </div>
+                  <div className="p-2.5 rounded bg-muted/40 text-xs text-foreground font-mono line-clamp-3">{mat.content}</div>
                 )}
               </div>
 

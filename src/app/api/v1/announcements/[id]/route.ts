@@ -4,12 +4,7 @@ import { prisma } from "@/lib/db";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateAnnouncementSchema } from "@/lib/announcements/validation";
-import {
-  getAnnouncement,
-  updateAnnouncement,
-  deleteAnnouncement,
-  AnnouncementPermissionError,
-} from "@/lib/announcements/service";
+import { getAnnouncement, updateAnnouncement, deleteAnnouncement, AnnouncementPermissionError } from "@/lib/announcements/service";
 import type { ViewerProfile } from "@/lib/announcements/rules";
 
 interface RouteParams {

@@ -92,11 +92,7 @@ export function TimetablePanel({ branches, isAdmin }: TimetablePanelProps) {
         </div>
       )}
 
-      {error && (
-        <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-text">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-text">{error}</div>}
 
       {loading ? (
         <div className="flex h-64 items-center justify-center rounded-2xl border border-line bg-surface">

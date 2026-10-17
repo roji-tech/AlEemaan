@@ -1,9 +1,7 @@
 import { z } from "zod";
 import { isValidTimeString, parseTimeToMinutes } from "./rules";
 
-const timeStringSchema = z
-  .string()
-  .refine(isValidTimeString, { message: "Must be a valid 24-hour time string in 'HH:MM' format" });
+const timeStringSchema = z.string().refine(isValidTimeString, { message: "Must be a valid 24-hour time string in 'HH:MM' format" });
 
 export const createTimetableSlotSchema = z
   .object({
