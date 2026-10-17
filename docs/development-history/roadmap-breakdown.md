@@ -30,7 +30,7 @@ branches not tenants) — recorded as a divergence; its roles/audit-append-only 
 | **Slice P3: Timetable Canvas & Announcements Broadcast** | ✅ built & verified (PR #47) |
 | **Slice P4: Finance & Fee Invoicing Foundation** | ✅ built & verified (PR #48) |
 | **Slice P5: Learning Management System (LMS) & Assignments** | ✅ built & verified (PR #49) |
-| **Slice P6: Multi-Channel Messaging & Communication Engine** | ✅ built & verified (`claude/p6-communication-messaging`) |
+| **Slice P6: Multi-Channel Messaging & Communication Engine** | ✅ built & verified ([PR #50](https://github.com/roji-tech/AlEemaan/pull/50)) |
 
 ---
 
