@@ -21,10 +21,16 @@ branches not tenants) — recorded as a divergence; its roles/audit-append-only 
 | 0 Foundation · 0.5.0 Setup wizard · 0.5.1 Auth + branches (+ rebuild, + sync to Octalve) | ✅ |
 | 0.5.A design language + shell · 0.5.B CSP · 0.5.C password reset · 0.5.D TOTP · 0.5.F dev inbox | ✅ merged |
 | 0.5.E account self-service | ✅ merged (PR #8) |
-| **0.5.G shared API infrastructure** (pagination, `validate()`, breached-password check, CSRF hardening; `Dialog`/`SelectField` move with the Users pages) — ported from Octalve Edu; prerequisite of the Users pages | ✅ built and verified (`claude/aleemaan-0.5.G`; record `phases/phase-0.5.G-api-infrastructure.md`; 51 mutations, all caught) |
-| **0.5.2 School Settings** | ⬜ designed, **awaiting go-ahead** |
-| 1 Academic Structure → 2 Student & Staff → 3 Results → 4 Finance → 5 Public site/CMS | ⬜ |
-| 0.5.3 Auth completion (force-delete, persistent rate limiting) → 6 Family portal → 7 Migration & cutover | ⬜ |
+| **0.5.G shared API infrastructure** | ✅ merged |
+| **0.5.2 School Settings** | ✅ merged |
+| **Phase 1 Academic Structure & Schemes (P1a-P1d)** | ✅ merged |
+| **Phase 2 Results, Workflow, Remarks & Verification (P2a-P2e)** | ✅ merged |
+| **Attendance Permissions & Grants** | ✅ merged |
+| **PWA Foundation & Global Quick-Tools Dock** | ✅ merged |
+| **Slice P3: Timetable Canvas & Announcements Broadcast** | ✅ built & verified (PR #47) |
+| **Slice P4: Finance & Fee Invoicing Foundation** | ✅ built & verified (PR #48) |
+| **Slice P5: Learning Management System (LMS) & Assignments** | ✅ built & verified (PR #49) |
+| **Slice P6: Multi-Channel Messaging & Communication Engine** | ✅ built & verified ([PR #50](https://github.com/roji-tech/AlEemaan/pull/50)) |
 
 ---
 
@@ -107,6 +113,13 @@ admin and teacher portal.** So the migration covers the two ENGLISH branches' Fi
 rows, administrators and first students by ordinary input; no import, no reconciliation for them). Then: T1 mapping of the two English Firestore projects → one Postgres; T2 dry-run migration on a
 copy with reconciliation reports (counts, checksums, spot audits by staff); T3 freeze window and cutover plan; T4 rollback plan;
 T5 parallel-run period; T6 decommission the old projects.
+
+## Slice P6 — Multi-Channel Messaging & Communication Engine (Task 0024)
+✅ Built & verified (`claude/p6-communication-messaging`). Multi-channel notifications porting Octalve Edu Phase 2 into AlEemaan's single-tenant multi-branch architecture:
+- **T1 Models & Migrations** — `NotificationTemplate`, `NotificationDispatch`, `GuardianLinkToken`, `NotificationAuditLog` (`communication.prisma`), migration `20261017120000_p6_communication_messaging`.
+- **T2 Gateways & Pure Rules** — Termii SMS adapter (Nigerian MSISDN formatting), Resend Email adapter, In-App channel; template token interpolation and XSS HTML sanitization; guardian magic link token engine.
+- **T3 Services & APIs** — Branch-scoped REST endpoints under `/api/v1/communication/` (templates CRUD, audience broadcast, dispatch querying, error tracking, single-click retry).
+- **T4 Consoles & WCAG 2.2 AA Accessibility** — Dedicated `/communication` page (`BroadcastComposer`, `DispatchLogsView`, `TemplatesManager`) with WAI-ARIA tab controls, full keyboard accessibility, and Axe-tested compliance.
 
 ## Cross-cutting
 Security (mutation pass per phase; advisory routine for Next.js/Prisma; backups and a restore drill **before** real data) ·

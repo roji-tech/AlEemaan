@@ -34,6 +34,7 @@
 | 0021 | [`0021-p3-timetable-and-announcements.md`](0021-p3-timetable-and-announcements.md) | Slice P3: Timetable Canvas & Announcements Broadcast | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) (`claude/p3-timetable-announcements`) |
 | 0022 | [`0022-p4-finance-and-billing.md`](0022-p4-finance-and-billing.md) | Slice P4: Finance & Fee Invoicing Foundation | Completed | 2026-10-16 UTC | 2026-10-16 UTC | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing`) |
 | 0023 | [`0023-p5-lms-assignments.md`](0023-p5-lms-assignments.md) | Slice P5: Learning Management System (LMS) & Assignments | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) |
+| 0024 | [`0024-p6-communication-messaging.md`](0024-p6-communication-messaging.md) | Slice P6: Multi-Channel Messaging & Communication Engine | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging`) |
 
 ---
 
@@ -132,4 +133,13 @@
 - [x] Sub-phase C: Services & API Endpoints (`service.ts`, 9 REST endpoints under `/api/v1/lms`, 3 API tests)
 - [x] Sub-phase D: UI Consoles & Accessibility (`/lms`, `LmsPanel`, `AssignmentsList`, `SpeedGraderModal`, `MaterialsList`, `QuizConsole`, WCAG 2.2 AA compliant, 5 E2E tests)
 - [x] Sub-phase E: Quality Gates & Handover (0 type errors, 0 lint errors, 8 unit tests, 3 API tests, 5 E2E tests, 64/64 build routes)
+
+### TASK-0024: Slice P6 — Multi-Channel Messaging & Communication Engine
+- **Status:** Completed ([PR #50](https://github.com/roji-tech/AlEemaan/pull/50) `claude/p6-communication-messaging` -> `dev`).
+- [x] Sub-phase A: Data Architecture & Schema (`prisma/schema/communication.prisma`, migration `20261017120000_p6_communication_messaging`)
+- [x] Sub-phase B: Pure Rules & Gateway Adapters (`templates.ts`, `termii.ts`, `email.ts`, `dispatcher.ts`, `guardian-link.ts`, 16 unit tests)
+- [x] Sub-phase C: Services & API Endpoints (`service.ts`, endpoints under `/api/v1/communication/`, 3 API tests)
+- [x] Sub-phase D: UI Consoles & Accessibility (`/communication`, `CommunicationPanel`, `BroadcastComposer`, `DispatchLogsView`, `TemplatesManager`, WCAG 2.2 AA compliant, E2E tests)
+- [x] Sub-phase E: Quality Gates & Handover (0 type errors, 0 lint errors, 100% green tests)
+
 

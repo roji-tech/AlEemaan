@@ -1,0 +1,107 @@
+// --- Multi-Channel Messaging & Communication Engine (Slice P6) ---
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  IN_APP
+}
+
+enum NotificationDispatchStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+  RETRYING
+}
+
+/// Notification templates for system events and custom school-wide communications.
+model NotificationTemplate {
+  id              String              @id @default(cuid())
+  branchId        String
+  code            String
+  name            String
+  channel         NotificationChannel
+  subjectTemplate String?
+  bodyTemplate    String              @db.Text
+  variables       Json?
+  isSystem        Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @default(now()) @updatedAt
+
+  branch     Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  dispatches NotificationDispatch[]
+
+  @@unique([branchId, id])
+  @@unique([branchId, code, channel])
+  @@index([branchId, channel])
+  @@index([branchId, code])
+}
+
+/// Dispatched message record tracking individual delivery attempts and statuses.
+model NotificationDispatch {
+  id               String                     @id @default(cuid())
+  branchId         String
+  templateId       String?
+  channel          NotificationChannel
+  recipientAddress String
+  recipientUserId  String?
+  status           NotificationDispatchStatus @default(QUEUED)
+  subject          String?
+  body             String                     @db.Text
+  metadata         Json?
+  attempts         Int                        @default(0)
+  lastError        String?
+  sentAt           DateTime?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @default(now()) @updatedAt
+
+  branch        Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template      NotificationTemplate? @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: NoAction)
+  recipientUser User?                 @relation(fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, id])
+  @@index([branchId, status])
+  @@index([branchId, channel])
+  @@index([branchId, createdAt])
+}
+
+/// Cryptographically signed magic link token allowing guardians frictionless access.
+model GuardianLinkToken {
+  id        String              @id @default(cuid())
+  branchId  String
+  studentId String
+  tokenHash String
+  channel   NotificationChannel
+  action    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  branch  Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student StudentRecord @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@unique([branchId, tokenHash])
+  @@index([branchId, studentId])
+  @@index([branchId, expiresAt])
+}
+
+/// Append-only audit trail of communication dispatch lifecycle events.
+model NotificationAuditLog {
+  id          String              @id @default(cuid())
+  branchId    String
+  dispatchId  String?
+  actorUserId String?
+  event       String
+  channel     NotificationChannel
+  recipient   String
+  details     Json?
+  createdAt   DateTime            @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, event])
+  @@index([branchId, createdAt])
+}
