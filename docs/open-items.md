@@ -58,7 +58,7 @@ All 25 migrations have been successfully executed and applied to the remote data
 
 - [x] Student and parent access to report cards, attendance, fees, and LMS coursework — built in Slice P8 ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52)).
 - [x] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages) — built in Slice P7 ([PR #51](https://github.com/roji-tech/AlEemaan/pull/51)).
-- [ ] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh.
+- [x] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh. Built in Task 0029 (`src/lib/migration/legacy-mapper.ts` and `scripts/migrate-legacy-firestore.mjs`).
 - [x] PDF / standalone document download of the report card (built in Task 0028 with A4 styling & print optimizations).
 - [x] A history dialog in the Review tab (the history API exists) — built in Task 0027.
 - [x] **P2e** settings + approvals layer, scheme levels, layouts, verification fields, self-approval toggle (PR #44).

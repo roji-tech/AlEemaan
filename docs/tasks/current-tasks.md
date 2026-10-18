@@ -38,8 +38,10 @@
 | 0025 | [`0025-p7-student-promotion.md`](0025-p7-student-promotion.md) | Slice P7: Next-Term Student Promotion & Academic Rollover | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) |
 | 0027 | [`0027-p2-review-history-dialog.md`](0027-p2-review-history-dialog.md) | Task 0027: UI History Dialog in Review Tab & Results Branch Sync | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) (`claude/task-0027-review-history-dialog`) |
 | 0028 | [`0028-report-card-payment-gate-and-export.md`](0028-report-card-payment-gate-and-export.md) | Task 0028: Report Card Payment Gate & Standalone Document Export | Completed | 2026-10-18 UTC | 2026-10-18 UTC | [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) (`claude/task-0028-report-card-payment-gate-and-export`) |
+| 0029 | [`0029-phase-7-legacy-data-migration.md`](0029-phase-7-legacy-data-migration.md) | Task 0029: Phase 7 — Legacy Data Migration Tooling & Ingestion | Completed | 2026-10-18 UTC | 2026-10-18 UTC | `claude/task-0029-legacy-data-migration` |
 
 ---
+
 
 
 ## Detailed Milestone Status Overview
@@ -171,9 +173,15 @@
 
 ### TASK-0028: Report Card Payment Gate & Standalone Document Export
 - **Status:** Completed ([PR #56](https://github.com/roji-tech/AlEemaan/pull/56) `claude/task-0028-report-card-payment-gate-and-export` -> `dev`).
-
 - [x] Sub-phase A: Report Card Payment Gate Service (`reportCardVisibleTo` in `src/lib/academics/report-card.ts`, checks `block_unpaid_report_cards` superadmin setting, enforces zero unpaid invoices for portal viewers while preserving unblocked staff access).
 - [x] Sub-phase B: Student Portal Integration & Restricted Access UI (`getStudentPortalResults` in `src/lib/portal/service.ts`, access-restricted banner with direct fee settlement action in `PortalResultsTab.tsx`).
 - [x] Sub-phase C: Standalone Document Export & Print Optimization (`generateReportCardHtml` and `downloadReportCardHtml` in `src/lib/academics/report-card-export.ts`, "Download report card" button in `CardsPanel.tsx` & `PortalResultsTab.tsx`, `@media print` A4 CSS rules in `globals.css`).
 - [x] Sub-phase D: Quality Gates & Handover (0 type errors, 0 lint errors, 308/308 unit tests passed, 72/72 routes compiled successfully).
+
+### TASK-0029: Phase 7 — Legacy Data Migration Tooling & Ingestion
+- **Status:** Completed (`claude/task-0029-legacy-data-migration`).
+- [x] Sub-phase A: Migration Architecture & Data Mappers (`src/lib/migration/legacy-mapper.ts` transforming legacy Firestore students, classes, subjects, results to Prisma schema).
+- [x] Sub-phase B: CLI Ingestion Engine (`scripts/migrate-legacy-firestore.mjs` with `--dry-run`, `--live`, duplicate detection, checksum reconciliation reporting).
+- [x] Sub-phase C: Verification & Quality Gates (15 unit tests in `tests/unit/legacy-migration.spec.ts`, 0 type errors, 0 lint warnings).
+
 
