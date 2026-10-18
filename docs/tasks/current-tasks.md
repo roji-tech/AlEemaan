@@ -39,6 +39,8 @@
 | 0027 | [`0027-p2-review-history-dialog.md`](0027-p2-review-history-dialog.md) | Task 0027: UI History Dialog in Review Tab & Results Branch Sync | Completed | 2026-10-17 UTC | 2026-10-17 UTC | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) (`claude/task-0027-review-history-dialog`) |
 | 0028 | [`0028-report-card-payment-gate-and-export.md`](0028-report-card-payment-gate-and-export.md) | Task 0028: Report Card Payment Gate & Standalone Document Export | Completed | 2026-10-18 UTC | 2026-10-18 UTC | [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) (`claude/task-0028-report-card-payment-gate-and-export`) |
 | 0029 | [`0029-phase-7-legacy-data-migration.md`](0029-phase-7-legacy-data-migration.md) | Task 0029: Phase 7 — Legacy Data Migration Tooling & Ingestion | Completed | 2026-10-18 UTC | 2026-10-18 UTC | `claude/task-0029-legacy-data-migration` |
+| 0030 | Release Staging | Release v0.7.1 Staging: Promote `dev` ➔ `master` | Completed | 2026-10-18 06:32:00 UTC | 2026-10-18 06:32:10 UTC | [PR #61](https://github.com/roji-tech/AlEemaan/pull/61) |
+| 0031 | Release Production | Release v0.7.1 Production: Promote `master` ➔ `prod` (Tagged `v0.7.1`) | Completed | 2026-10-18 06:32:40 UTC | 2026-10-18 06:32:55 UTC | [PR #62](https://github.com/roji-tech/AlEemaan/pull/62) |
 
 ---
 
@@ -184,5 +186,15 @@
 - [x] Sub-phase B: CLI Ingestion Engine (`scripts/migrate-legacy-firestore.mjs` with `--dry-run`, `--live`, duplicate detection, checksum reconciliation reporting).
 - [x] Sub-phase C: Verification & Quality Gates (15 unit tests in `tests/unit/legacy-migration.spec.ts`, 0 type errors, 0 lint warnings).
 - [x] Sub-phase D: Remote Database Ingestion & Live Reconciliation (Deployed to `db.prisma.io`, committed 2 branches, 5 students, 5 enrollments, 5 results with cryptographic verification tokens & hashes, 2 report remarks, and audit trail rows).
+
+---
+
+### TASK-0030: Release v0.7.1 — Test Debt Resolution & Hardening
+- **Status:** Completed (PR #61 into `master`, PR #62 into `prod`, tagged `v0.7.1`).
+- [x] Timing Oracle Scale Factor: dynamic delta comparison and `test.slow()` in `timing-oracle.spec.ts`.
+- [x] E2E Auth Stability: 15s timeout on `signInWithSecondFactor`.
+- [x] MFA Enrolment Time-Step Race Fix: captured TOTP code across enrolment and replay assertion in `mfa.spec.ts`.
+- [x] Prettified database migration tooling and verified live Prisma Cloud PostgreSQL schema alignment (25/25 migrations active).
+- [x] 100% green test suites across 585 tests.
 
 
