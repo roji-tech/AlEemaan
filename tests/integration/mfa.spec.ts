@@ -161,7 +161,8 @@ test.describe("enrolment", () => {
     const user = await createUser();
     const started = await beginEnrolment(user.id, ISSUER);
     const secret = base32Decode(started!.secret)!;
-    const result = await confirmEnrolment(user.id, codeFor(secret));
+    const confirmedCode = codeFor(secret);
+    const result = await confirmEnrolment(user.id, confirmedCode);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -186,7 +187,7 @@ test.describe("enrolment", () => {
     }
 
     // The code that confirmed it cannot also be used to sign in.
-    expect(await verifyTotpForUser(user.id, codeFor(secret))).toBe(false);
+    expect(await verifyTotpForUser(user.id, confirmedCode)).toBe(false);
     // Once it can be (time has moved on) the credential works.
     await rewindMfa(user.id);
     expect(await verifyTotpForUser(user.id, codeFor(secret))).toBe(true);

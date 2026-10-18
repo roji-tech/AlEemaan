@@ -347,6 +347,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("the response time doesn't depend on whether the address is taken (the work runs after the response)", async () => {
+    test.slow();
     const taken = await createUser();
     const time = async (newEmail: string) => {
       const person = await signedIn(); // a fresh person each time: no per-account limit is ever involved

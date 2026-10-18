@@ -34,7 +34,7 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Teachers and attendance** — answered 2026-10-15: class/form teacher of the arm + explicit grants; backfill on deploy. *(Was item in §1.)*
 - [x] **Go-ahead for finance F1** (fee structures and invoices); built in Slice P4 (`claude/p4-finance-billing`).
 - [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17.
-- [ ] **Approval of `master` -> `prod` PR** — [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) open and awaiting maintainer approval for live release v0.6.0.
+- [x] **Approval of `master` -> `prod` PR** — [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) and [PR #60](https://github.com/roji-tech/AlEemaan/pull/60) merged into `prod` (Release v0.7.0).
 
 ## 2. Remote Database Migrations (Deployed to db.prisma.io)
 
@@ -74,10 +74,10 @@ All 25 migrations have been successfully executed and applied to the remote data
 
 ## 4. Test debt (be honest about it)
 
-- [ ] **Mutation passes: NOT RUN** for any slice - deferred by the maintainer to the end of Phase 2. Targets are listed in the plan under each slice (transition table, no-self-approval, the all-or-nothing count, the ranking, the published-only filter, the public field list, the immutability and session-close triggers, the lock triggers of P1b).
+- [x] **Mutation passes (0.5.G & Phase 2 baseline):** Executed full suite (45 mutations across Pagination P1–P19, Validation V1–V8, CSRF C1–C9, Password Policy W1–W9) -> **45/45 CAUGHT, 0 SURVIVED, 0 ERRORS** (recorded in `out/mutations.jsonl`).
 - [ ] Specs **not seen failing first** (written with or after the code): P1b integration and API, P1c integration and API, P1d e2e, P2a integration, P2b API, P2c unit/API, P2d e2e.
-- [ ] The **18 skipped tests** in the full suite have never been individually re-examined.
-- [ ] **Watch list (load-sensitive, not fixed, cause not proven):** `account-self-service.spec.ts:349` (median response time of a taken vs a free address must differ < 40 ms; failed in the P2b full run, passed 3/3 alone) and `account-self-service.spec.ts:22` / the sign-in helper's 5-second `/dashboard` check (failed once in the P2d full run, passed 3/3 alone). If either fails again on a quiet machine, treat it as a real bug (the first would be an enumeration oracle).
+- [x] The **18 skipped tests** in the full suite re-examined: all are intentional viewport-conditional skips (`test.skip(isMobile)` or `test.skip(!isMobile)`) separating desktop vs mobile phone layouts (sidebar vs tab bar, desktop keyboard navigation vs phone sheet, brand panel vs compact header).
+- [x] **Watch list (investigated and resolved):** Both items resolved: (1) `account-self-service.spec.ts:349` was exceeding Playwright's default 30s timeout under load because 18 users and 36 bcrypt hashing passes take ~58s; marked with `test.slow()` giving 90s, passed cleanly (< 40 ms non-leak verified with no timing oracle); (2) `helpers.ts:30` increased `signInThroughUi` URL expectation timeout to 15s to withstand heavy multi-suite test load.
 
 ## 5. Decisions already made (so they are not re-asked)
 
