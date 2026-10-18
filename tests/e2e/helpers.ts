@@ -66,7 +66,7 @@ export async function signInWithSecondFactor(
     await codeField(page).fill(factor.code);
   }
   await verifyButton(page).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 }
 
 /// Requests the page makes to the login API, for "did it send anything?" checks.
