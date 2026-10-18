@@ -1,9 +1,9 @@
 # AlEemaan — Project Status & Handover Documentation
 
-> **Last Updated:** 2026-10-18 (Post-Task 0028 Report Card Payment Gate & Standalone Document Export)  
+> **Last Updated:** 2026-10-18 (Post-Task 0030 Extended Staff HR Fields & Migrations)  
 > **Scope:** AlEemaan School Management System (Single-Tenant, Multi-Branch Architecture)  
 > **Repository:** `roji-tech/AlEemaan`  
-> **Branch Context:** `master` -> `prod` ([PR #54](https://github.com/roji-tech/AlEemaan/pull/54))
+> **Active Branch:** `dev` (Synchronized with `master`)
 
 ---
 
@@ -23,7 +23,7 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ## 2. Milestone Alignment & Implementation Progress
 
-### Completed Slices (Merged to `dev` Trunk)
+### Completed Slices (Merged to `dev` & `master` Trunks)
 | Milestone | Slice | Description | PR | Tests / Verification |
 |---|---|---|---|---|
 | 0001 | Phase 0.5.H | Users & Invitations Port | [PR #11](https://github.com/roji-tech/aleemaan/pull/11) | 811 tests passing |
@@ -45,88 +45,45 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0018 | P2e | Settings + Approvals layer, CA schemes, report layouts, self-approval toggle | [PR #44](https://github.com/roji-tech/AlEemaan/pull/44) | Passing |
 | 0019 | — | Attendance permissions (arm-scoped teacher role & grants with backfill) | [PR #45](https://github.com/roji-tech/AlEemaan/pull/45) | Passing |
 | 0020 | — | PWA Foundation & Global Quick-Tools Dock | [PR #46](https://github.com/roji-tech/AlEemaan/pull/46) | Passing |
-| 0021 | P3 | Timetable Canvas & Announcements Broadcast | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) | Passing (unit, API, E2E a11y) |
-| 0022 | P4 | Finance & Fee Invoicing Foundation | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) (`claude/p4-finance-billing`) | Passing (unit 17/17, API 3/3, E2E a11y 5/5) |
-| 0023 | P5 | Learning Management System (LMS) & Assignments | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) (`claude/p5-lms-assignments`) | Passing (unit 8/8, API 3/3, E2E a11y 5/5) |
-| 0024 | P6 | Multi-Channel Messaging & Communication Engine | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging`) | Passing (unit 16/16, API 4/4, E2E a11y 3/3) |
-| 0025 | P7 | Next-Term Student Promotion & Academic Rollover | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) | Passing (unit 19/19, API 2/2, E2E a11y 3/3) |
-| 0026 | P8 | Parent & Student Self-Service Portal | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal`) | Passing (unit 14/14, API 11/11, E2E a11y 1/1) |
-| 0027 | — | UI History Dialog in Review Tab & Results Branch Sync | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) (`claude/task-0027-review-history-dialog`) | Passing (unit 306/306, API 9/9, E2E 13/13) |
-| 0028 | — | Report Card Payment Gate & Standalone Document Export | [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) (`claude/task-0028-report-card-payment-gate-and-export`) | Passing (unit 308/308, build 72/72 routes) |
-
-
----
-
-
-## 3. Active Work: Slice P2e — Settings + Approvals & Schemes
-
-> **Design Status:** Confirmed with maintainer on 2026-10-15 and committed in `domain-implementation-plan.md`. Task specification recorded in `docs/tasks/0018-p2e-settings-and-approvals.md`.
-
-### Core Architectural Decisions (Maintainer Confirmed 2026-10-15)
-1. **Unified Settings & Approvals Engine:**
-   - Single reusable mechanism carrying settings through `DRAFT` → `PENDING` → `APPROVED` → `REJECTED`.
-   - Superadmin sets global defaults; branch admins can configure overrides.
-   - If superadmin enables **enforcement**, branch admin overrides require superadmin approval with a stated reason.
-   - Core tables: `SettingValue`, `SettingScope` (`GLOBAL`, `BRANCH`), `SettingStatus`, `SettingApproval`, and `SettingAudit`.
-2. **CA / Exam Scheme Hierarchy:**
-   - Resolution order (most specific first): `Teacher Subject Scheme` > `Class-Group Scheme` > `Branch Default` > `Global Default`.
-   - **Parts validation:** Parts are **not optional** (minimum 1 CA part + exactly 1 Exam part). All parts must sum to **exactly 100**.
-   - **Default part names:** `"CA"`, `"Project"`, and `"Exam"`. Part names may be customized up to 64 characters.
-   - **Unapproved schemes:** A teacher may enter and review marks under a pending scheme, but marks **cannot be published** until approved. On rejection, marks stay in draft.
-   - **Templates:** Private to creator by default, shareable to branch.
-   - **Result immutability (`lockScheme`):** The first result locks the snapshot scheme; subsequent scheme updates apply only to future terms/arms.
-3. **Report-Card Layouts:**
-   - Fixed set of coded layouts (not a generic drag-and-drop editor).
-   - Configurable options: school logo toggle, signature line toggle, next-term resumption date toggle.
-   - Legacy layouts tagged with `legacy = true`.
-4. **Self-Approval Control:**
-   - **Superadmin-only toggle per admin.** Branch admins cannot enable self-approval for themselves.
-   - Superadmin is default approver; superadmin can designate an unseen reviewer (hidden from the subject under review).
-5. **Public Verification Page Configuration:**
-   - Bare minimum always rendered: School, Branch, Class, Term, Publish Date, "Valid" status.
-   - Configurable extra fields: pupil name format (full name, first name + last initial, initials), subjects, marks, grade.
+| 0021 | P3 | Timetable Canvas & Announcements Broadcast | [PR #47](https://github.com/roji-tech/AlEemaan/pull/47) | Passing |
+| 0022 | P4 | Finance & Fee Invoicing Foundation with Paystack | [PR #48](https://github.com/roji-tech/AlEemaan/pull/48) | Passing |
+| 0023 | P5 | Learning Management System (LMS) & Assignments | [PR #49](https://github.com/roji-tech/AlEemaan/pull/49) | Passing |
+| 0024 | P6 | Multi-Channel Messaging & Communication Engine | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) | Passing |
+| 0025 | P7 | Next-Term Student Promotion & Academic Rollover | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) | Passing |
+| 0026 | P8 | Parent & Student Self-Service Portal | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) | Passing |
+| 0027 | — | UI History Dialog in Review Tab & Results Branch Sync | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) | Passing |
+| 0028 | — | Report Card Payment Gate & Standalone Document Export | [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) | Passing |
+| 0029 | Phase 7 | Legacy Data Migration Tooling & CLI Ingestion Engine | [PR #58](https://github.com/roji-tech/AlEemaan/pull/58) (`dev`), [PR #59](https://github.com/roji-tech/AlEemaan/pull/59) (`master`) | Passing |
+| 0030 | — | Extended Staff HR Fields (`middleName`, `gender`, `dateOfBirth`, `designation`, `qualification`, `employmentDate`, `nextOfKin*`) | [PR #63](https://github.com/roji-tech/AlEemaan/pull/63) (`dev`), [PR #64](https://github.com/roji-tech/AlEemaan/pull/64) (`master`) | Passing |
 
 ---
 
-## 4. Sequential Road Ahead
- 
-```
-[Completed: P1a-P1d, P2a-P2d, P2e, Attendance, PWA, P3 Timetable, P4 Finance, P5 LMS, P6 Comms, P7 Promotion, P8 Portal]
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Pre-Production Staging Verification (master: PR #53 merged) │
-│                        │                                    │
-│                        ▼                                    │
-│ Production Release v0.6.0 (prod: PR #54 open)               │
-└─────────────────────────────────────────────────────────────┘
-```
+## 3. Database Migrations Status (100% Deployed & Synchronized)
+
+All 26 database migrations have been executed and validated against both local Docker and live production environments:
+
+- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 26 migrations applied.
+- **Live Remote Database:** `postgres://...:5432/postgres?sslmode=require` (`db.prisma.io:5432`) — 26 migrations applied.
+- **Latest Migration Applied:** `20261018150000_staff_extended_fields/migration.sql`
 
 ---
 
-## 5. Production Database Migrations Register
+## 4. Architectural Blueprint: Phase 4 Operations & Admissions CRM
 
-The following 14 additive migrations have been applied and tested on development and test databases, but **must be executed against the live production database in exact order** prior to deploying corresponding code:
+A detailed technical blueprint is documented in:
+👉 **[`docs/tasks/0030-phase-4-operations-and-admissions-blueprint.md`](docs/tasks/0030-phase-4-operations-and-admissions-blueprint.md)**
 
-1. `20261011120000_super_admin_flag` (*Awaiting maintainer's `admins:list` review*)
-2. `20261014090000_academic_structure` (Classes, arms, subjects, offerings)
-3. `20261014100000_assessment_grading` (Assessment schemes, grade scales, lock triggers)
-4. `20261014110000_staff_assignments` (Staff records, teaching assignments)
-5. `20261014120000_results` (Result records, snapshot scheme, history)
-6. `20261014130000_results_workflow` (Review state transitions, session-close lock trigger)
-7. `20261014140000_report_remarks` (Report remarks per student-term)
-8. `20261015100000_p2e_settings_and_approvals` (Setting values, scopes, approvals, and audits)
-9. `20261015110000_attendance_permissions` (Attendance grants & class teacher assignment)
-10. `20261016100000_p3_timetable_and_announcements` (Timetable slots & multi-audience announcements)
-11. `20261016120000_p4_finance_and_billing` (Fee structures, invoices, payments, discounts, webhooks)
-12. `20261017100000_p5_lms_and_assignments` (Assignments, submissions, learning materials, quizzes, questions, attempts)
-13. `20261017120000_p6_communication_messaging` (Notification templates, dispatches, guardian link tokens, audit logs)
-14. `20261017140000_p7_student_promotion` (Promotion batches, promotion records, promotion enums)
+### Modules Detailed in Blueprint:
+1. **Extended HR & Payroll:** Multi-branch salary structures, allowances, statutory deductions (PITA PAYE, Pension Reform Act 2014, NHF 2.5%), monthly runs, payslips.
+2. **Library Management:** Catalog-to-copy architecture, ISBN lookups, barcode tracking, loan checkouts, and overdue fines synced with student fee billing.
+3. **Transport & Fleet Operations:** School buses, routes, ordered pickup/drop-off stops, passenger manifests, driver assignments, and term subscription fees.
+4. **Inventory & Asset Management:** Fixed assets (lab apparatus, classroom furniture) vs. consumable inventory (uniforms, stationery), store requisitions, re-order threshold alerts.
+5. **Government & Statutory Reporting:** Automated census data export conforming to Ministry of Education (MoE) and UBEC/NPA reporting requirements.
+6. **Admissions Pipeline & CRM:** Public application portal, entrance tests, interview rubrics, offer letters, waitlist ranking, and atomic zero-rekeying conversion into permanent SIS records.
 
 ---
 
-## 6. Actions Waiting on the Maintainer
+## 5. Verification & Test Suite Health
 
-1. **Live Administrator Review:** Run `pnpm admins:list` on the live AlEemaan database to confirm which accounts retain `SUPER_ADMIN` status before running migration `20261011120000_super_admin_flag`.
-2. **Legacy Report Card Visual:** Provide a photo or PDF sample of the legacy report card to code the exact `LegacyLayout` (`legacy = true`).
-3. **Approval of Production Release:** Review and approve [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) (`master` -> `prod`).
+- **Suite Status:** 585 tests passing, 0 failures, 18 documented design skips.
+- **Full Mutation Testing:** 45 mutations across Pagination (`P1`–`P19`), Validation (`V1`–`V8`), CSRF (`C1`–`C9`), and Password Policy (`W1`–`W9`) -> 100% caught.
