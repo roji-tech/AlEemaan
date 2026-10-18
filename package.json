@@ -16,6 +16,7 @@
     "mfa:reset": "node scripts/mfa-reset.mjs",
     "superadmin:make": "node scripts/make-superadmin.mjs",
     "admins:list": "node scripts/list-admins.mjs",
+    "migrate:legacy": "node scripts/migrate-legacy-firestore.mjs",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && playwright test",
     "test:fast": "playwright test",
