@@ -10,6 +10,7 @@ import {
   verifyPortalSession,
 } from "./auth";
 import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus } from "@prisma/client";
+import { reportCardVisibleTo } from "@/lib/academics/report-card";
 
 export interface PortalAuthResult {
   success: boolean;
@@ -316,6 +317,24 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
 export async function getStudentPortalResults(studentId: string, allowedStudentIds: string[]) {
   if (!allowedStudentIds.includes(studentId)) {
     throw new Error("UNAUTHORIZED_STUDENT_ACCESS");
+  }
+
+  const canView = await reportCardVisibleTo(studentId, { kind: "portal" });
+  if (!canView) {
+    const invoices = await prisma.invoice.findMany({
+      where: { studentId, status: { not: InvoiceStatus.CANCELLED } },
+      select: { totalAmount: true, amountPaid: true },
+    });
+    const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+    const totalPaid = invoices.reduce((sum, inv) => sum + Number(inv.amountPaid), 0);
+    const outstandingBalance = Math.max(0, totalInvoiced - totalPaid);
+
+    return {
+      reportCards: [],
+      blockedByUnpaidFees: true,
+      outstandingBalance,
+      message: `Report card access is blocked due to an outstanding fee balance of ₦${outstandingBalance.toLocaleString()}. Please clear pending invoices under the Invoices tab to view academic report cards.`,
+    };
   }
 
   const results = await prisma.result.findMany({

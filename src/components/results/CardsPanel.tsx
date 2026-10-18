@@ -8,6 +8,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 import { ReportCard, type Card } from "@/components/results/ReportCard";
+import { downloadReportCardHtml } from "@/lib/academics/report-card-export";
 
 // Report cards (Slice P2d, over P2c): pick a term, a class arm and a student, read the card, print it. Administrators may preview with unpublished results and write
 // the two remarks (frozen by the server once a result is published). Everything outside the card itself is hidden when printing.
@@ -16,8 +17,21 @@ type Term = { id: string; label: string; session: string; isCurrent: boolean };
 type Group = { id: string; name: string; arms: { id: string; name: string }[] };
 type Student = { id: string; name: string; admissionNo: string };
 
-export function CardsPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+export function CardsPanel({
+  branches,
+  selectedBranchId,
+  onSelectBranch,
+}: {
+  branches: BranchChoice[];
+  selectedBranchId?: string;
+  onSelectBranch?: (id: string) => void;
+}) {
+  const [internalBranchId, setInternalBranchId] = useState(branches[0].id);
+  const branchId = selectedBranchId ?? internalBranchId;
+  const setBranchId = (id: string) => {
+    setInternalBranchId(id);
+    onSelectBranch?.(id);
+  };
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [terms, setTerms] = useState<Term[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -148,9 +162,15 @@ export function CardsPanel({ branches }: { branches: BranchChoice[] }) {
 
       {card && (
         <>
-          <div className="flex justify-end print:hidden">
+          <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
             <Button variant="secondary" onClick={() => window.print()}>
               Print this report card
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => downloadReportCardHtml(card, typeof window === "undefined" ? "" : window.location.origin)}
+            >
+              Download report card
             </Button>
           </div>
           <ReportCard card={card} origin={typeof window === "undefined" ? "" : window.location.origin} />

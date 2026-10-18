@@ -23,11 +23,53 @@ const remark = z
   .transform((v) => (v ? v : null));
 export const remarksInput = z.strictObject({ periodId: z.string().min(1), teacherRemark: remark, principalRemark: remark });
 
-/// The place the payment gate will plug into (plan decision 8): may this viewer see this student's report card? Today everyone who reaches it may - the superadmin
-/// setting that blocks unpaid fees is added with finance slice F3, here, in one place. `staff` viewers (a teacher or administrator of the branch) always may.
-export async function reportCardVisibleTo(studentId: string, viewer: { kind: "staff" }): Promise<boolean> {
-  void studentId;
-  return viewer.kind === "staff";
+export type ReportCardViewer = { kind: "staff" } | { kind: "portal" } | { kind: "student_or_guardian"; userId?: string };
+
+/// May this viewer see this student's report card?
+/// Staff viewers (teachers or administrators of the branch) always may.
+/// Non-staff viewers (portal, students, guardians) are subject to the superadmin setting `block_unpaid_report_cards` (default OFF).
+/// When enabled, an outstanding fee balance on non-cancelled invoices blocks report card access.
+export async function reportCardVisibleTo(studentId: string, viewer: ReportCardViewer, periodId?: string): Promise<boolean> {
+  if (viewer.kind === "staff") return true;
+
+  const setting = await prisma.settingValue.findFirst({
+    where: {
+      scope: "GLOBAL",
+      key: "block_unpaid_report_cards",
+      status: "APPROVED",
+    },
+  });
+
+  const blockUnpaid =
+    setting?.value === true ||
+    (typeof setting?.value === "object" && setting?.value !== null && (setting.value as { enabled?: boolean }).enabled === true);
+
+  if (!blockUnpaid) return true;
+
+  const whereClause: {
+    studentId: string;
+    status: { not: "CANCELLED" };
+    periodId?: string;
+  } = {
+    studentId,
+    status: { not: "CANCELLED" },
+  };
+  if (periodId) {
+    whereClause.periodId = periodId;
+  }
+
+  const invoices = await prisma.invoice.findMany({
+    where: whereClause,
+    select: { totalAmount: true, amountPaid: true },
+  });
+
+  if (invoices.length === 0) return true;
+
+  const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+  const totalPaid = invoices.reduce((sum, inv) => sum + Number(inv.amountPaid), 0);
+  const hasOutstanding = totalInvoiced > totalPaid;
+
+  return !hasOutstanding;
 }
 
 /// The branch a student belongs to (null for an unknown id) - what `withBranch({ of })` looks up for a student route.

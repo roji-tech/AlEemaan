@@ -123,6 +123,8 @@ function PortalContent() {
   const [tabLoading, setTabLoading] = useState(false);
   const [overviewData, setOverviewData] = useState<OverviewState | null>(null);
   const [resultsData, setResultsData] = useState<ReportCardState[]>([]);
+  const [resultsBlocked, setResultsBlocked] = useState(false);
+  const [resultsBalance, setResultsBalance] = useState(0);
   const [financeData, setFinanceData] = useState<InvoiceState[]>([]);
   const [lmsData, setLmsData] = useState<LmsState>({ assignments: [], materials: [] });
 
@@ -163,7 +165,11 @@ function PortalContent() {
         } else if (activeTab === "results") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/results`);
           const json = await res.json();
-          if (!ignore && res.ok) setResultsData(json.data.reportCards || []);
+          if (!ignore && res.ok) {
+            setResultsData(json.data.reportCards || []);
+            setResultsBlocked(Boolean(json.data.blockedByUnpaidFees));
+            setResultsBalance(Number(json.data.outstandingBalance || 0));
+          }
         } else if (activeTab === "finance") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/invoices`);
           const json = await res.json();
@@ -320,7 +326,15 @@ function PortalContent() {
             {activeTab === "overview" && overviewData && (
               <PortalOverviewTab overview={overviewData} onNavigateTab={(tab) => handleTabChange(tab)} />
             )}
-            {activeTab === "results" && <PortalResultsTab reportCards={resultsData} student={currentStudent} />}
+            {activeTab === "results" && (
+              <PortalResultsTab
+                reportCards={resultsData}
+                student={currentStudent}
+                blockedByUnpaidFees={resultsBlocked}
+                outstandingBalance={resultsBalance}
+                onNavigateToBilling={() => handleTabChange("finance")}
+              />
+            )}
             {activeTab === "finance" && <PortalFinanceTab invoices={financeData} student={currentStudent} />}
             {activeTab === "lms" && <PortalLmsTab lms={lmsData} student={currentStudent} />}
           </div>

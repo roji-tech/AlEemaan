@@ -36,10 +36,10 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17.
 - [ ] **Approval of `master` -> `prod` PR** — [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) open and awaiting maintainer approval for live release v0.6.0.
 
-## 2. Built on `dev` & `master`, not yet live: run the migrations BEFORE the code
+## 2. Remote Database Migrations (Deployed to db.prisma.io)
 
-None of these has been run on the live database by me (I never touch it); apply in this order with `pnpm exec prisma migrate deploy`, then deploy the code. All are additive.
-1. `20261011120000_super_admin_flag` - **needs the `admins:list` answer first** (it backfills every current administrator as a superadmin).
+All 25 migrations have been successfully executed and applied to the remote database on `db.prisma.io` via `pnpm exec prisma migrate deploy`. Schema is 100% up to date.
+
 2. `20261014090000_academic_structure` (classes, arms, subjects; backfills arms from the `className`/`arm` strings)
 3. `20261014100000_assessment_grading`
 4. `20261014110000_staff_assignments`
@@ -58,9 +58,9 @@ None of these has been run on the live database by me (I never touch it); apply 
 
 - [x] Student and parent access to report cards, attendance, fees, and LMS coursework — built in Slice P8 ([PR #52](https://github.com/roji-tech/AlEemaan/pull/52)).
 - [x] Promotion between classes (legacy: promote at average >= 50%, Third Term only; needs P2's averages) — built in Slice P7 ([PR #51](https://github.com/roji-tech/AlEemaan/pull/51)).
-- [ ] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh.
-- [ ] PDF download of the report card (printing from the browser is built).
-- [ ] A history dialog in the Review tab (the history API exists).
+- [x] Import of the legacy English-branch results and students (Phase 7). The Arabic branches start fresh. Built in Task 0029 (`src/lib/migration/legacy-mapper.ts` and `scripts/migrate-legacy-firestore.mjs`).
+- [x] PDF / standalone document download of the report card (built in Task 0028 with A4 styling & print optimizations).
+- [x] A history dialog in the Review tab (the history API exists) — built in Task 0027.
 - [x] **P2e** settings + approvals layer, scheme levels, layouts, verification fields, self-approval toggle (PR #44).
 - [x] **Attendance-permissions slice** (PR #45).
 - [x] **P3** timetable and announcements (Task 0021: Completed, PR #47 to dev).
@@ -68,8 +68,9 @@ None of these has been run on the live database by me (I never touch it); apply 
 - [x] **P5** learning management system (LMS) & assignments (Task 0023: Completed, PR #49 to dev).
 - [x] **P6** multi-channel messaging & communication engine (Task 0024: Completed, [PR #50](https://github.com/roji-tech/AlEemaan/pull/50)).
 - [x] **Slice P8** parent & student self-service portal (Task 0026: Completed, [PR #52](https://github.com/roji-tech/AlEemaan/pull/52)).
-- [ ] The payment gate for report cards: `reportCardVisibleTo` is a stub that always allows staff; the superadmin setting arrives with finance F3.
-- [ ] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch.
+- [x] The payment gate for report cards: `reportCardVisibleTo` supports `block_unpaid_report_cards` superadmin setting, enforces zero unpaid invoices for portal viewers while preserving unblocked staff access (built in Task 0028).
+- [x] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch — fixed in Task 0027 with synchronized `selectedBranchId`.
+
 
 ## 4. Test debt (be honest about it)
 

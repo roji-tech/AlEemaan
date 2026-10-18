@@ -1,6 +1,6 @@
 # AlEemaan — Project Status & Handover Documentation
 
-> **Last Updated:** 2026-10-17 (Post-P8 implementation & Staging PR #53 merged; Prod PR #54 open)  
+> **Last Updated:** 2026-10-18 (Post-Task 0028 Report Card Payment Gate & Standalone Document Export)  
 > **Scope:** AlEemaan School Management System (Single-Tenant, Multi-Branch Architecture)  
 > **Repository:** `roji-tech/AlEemaan`  
 > **Branch Context:** `master` -> `prod` ([PR #54](https://github.com/roji-tech/AlEemaan/pull/54))
@@ -51,8 +51,12 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 | 0024 | P6 | Multi-Channel Messaging & Communication Engine | [PR #50](https://github.com/roji-tech/AlEemaan/pull/50) (`claude/p6-communication-messaging`) | Passing (unit 16/16, API 4/4, E2E a11y 3/3) |
 | 0025 | P7 | Next-Term Student Promotion & Academic Rollover | [PR #51](https://github.com/roji-tech/AlEemaan/pull/51) (`claude/p7-student-promotion`) | Passing (unit 19/19, API 2/2, E2E a11y 3/3) |
 | 0026 | P8 | Parent & Student Self-Service Portal | [PR #52](https://github.com/roji-tech/AlEemaan/pull/52) (`claude/p8-parent-student-portal`) | Passing (unit 14/14, API 11/11, E2E a11y 1/1) |
+| 0027 | — | UI History Dialog in Review Tab & Results Branch Sync | [PR #55](https://github.com/roji-tech/AlEemaan/pull/55) (`claude/task-0027-review-history-dialog`) | Passing (unit 306/306, API 9/9, E2E 13/13) |
+| 0028 | — | Report Card Payment Gate & Standalone Document Export | [PR #56](https://github.com/roji-tech/AlEemaan/pull/56) (`claude/task-0028-report-card-payment-gate-and-export`) | Passing (unit 308/308, build 72/72 routes) |
+
 
 ---
+
 
 ## 3. Active Work: Slice P2e — Settings + Approvals & Schemes
 
