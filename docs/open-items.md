@@ -36,10 +36,10 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17.
 - [ ] **Approval of `master` -> `prod` PR** — [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) open and awaiting maintainer approval for live release v0.6.0.
 
-## 2. Built on `dev` & `master`, not yet live: run the migrations BEFORE the code
+## 2. Remote Database Migrations (Deployed to db.prisma.io)
 
-None of these has been run on the live database by me (I never touch it); apply in this order with `pnpm exec prisma migrate deploy`, then deploy the code. All are additive.
-1. `20261011120000_super_admin_flag` - **needs the `admins:list` answer first** (it backfills every current administrator as a superadmin).
+All 25 migrations have been successfully executed and applied to the remote database on `db.prisma.io` via `pnpm exec prisma migrate deploy`. Schema is 100% up to date.
+
 2. `20261014090000_academic_structure` (classes, arms, subjects; backfills arms from the `className`/`arm` strings)
 3. `20261014100000_assessment_grading`
 4. `20261014110000_staff_assignments`
