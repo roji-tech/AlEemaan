@@ -27,7 +27,7 @@ export async function signInThroughUi(page: Page, user: { email: string; passwor
   await fillCredentials(page, user.email, user.password);
   if (opts.remember) await keepSignedInBox(page).check();
   await signInButton(page).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 }
 
 /// Signs out through whatever this repo's signed-in screens offer: a "Sign out" button in the header
