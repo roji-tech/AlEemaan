@@ -12,6 +12,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 try {
@@ -465,296 +466,339 @@ async function main() {
       } else {
         console.log(`\n[LIVE COMMIT] Executing migration transaction in PostgreSQL...`);
 
-        const adminUser =
+        let adminUser =
           (await prisma.user.findFirst({
             where: { isSuperAdmin: true },
             select: { id: true },
           })) || (await prisma.user.findFirst({ select: { id: true } }));
 
+        if (!adminUser && !isDryRun) {
+          adminUser = await prisma.user.upsert({
+            where: { email: "system.migration@aleemaanschool.com" },
+            update: {},
+            create: {
+              email: "system.migration@aleemaanschool.com",
+              name: "System Migration",
+              isSuperAdmin: true,
+            },
+            select: { id: true },
+          });
+        }
+
         const actorUserId = adminUser?.id || "system";
 
-        await prisma.$transaction(async (tx) => {
-          // 1. Sessions & Periods
-          const sessionRecords = new Map();
-          for (const sLabel of sessionSet) {
-            const [y1, y2] = sLabel.split("/").map((y) => parseInt(y, 10));
-            const sess = await tx.academicSession.upsert({
-              where: { branchId_label: { branchId: branch.id, label: sLabel } },
-              update: {},
-              create: {
-                branchId: branch.id,
-                label: sLabel,
-                startDate: new Date(Date.UTC(y1, 8, 1)),
-                endDate: new Date(Date.UTC(y2, 6, 31)),
-                status: "ACTIVE",
-              },
-            });
-            sessionRecords.set(sLabel, sess);
-
-            for (let ord = 1; ord <= 3; ord++) {
-              await tx.academicPeriod.upsert({
-                where: { sessionId_ordinal: { sessionId: sess.id, ordinal: ord } },
+        await prisma.$transaction(
+          async (tx) => {
+            // 1. Sessions & Periods
+            const sessionRecords = new Map();
+            for (const sLabel of sessionSet) {
+              const [y1, y2] = sLabel.split("/").map((y) => parseInt(y, 10));
+              const sess = await tx.academicSession.upsert({
+                where: { branchId_label: { branchId: branch.id, label: sLabel } },
                 update: {},
                 create: {
                   branchId: branch.id,
-                  sessionId: sess.id,
-                  ordinal: ord,
-                  label: `${ord === 1 ? "1st" : ord === 2 ? "2nd" : "3rd"} Term`,
-                  kind: "TERM",
-                  startDate: new Date(Date.UTC(y1, ord === 1 ? 8 : ord === 2 ? 0 : 4, 1)),
-                  endDate: new Date(Date.UTC(ord === 1 ? y1 : y2, ord === 1 ? 11 : ord === 2 ? 3 : 6, 30)),
-                },
-              });
-            }
-          }
-
-          // 2. Classes and Arms
-          const armRecords = new Map();
-          for (const [cName, arms] of classMap.entries()) {
-            const sortOrder = computeClassSortOrder(cName);
-            let classGroup = await tx.classGroup.findFirst({
-              where: { branchId: branch.id, name: cName },
-            });
-            if (!classGroup) {
-              classGroup = await tx.classGroup.create({
-                data: { branchId: branch.id, name: cName, sortOrder },
-              });
-            }
-
-            for (const armName of arms) {
-              let arm = await tx.classArm.findFirst({
-                where: { branchId: branch.id, classGroupId: classGroup.id, name: armName },
-              });
-              if (!arm) {
-                arm = await tx.classArm.create({
-                  data: { branchId: branch.id, classGroupId: classGroup.id, name: armName },
-                });
-              }
-              armRecords.set(`${cName}__${armName}`, arm);
-            }
-          }
-
-          // 3. Subjects & Offerings
-          const subjectRecords = new Map();
-          for (const subName of subjectSet) {
-            let sub = await tx.subject.findFirst({
-              where: { branchId: branch.id, name: subName },
-            });
-            if (!sub) {
-              sub = await tx.subject.create({
-                data: {
-                  branchId: branch.id,
-                  name: subName,
-                  code: generateSubjectCode(subName),
-                },
-              });
-            }
-            subjectRecords.set(subName, sub);
-
-            // Offer in all classes
-            for (const [cName] of classMap.entries()) {
-              const cg = await tx.classGroup.findFirst({ where: { branchId: branch.id, name: cName } });
-              if (cg) {
-                await tx.subjectOffering.upsert({
-                  where: { classGroupId_subjectId: { classGroupId: cg.id, subjectId: sub.id } },
-                  update: {},
-                  create: { branchId: branch.id, classGroupId: cg.id, subjectId: sub.id },
-                });
-              }
-            }
-          }
-
-          // 4. Default Scheme & Scale
-          let defaultScheme = await tx.assessmentScheme.findFirst({
-            where: { branchId: branch.id, classGroupId: null, archivedAt: null },
-          });
-          if (!defaultScheme) {
-            const isSec = branch.name.toLowerCase().includes("secondary");
-            defaultScheme = await tx.assessmentScheme.create({
-              data: {
-                branchId: branch.id,
-                name: isSec ? "Secondary Default (30/70)" : "Primary Default (40/60)",
-                totalMax: 100,
-                examMax: isSec ? 70 : 60,
-              },
-            });
-            await tx.assessmentComponent.create({
-              data: {
-                branchId: branch.id,
-                schemeId: defaultScheme.id,
-                name: "Continuous Assessment",
-                maxScore: isSec ? 30 : 40,
-                sortOrder: 0,
-              },
-            });
-          }
-
-          let defaultScale = await tx.gradeScale.findFirst({
-            where: { branchId: branch.id, isDefault: true, archivedAt: null },
-          });
-          if (!defaultScale) {
-            defaultScale = await tx.gradeScale.create({
-              data: { branchId: branch.id, name: "WAEC Standard Scale", isDefault: true },
-            });
-            for (let i = 0; i < WAEC_TEMPLATE.length; i++) {
-              const b = WAEC_TEMPLATE[i];
-              await tx.gradeBand.create({
-                data: {
-                  branchId: branch.id,
-                  scaleId: defaultScale.id,
-                  minScore: b.min,
-                  maxScore: b.max,
-                  letter: b.letter,
-                  remark: b.remark,
-                  sortOrder: i,
-                },
-              });
-            }
-          }
-
-          // 5. Students & Enrollments
-          const studentDbMap = new Map();
-          for (const s of studentMap.values()) {
-            const studentRecord = await tx.studentRecord.upsert({
-              where: { admissionNo: s.admissionNo },
-              update: {
-                firstName: s.firstName,
-                middleName: s.middleName,
-                lastName: s.lastName,
-                gender: s.gender,
-                guardianEmail: s.guardianEmail,
-              },
-              create: {
-                branchId: branch.id,
-                admissionNo: s.admissionNo,
-                firstName: s.firstName,
-                middleName: s.middleName,
-                lastName: s.lastName,
-                gender: s.gender,
-                dateOfBirth: s.dateOfBirth,
-                guardianEmail: s.guardianEmail,
-              },
-            });
-            studentDbMap.set(s.admissionNo, studentRecord);
-          }
-
-          for (const enr of enrollmentList) {
-            const sRec = studentDbMap.get(enr.admissionNo);
-            const sess = sessionRecords.get(enr.sessionLabel);
-            const arm = armRecords.get(`${enr.className}__${enr.arm}`);
-            if (sRec && sess) {
-              await tx.studentEnrollment.upsert({
-                where: { studentId_sessionId: { studentId: sRec.id, sessionId: sess.id } },
-                update: { className: enr.className, arm: enr.arm, classArmId: arm?.id || null },
-                create: {
-                  branchId: branch.id,
-                  studentId: sRec.id,
-                  sessionId: sess.id,
-                  className: enr.className,
-                  arm: enr.arm,
-                  classArmId: arm?.id || null,
+                  label: sLabel,
+                  startDate: new Date(Date.UTC(y1, 8, 1)),
+                  endDate: new Date(Date.UTC(y2, 6, 31)),
                   status: "ACTIVE",
                 },
               });
-            }
-          }
+              sessionRecords.set(sLabel, sess);
 
-          // 6. Results
-          for (const r of resultsList) {
-            const sRec = studentDbMap.get(r.admissionNo);
-            const sess = sessionRecords.get(r.sessionLabel);
-            const sub = subjectRecords.get(r.subjectName);
-            const arm = armRecords.get(`${r.className}__${r.armName}`);
-
-            if (sRec && sess && sub && arm) {
-              const period = await tx.academicPeriod.findFirst({
-                where: { sessionId: sess.id, ordinal: r.termOrdinal },
-              });
-              if (period) {
-                await tx.result.upsert({
-                  where: { studentId_subjectId_periodId: { studentId: sRec.id, subjectId: sub.id, periodId: period.id } },
-                  update: {
-                    componentScores: r.componentScores,
-                    examScore: r.examScore,
-                    examMax: r.examMax,
-                    caTotal: r.caTotal,
-                    total: r.total,
-                    maxScore: r.maxScore,
-                    gradeLetter: r.gradeLetter,
-                    gradeRemark: r.gradeRemark,
-                    status: "PUBLISHED",
-                  },
+              for (let ord = 1; ord <= 3; ord++) {
+                await tx.academicPeriod.upsert({
+                  where: { sessionId_ordinal: { sessionId: sess.id, ordinal: ord } },
+                  update: {},
                   create: {
                     branchId: branch.id,
-                    studentId: sRec.id,
-                    subjectId: sub.id,
-                    periodId: period.id,
-                    classArmId: arm.id,
-                    schemeId: defaultScheme.id,
+                    sessionId: sess.id,
+                    ordinal: ord,
+                    label: `${ord === 1 ? "1st" : ord === 2 ? "2nd" : "3rd"} Term`,
+                    kind: "TERM",
+                    startDate: new Date(Date.UTC(y1, ord === 1 ? 8 : ord === 2 ? 0 : 4, 1)),
+                    endDate: new Date(Date.UTC(ord === 1 ? y1 : y2, ord === 1 ? 11 : ord === 2 ? 3 : 6, 30)),
+                  },
+                });
+              }
+            }
+
+            // 2. Classes and Arms
+            const armRecords = new Map();
+            for (const [cName, arms] of classMap.entries()) {
+              const sortOrder = computeClassSortOrder(cName);
+              let classGroup = await tx.classGroup.findFirst({
+                where: { branchId: branch.id, name: cName },
+              });
+              if (!classGroup) {
+                classGroup = await tx.classGroup.create({
+                  data: { branchId: branch.id, name: cName, sortOrder },
+                });
+              }
+
+              for (const armName of arms) {
+                let arm = await tx.classArm.findFirst({
+                  where: { branchId: branch.id, classGroupId: classGroup.id, name: armName },
+                });
+                if (!arm) {
+                  arm = await tx.classArm.create({
+                    data: { branchId: branch.id, classGroupId: classGroup.id, name: armName },
+                  });
+                }
+                armRecords.set(`${cName}__${armName}`, arm);
+              }
+            }
+
+            // 3. Subjects & Offerings
+            const subjectRecords = new Map();
+            for (const subName of subjectSet) {
+              let sub = await tx.subject.findFirst({
+                where: { branchId: branch.id, name: subName },
+              });
+              if (!sub) {
+                sub = await tx.subject.create({
+                  data: {
+                    branchId: branch.id,
+                    name: subName,
+                    code: generateSubjectCode(subName),
+                  },
+                });
+              }
+              subjectRecords.set(subName, sub);
+
+              // Offer in all classes
+              for (const [cName] of classMap.entries()) {
+                const cg = await tx.classGroup.findFirst({ where: { branchId: branch.id, name: cName } });
+                if (cg) {
+                  await tx.subjectOffering.upsert({
+                    where: { classGroupId_subjectId: { classGroupId: cg.id, subjectId: sub.id } },
+                    update: {},
+                    create: { branchId: branch.id, classGroupId: cg.id, subjectId: sub.id },
+                  });
+                }
+              }
+            }
+
+            // 4. Default Scheme & Scale
+            let defaultScheme = await tx.assessmentScheme.findFirst({
+              where: { branchId: branch.id, classGroupId: null, archivedAt: null },
+            });
+            if (!defaultScheme) {
+              const isSec = branch.name.toLowerCase().includes("secondary");
+              defaultScheme = await tx.assessmentScheme.create({
+                data: {
+                  branchId: branch.id,
+                  name: isSec ? "Secondary Default (30/70)" : "Primary Default (40/60)",
+                  totalMax: 100,
+                  examMax: isSec ? 70 : 60,
+                },
+              });
+              await tx.assessmentComponent.create({
+                data: {
+                  branchId: branch.id,
+                  schemeId: defaultScheme.id,
+                  name: "Continuous Assessment",
+                  maxScore: isSec ? 30 : 40,
+                  sortOrder: 0,
+                },
+              });
+            }
+
+            let defaultScale = await tx.gradeScale.findFirst({
+              where: { branchId: branch.id, isDefault: true, archivedAt: null },
+            });
+            if (!defaultScale) {
+              defaultScale = await tx.gradeScale.create({
+                data: { branchId: branch.id, name: "WAEC Standard Scale", isDefault: true },
+              });
+              for (let i = 0; i < WAEC_TEMPLATE.length; i++) {
+                const b = WAEC_TEMPLATE[i];
+                await tx.gradeBand.create({
+                  data: {
+                    branchId: branch.id,
                     scaleId: defaultScale.id,
-                    componentScores: r.componentScores,
-                    examScore: r.examScore,
-                    examMax: r.examMax,
-                    caTotal: r.caTotal,
-                    total: r.total,
-                    maxScore: r.maxScore,
-                    gradeLetter: r.gradeLetter,
-                    gradeRemark: r.gradeRemark,
-                    status: "PUBLISHED",
-                    enteredByUserId: actorUserId,
-                    publishedAt: new Date(),
+                    minScore: b.min,
+                    maxScore: b.max,
+                    letter: b.letter,
+                    remark: b.remark,
+                    sortOrder: i,
                   },
                 });
               }
             }
-          }
 
-          // 7. Remarks
-          for (const rem of remarksList) {
-            const sRec = studentDbMap.get(rem.admissionNo);
-            const sess = sessionRecords.get(rem.sessionLabel);
-            if (sRec && sess) {
-              const period = await tx.academicPeriod.findFirst({
-                where: { sessionId: sess.id, ordinal: rem.termOrdinal },
+            // 5. Students & Enrollments
+            const studentDbMap = new Map();
+            for (const s of studentMap.values()) {
+              const studentRecord = await tx.studentRecord.upsert({
+                where: { admissionNo: s.admissionNo },
+                update: {
+                  firstName: s.firstName,
+                  middleName: s.middleName,
+                  lastName: s.lastName,
+                  gender: s.gender,
+                  guardianEmail: s.guardianEmail,
+                },
+                create: {
+                  branchId: branch.id,
+                  admissionNo: s.admissionNo,
+                  firstName: s.firstName,
+                  middleName: s.middleName,
+                  lastName: s.lastName,
+                  gender: s.gender,
+                  dateOfBirth: s.dateOfBirth,
+                  guardianEmail: s.guardianEmail,
+                },
               });
-              if (period) {
-                await tx.reportRemark.upsert({
-                  where: { studentId_periodId: { studentId: sRec.id, periodId: period.id } },
-                  update: {
-                    teacherRemark: rem.teacherRemark,
-                    principalRemark: rem.principalRemark,
-                  },
+              studentDbMap.set(s.admissionNo, studentRecord);
+            }
+
+            for (const enr of enrollmentList) {
+              const sRec = studentDbMap.get(enr.admissionNo);
+              const sess = sessionRecords.get(enr.sessionLabel);
+              const arm = armRecords.get(`${enr.className}__${enr.arm}`);
+              if (sRec && sess) {
+                await tx.studentEnrollment.upsert({
+                  where: { studentId_sessionId: { studentId: sRec.id, sessionId: sess.id } },
+                  update: { className: enr.className, arm: enr.arm, classArmId: arm?.id || null },
                   create: {
                     branchId: branch.id,
                     studentId: sRec.id,
-                    periodId: period.id,
-                    teacherRemark: rem.teacherRemark,
-                    principalRemark: rem.principalRemark,
-                    updatedByUserId: actorUserId,
+                    sessionId: sess.id,
+                    className: enr.className,
+                    arm: enr.arm,
+                    classArmId: arm?.id || null,
+                    status: "ACTIVE",
                   },
                 });
               }
             }
-          }
 
-          // 8. Audit Log
-          await tx.auditLog.create({
-            data: {
-              actorUserId,
-              action: "LEGACY_DATA_MIGRATED",
-              targetType: "Branch",
-              targetId: branch.id,
-              afterValue: {
-                branchName: branch.name,
-                source,
-                studentsCount: studentMap.size,
-                resultsCount: resultsList.length,
-                remarksCount: remarksList.length,
-                timestamp: new Date().toISOString(),
+            // 6. Results
+            for (const r of resultsList) {
+              const sRec = studentDbMap.get(r.admissionNo);
+              const sess = sessionRecords.get(r.sessionLabel);
+              const sub = subjectRecords.get(r.subjectName);
+              const arm = armRecords.get(`${r.className}__${r.armName}`);
+
+              if (sRec && sess && sub && arm) {
+                const period = await tx.academicPeriod.findFirst({
+                  where: { sessionId: sess.id, ordinal: r.termOrdinal },
+                });
+                if (period) {
+                  const now = new Date();
+                  const verificationToken = crypto.randomBytes(32).toString("base64url");
+                  const verificationHash = crypto
+                    .createHash("sha256")
+                    .update(
+                      JSON.stringify({
+                        branchId: branch.id,
+                        studentId: sRec.id,
+                        subjectId: sub.id,
+                        periodId: period.id,
+                        classArmId: arm.id,
+                        schemeId: defaultScheme.id,
+                        scaleId: defaultScale.id,
+                        parts: (r.componentScores || []).map((p) => [p.name, p.max, p.score]),
+                        exam: Number(r.examScore).toFixed(2),
+                        total: Number(r.total).toFixed(2),
+                        grade: [r.gradeLetter, r.gradeRemark],
+                        publishedAt: now.toISOString(),
+                      }),
+                    )
+                    .digest("hex");
+
+                  await tx.result.upsert({
+                    where: { studentId_subjectId_periodId: { studentId: sRec.id, subjectId: sub.id, periodId: period.id } },
+                    update: {
+                      componentScores: r.componentScores,
+                      examScore: r.examScore,
+                      examMax: r.examMax,
+                      caTotal: r.caTotal,
+                      total: r.total,
+                      maxScore: r.maxScore,
+                      gradeLetter: r.gradeLetter,
+                      gradeRemark: r.gradeRemark,
+                    },
+                    create: {
+                      branchId: branch.id,
+                      studentId: sRec.id,
+                      subjectId: sub.id,
+                      periodId: period.id,
+                      classArmId: arm.id,
+                      schemeId: defaultScheme.id,
+                      scaleId: defaultScale.id,
+                      componentScores: r.componentScores,
+                      examScore: r.examScore,
+                      examMax: r.examMax,
+                      caTotal: r.caTotal,
+                      total: r.total,
+                      maxScore: r.maxScore,
+                      gradeLetter: r.gradeLetter,
+                      gradeRemark: r.gradeRemark,
+                      status: "PUBLISHED",
+                      enteredByUserId: actorUserId,
+                      submittedByUserId: actorUserId,
+                      submittedAt: now,
+                      approvedByUserId: actorUserId,
+                      approvedAt: now,
+                      publishedAt: now,
+                      verificationToken,
+                      verificationHash,
+                    },
+                  });
+                }
+              }
+            }
+
+            // 7. Remarks
+            for (const rem of remarksList) {
+              const sRec = studentDbMap.get(rem.admissionNo);
+              const sess = sessionRecords.get(rem.sessionLabel);
+              if (sRec && sess) {
+                const period = await tx.academicPeriod.findFirst({
+                  where: { sessionId: sess.id, ordinal: rem.termOrdinal },
+                });
+                if (period) {
+                  await tx.reportRemark.upsert({
+                    where: { studentId_periodId: { studentId: sRec.id, periodId: period.id } },
+                    update: {
+                      teacherRemark: rem.teacherRemark,
+                      principalRemark: rem.principalRemark,
+                    },
+                    create: {
+                      branchId: branch.id,
+                      studentId: sRec.id,
+                      periodId: period.id,
+                      teacherRemark: rem.teacherRemark,
+                      principalRemark: rem.principalRemark,
+                      updatedByUserId: actorUserId,
+                    },
+                  });
+                }
+              }
+            }
+
+            // 8. Audit Log
+            await tx.auditLog.create({
+              data: {
+                actorUserId,
+                action: "LEGACY_DATA_MIGRATED",
+                targetType: "Branch",
+                targetId: branch.id,
+                afterValue: {
+                  branchName: branch.name,
+                  source,
+                  studentsCount: studentMap.size,
+                  resultsCount: resultsList.length,
+                  remarksCount: remarksList.length,
+                  timestamp: new Date().toISOString(),
+                },
               },
-            },
-          });
-        });
+            });
+          },
+          { maxWait: 30000, timeout: 180000 },
+        );
 
         console.log(`[LIVE COMMIT SUCCESS] All records committed cleanly for ${branch.name}.`);
       }
