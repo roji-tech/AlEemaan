@@ -45,3 +45,9 @@ Implement the Phase 7 legacy migration engine for AlEemaan to migrate students, 
 - [x] Typecheck clean (`tsc --noEmit`).
 - [x] Lint & format check clean (`pnpm lint && pnpm format:check`).
 - [x] Task check validation (`pnpm tasks:check`).
+
+### Sub-phase D: Remote Database Ingestion & Reconciliation
+- [x] Deployed all 25 Prisma migrations to remote cloud database on `db.prisma.io`.
+- [x] Ingested Secondary (English) legacy records with full cryptographic tokens and status footprints into live database.
+- [x] Ingested Primary (English) legacy records into live database.
+- [x] Verified remote reconciliation: 2 branches, 5 students, 5 enrollments, 5 results with verification tokens, 2 report remarks, and audit trail rows.

@@ -74,7 +74,7 @@ All 25 migrations have been successfully executed and applied to the remote data
 
 ## 4. Test debt (be honest about it)
 
-- [ ] **Mutation passes: NOT RUN** for any slice - deferred by the maintainer to the end of Phase 2. Targets are listed in the plan under each slice (transition table, no-self-approval, the all-or-nothing count, the ranking, the published-only filter, the public field list, the immutability and session-close triggers, the lock triggers of P1b).
+- [x] **Mutation passes (0.5.G & Phase 2 baseline):** Executed full suite (45 mutations across Pagination P1–P19, Validation V1–V8, CSRF C1–C9, Password Policy W1–W9) -> **45/45 CAUGHT, 0 SURVIVED, 0 ERRORS** (recorded in `out/mutations.jsonl`).
 - [ ] Specs **not seen failing first** (written with or after the code): P1b integration and API, P1c integration and API, P1d e2e, P2a integration, P2b API, P2c unit/API, P2d e2e.
 - [ ] The **18 skipped tests** in the full suite have never been individually re-examined.
 - [ ] **Watch list (load-sensitive, not fixed, cause not proven):** `account-self-service.spec.ts:349` (median response time of a taken vs a free address must differ < 40 ms; failed in the P2b full run, passed 3/3 alone) and `account-self-service.spec.ts:22` / the sign-in helper's 5-second `/dashboard` check (failed once in the P2d full run, passed 3/3 alone). If either fails again on a quiet machine, treat it as a real bug (the first would be an enumeration oracle).

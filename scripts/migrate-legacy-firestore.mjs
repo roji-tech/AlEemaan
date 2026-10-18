@@ -12,6 +12,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 try {
@@ -465,11 +466,24 @@ async function main() {
       } else {
         console.log(`\n[LIVE COMMIT] Executing migration transaction in PostgreSQL...`);
 
-        const adminUser =
+        let adminUser =
           (await prisma.user.findFirst({
             where: { isSuperAdmin: true },
             select: { id: true },
           })) || (await prisma.user.findFirst({ select: { id: true } }));
+
+        if (!adminUser && !isDryRun) {
+          adminUser = await prisma.user.upsert({
+            where: { email: "system.migration@aleemaanschool.com" },
+            update: {},
+            create: {
+              email: "system.migration@aleemaanschool.com",
+              name: "System Migration",
+              isSuperAdmin: true,
+            },
+            select: { id: true },
+          });
+        }
 
         const actorUserId = adminUser?.id || "system";
 
@@ -671,6 +685,28 @@ async function main() {
                 where: { sessionId: sess.id, ordinal: r.termOrdinal },
               });
               if (period) {
+                const now = new Date();
+                const verificationToken = crypto.randomBytes(32).toString("base64url");
+                const verificationHash = crypto
+                  .createHash("sha256")
+                  .update(
+                    JSON.stringify({
+                      branchId: branch.id,
+                      studentId: sRec.id,
+                      subjectId: sub.id,
+                      periodId: period.id,
+                      classArmId: arm.id,
+                      schemeId: defaultScheme.id,
+                      scaleId: defaultScale.id,
+                      parts: (r.componentScores || []).map((p) => [p.name, p.max, p.score]),
+                      exam: Number(r.examScore).toFixed(2),
+                      total: Number(r.total).toFixed(2),
+                      grade: [r.gradeLetter, r.gradeRemark],
+                      publishedAt: now.toISOString(),
+                    }),
+                  )
+                  .digest("hex");
+
                 await tx.result.upsert({
                   where: { studentId_subjectId_periodId: { studentId: sRec.id, subjectId: sub.id, periodId: period.id } },
                   update: {
@@ -682,7 +718,6 @@ async function main() {
                     maxScore: r.maxScore,
                     gradeLetter: r.gradeLetter,
                     gradeRemark: r.gradeRemark,
-                    status: "PUBLISHED",
                   },
                   create: {
                     branchId: branch.id,
@@ -702,7 +737,13 @@ async function main() {
                     gradeRemark: r.gradeRemark,
                     status: "PUBLISHED",
                     enteredByUserId: actorUserId,
-                    publishedAt: new Date(),
+                    submittedByUserId: actorUserId,
+                    submittedAt: now,
+                    approvedByUserId: actorUserId,
+                    approvedAt: now,
+                    publishedAt: now,
+                    verificationToken,
+                    verificationHash,
                   },
                 });
               }
@@ -754,7 +795,7 @@ async function main() {
               },
             },
           });
-        });
+        }, { maxWait: 30000, timeout: 180000 });
 
         console.log(`[LIVE COMMIT SUCCESS] All records committed cleanly for ${branch.name}.`);
       }

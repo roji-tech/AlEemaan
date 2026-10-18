@@ -179,9 +179,10 @@
 - [x] Sub-phase D: Quality Gates & Handover (0 type errors, 0 lint errors, 308/308 unit tests passed, 72/72 routes compiled successfully).
 
 ### TASK-0029: Phase 7 — Legacy Data Migration Tooling & Ingestion
-- **Status:** Completed (`claude/task-0029-legacy-data-migration`).
+- **Status:** Completed (`claude/task-0029-legacy-data-migration`, PR #58 into `dev`, PR #59 into `master`, PR #60 into `prod`).
 - [x] Sub-phase A: Migration Architecture & Data Mappers (`src/lib/migration/legacy-mapper.ts` transforming legacy Firestore students, classes, subjects, results to Prisma schema).
 - [x] Sub-phase B: CLI Ingestion Engine (`scripts/migrate-legacy-firestore.mjs` with `--dry-run`, `--live`, duplicate detection, checksum reconciliation reporting).
 - [x] Sub-phase C: Verification & Quality Gates (15 unit tests in `tests/unit/legacy-migration.spec.ts`, 0 type errors, 0 lint warnings).
+- [x] Sub-phase D: Remote Database Ingestion & Live Reconciliation (Deployed to `db.prisma.io`, committed 2 branches, 5 students, 5 enrollments, 5 results with cryptographic verification tokens & hashes, 2 report remarks, and audit trail rows).
 
 
