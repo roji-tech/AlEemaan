@@ -142,3 +142,16 @@ test("an administrator of one branch cannot message, template or promote in anot
   expect((await api(`/api/v1/communication/templates?branchId=${home.id}`, { cookie: a.cookie })).status).toBe(200);
   expect((await api(`/api/v1/academics/promotion/batches?branchId=${home.id}`, { cookie: a.cookie })).status).toBe(200);
 });
+
+test("the academic sessions list shows a teacher only their own branches", async () => {
+  const mk = (branchId: string, name: string) =>
+    db.academicSession.create({ data: { branchId, label: name, startDate: new Date("2026-09-01"), endDate: new Date("2027-07-01") } });
+  await mk(home.id, "Home 2026");
+  await mk(other.id, "Other 2026");
+  const t = await as(Role.TEACHING_STAFF);
+
+  const all = await api("/api/v1/academics/sessions", { cookie: t.cookie });
+  expect(all.status).toBe(200);
+  expect(all.json.data.sessions.map((s: { label: string }) => s.label)).toEqual(["Home 2026"]);
+  expect((await api(`/api/v1/academics/sessions?branchId=${other.id}`, { cookie: t.cookie })).status).toBe(404);
+});

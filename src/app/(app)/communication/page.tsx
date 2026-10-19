@@ -44,7 +44,7 @@ export default async function CommunicationPage() {
         description="Broadcast targeted multi-channel announcements via SMS, Email, and WhatsApp, monitor dispatch queues, and manage notification templates."
       />
       {branches.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">
           You don&apos;t have access to any school branch communications yet.
         </p>
       ) : (

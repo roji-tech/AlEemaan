@@ -86,7 +86,7 @@ test.describe("Slice P5 — LMS & Coursework API Integration", () => {
     // 3. Student submits their work
     const submitRes = await api(`/api/v1/lms/assignments/${assignmentId}/submissions`, {
       method: "POST",
-      cookie: studentUser.cookie,
+      cookie: teacher.cookie,
       body: {
         branchId: home.id,
         studentId: student.id,
@@ -219,7 +219,7 @@ test.describe("Slice P5 — LMS & Coursework API Integration", () => {
     // 4. Student attempts quiz with automated grading
     const attemptRes = await api(`/api/v1/lms/quizzes/${quizId}/attempt`, {
       method: "POST",
-      cookie: studentUser.cookie,
+      cookie: teacher.cookie,
       body: {
         branchId: home.id,
         studentId: student.id,
@@ -233,5 +233,31 @@ test.describe("Slice P5 — LMS & Coursework API Integration", () => {
     expect(attemptRes.status).toBe(201);
     expect(attemptRes.json.data.score).toBe(100);
     expect(attemptRes.json.data.isPassed).toBe(true);
+  });
+
+  test("a student session cannot hand in work or take a quiz as a pupil, and staff cannot name a pupil of another branch", async () => {
+    const other = await db.branch.create({ data: { name: "Branch Gamma" } });
+    const teacher = await asRole(Role.TEACHING_STAFF, home.id);
+    const studentUser = await asRole(Role.STUDENT, home.id);
+    const subject = await db.subject.create({ data: { branchId: home.id, name: "Civic", code: "CIV" } });
+    const mine = await db.studentRecord.create({
+      data: { branchId: home.id, firstName: "A", lastName: "Mine", gender: "FEMALE", dateOfBirth: new Date("2012-01-01"), admissionNo: "SUB-1" },
+    });
+    const theirs = await db.studentRecord.create({
+      data: { branchId: other.id, firstName: "B", lastName: "Theirs", gender: "MALE", dateOfBirth: new Date("2012-01-01"), admissionNo: "SUB-2" },
+    });
+    const made = await api("/api/v1/lms/assignments", {
+      method: "POST",
+      cookie: teacher.cookie,
+      body: { branchId: home.id, subjectId: subject.id, title: "HW", instructions: "Do it", dueDate: new Date(Date.now() + 864e5).toISOString() },
+    });
+    expect(made.status).toBe(201);
+    const url = `/api/v1/lms/assignments/${made.json.data.id}/submissions`;
+
+    const asStudent = await api(url, { method: "POST", cookie: studentUser.cookie, body: { branchId: home.id, studentId: mine.id, content: "x" } });
+    expect(asStudent.status).toBe(403);
+    const crossPupil = await api(url, { method: "POST", cookie: teacher.cookie, body: { branchId: home.id, studentId: theirs.id, content: "x" } });
+    expect(crossPupil.status).toBe(400);
+    expect(await db.assignmentSubmission.count()).toBe(0);
   });
 });

@@ -3,6 +3,8 @@ import { test, expect } from "@playwright/test";
 import { Role, createUser, db, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 
+// A recent school day inside the teachers' 7-day edit window (a fixed date silently aged out of it).
+const RECENT = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 const ATTENDANCE_ROUTE = "/api/v1/attendance";
 
 let branch: { id: string; name: string };
@@ -100,7 +102,7 @@ test.describe("AlEemaan Attendance API", () => {
   test("GET /api/v1/attendance returns roll-call roster with enrolled students", async () => {
     const { cookie } = await asRole(Role.TEACHING_STAFF);
 
-    const res = await api(`${ATTENDANCE_ROUTE}?branchId=${branch.id}&className=Primary 1&arm=Gold&date=2026-10-09`, { cookie });
+    const res = await api(`${ATTENDANCE_ROUTE}?branchId=${branch.id}&className=Primary 1&arm=Gold&date=${RECENT}`, { cookie });
 
     expect(res.status).toBe(200);
     const data = res.json.data;
@@ -140,7 +142,7 @@ test.describe("AlEemaan Attendance API", () => {
       cookie,
       body: {
         branchId: branch.id,
-        date: "2026-10-09",
+        date: RECENT,
         records: [
           { studentId: student1.id, status: "PRESENT" },
           { studentId: student2.id, status: "LATE", remarks: "Traffic on Ring Road" },
@@ -160,7 +162,7 @@ test.describe("AlEemaan Attendance API", () => {
       cookie,
       body: {
         branchId: branch.id,
-        date: "2026-10-09",
+        date: RECENT,
         records: [
           { studentId: student1.id, status: "ABSENT", remarks: "Fever" },
           { studentId: student2.id, status: "PRESENT" },
@@ -174,7 +176,7 @@ test.describe("AlEemaan Attendance API", () => {
     expect(res2.json.data.summary.attendanceRate).toBe(50);
 
     // Verify GET reflects updated attendance status
-    const getRes = await api(`${ATTENDANCE_ROUTE}?branchId=${branch.id}&className=Primary 1&date=2026-10-09`, { cookie });
+    const getRes = await api(`${ATTENDANCE_ROUTE}?branchId=${branch.id}&className=Primary 1&date=${RECENT}`, { cookie });
     expect(getRes.status).toBe(200);
     const studs = getRes.json.data.students as Array<{ studentId: string; status: string; remarks: string | null }>;
     const s1 = studs.find((s) => s.studentId === student1.id);

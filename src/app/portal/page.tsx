@@ -7,7 +7,7 @@ import { PortalHeader } from "@/components/portal/PortalHeader";
 import { PortalOverviewTab } from "@/components/portal/PortalOverviewTab";
 import { PortalResultsTab } from "@/components/portal/PortalResultsTab";
 import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
-import { PortalLmsTab } from "@/components/portal/PortalLmsTab";
+import { PortalLmsTab, type PortalLms } from "@/components/portal/PortalLmsTab";
 
 interface OverviewState {
   student: PortalStudentRecord;
@@ -84,31 +84,6 @@ interface InvoiceState {
   }>;
 }
 
-interface LmsState {
-  assignments: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    subjectName: string;
-    dueDate: string | null;
-    totalPoints: number;
-    submission: {
-      status: string;
-      score: number | null;
-      feedback: string | null;
-    } | null;
-  }>;
-  materials: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    subjectName: string;
-    content: string | null;
-    attachments: unknown;
-    createdAt: string;
-  }>;
-}
-
 function PortalContent() {
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("token") || undefined;
@@ -126,7 +101,7 @@ function PortalContent() {
   const [resultsBlocked, setResultsBlocked] = useState(false);
   const [resultsBalance, setResultsBalance] = useState(0);
   const [financeData, setFinanceData] = useState<InvoiceState[]>([]);
-  const [lmsData, setLmsData] = useState<LmsState>({ assignments: [], materials: [] });
+  const [lmsData, setLmsData] = useState<PortalLms>({ assignments: [], materials: [], quizzes: [] });
 
   // Initial session check
   useEffect(() => {
@@ -180,7 +155,7 @@ function PortalContent() {
         } else if (activeTab === "lms") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/lms`);
           const json = await res.json();
-          if (!ignore && res.ok) setLmsData(json.data);
+          if (!ignore && res.ok) setLmsData({ quizzes: [], ...json.data });
         }
       } catch {
         // Tab fetch failure
@@ -275,7 +250,7 @@ function PortalContent() {
             aria-selected={activeTab === "overview"}
             onClick={() => handleTabChange("overview")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "overview" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "overview" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Overview
@@ -286,7 +261,7 @@ function PortalContent() {
             aria-selected={activeTab === "results"}
             onClick={() => handleTabChange("results")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "results" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "results" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Academic Results
@@ -297,7 +272,7 @@ function PortalContent() {
             aria-selected={activeTab === "finance"}
             onClick={() => handleTabChange("finance")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "finance" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "finance" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Fees & Billing
@@ -308,7 +283,7 @@ function PortalContent() {
             aria-selected={activeTab === "lms"}
             onClick={() => handleTabChange("lms")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "lms" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              activeTab === "lms" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Coursework (LMS)
@@ -339,7 +314,14 @@ function PortalContent() {
               />
             )}
             {activeTab === "finance" && <PortalFinanceTab invoices={financeData} student={currentStudent} />}
-            {activeTab === "lms" && <PortalLmsTab lms={lmsData} student={currentStudent} />}
+            {activeTab === "lms" && <PortalLmsTab
+                lms={lmsData}
+                student={currentStudent}
+                onChanged={async () => {
+                  const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/lms`);
+                  if (res.ok) setLmsData({ quizzes: [], ...(await res.json()).data });
+                }}
+              />}
           </div>
         )}
       </main>

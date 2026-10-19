@@ -136,14 +136,14 @@ export function SpeedGraderModal({
     <Dialog open={isOpen} onClose={onClose} title={`Speed Grader: ${assignmentTitle}`} wide>
       <div className="space-y-4">
         {loadingList ? (
-          <p className="py-8 text-center text-sm text-muted-foreground animate-pulse">Loading student submissions...</p>
+          <p className="py-8 text-center text-sm text-fg-muted animate-pulse">Loading student submissions...</p>
         ) : submissionsList.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No student submissions recorded for this assignment yet.</p>
+          <p className="py-8 text-center text-sm text-fg-muted">No student submissions recorded for this assignment yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {/* Student Submissions List */}
-            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-2 md:col-span-1">
-              <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="space-y-2 rounded-lg border border-line bg-surface-2 p-2 md:col-span-1">
+              <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
                 Submissions ({submissionsList.length})
               </p>
               <div className="max-h-80 space-y-1 overflow-y-auto">
@@ -153,7 +153,7 @@ export function SpeedGraderModal({
                     type="button"
                     onClick={() => setSelectedIndex(idx)}
                     className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors ${
-                      idx === selectedIndex ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground"
+                      idx === selectedIndex ? "bg-brand-strong text-white font-medium" : "hover:bg-surface-2 text-fg"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -163,18 +163,18 @@ export function SpeedGraderModal({
                       {sub.score !== null ? (
                         <span
                           className={`text-xs ${
-                            idx === selectedIndex ? "text-primary-foreground/90 font-bold" : "text-emerald-600 font-semibold"
+                            idx === selectedIndex ? "text-white font-bold" : "text-ok-fg font-semibold"
                           }`}
                         >
                           {sub.score}/{totalPoints}
                         </span>
                       ) : (
-                        <span className={`text-xs ${idx === selectedIndex ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
+                        <span className={`text-xs ${idx === selectedIndex ? "text-white" : "text-fg-muted"}`}>
                           Ungraded
                         </span>
                       )}
                     </div>
-                    <span className={`text-xs block ${idx === selectedIndex ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                    <span className={`text-xs block ${idx === selectedIndex ? "text-white" : "text-fg-muted"}`}>
                       {sub.student.admissionNo}
                     </span>
                   </button>
@@ -186,29 +186,29 @@ export function SpeedGraderModal({
             <div className="space-y-4 md:col-span-2">
               {selectedSub && (
                 <>
-                  <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                  <div className="rounded-lg border border-line bg-surface p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h4 className="font-semibold text-foreground">
+                        <h4 className="font-semibold text-fg">
                           {selectedSub.student.firstName} {selectedSub.student.lastName}
                         </h4>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-fg-muted">
                           Admission: {selectedSub.student.admissionNo} • Submitted:{" "}
                           {selectedSub.submittedAt ? new Date(selectedSub.submittedAt).toLocaleString() : "Draft"}
                         </p>
                       </div>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-fg-muted">
                         {selectedSub.status}
                       </span>
                     </div>
 
                     {selectedSub.content && (
-                      <div className="p-3 rounded-md bg-muted/40 text-sm text-foreground whitespace-pre-wrap">{selectedSub.content}</div>
+                      <div className="p-3 rounded-md bg-surface-2 text-sm text-fg whitespace-pre-wrap">{selectedSub.content}</div>
                     )}
 
                     {selectedSub.attachments && selectedSub.attachments.length > 0 && (
                       <div className="space-y-1">
-                        <span className="text-xs font-semibold text-muted-foreground block">Attachments:</span>
+                        <span className="text-xs font-semibold text-fg-muted block">Attachments:</span>
                         <ul className="space-y-1">
                           {selectedSub.attachments.map((att, i) => (
                             <li key={i}>
@@ -216,7 +216,7 @@ export function SpeedGraderModal({
                                 href={att.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs font-medium text-primary hover:underline"
+                                className="text-xs font-medium text-brand-fg hover:underline"
                               >
                                 📎 {att.title || "Attached Document"} ↗
                               </a>
@@ -229,13 +229,13 @@ export function SpeedGraderModal({
 
                   <form onSubmit={handleGrade} className="space-y-3">
                     {error && (
-                      <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                      <div role="alert" className="p-3 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
                         {error}
                       </div>
                     )}
 
                     <div>
-                      <label htmlFor={scoreId} className="block text-sm font-medium text-foreground">
+                      <label htmlFor={scoreId} className="block text-sm font-medium text-fg">
                         Score (out of {totalPoints})
                       </label>
                       <input
@@ -245,13 +245,13 @@ export function SpeedGraderModal({
                         max={totalPoints}
                         value={score}
                         onChange={(e) => setScore(e.target.value)}
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                         placeholder={`0 - ${totalPoints}`}
                       />
                     </div>
 
                     <div>
-                      <label htmlFor={feedbackId} className="block text-sm font-medium text-foreground">
+                      <label htmlFor={feedbackId} className="block text-sm font-medium text-fg">
                         Teacher Feedback / Notes
                       </label>
                       <textarea
@@ -259,7 +259,7 @@ export function SpeedGraderModal({
                         rows={3}
                         value={feedback}
                         onChange={(e) => setFeedback(e.target.value)}
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                         placeholder="Well done, but check question 2..."
                       />
                     </div>
@@ -270,7 +270,7 @@ export function SpeedGraderModal({
                           type="button"
                           disabled={selectedIndex === 0}
                           onClick={() => setSelectedIndex((i) => i - 1)}
-                          className="px-3 py-1.5 rounded text-xs font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40"
+                          className="px-3 py-1.5 rounded text-xs font-medium border border-line text-fg hover:bg-surface-2 disabled:opacity-40"
                         >
                           ← Previous
                         </button>
@@ -278,7 +278,7 @@ export function SpeedGraderModal({
                           type="button"
                           disabled={selectedIndex === submissionsList.length - 1}
                           onClick={() => setSelectedIndex((i) => i + 1)}
-                          className="px-3 py-1.5 rounded text-xs font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40"
+                          className="px-3 py-1.5 rounded text-xs font-medium border border-line text-fg hover:bg-surface-2 disabled:opacity-40"
                         >
                           Next →
                         </button>
@@ -287,7 +287,7 @@ export function SpeedGraderModal({
                       <button
                         type="submit"
                         disabled={loading}
-                        className="inline-flex justify-center rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+                        className="inline-flex justify-center rounded-lg bg-brand-strong px-4 py-1.5 text-sm font-medium text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
                       >
                         {loading ? "Saving..." : "Save & Next Student"}
                       </button>

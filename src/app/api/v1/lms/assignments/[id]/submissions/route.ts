@@ -1,3 +1,4 @@
+import { resolveSubmitter } from "@/lib/lms/submitter";
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
 import { withAuthGated } from "@/lib/auth/branch-gate";
@@ -5,7 +6,6 @@ import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { submitAssignmentSchema } from "@/lib/lms/validation";
 import { submitAssignment, getAssignmentById, LmsError } from "@/lib/lms/service";
-import { prisma } from "@/lib/db";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -42,7 +42,7 @@ export const GET = withAuthGated(
  * POST /api/v1/lms/assignments/[id]/submissions
  */
 export const POST = withAuthGated(
-  "read-any",
+  "staff-write",
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id } = await params;
@@ -58,18 +58,9 @@ export const POST = withAuthGated(
         return fail(parsed.error.issues[0]?.message ?? "Invalid submission", 400, "VALIDATION");
       }
 
-      // Resolve student record ID from studentId in payload (admin/teacher testing) or auth.userId
-      let studentId = body.studentId;
-      if (!studentId) {
-        const studentRec = await prisma.studentRecord.findFirst({
-          where: { branchId, id: auth.userId },
-        });
-        studentId = studentRec?.id;
-      }
-
-      if (!studentId) {
-        return fail("studentId is required to submit work", 400, "VALIDATION");
-      }
+      const who = await resolveSubmitter(auth.userId, branchId, body.studentId);
+      if (!who.ok) return fail(who.message, who.status, who.status === 403 ? "FORBIDDEN" : "VALIDATION");
+      const studentId = who.studentId;
 
       const submission = await submitAssignment(branchId, id, studentId, parsed.data);
       return ok(submission, {}, 201);
@@ -80,5 +71,5 @@ export const POST = withAuthGated(
       return fail("Unable to submit assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.STUDENT, Role.ADMIN, Role.TEACHING_STAFF] },
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );

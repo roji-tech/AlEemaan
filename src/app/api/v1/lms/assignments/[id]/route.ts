@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateAssignmentSchema } from "@/lib/lms/validation";
+import { isBranchStaff, hideSubmissions } from "@/lib/lms/audience";
 import { getAssignmentById, updateAssignment, archiveAssignment, LmsError } from "@/lib/lms/service";
 
 interface RouteParams {
@@ -14,7 +15,7 @@ interface RouteParams {
  */
 export const GET = withAuthGated(
   "read-any",
-  async (req: NextRequest, _auth, { params }: RouteParams) => {
+  async (req: NextRequest, auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
       const { searchParams } = new URL(req.url);
@@ -25,7 +26,9 @@ export const GET = withAuthGated(
       }
 
       const assignment = await getAssignmentById(branchId, id);
-      return ok(assignment);
+      if (await isBranchStaff(auth.userId, branchId)) return ok(assignment);
+      if (assignment.status !== "PUBLISHED") return fail("Assignment not found", 404, "NOT_FOUND");
+      return ok(hideSubmissions(assignment));
     } catch (error) {
       if (error instanceof LmsError) {
         return fail(error.message, error.statusCode, "NOT_FOUND");

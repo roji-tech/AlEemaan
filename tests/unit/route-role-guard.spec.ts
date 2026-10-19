@@ -55,6 +55,10 @@ const ALLOWED: Record<string, string> = {
   "GET v1/portal/students/[studentId]/invoices/route.ts":
     "portal student invoices: verified by HMAC portal session cookie and allowedStudentIds",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS: verified by HMAC portal session cookie and allowedStudentIds",
+  "POST v1/portal/students/[studentId]/assignments/[assignmentId]/submission/route.ts":
+    "portal hand-in: verified by HMAC portal session cookie and allowedStudentIds; the pupil's enrolment fixes the branch and class",
+  "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
+    "portal quiz attempt: verified by HMAC portal session cookie and allowedStudentIds; the pupil's enrolment fixes the branch and class",
 };
 
 /// A handler declares who may call it with `roles:` or `superAdmin: true`.
@@ -91,7 +95,6 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
   "POST v1/academics/schemes/global/route.ts": "superadmin or admin approval workflow checks branch access",
   "GET v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
   "PATCH v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
-  "GET v1/academics/sessions/route.ts": "a list every signed-in person needs (content); acts on no single branch",
   "GET v1/announcements/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "POST v1/announcements/route.ts":
@@ -159,7 +162,11 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 /// join this list without someone writing why; the aim is for it to shrink.
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
-  "GET v1/academics/sessions/route.ts": "a list every signed-in person needs (content); acts on no single branch",
+  "POST v1/portal/students/[studentId]/assignments/[assignmentId]/submission/route.ts":
+    "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
+    "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
+  "GET v1/academics/sessions/route.ts": "a list narrowed to the caller's own branches (branchIdsFor); acts on no single branch",
   "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
   "GET v1/students/route.ts": "a list narrowed to the caller's visible branches (branchIdsFor); acts on no single branch",
   "GET v1/students/[id]/route.ts":

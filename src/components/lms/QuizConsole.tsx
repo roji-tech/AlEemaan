@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { QuizModal } from "./QuizModal";
-import { QuizAttemptModal } from "./QuizAttemptModal";
+import Link from "next/link";
 
 interface Question {
   id: string;
@@ -42,7 +42,6 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedForAttempt, setSelectedForAttempt] = useState<QuizItem | null>(null);
 
   const subjectFilterId = useId();
   const searchFilterId = useId();
@@ -97,20 +96,20 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
     );
   });
 
-  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(userRole);
+  const canManage = ["ADMIN", "TEACHING_STAFF"].includes(userRole);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Quizzes & Online Assessments</h2>
-          <p className="text-sm text-muted-foreground">Create auto-evaluated tests, objective quizzes, and check knowledge retention.</p>
+          <h2 className="text-xl font-bold tracking-tight text-fg">Quizzes & Online Assessments</h2>
+          <p className="text-sm text-fg-muted">Create auto-evaluated tests, objective quizzes, and check knowledge retention.</p>
         </div>
         {canManage && (
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-brand-strong px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
           >
             + Create Quiz
           </button>
@@ -118,9 +117,9 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
       </div>
 
       {/* Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-card border border-border rounded-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-surface border border-line rounded-xl">
         <div>
-          <label htmlFor={searchFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={searchFilterId} className="block text-xs font-medium text-fg mb-1">
             Search
           </label>
           <input
@@ -129,19 +128,19 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
             placeholder="Search quizzes by title or subject..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor={subjectFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={subjectFilterId} className="block text-xs font-medium text-fg mb-1">
             Subject
           </label>
           <select
             id={subjectFilterId}
             value={subjectFilter}
             onChange={(e) => setSubjectFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">All Subjects</option>
             {subjects.map((sub) => (
@@ -154,17 +153,17 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
       </div>
 
       {error && (
-        <div role="alert" className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+        <div role="alert" className="p-4 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading assessments...</div>
+        <div className="py-12 text-center text-sm text-fg-muted animate-pulse">Loading assessments...</div>
       ) : filteredQuizzes.length === 0 ? (
-        <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
-          <p className="text-sm font-medium text-foreground">No quizzes created</p>
-          <p className="text-xs text-muted-foreground mt-1">
+        <div className="py-16 text-center border-2 border-dashed border-line rounded-xl">
+          <p className="text-sm font-medium text-fg">No quizzes created</p>
+          <p className="text-xs text-fg-muted mt-1">
             {canManage ? "Create your first interactive quiz using the button above." : "No quizzes are available for this branch yet."}
           </p>
         </div>
@@ -173,16 +172,16 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
           {filteredQuizzes.map((quiz) => (
             <div
               key={quiz.id}
-              className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm hover:shadow transition-shadow"
+              className="flex flex-col justify-between rounded-xl border border-line bg-surface p-5 shadow-sm hover:shadow transition-shadow"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">{quiz.subject.name}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-brand-fg">{quiz.subject.name}</span>
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
                       quiz.status === "PUBLISHED"
-                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                        : "bg-muted text-muted-foreground border-border"
+                        ? "bg-ok-bg text-ok-fg border-ok-line"
+                        : "bg-surface-2 text-fg-muted border-line"
                     }`}
                   >
                     {quiz.status}
@@ -190,42 +189,42 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-foreground text-base line-clamp-1">{quiz.title}</h3>
-                  {quiz.classGroup && <p className="text-xs text-muted-foreground mt-0.5">Class: {quiz.classGroup.name}</p>}
+                  <h3 className="font-semibold text-fg text-base line-clamp-1">{quiz.title}</h3>
+                  {quiz.classGroup && <p className="text-xs text-fg-muted mt-0.5">Class: {quiz.classGroup.name}</p>}
                 </div>
 
-                {quiz.instructions && <p className="text-xs text-muted-foreground line-clamp-2">{quiz.instructions}</p>}
+                {quiz.instructions && <p className="text-xs text-fg-muted line-clamp-2">{quiz.instructions}</p>}
 
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-xs">
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-line text-xs">
                   <div>
-                    <span className="text-muted-foreground block">Questions</span>
-                    <span className="font-medium text-foreground">{quiz.questions?.length ?? 0}</span>
+                    <span className="text-fg-muted block">Questions</span>
+                    <span className="font-medium text-fg">{quiz.questions?.length ?? 0}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Time</span>
-                    <span className="font-medium text-foreground">{quiz.timeLimitMinutes ? `${quiz.timeLimitMinutes}m` : "Untimed"}</span>
+                    <span className="text-fg-muted block">Time</span>
+                    <span className="font-medium text-fg">{quiz.timeLimitMinutes ? `${quiz.timeLimitMinutes}m` : "Untimed"}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Pass Rate</span>
-                    <span className="font-medium text-foreground">{quiz.passingScore ? `${quiz.passingScore}%` : "None"}</span>
+                    <span className="text-fg-muted block">Pass Rate</span>
+                    <span className="font-medium text-fg">{quiz.passingScore ? `${quiz.passingScore}%` : "None"}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedForAttempt(quiz)}
-                  className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
-                >
-                  Take Quiz
-                </button>
+              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2">
+                {userRole === "STUDENT" || userRole === "PARENT" ? (
+                  <Link href="/portal" className="text-xs font-medium text-brand-fg hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    Take it on the portal
+                  </Link>
+                ) : (
+                  <span />
+                )}
 
                 {canManage && (
                   <button
                     type="button"
                     onClick={() => handleDelete(quiz.id, quiz.title)}
-                    className="p-1 rounded text-destructive hover:bg-destructive/10 text-xs font-medium focus:outline-none"
+                    className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
                     aria-label={`Delete quiz ${quiz.title}`}
                   >
                     Delete
@@ -249,22 +248,6 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
           branchId={branchId}
           subjects={subjects}
           classGroups={classGroups}
-        />
-      )}
-
-      {/* Attempt Modal */}
-      {selectedForAttempt && (
-        <QuizAttemptModal
-          isOpen={Boolean(selectedForAttempt)}
-          onClose={() => setSelectedForAttempt(null)}
-          quizId={selectedForAttempt.id}
-          quizTitle={selectedForAttempt.title}
-          timeLimitMinutes={selectedForAttempt.timeLimitMinutes}
-          passingScore={selectedForAttempt.passingScore}
-          questions={selectedForAttempt.questions || []}
-          onComplete={() => {
-            void fetchQuizzes();
-          }}
         />
       )}
     </div>
