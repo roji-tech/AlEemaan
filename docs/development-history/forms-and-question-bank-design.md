@@ -41,7 +41,7 @@ Out of scope here: replacing the existing Quiz tables (they stay as they are), a
 | **Reviewer** | Approves, edits or rejects submissions. **General** (all subjects) or **per subject**. |
 | **Exam approver** | A designated reviewer (general or per subject) who sees overlap warnings and sets visibility. Several allowed. |
 | **Form** | The container for practice sets, questionnaires and paper work (below). Quizzes keep their own tables. |
-| **Section** | A coarse grouping of classes (for example "JSS", "SSS", "Primary") used wherever a pupil must not be identifiable by class. |
+| **Section** | A coarse grouping of classes (for example "JSS", "SSS", "Primary") used wherever a pupil must not be identifiable by class. Source (decided 2026-10-19): an optional `ClassGroup.section` the branch admin sets; when empty, the branch name is shown. |
 
 ## 4. The kinds of thing a teacher can publish
 
@@ -67,7 +67,7 @@ QuestionBankItem
   prompt, explanation?, points, difficulty?, topic?
   options Json             // [{id, text}]
   correctAnswer Json?      // string | string[]; null for questionnaire items
-  subjectId?               // null = cross-subject
+  subjectLabel?, subjectKey? // null = cross-subject. TEXT, not a foreign key: Subject rows belong to one branch (16a, decided 2026-10-19). Key = normalizeLabel(label)
   visibility               // PRACTICE | TEACHERS_ONLY | TEACHERS_ONLY_UNTIL
   visibleFrom DateTime?    // for TEACHERS_ONLY_UNTIL (date) ...
   visibleAfterAssessmentId?// ... or an assessment's close
@@ -77,9 +77,9 @@ QuestionBankItem
   createdAt, updatedAt
 
 QuestionBankImage        (itemId, storageKey, alt, decorative, bytes, w, h, sortOrder)  max 3 or 4 per item (trigger)
-QuestionBankClassTag     (itemId, classGroupId)                                        several per item
+QuestionBankClassTag     (itemId, label, labelKey)                                     several per item; matched to a branch's classes by normalizeLabel(ClassGroup.name) = labelKey
 QuestionBankReview       (itemId, version, reviewerId, outcome, reason, at)            immutable audit of every decision
-QuestionBankReviewer     (userId, scope: GENERAL|SUBJECT, subjectId?, isExamApprover, branchId?, assignedById, at)
+QuestionBankReviewer     (userId, scope: GENERAL|SUBJECT, subjectLabel?, subjectKey?, isExamApprover, branchId?, assignedById, at)
 QuestionOverlapFlag      (itemId, similarToItemId?, similarToAssessmentQuestionId?, score, createdAt)  visible to exam approvers only
 
 FormQuestion             (formId|assessmentId, sourceItemId?, sourceVersion?, prompt, type, options, correctAnswer?, points, marking AUTO|MANUAL, sortOrder, images...)  the COPY
@@ -221,14 +221,13 @@ Mutation passes stay deferred to the end of Phase 2 (maintainer's call).
 
 All additive. New tables only; no change to `Quiz`, `Result`, `Assignment`. Triggers: image count per item, append-only audit and review rows, `FormAnsweredBy` has no foreign key to responses. Deploy order: migration first, then code (as in the UI1 note).
 
-## 16a. Two gaps found while planning slice 1 (2026-10-19) - these DO block slice 1's schema
+## 16a. Two gaps found while planning slice 1 (2026-10-19) - both DECIDED by the maintainer the same day
 
-- **Class and subject tags across branches.** `ClassGroup` and `Subject` are per-branch rows (each has a `branchId` and a composite `(branchId, id)` key). A GENERAL item (`branchId = null`, section 5) cannot point at one branch's `classGroupId` or `subjectId`: a composite foreign key needs a branch, and another branch's "JSS 1" is a different row. A "per subject" reviewer (section 6) has the same problem. Options:
-  - (a) tag by a text label matched on the normalised name or code: cheapest, but drifts ("JSS1" and "JSS 1"; the Arabic branches);
-  - **(b) recommended:** add nullable `ClassGroup.levelKey` and `Subject.subjectKey` (the migration fills them from the normalised name or code; an admin can edit them) and tag items and reviewers by key: additive, explicit, one small field on each existing table;
-  - (c) a superadmin-managed school-wide catalogue of levels and subjects that each branch maps its rows to: cleanest, most work (new screens).
-- **"Section" has no source in the data.** The design uses it ("a pupil in JSS") so reviewers never see a class. The schema has no such thing: a `Branch` is one of the four legacy sections (Primary or Secondary, English or Arabic) and has no JSS/SSS split. Options: **(a) recommended:** a nullable `ClassGroup.section` text the admin sets (the branch name is shown when it is empty); (b) use the branch name only ("a pupil in Secondary (English)"): simplest and most private, loses JSS versus SSS; (c) a fixed enum.
-- Both are the maintainer's call. Slice 1 starts only after they are answered.
+- **Class and subject tags across branches.** `ClassGroup` and `Subject` are per-branch rows (each has a `branchId` and a composite `(branchId, id)` key). A GENERAL item (`branchId = null`, section 5) cannot point at one branch's `classGroupId` or `subjectId`: a composite foreign key needs a branch, and another branch's "JSS 1" is a different row. A "per subject" reviewer (section 6) has the same problem. Options that were offered: (a) tag by a text label matched on the normalised name or code; (b) nullable `levelKey` / `subjectKey` on the existing tables; (c) a superadmin catalogue the branches map to.
+  - **Decision (maintainer): (a), "we'll just have to do some normalization".** No column is added to `ClassGroup` or `Subject` for tags. A tag stores the label as typed AND a `labelKey`; matching is `normalizeLabel(ClassGroup.name) = labelKey`, computed in the application (a branch has a handful of classes, so the keys of one branch are computed once and the query is `labelKey IN (...)`). Keeping the typed label next to the key means the normalisation rules can be improved and every key recomputed later without losing what the teacher wrote.
+  - `normalizeLabel` is one pure, unit-tested function used everywhere (items, tags, reviewers, matching): Unicode NFKC, lower-case, Arabic-Indic and Persian digits to ASCII, remove spaces, hyphens, dots, underscores and punctuation ("JSS 1", "JSS-1", "jss1", "J.S.S. 1" are all `jss1`). It does NOT guess that "Junior Secondary 1" means "JSS 1"; the rule is plain on purpose. Names that still do not match are the known weakness: the bank screen shows, for each tag, which classes of the viewer's branch it matches, and says so when it matches none.
+- **"Section" has no source in the data.** The design uses it ("a pupil in JSS") so reviewers never see a class. The schema has no such thing: a `Branch` is one of the four legacy sections (Primary or Secondary, English or Arabic) and has no JSS/SSS split.
+  - **Decision (maintainer): an optional `ClassGroup.section` text the admin sets** (for example JSS, SSS, Primary); when it is empty reviewers see the branch name. The column, the class form field and the API accept it arrive with slice 5 (reports), its only consumer, in their own small additive migration.
 
 ## 16. Open items (small; none block slice 1)
 

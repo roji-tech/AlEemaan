@@ -176,3 +176,8 @@ Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitec
 - Answered the same day: **Octalve's question-bank parity (its own design note, then the build) comes BEFORE Octalve's walkthrough**; "all tasks" includes it.
 - **Merging (maintainer, 2026-10-19): "yes merge".** The AI may merge the AlEemaan and Octalve PRs into `dev` once the full suite is green (for Octalve: no failure that is not already failing on `dev`) and `base.ref` is verified to be `dev`. Merging into `master`/`prod` still needs the maintainer's explicit approval.
 - **Portal secret:** the maintainer runs the app locally and said to set `SESSION_SECRET` locally; done in the git-ignored `.env` and documented in `.env.example`. The hard-coded fallback in `getPortalSecret()` is still in the code (see open-items).
+
+### 6.8 Question bank - two design gaps found and decided (2026-10-19)
+- Classes and subjects are per-branch rows, so a "general" (all-branches) question cannot point at them. **Decided: tags are text matched by normalised name** ("we'll just have to do some normalization"): a tag keeps the label as typed plus a `labelKey` from one pure `normalizeLabel()`; nothing is added to `ClassGroup` or `Subject` for tags; per-subject reviewers work the same way.
+- "Section" (shown to reviewers instead of a class) had no source. **Decided: an optional `ClassGroup.section` the admin sets**; the branch name is shown when it is empty; it arrives with slice 5.
+- Details and the slice 1 plan: design note section 16a and `docs/tasks/0032-forms-and-question-bank.md` section 4.
