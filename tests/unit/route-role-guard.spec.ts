@@ -152,6 +152,14 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
   "DELETE v1/settings/self-approval/route.ts": "self-approval deleted per branch with admin role check",
   "GET v1/settings/verification/route.ts": "verification settings queried by branchId",
   "POST v1/setup/route.ts": "public first-run setup creates branch and administrator",
+  "GET v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "POST v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "PUT v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
   "GET v1/timetable/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/timetable/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
@@ -269,6 +277,16 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/portal/students/[studentId]/results/route.ts": "portal student results verified by portal session cookie",
   "GET v1/portal/students/[studentId]/invoices/route.ts": "portal student invoices verified by portal session cookie",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS verified by portal session cookie",
+  "GET v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "POST v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "PUT v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "DELETE v1/question-bank/reviewers/[id]/route.ts":
+    "the branch is the reviewer ROW's, never the request's: the caller must administer that branch (canAdminister) or be a superadmin, and an every-branch row (branchId null) is a superadmin's alone, which withBranch does not model; unknown and not-yours are the same 404",
 };
 
 function routeFiles(dir: string): string[] {

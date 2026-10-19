@@ -194,3 +194,152 @@ export function settingProblems(values: Partial<BankSettingValues>): string[] {
     problems.push(`The daily cap (${v["bank.practice.dailyCap"]}) cannot be below the maximum set size (${max}).`);
   return problems;
 }
+
+/// Every key's value, with the default for anything missing or invalid. No narrowing and no clamping: this is the school's (or a branch's) own choice as stored, what
+/// `settingProblems` checks before a change is written.
+export function completeBankSettings(source: Rows): BankSettingValues {
+  const out: Record<string, unknown> = {};
+  for (const key of BANK_SETTING_KEYS) {
+    const parsed = parseBankSetting(key, own(source, key));
+    out[key] = parsed.ok ? parsed.value : Array.isArray(BANK_DEFAULTS[key]) ? [...(BANK_DEFAULTS[key] as number[])] : BANK_DEFAULTS[key];
+  }
+  return out as BankSettingValues;
+}
+
+export type BankSettingMeta = {
+  label: string;
+  help: string;
+  /// How the screen asks for it: an on/off switch, a whole number, a list of set sizes, or a choice between 3 and 4.
+  kind: "flag" | "whole" | "presets" | "images";
+  min?: number;
+  max?: number;
+  unit?: string;
+  /// In words, which way a branch may move it ("a branch may only narrow").
+  stricter: string;
+};
+
+const FLAG_STRICTER = "Off is stricter: a branch can switch it off, never on if the school has it off.";
+const LOWER_STRICTER = "A lower number is stricter: a branch can lower it, never raise it.";
+const HIGHER_STRICTER = "A higher number is stricter: a branch can raise it, never lower it.";
+
+/// What the Question bank settings screen shows for each key. The bounds repeat the validators above; the unit spec checks the two agree.
+export const BANK_SETTING_META: Readonly<Record<BankSettingKey, BankSettingMeta>> = {
+  "bank.access.pupils": {
+    label: "Pupils can use the question bank",
+    help: "Turns practice off for pupils.",
+    kind: "flag",
+    stricter: FLAG_STRICTER,
+  },
+  "bank.access.staff": {
+    label: "Teachers and other staff can use the question bank",
+    help: "Turns the bank off for staff who are not administrators.",
+    kind: "flag",
+    stricter: FLAG_STRICTER,
+  },
+  "bank.access.admins": {
+    label: "Administrators can use the question bank",
+    help: "Turns the bank off for administrators.",
+    kind: "flag",
+    stricter: FLAG_STRICTER,
+  },
+  "bank.practice.maxQuestions": {
+    label: "Largest practice set",
+    help: "The most questions a pupil can ask for in one practice set.",
+    kind: "whole",
+    min: 1,
+    max: 500,
+    unit: "questions",
+    stricter: LOWER_STRICTER,
+  },
+  "bank.practice.defaultQuestions": {
+    label: "Default practice set size",
+    help: "What a pupil gets if they do not choose a size. Cannot be above the largest set.",
+    kind: "whole",
+    min: 1,
+    max: 500,
+    unit: "questions",
+    stricter: LOWER_STRICTER,
+  },
+  "bank.practice.presets": {
+    label: "Practice set sizes offered",
+    help: "The sizes a pupil can pick, smallest first. None can be above the largest set.",
+    kind: "presets",
+    min: 1,
+    max: 500,
+    stricter: "Fewer is stricter: a branch can keep some of the school's sizes, never add one.",
+  },
+  "bank.practice.dailyCap": {
+    label: "Questions a pupil can practise in a day",
+    help: "Stops one pupil from working through the whole bank. Cannot be below the largest set.",
+    kind: "whole",
+    min: 1,
+    max: 1000,
+    unit: "questions",
+    stricter: LOWER_STRICTER,
+  },
+  "bank.practice.minPoolSize": {
+    label: "Smallest pool before practice is offered",
+    help: "For a subject and class with fewer approved practice questions than this, practice is simply not offered.",
+    kind: "whole",
+    min: 1,
+    max: 1000,
+    unit: "questions",
+    stricter: HIGHER_STRICTER,
+  },
+  "bank.reports.teachers": {
+    label: "Teachers can report a problem with a question",
+    help: "Turns teacher reports on or off.",
+    kind: "flag",
+    stricter: FLAG_STRICTER,
+  },
+  "bank.reports.pupils": {
+    label: "Pupils can report a problem with a question",
+    help: "Turns pupil reports on or off.",
+    kind: "flag",
+    stricter: FLAG_STRICTER,
+  },
+  "bank.images.max": {
+    label: "Images per question",
+    help: "3 or 4. The database never allows more than 4.",
+    kind: "images",
+    min: 3,
+    max: 4,
+    stricter: LOWER_STRICTER,
+  },
+  "bank.images.maxBytes": {
+    label: "Largest image file",
+    help: "In bytes (512000 is 500 KB).",
+    kind: "whole",
+    min: 50 * 1024,
+    max: 2 * 1024 * 1024,
+    unit: "bytes",
+    stricter: LOWER_STRICTER,
+  },
+  "bank.images.maxLongSide": {
+    label: "Longest image side",
+    help: "Larger images are refused.",
+    kind: "whole",
+    min: 400,
+    max: 4000,
+    unit: "pixels",
+    stricter: LOWER_STRICTER,
+  },
+  "bank.print.nearExamDays": {
+    label: "Days before an exam when teachers cannot print its questions",
+    help: "Exam approvers can still print, audited and watermarked.",
+    kind: "whole",
+    min: 0,
+    max: 60,
+    unit: "days",
+    stricter: HIGHER_STRICTER,
+  },
+  "bank.smallSummary.min": {
+    label: "Fewest responses before a breakdown is shown",
+    help: "Below this a summary shows only the total, so no one can be picked out.",
+    kind: "whole",
+    min: 3,
+    max: 50,
+    unit: "responses",
+    stricter: HIGHER_STRICTER,
+  },
+};
