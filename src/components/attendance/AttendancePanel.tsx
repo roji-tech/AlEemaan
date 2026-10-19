@@ -388,7 +388,13 @@ export function AttendancePanel({
         </div>
 
         <div className="flex min-w-0 gap-2">
-          <Button type="button" variant="secondary" onClick={() => stepDate(-1)} aria-label="Previous day" className="min-h-11 min-w-0 flex-1 px-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => stepDate(-1)}
+            aria-label="Previous day"
+            className="min-h-11 min-w-0 flex-1 px-3"
+          >
             ← Prev
           </Button>
           <Button
