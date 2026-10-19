@@ -140,6 +140,9 @@ function PortalContent() {
             setSelectedStudentId(json.data.students[0].id);
             setAuthenticated(true);
           }
+        } else {
+          // Read (and drop) the body of the "no session" answer: a chunked response nobody reads stays open in the browser, so the page never went idle.
+          await res.text().catch(() => "");
         }
       } catch {
         // Not authenticated

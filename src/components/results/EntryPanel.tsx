@@ -219,7 +219,9 @@ export function EntryPanel({
 
       {options && options.pairs.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-          You are not assigned to any subject in this branch yet. Ask an administrator to assign you on the Academics page.
+          {branches.find((b) => b.id === branchId)?.canEdit
+            ? "Nothing can be entered in this branch yet: no class arm has a subject offered, or there is no active session. Set up classes, arms and subjects on the Academics page."
+            : "You are not assigned to any subject in this branch yet. Ask an administrator to assign you on the Academics page."}
         </p>
       ) : options && options.periods.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">

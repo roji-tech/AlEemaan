@@ -387,8 +387,8 @@ export function AttendancePanel({
           />
         </div>
 
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={() => stepDate(-1)} aria-label="Previous day" className="min-h-11 flex-1">
+        <div className="flex min-w-0 gap-2">
+          <Button type="button" variant="secondary" onClick={() => stepDate(-1)} aria-label="Previous day" className="min-h-11 min-w-0 flex-1 px-3">
             ← Prev
           </Button>
           <Button
@@ -399,7 +399,7 @@ export function AttendancePanel({
               setOverrides({});
             }}
             disabled={date === today}
-            className="min-h-11"
+            className="min-h-11 min-w-0 px-3"
           >
             Today
           </Button>
@@ -409,7 +409,7 @@ export function AttendancePanel({
             onClick={() => stepDate(1)}
             disabled={date >= today}
             aria-label="Next day"
-            className="min-h-11 flex-1"
+            className="min-h-11 min-w-0 flex-1 px-3"
           >
             Next →
           </Button>
@@ -461,9 +461,12 @@ export function AttendancePanel({
       {loadError && (
         <Alert variant="error">
           <p>{loadError}</p>
-          <Button variant="secondary" className="mt-3 min-h-11" onClick={() => void loadRollCall()}>
-            Try again
-          </Button>
+          {/* Retrying cannot fix a missing session; offer it only for failures that may pass. */}
+          {!/no active academic session/i.test(loadError) && (
+            <Button variant="secondary" className="mt-3 min-h-11" onClick={() => void loadRollCall()}>
+              Try again
+            </Button>
+          )}
         </Alert>
       )}
 

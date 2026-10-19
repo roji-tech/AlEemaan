@@ -62,7 +62,7 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
   return (
     <div className="w-full max-w-md mx-auto bg-surface border border-line rounded-2xl p-6 sm:p-8 shadow-card-v text-fg">
       <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-strong text-brand-contrast mb-3 shadow-xs">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-strong text-white mb-3 shadow-xs">
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
             <path
@@ -180,11 +180,11 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 px-4 rounded-xl bg-brand-strong hover:bg-brand-strong-hover active:scale-[0.99] text-brand-contrast font-medium text-sm transition-all duration-150 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand"
+          className="w-full mt-2 py-3 px-4 rounded-xl bg-brand-strong hover:bg-brand-strong-hover active:scale-[0.99] text-white font-medium text-sm transition-all duration-150 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand"
         >
           {loading ? (
             <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-brand-contrast" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
