@@ -1618,3 +1618,6 @@ A superadmin sets the global default; a branch admin may override it (creates a 
 **Not changed.** No migration, no API contract change, no new role. The decisions of 2026-10-15 stay as built; the screens only expose them. Where a screen reveals that an API rule is wrong, it is reported, not silently changed.
 
 **Mutation testing:** unchanged (deferred to the end of Phase 2, ADR 0006); this slice adds no business rule, only presentation.
+
+### As built - Slice UI1 (2026-10-19)
+Delivered as planned in stages 1-7 (see `docs/tasks/0031-ui1-screens-and-security.md`). Differences from the design above: the slice grew a security stage (cross-branch exposure found while testing in the browser: `withAuthGated`, `lib/lms/audience.ts`, `lib/lms/submitter.ts`) and a portal stage (pupils hand in work and take quizzes through new portal routes, because a pupil record has no login). Migration `20261019090000_hosted_schemes` is part of the slice and must precede the code on any live database.

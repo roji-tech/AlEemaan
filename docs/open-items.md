@@ -72,6 +72,15 @@ All 25 migrations have been successfully executed and applied to the remote data
 - [x] The Review/Enter screens keep the branch choice per section; switching a tab resets it to the first branch — fixed in Task 0027 with synchronized `selectedBranchId`.
 
 
+- [x] **Slice UI1** (Task 0031): Students screen, Approvals page, scheme levels, timetable batch, portal hand-in and quizzes, and the security fixes found by the browser run. Committed on `claude/ui-gaps-students-settings`; PR to `dev` pending. Migration `20261019090000_hosted_schemes` must run before the code.
+
+## 3b. Not built yet (decided, waiting for a go)
+
+- [ ] **Forms module**: quizzes stay as they are; new practice sets, questionnaires (member audiences, then public and anonymous, chosen per form), physical hand-in roll-call, manual marking.
+- [ ] **Question bank**: shared questions with class tags, admin approval, reuse in quizzes and forms, practice from the portal. Design questions are with the maintainer.
+- [ ] Operations modules (admissions first). See Task 0030.
+- [ ] Portal sign-in secret is the guardian's phone number (weak).
+
 ## 4. Test debt (be honest about it)
 
 - [x] **Mutation passes (0.5.G & Phase 2 baseline):** Executed full suite (45 mutations across Pagination P1–P19, Validation V1–V8, CSRF C1–C9, Password Policy W1–W9) -> **45/45 CAUGHT, 0 SURVIVED, 0 ERRORS** (recorded in `out/mutations.jsonl`).

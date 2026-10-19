@@ -197,4 +197,10 @@
 - [x] Prettified database migration tooling and verified live Prisma Cloud PostgreSQL schema alignment (25/25 migrations active).
 - [x] 100% green test suites across 585 tests.
 
+---
 
+### TASK-0031: Slice UI1 - screens and security found by the browser run
+- **Status:** In Progress (committed on `claude/ui-gaps-students-settings`, PR to `dev` pending). See `docs/tasks/0031-ui1-screens-and-security.md`.
+- [x] Students, Approvals, Scheme levels, timetable batch, portal hand-in and quiz screens.
+- [x] Cross-branch data exposure closed in finance, coursework, announcements, timetable, communication, promotion, sessions.
+- [ ] Final full-suite run, PR, and the migration ordering note to the maintainer.
