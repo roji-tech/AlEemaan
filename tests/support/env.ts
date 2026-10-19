@@ -80,6 +80,12 @@ process.env.PWNED_PASSWORD_CHECK = "off";
 export const TEST_MFA_KEY = Buffer.alloc(32, 7).toString("base64");
 process.env.MFA_ENCRYPTION_KEY = TEST_MFA_KEY;
 
+/// A fixed portal-session secret (SESSION_SECRET: at least 32 characters, see lib/portal/secret.ts), so the in-process tests and every server agree on it.
+/// The app has no default and refuses to start without one (src/instrumentation.ts); a test about "no secret" deletes it for its own duration. Set here,
+/// unconditionally, so a developer's own .env can never decide what is tested.
+export const TEST_PORTAL_SECRET = "test-portal-session-secret-Zq7mLw0pXc9Vt3nBh8Ys2KdJf6";
+process.env.SESSION_SECRET = TEST_PORTAL_SECRET;
+
 /// Environment for the Next.js servers under test. Explicit and complete on
 /// purpose: nothing from a developer's shell or .env may change what is tested.
 export function serverEnv(appUrl: string): Record<string, string> {
@@ -99,6 +105,7 @@ export function serverEnv(appUrl: string): Record<string, string> {
     DEV_TOOLS: "",
     DEV_TOOLS_TOKEN: "",
     PWNED_PASSWORD_CHECK: "off",
+    SESSION_SECRET: TEST_PORTAL_SECRET,
     USE_MOCK_PAYSTACK: "true",
   };
 }

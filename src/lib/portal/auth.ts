@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { portalSecret } from "./secret";
 
 export const PORTAL_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -49,8 +50,10 @@ export interface PortalSessionPayload {
   expiresAt: number;
 }
 
+/// The signing secret, from SESSION_SECRET only. There is no default: a missing or weak one throws (lib/portal/secret.ts), and the server does not start
+/// without one (src/instrumentation.ts). A misconfiguration is not an "invalid token": it must be loud, never a silent sign-out and never a built-in value.
 function getPortalSecret(): string {
-  return process.env.SESSION_SECRET || process.env.AUTH_SECRET || "aleemaan-portal-secure-hmac-secret-salt-2026";
+  return portalSecret();
 }
 
 /**
@@ -94,11 +97,8 @@ export function verifyPortalSession(token: string | undefined | null): PortalSes
 
   try {
     const rawJson = Buffer.from(serialized, "base64url").toString("utf-8");
-    const payload = JSON.parse(rawJson) as PortalSessionPayload;
-
-    if (!payload.primaryStudentId || !Array.isArray(payload.allowedStudentIds) || !payload.expiresAt) {
-      return null;
-    }
+    const payload = parsePayload(JSON.parse(rawJson));
+    if (!payload) return null;
 
     const now = Math.floor(Date.now() / 1000);
     if (payload.expiresAt < now) {
@@ -109,6 +109,31 @@ export function verifyPortalSession(token: string | undefined | null): PortalSes
   } catch {
     return null;
   }
+}
+
+const MAX_ID_LENGTH = 128;
+const isId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= MAX_ID_LENGTH;
+const isContact = (value: unknown): value is string | null | undefined => value === undefined || value === null || typeof value === "string";
+const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
+
+/// The payload of a correctly signed token, checked field by field and REBUILT (unknown keys, including a `__proto__` own key, are dropped). Only the app
+/// signs, so a wrong shape should never happen; but a number is read as a clock time only if it IS a number: before this check `expiresAt: "abc"` compared
+/// false against the clock and a token with it never expired, and ids of the wrong type reached the database layer. Found by the fuzz tests, 2026-10-19.
+function parsePayload(raw: unknown): PortalSessionPayload | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const p = raw as Record<string, unknown>;
+  if (!isId(p.primaryStudentId)) return null;
+  if (!Array.isArray(p.allowedStudentIds) || !p.allowedStudentIds.every(isId)) return null;
+  if (!isTime(p.issuedAt) || !isTime(p.expiresAt)) return null;
+  if (!isContact(p.guardianPhone) || !isContact(p.guardianEmail)) return null;
+  return {
+    primaryStudentId: p.primaryStudentId,
+    allowedStudentIds: [...p.allowedStudentIds],
+    ...(p.guardianPhone !== undefined ? { guardianPhone: p.guardianPhone } : {}),
+    ...(p.guardianEmail !== undefined ? { guardianEmail: p.guardianEmail } : {}),
+    issuedAt: p.issuedAt,
+    expiresAt: p.expiresAt,
+  };
 }
 
 /**
