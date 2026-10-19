@@ -1,15 +1,18 @@
 import { NextRequest } from "next/server";
 import { Role, AssignmentStatus } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createAssignmentSchema } from "@/lib/lms/validation";
+import { isBranchStaff } from "@/lib/lms/audience";
 import { listAssignments, createAssignment } from "@/lib/lms/service";
 
 /**
  * GET /api/v1/lms/assignments?branchId=...&subjectId=...&classGroupId=...&status=...
  */
-export const GET = withAuth(
-  async (req: NextRequest) => {
+export const GET = withAuthGated(
+  "read-any",
+  async (req: NextRequest, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
       const branchId = searchParams.get("branchId");
@@ -25,7 +28,11 @@ export const GET = withAuth(
       const assignments = await listAssignments(branchId, {
         subjectId,
         classGroupId,
-        status: status && Object.values(AssignmentStatus).includes(status) ? status : undefined,
+        status: (await isBranchStaff(auth.userId, branchId))
+          ? status && Object.values(AssignmentStatus).includes(status)
+            ? status
+            : undefined
+          : AssignmentStatus.PUBLISHED,
       });
 
       return ok(assignments);
@@ -40,7 +47,8 @@ export const GET = withAuth(
 /**
  * POST /api/v1/lms/assignments
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
       const body = await req.json();

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { initializePaymentSchema } from "@/lib/finance/validation";
 import { initializeGatewayPayment, FinanceError } from "@/lib/finance/service";
@@ -21,6 +22,11 @@ export const POST = withAuth(
 
       if (!branchId) {
         return fail("branchId query parameter is required", 400, "VALIDATION");
+      }
+
+      // Starting a gateway payment for an invoice is an administrator's act in the branch the invoice belongs to (any signed-in account could start one for any invoice).
+      if (!(await canAdminister(auth.userId, branchId))) {
+        return fail("Invoice not found or access denied", 404, "NOT_FOUND");
       }
 
       const body = await req.json();
@@ -46,5 +52,5 @@ export const POST = withAuth(
       return fail("Failed to initialize payment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF, Role.STUDENT] },
+  { roles: [Role.ADMIN] },
 );

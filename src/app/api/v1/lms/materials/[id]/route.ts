@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateMaterialSchema } from "@/lib/lms/validation";
 import { getMaterialById, updateMaterial, archiveMaterial, LmsError } from "@/lib/lms/service";
@@ -12,7 +12,8 @@ interface RouteParams {
 /**
  * GET /api/v1/lms/materials/[id]?branchId=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "read-any",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
@@ -38,7 +39,8 @@ export const GET = withAuth(
 /**
  * PATCH /api/v1/lms/materials/[id]
  */
-export const PATCH = withAuth(
+export const PATCH = withAuthGated(
+  "staff-write",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
@@ -69,7 +71,8 @@ export const PATCH = withAuth(
 /**
  * DELETE /api/v1/lms/materials/[id]?branchId=...
  */
-export const DELETE = withAuth(
+export const DELETE = withAuthGated(
+  "staff-write",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { executePromotionSchema } from "@/lib/promotion/validation";
 import { executePromotion } from "@/lib/promotion/service";
@@ -9,7 +10,8 @@ import { executePromotion } from "@/lib/promotion/service";
  * POST /api/v1/academics/promotion/execute
  * Commits a bulk promotion batch, atomically updating source and target enrollments.
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "administer",
   async (req: NextRequest, auth: AuthContext) => {
     try {
       let body: Record<string, unknown>;

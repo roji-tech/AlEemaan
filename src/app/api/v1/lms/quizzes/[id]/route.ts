@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
+import { isBranchStaff, hideAnswerKey } from "@/lib/lms/audience";
 import { getQuizById, archiveQuiz, LmsError } from "@/lib/lms/service";
 
 interface RouteParams {
@@ -11,8 +12,9 @@ interface RouteParams {
 /**
  * GET /api/v1/lms/quizzes/[id]?branchId=...
  */
-export const GET = withAuth(
-  async (req: NextRequest, _auth, { params }: RouteParams) => {
+export const GET = withAuthGated(
+  "read-any",
+  async (req: NextRequest, auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
       const { searchParams } = new URL(req.url);
@@ -23,7 +25,9 @@ export const GET = withAuth(
       }
 
       const quiz = await getQuizById(branchId, id);
-      return ok(quiz);
+      if (await isBranchStaff(auth.userId, branchId)) return ok(quiz);
+      if (quiz.status !== "PUBLISHED") return fail("Quiz not found", 404, "NOT_FOUND");
+      return ok(hideAnswerKey(quiz));
     } catch (error) {
       if (error instanceof LmsError) {
         return fail(error.message, error.statusCode);
@@ -37,7 +41,8 @@ export const GET = withAuth(
 /**
  * DELETE /api/v1/lms/quizzes/[id]?branchId=...
  */
-export const DELETE = withAuth(
+export const DELETE = withAuthGated(
+  "staff-write",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;

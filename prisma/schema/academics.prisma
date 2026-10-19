@@ -184,6 +184,8 @@ model AssessmentScheme {
   version      Int       @default(1)
   lockedAt     DateTime?
   supersedesId String?
+  /// True for a school-wide or a teacher's own scheme: stored on a branch's row but not that branch's default, so the one-live-scheme-per-scope rule ignores it.
+  hosted       Boolean   @default(false)
   archivedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt

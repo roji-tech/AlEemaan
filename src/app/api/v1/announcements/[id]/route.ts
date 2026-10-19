@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateAnnouncementSchema } from "@/lib/announcements/validation";
 import { getAnnouncement, updateAnnouncement, deleteAnnouncement, AnnouncementPermissionError } from "@/lib/announcements/service";
@@ -37,7 +38,8 @@ async function resolveViewer(userId: string): Promise<ViewerProfile> {
 /**
  * GET /api/v1/announcements/[id]
  */
-export const GET = withAuth<RouteParams>(
+export const GET = withAuthGated<RouteParams>(
+  "read-any",
   async (_req: NextRequest, auth: AuthContext, { params }) => {
     try {
       const { id } = await params;
@@ -60,7 +62,8 @@ export const GET = withAuth<RouteParams>(
 /**
  * PATCH /api/v1/announcements/[id]
  */
-export const PATCH = withAuth<RouteParams>(
+export const PATCH = withAuthGated<RouteParams>(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext, { params }) => {
     try {
       const { id } = await params;
@@ -98,7 +101,8 @@ export const PATCH = withAuth<RouteParams>(
 /**
  * DELETE /api/v1/announcements/[id]
  */
-export const DELETE = withAuth<RouteParams>(
+export const DELETE = withAuthGated<RouteParams>(
+  "staff-write",
   async (_req: NextRequest, auth: AuthContext, { params }) => {
     try {
       const { id } = await params;

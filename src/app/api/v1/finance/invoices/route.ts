@@ -10,13 +10,18 @@ import { listInvoices, generateInvoices, FinanceError } from "@/lib/finance/serv
  * GET /api/v1/finance/invoices?branchId=...&periodId=...&studentId=...&status=...&page=...&limit=...
  */
 export const GET = withAuth(
-  async (req: NextRequest) => {
+  async (req: NextRequest, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
       const branchId = searchParams.get("branchId");
 
       if (!branchId) {
         return fail("branchId query parameter is required", 400, "VALIDATION");
+      }
+
+      // Invoices name pupils and what their families owe: an administrator of THIS branch only (this used to answer any signed-in staff member for any branch).
+      if (!(await canAdminister(auth.userId, branchId))) {
+        return fail("Forbidden: you do not administer this branch", 403, "FORBIDDEN");
       }
 
       const periodId = searchParams.get("periodId") ?? undefined;
@@ -43,7 +48,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve invoices", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF] },
+  { roles: [Role.ADMIN] },
 );
 
 /**

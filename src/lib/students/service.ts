@@ -139,6 +139,7 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
     });
 
     // 4. Optional active session enrolment
+    let enrolled = false;
     if (input.className) {
       const activeSession = await tx.academicSession.findFirst({
         where: { branchId: input.branchId, status: SessionStatus.ACTIVE, archivedAt: null },
@@ -155,6 +156,7 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
             status: EnrollmentStatus.ACTIVE,
           },
         });
+        enrolled = true;
       }
     }
 
@@ -174,7 +176,8 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
       },
     });
 
-    return { ok: true, data: { student } };
+    // `enrolled` is false when a class was asked for but the branch has no ACTIVE session to place the pupil in (the record is still created); the screen says so.
+    return { ok: true, data: { student, enrolled } };
   });
 }
 

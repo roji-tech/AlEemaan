@@ -9,7 +9,8 @@ import {
   signPortalSession,
   verifyPortalSession,
 } from "./auth";
-import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus } from "@prisma/client";
+import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus, QuizStatus } from "@prisma/client";
+import { submitAssignment, attemptQuiz } from "@/lib/lms/service";
 import { reportCardVisibleTo } from "@/lib/academics/report-card";
 
 export interface PortalAuthResult {
@@ -471,7 +472,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
   });
 
   if (!enrollment || !enrollment.classArmId) {
-    return { assignments: [], materials: [] };
+    return { assignments: [], materials: [], quizzes: [] };
   }
 
   const branchId = enrollment.branchId;
@@ -484,7 +485,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       branchId,
       status: AssignmentStatus.PUBLISHED,
       archivedAt: null,
-      OR: [{ classArmId }, { classArmId: null }],
+      OR: [{ classArmId }, { classArmId: null, classGroupId: classGroupId }, { classArmId: null, classGroupId: null }],
     },
     include: {
       subject: true,
@@ -509,15 +510,45 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
     orderBy: { createdAt: "desc" },
   });
 
+  // Quizzes: published, for the whole branch or this class group. The answer key never leaves the server; the last attempt's result does.
+  const quizzes = await prisma.quiz.findMany({
+    where: {
+      branchId,
+      status: QuizStatus.PUBLISHED,
+      archivedAt: null,
+      OR: [...(classGroupId ? [{ classGroupId }] : []), { classGroupId: null }],
+    },
+    include: {
+      subject: true,
+      questions: { orderBy: { sortOrder: "asc" } },
+      attempts: { where: { studentId }, orderBy: { completedAt: "desc" }, take: 1 },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const now = Date.now();
   return {
     assignments: assignments.map((a) => ({
       id: a.id,
       title: a.title,
       description: a.description,
+      instructions: a.instructions,
       subjectName: a.subject.name,
       dueDate: a.dueDate,
       totalPoints: a.totalPoints,
+      // Past the deadline with late work not allowed: the pupil sees it, but the form is closed (the server refuses it too).
+      closed: Boolean(a.dueDate && a.dueDate.getTime() < now && !a.allowLate),
       submission: a.submissions[0] || null,
+    })),
+    quizzes: quizzes.map((q) => ({
+      id: q.id,
+      title: q.title,
+      instructions: q.instructions,
+      subjectName: q.subject.name,
+      timeLimitMinutes: q.timeLimitMinutes,
+      passingScore: q.passingScore,
+      questions: q.questions.map((x) => ({ id: x.id, prompt: x.prompt, questionType: x.questionType, options: x.options, points: x.points })),
+      lastAttempt: q.attempts[0] ? { score: q.attempts[0].score, isPassed: q.attempts[0].isPassed, completedAt: q.attempts[0].completedAt } : null,
     })),
     materials: materials.map((m) => ({
       id: m.id,
@@ -529,4 +560,71 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       createdAt: m.createdAt,
     })),
   };
+}
+
+/**
+ * What a verified pupil may hand in: their active enrolment fixes the branch and the class, so a pupil can only reach coursework meant for them.
+ */
+async function pupilScope(studentId: string, allowedStudentIds: string[]) {
+  if (!allowedStudentIds.includes(studentId)) throw new PortalLmsError("You are not authorized to act for this student", 403);
+  const enrollment = await prisma.studentEnrollment.findFirst({
+    where: { studentId, status: "ACTIVE" },
+    include: { classArm: true },
+    orderBy: { enrolledAt: "desc" },
+  });
+  if (!enrollment || !enrollment.classArmId) throw new PortalLmsError("This pupil is not in a class yet", 400);
+  return { branchId: enrollment.branchId, classArmId: enrollment.classArmId, classGroupId: enrollment.classArm?.classGroupId ?? null };
+}
+
+export class PortalLmsError extends Error {
+  constructor(
+    message: string,
+    public readonly status: 400 | 403 | 404,
+  ) {
+    super(message);
+  }
+}
+
+export async function submitPortalAssignment(
+  studentId: string,
+  allowedStudentIds: string[],
+  assignmentId: string,
+  params: { content?: string | null; attachments: { title: string; url: string }[] },
+) {
+  const scope = await pupilScope(studentId, allowedStudentIds);
+  const assignment = await prisma.assignment.findFirst({
+    where: {
+      id: assignmentId,
+      branchId: scope.branchId,
+      status: AssignmentStatus.PUBLISHED,
+      archivedAt: null,
+      OR: [{ classArmId: scope.classArmId }, { classArmId: null, classGroupId: scope.classGroupId }, { classArmId: null, classGroupId: null }],
+    },
+    select: { id: true },
+  });
+  if (!assignment) throw new PortalLmsError("That assignment is not available to this pupil", 404);
+
+  const earlier = await prisma.assignmentSubmission.findFirst({ where: { branchId: scope.branchId, assignmentId, studentId }, select: { status: true } });
+  if (earlier?.status === "GRADED") throw new PortalLmsError("This work has already been marked, so it can no longer be changed", 400);
+
+  return submitAssignment(scope.branchId, assignmentId, studentId, params);
+}
+
+export async function attemptPortalQuiz(studentId: string, allowedStudentIds: string[], quizId: string, answers: { questionId: string; answer: string }[]) {
+  const scope = await pupilScope(studentId, allowedStudentIds);
+  const quiz = await prisma.quiz.findFirst({
+    where: {
+      id: quizId,
+      branchId: scope.branchId,
+      status: QuizStatus.PUBLISHED,
+      archivedAt: null,
+      OR: [...(scope.classGroupId ? [{ classGroupId: scope.classGroupId }] : []), { classGroupId: null }],
+    },
+    select: { id: true },
+  });
+  if (!quiz) throw new PortalLmsError("That quiz is not available to this pupil", 404);
+
+  const attempt = await attemptQuiz(scope.branchId, quizId, studentId, answers);
+  const totalPoints = (await prisma.quizQuestion.aggregate({ where: { branchId: scope.branchId, quizId }, _sum: { points: true } }))._sum.points ?? 0;
+  return { score: attempt.score, isPassed: attempt.isPassed, totalPoints };
 }

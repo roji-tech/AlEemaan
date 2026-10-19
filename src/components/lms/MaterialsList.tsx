@@ -86,7 +86,7 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
     );
   });
 
-  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(userRole);
+  const canManage = ["ADMIN", "TEACHING_STAFF"].includes(userRole);
 
   const typeLabels = {
     DOCUMENT: "Document",
@@ -100,8 +100,8 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Study Materials & Guides</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-bold tracking-tight text-fg">Study Materials & Guides</h2>
+          <p className="text-sm text-fg-muted">
             Centralized repository of lecture notes, reading materials, slides, and syllabus documents.
           </p>
         </div>
@@ -109,7 +109,7 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-brand-strong px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
           >
             + Add Material
           </button>
@@ -117,9 +117,9 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
       </div>
 
       {/* Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-card border border-border rounded-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-surface border border-line rounded-xl">
         <div>
-          <label htmlFor={searchFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={searchFilterId} className="block text-xs font-medium text-fg mb-1">
             Search
           </label>
           <input
@@ -128,19 +128,19 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
             placeholder="Search materials by title or topic..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor={subjectFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={subjectFilterId} className="block text-xs font-medium text-fg mb-1">
             Subject
           </label>
           <select
             id={subjectFilterId}
             value={subjectFilter}
             onChange={(e) => setSubjectFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">All Subjects</option>
             {subjects.map((sub) => (
@@ -153,17 +153,17 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
       </div>
 
       {error && (
-        <div role="alert" className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+        <div role="alert" className="p-4 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading learning resources...</div>
+        <div className="py-12 text-center text-sm text-fg-muted animate-pulse">Loading learning resources...</div>
       ) : filteredMaterials.length === 0 ? (
-        <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
-          <p className="text-sm font-medium text-foreground">No study materials available</p>
-          <p className="text-xs text-muted-foreground mt-1">
+        <div className="py-16 text-center border-2 border-dashed border-line rounded-xl">
+          <p className="text-sm font-medium text-fg">No study materials available</p>
+          <p className="text-xs text-fg-muted mt-1">
             {canManage
               ? "Upload notes or add resources using the button above."
               : "No study materials have been published for this branch yet."}
@@ -174,47 +174,47 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
           {filteredMaterials.map((mat) => (
             <div
               key={mat.id}
-              className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm hover:shadow transition-shadow"
+              className="flex flex-col justify-between rounded-xl border border-line bg-surface p-5 shadow-sm hover:shadow transition-shadow"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">{mat.subject.name}</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-brand-fg">{mat.subject.name}</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-fg-muted">
                     {typeLabels[mat.materialType] || mat.materialType}
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-foreground text-base line-clamp-1">{mat.title}</h3>
-                  {mat.classGroup && <p className="text-xs text-muted-foreground mt-0.5">Class: {mat.classGroup.name}</p>}
+                  <h3 className="font-semibold text-fg text-base line-clamp-1">{mat.title}</h3>
+                  {mat.classGroup && <p className="text-xs text-fg-muted mt-0.5">Class: {mat.classGroup.name}</p>}
                 </div>
 
-                {mat.description && <p className="text-xs text-muted-foreground line-clamp-2">{mat.description}</p>}
+                {mat.description && <p className="text-xs text-fg-muted line-clamp-2">{mat.description}</p>}
 
                 {mat.content && (
-                  <div className="p-2.5 rounded bg-muted/40 text-xs text-foreground font-mono line-clamp-3">{mat.content}</div>
+                  <div className="p-2.5 rounded bg-surface-2 text-xs text-fg font-mono line-clamp-3">{mat.content}</div>
                 )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2">
                 {mat.url ? (
                   <a
                     href={mat.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+                    className="text-xs font-medium text-brand-fg hover:underline inline-flex items-center gap-1"
                   >
                     Open Resource ↗
                   </a>
                 ) : (
-                  <span className="text-xs text-muted-foreground">In-app resource</span>
+                  <span className="text-xs text-fg-muted">In-app resource</span>
                 )}
 
                 {canManage && (
                   <button
                     type="button"
                     onClick={() => handleDelete(mat.id, mat.title)}
-                    className="p-1 rounded text-destructive hover:bg-destructive/10 text-xs font-medium focus:outline-none"
+                    className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
                     aria-label={`Delete material ${mat.title}`}
                   >
                     Delete

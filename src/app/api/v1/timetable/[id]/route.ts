@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
@@ -13,7 +14,8 @@ interface RouteParams {
 /**
  * GET /api/v1/timetable/[id]?branchId=...
  */
-export const GET = withAuth<RouteParams>(
+export const GET = withAuthGated<RouteParams>(
+  "read-any",
   async (req: NextRequest, _auth: AuthContext, { params }) => {
     try {
       const { id } = await params;

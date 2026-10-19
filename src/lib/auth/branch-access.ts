@@ -56,3 +56,11 @@ export async function branchIdsFor(userId: string): Promise<"all" | string[]> {
   if (superAdmin) return "all";
   return memberships.filter((m) => STAFF.includes(m.role)).map((m) => m.branchId);
 }
+
+/// The role the person holds in ONE branch, of ANY kind (staff, student or parent), or `null`. A superadmin is `ADMIN` everywhere. Unlike `resolveBranchRole` this
+/// counts a STUDENT or PARENT membership: it answers "does this branch belong to this person at all", for content a student or parent may read (coursework).
+export async function heldRoleIn(userId: string, branchId: string): Promise<Role | null> {
+  const { memberships, superAdmin } = await load(userId);
+  if (superAdmin) return Role.ADMIN;
+  return memberships.find((m) => m.branchId === branchId)?.role ?? null;
+}

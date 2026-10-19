@@ -90,14 +90,14 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
 
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <p className="text-xs font-medium text-fg-muted">Total Collected</p>
-          <p className="text-xl font-bold text-emerald-400 mt-1">{formatNaira(totalCollected)}</p>
-          <span className="text-[11px] text-emerald-500/80 mt-0.5 block">{collectionRate}% collection rate</span>
+          <p className="text-xl font-bold text-ok-fg mt-1">{formatNaira(totalCollected)}</p>
+          <span className="text-[11px] text-ok-fg mt-0.5 block">{collectionRate}% collection rate</span>
         </div>
 
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <p className="text-xs font-medium text-fg-muted">Outstanding Balance</p>
-          <p className="text-xl font-bold text-amber-400 mt-1">{formatNaira(totalOutstanding)}</p>
-          <span className="text-[11px] text-amber-500/80 mt-0.5 block">Pending payment</span>
+          <p className="text-xl font-bold text-warn-fg mt-1">{formatNaira(totalOutstanding)}</p>
+          <span className="text-[11px] text-warn-fg mt-0.5 block">Pending payment</span>
         </div>
 
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -202,15 +202,15 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
                     <td className="px-4 py-3 font-mono text-fg-muted">{inv.student.admissionNo}</td>
                     <td className="px-4 py-3 text-fg-muted">{inv.period.label}</td>
                     <td className="px-4 py-3 text-right font-semibold text-fg">{formatNaira(inv.totalAmount)}</td>
-                    <td className="px-4 py-3 text-right text-emerald-400 font-medium">{formatNaira(inv.amountPaid)}</td>
+                    <td className="px-4 py-3 text-right text-ok-fg font-medium">{formatNaira(inv.amountPaid)}</td>
                     <td className="px-4 py-3 text-center">
                       {inv.status === InvoiceStatus.PAID && (
-                        <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                        <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-ok-fg">
                           PAID
                         </span>
                       )}
                       {inv.status === InvoiceStatus.PARTIALLY_PAID && (
-                        <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                        <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-warn-fg">
                           PARTIAL
                         </span>
                       )}

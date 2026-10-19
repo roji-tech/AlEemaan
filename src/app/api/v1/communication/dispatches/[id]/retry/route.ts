@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { retryDispatch } from "@/lib/communication/service";
 
@@ -11,7 +12,8 @@ interface RouteParams {
 /**
  * POST /api/v1/communication/dispatches/[id]/retry
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "administer",
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id } = await params;

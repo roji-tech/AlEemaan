@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { promotionPreviewQuerySchema } from "@/lib/promotion/validation";
 import { previewPromotion } from "@/lib/promotion/service";
@@ -8,7 +8,8 @@ import { previewPromotion } from "@/lib/promotion/service";
 /**
  * GET /api/v1/academics/promotion/preview
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "administer",
   async (req: NextRequest) => {
     try {
       const url = new URL(req.url);
@@ -48,7 +49,8 @@ export const GET = withAuth(
 /**
  * POST /api/v1/academics/promotion/preview
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "administer",
   async (req: NextRequest) => {
     try {
       let body: Record<string, unknown>;

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { TeacherSchemePanel } from "@/components/results/TeacherSchemePanel";
 
 // Enter marks (Slice P2d, over the P2a/P2b APIs): the grid for one subject in one arm and term. The total and letter beside each row are computed here from the
 // scheme and scale FOR DISPLAY while the teacher types; the server recomputes everything on save and is the truth. Rows past DRAFT are read-only with their status.
@@ -219,7 +220,9 @@ export function EntryPanel({
 
       {options && options.pairs.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-          You are not assigned to any subject in this branch yet. Ask an administrator to assign you on the Academics page.
+          {branches.find((b) => b.id === branchId)?.canEdit
+            ? "Nothing can be entered in this branch yet: no class arm has a subject offered, or there is no active session. Set up classes, arms and subjects on the Academics page."
+            : "You are not assigned to any subject in this branch yet. Ask an administrator to assign you on the Academics page."}
         </p>
       ) : options && options.periods.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
@@ -367,6 +370,14 @@ export function EntryPanel({
             </div>
           )}
         </section>
+      )}
+      {subjectId && options && (
+        <TeacherSchemePanel
+          key={`${branchId}-${subjectId}`}
+          branchId={branchId}
+          subjectId={subjectId}
+          subjectName={options.pairs.find((p) => p.subjectId === subjectId)?.subjectName ?? "this subject"}
+        />
       )}
     </div>
   );

@@ -31,10 +31,12 @@ export function AnnouncementsPanel({ branches, isSuperAdmin, canCreate, userBran
       // If user has branch or branches exist, load class arms for targeted broadcasting
       const activeBranchId = userBranchId || branches[0]?.id;
       if (activeBranchId) {
-        const armsRes = await fetch(`/api/v1/academics/arms?branchId=${activeBranchId}`);
+        const armsRes = await fetch(`/api/v1/academics/class-groups?branchId=${activeBranchId}`);
         if (armsRes.ok) {
           const armsJson = await armsRes.json();
-          setClassArms(armsJson.data?.arms || armsJson.data || []);
+          // GET /academics/arms does not exist (it left the audience list empty): the arms come with their class from the class-groups list.
+          const groups: { name: string; arms: { id: string; name: string }[] }[] = armsJson.data?.classGroups ?? [];
+          setClassArms(groups.flatMap((g) => g.arms.map((a) => ({ id: a.id, name: `${g.name} ${a.name}` }))));
         }
       }
     } catch (err: unknown) {

@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 
 export function ServiceWorkerRegister() {
-  const [isOffline, setIsOffline] = useState(typeof navigator !== "undefined" ? !navigator.onLine : false);
+  // Always start "online": the server cannot know (Node 21+ has a global `navigator` WITHOUT `onLine`, so `!navigator.onLine` was true there and the
+  // banner was in the server HTML, which React 19 reported as hydration error #418 on every full load). The browser decides after mount.
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -16,6 +18,8 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser's connection state is exactly what this effect is for
+    setIsOffline(!navigator.onLine);
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);

@@ -1,27 +1,19 @@
 import "../support/env";
 import { test, expect } from "@playwright/test";
 import { Gender, Role, ResultStatus, PromotionDecision, EnrollmentStatus } from "@prisma/client";
-import { createUser, db, seedInstance } from "../support/db";
+import { createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 
 let home: { id: string; name: string };
 
-test.beforeAll(async () => {
-  home = await seedInstance();
+// Results are write-protected once published (a trigger), so rows are cleared by truncating, which also leaves nothing behind for the specs that run after.
+test.afterAll(async () => {
+  await resetDatabase();
 });
 
 test.beforeEach(async () => {
-  await db.promotionRecord.deleteMany();
-  await db.promotionBatch.deleteMany();
-  await db.result.deleteMany();
-  await db.studentEnrollment.deleteMany();
-  await db.subjectOffering.deleteMany();
-  await db.subject.deleteMany();
-  await db.studentRecord.deleteMany();
-  await db.classArm.deleteMany();
-  await db.classGroup.deleteMany();
-  await db.academicPeriod.deleteMany();
-  await db.academicSession.deleteMany();
+  await resetDatabase();
+  home = await seedInstance();
 });
 
 const asRole = async (role: Role, branchId = home.id, superAdmin = false) => {
