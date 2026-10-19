@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { PupilNameFormat } from "@prisma/client";
+import { PupilNameFormat, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { ok } from "@/lib/api/envelope";
+import { ok, fail } from "@/lib/api/envelope";
 import { validate, type Parsed } from "@/lib/api/validate";
 import { withAuth } from "@/lib/auth/with-auth";
+import { canAdminister, isSuperAdmin } from "@/lib/auth/branch-access";
+import { VERIFICATION_KEY, applyVerification, fileRequest, type VerificationValue } from "@/lib/settings/changes";
 import { getVerificationPageConfig } from "@/lib/settings/approvals";
 import { audit } from "@/lib/academics/structure";
 import { READ_ROLES, structureCall } from "@/lib/academics/structure-http";
@@ -20,6 +22,8 @@ const patchVerificationInput = z
     showSubject: z.boolean().optional(),
     showMarks: z.boolean().optional(),
     showGrade: z.boolean().optional(),
+    /// Required from an administrator: why the change is needed (it goes to a superadmin).
+    reason: z.string().trim().min(1).max(500).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
 
@@ -39,45 +43,42 @@ export const GET = withAuth(
 );
 
 // PATCH /api/v1/settings/verification
-// Superadmin only: configure verification fields for a branch (or global when branchId is null)
+// A superadmin configures the fields for a branch (or school-wide when branchId is null) and it applies at once. An administrator may propose a change for a branch they
+// administer: it needs a reason and waits as a request until a superadmin approves it (the maintainer's decision of 2026-10-15).
 export const PATCH = withAuth(
   validate({ body: patchVerificationInput }, async (_req, auth, _ctx, { body }: PatchBody) =>
     structureCall("SETTINGS_VERIFICATION_PATCH", async () => {
       const branchId = body.branchId ?? null;
+      const { branchId: _omit, reason, ...fields } = body;
+      void _omit;
+      const value: VerificationValue = fields;
 
-      const existing = branchId
-        ? await prisma.verificationPageConfig.findUnique({ where: { branchId } })
-        : await prisma.verificationPageConfig.findFirst({ where: { branchId: null } });
+      if (!(await isSuperAdmin(auth.userId))) {
+        if (!branchId) return fail("Only a superadmin can change the school-wide setting. Choose your branch.", 403, "FORBIDDEN");
+        if (!(await canAdminister(auth.userId, branchId))) return fail("You don't administer that branch.", 403, "FORBIDDEN");
+        if (!reason) {
+          return fail("Say why this change is needed: it goes to a superadmin for approval.", 400, "VALIDATION", [
+            { path: "body.reason", message: "A reason is required: a superadmin decides what the public page shows." },
+          ]);
+        }
+        const request = await fileRequest({
+          key: VERIFICATION_KEY,
+          targetType: "VERIFICATION_CONFIG",
+          branchId,
+          actorUserId: auth.userId,
+          reason,
+          proposedValue: value,
+        });
+        return ok({ pending: true, approvalId: request.id }, {}, 202);
+      }
 
-      const updated = existing
-        ? await prisma.verificationPageConfig.update({
-            where: { id: existing.id },
-            data: {
-              ...(body.showPupilName !== undefined ? { showPupilName: body.showPupilName } : {}),
-              ...(body.pupilNameFormat !== undefined ? { pupilNameFormat: body.pupilNameFormat } : {}),
-              ...(body.showSubject !== undefined ? { showSubject: body.showSubject } : {}),
-              ...(body.showMarks !== undefined ? { showMarks: body.showMarks } : {}),
-              ...(body.showGrade !== undefined ? { showGrade: body.showGrade } : {}),
-            },
-          })
-        : await prisma.verificationPageConfig.create({
-            data: {
-              branchId,
-              showPupilName: body.showPupilName ?? true,
-              pupilNameFormat: body.pupilNameFormat ?? PupilNameFormat.FIRST_LAST_INITIAL,
-              showSubject: body.showSubject ?? true,
-              showMarks: body.showMarks ?? false,
-              showGrade: body.showGrade ?? false,
-            },
-          });
-
+      const updated = await prisma.$transaction((tx) => applyVerification(tx, branchId, value));
       await audit(auth.userId, "VERIFICATION_CONFIG_UPDATE", "VerificationPageConfig", updated.id, {
         branchId,
         config: updated,
       });
-
       return ok({ config: updated });
     }),
   ),
-  { superAdmin: true },
+  { roles: [Role.ADMIN] },
 );

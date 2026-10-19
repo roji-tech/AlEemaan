@@ -6,6 +6,7 @@ import { validate, type Parsed } from "@/lib/api/validate";
 import { withAuth } from "@/lib/auth/with-auth";
 import { canAdminister, isSuperAdmin } from "@/lib/auth/branch-access";
 import { notFound, structureCall } from "@/lib/academics/structure-http";
+import { applyApprovedRequest } from "@/lib/settings/changes";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -87,6 +88,11 @@ export const PATCH = withAuth<Context>(
         return fail("Only branch administrators or superadmins can decide approvals", 403, "FORBIDDEN");
       }
 
+      // A change to a layout or to the public verification page is decided by a superadmin only (a branch administrator is the one asking).
+      if ((approval.targetType === "SETTING" || approval.targetType === "VERIFICATION_CONFIG") && !superAdmin) {
+        return fail("Only a superadmin can decide this request", 403, "FORBIDDEN");
+      }
+
       // Teacher / actor cannot approve their own scheme or request
       if (approval.actorUserId === auth.userId && !superAdmin) {
         return fail("Self-approval is not permitted: you cannot decide your own approval request", 403, "FORBIDDEN");
@@ -159,6 +165,8 @@ export const PATCH = withAuth<Context>(
             }
           }
         }
+
+        if (body.action === "APPROVE") await applyApprovedRequest(tx, approval);
 
         const updatedApproval = await tx.settingApproval.update({
           where: { id },
