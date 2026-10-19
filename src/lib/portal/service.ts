@@ -103,19 +103,30 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
 /**
  * Authenticates a portal user using Admission Number + Verification Secret (Date of Birth or Guardian Phone).
  */
+/// The one answer to every failed admission-number sign-in: an unknown number, an archived pupil and a wrong secret all say this, so the wording (and, as far as one
+/// extra lookup allows, the timing) never reveals which admission numbers exist. Found by the bug hunt of 2026-10-19: "No active student found with this admission
+/// number" versus "Verification failed" confirmed every number to anyone who tried.
+export const PORTAL_SIGNIN_FAILED = "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
+
+/// Admission numbers compare case-insensitively and EXACTLY. Not Prisma's `{ equals, mode: "insensitive" }`: that is an ILIKE, so `%` and `_` were wildcards: the
+/// admission number "%" with one pupil's real guardian phone signed in as that pupil, without knowing any number, and "2026/00__" probed the numbering. A raw
+/// `lower() = lower()` has no pattern syntax. A case-sensitive unique index lets "abc/1" and "ABC/1" coexist, so every match is tried (at most 5), not an arbitrary first.
+async function activeStudentIdsByAdmissionNo(admissionNo: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "StudentRecord" WHERE lower("admissionNo") = lower(${admissionNo}) AND "archivedAt" IS NULL LIMIT 5`;
+  return rows.map((row) => row.id);
+}
+
 export async function authenticatePortalViaAdmission(admissionNo: string, secret: string): Promise<PortalAuthResult> {
   const cleanAdmission = admissionNo.trim();
   const cleanSecret = secret.trim();
 
   if (!cleanAdmission || !cleanSecret) {
-    return { success: false, error: "Admission number and verification secret are required" };
+    return { success: false, error: PORTAL_SIGNIN_FAILED };
   }
 
-  const student = await prisma.studentRecord.findFirst({
-    where: {
-      admissionNo: { equals: cleanAdmission, mode: "insensitive" },
-      archivedAt: null,
-    },
+  const students = await prisma.studentRecord.findMany({
+    where: { id: { in: await activeStudentIdsByAdmissionNo(cleanAdmission) } },
     include: {
       branch: true,
       enrollments: {
@@ -126,19 +137,15 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     },
   });
 
+  const student = students.find(
+    (candidate) =>
+      matchesDateOfBirth(cleanSecret, candidate.dateOfBirth) ||
+      matchesPhone(cleanSecret, candidate.guardianPhone) ||
+      (!!candidate.guardianEmail && candidate.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase()),
+  );
+
   if (!student) {
-    return { success: false, error: "No active student found with this admission number" };
-  }
-
-  const dobMatched = matchesDateOfBirth(cleanSecret, student.dateOfBirth);
-  const phoneMatched = matchesPhone(cleanSecret, student.guardianPhone);
-  const emailMatched = !!student.guardianEmail && student.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase();
-
-  if (!dobMatched && !phoneMatched && !emailMatched) {
-    return {
-      success: false,
-      error: "Verification failed. Please check the date of birth or guardian phone number.",
-    };
+    return { success: false, error: PORTAL_SIGNIN_FAILED };
   }
 
   const siblingIds = await findSiblingStudentIds(student);
