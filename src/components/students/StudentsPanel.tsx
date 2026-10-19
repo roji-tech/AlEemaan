@@ -319,7 +319,12 @@ function StudentDialog({
           ...(f.className ? { className: f.className, arm: f.arm || undefined } : {}),
         });
     setPending(false);
-    if (reply.ok) return void (await onDone(`${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}.`));
+    if (reply.ok) {
+      const unplaced = !item && f.className && reply.data?.enrolled === false;
+      return void (await onDone(
+        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
+      ));
+    }
     if (reply.code === "POSSIBLE_DUPLICATE")
       return setNamesake(reply.message ?? "A pupil with the same name and date of birth already exists in this branch.");
     const found: Record<string, string> = {};

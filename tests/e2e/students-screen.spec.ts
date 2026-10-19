@@ -152,3 +152,22 @@ test("students: a teacher can look but has no buttons that change anything", asy
   await expectAccessible(page, "students list as a teacher");
   await db.studentRecord.deleteMany({ where: { firstName: { startsWith: tag } } });
 });
+
+test("students: asking for a class when the branch has no active session says the pupil was not placed", async ({ page }) => {
+  const branch = await seedInstance();
+  const group = await db.classGroup.create({ data: { branchId: branch.id, name: `${tag} JSS 2` } });
+  await db.classArm.create({ data: { branchId: branch.id, classGroupId: group.id, name: "B" } });
+  const admin = await createUser({ role: Role.ADMIN, superAdmin: false, name: `${tag} Admin` });
+  await signInThroughUi(page, admin);
+  await page.goto("/students");
+  await page.getByRole("button", { name: "New student" }).click();
+  await dialog(page).getByLabel("First name", { exact: true }).fill(`${tag}Musa`);
+  await dialog(page).getByLabel("Last name").fill("Bello");
+  await dialog(page).getByLabel("Gender").selectOption("MALE");
+  await dialog(page).getByLabel("Date of birth").fill("2013-12-01");
+  await dialog(page).getByLabel("Class (optional)").selectOption(`${tag} JSS 2`);
+  await dialog(page).getByLabel("Arm").selectOption("B");
+  await dialog(page).getByRole("button", { name: "Register student" }).click();
+  await expect(page.getByText(/not put in a class: this branch has no active academic session/)).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: `${tag}Musa` })).toContainText("No class yet");
+});
