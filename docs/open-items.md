@@ -26,6 +26,8 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 
 ## 1. Waiting on the maintainer
 
+- [ ] **Question bank, two gaps in the design (blocks Task 0032 slice 1; found 2026-10-19):** (1) class and subject tags and per-subject reviewers: classes and subjects are per-branch rows, so a general (all-branches) question cannot point at them; recommended: nullable `levelKey` on ClassGroup and `subjectKey` on Subject, filled from the names and editable. (2) "Section" (JSS/SSS/Primary) used so reviewers never see a class has no source in the data; recommended: a nullable `ClassGroup.section` the admin sets. Options and trade-offs: design note section 16a.
+
 - [ ] **Run `pnpm admins:list` against the LIVE AlEemaan database and say who stays a superadmin.** Blocks the live deploy of the branch-admins migration (ADR 0014, accepted with that condition).
 - [x] **The CA/exam split per branch** — answered 2026-10-15: nothing is hard-coded; an administrator creates the branch's scheme (see P2e). The Arabic branches follow the same rule (start fresh). *(Was item in §1.)*
 - [x] **Report-card layout** — answered 2026-10-15: fixed coded layouts, `legacy = true` for legacy ones; legacy sample still needed (PDF or photo from the maintainer). *(Was item in §1.)*

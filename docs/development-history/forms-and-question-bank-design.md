@@ -221,6 +221,15 @@ Mutation passes stay deferred to the end of Phase 2 (maintainer's call).
 
 All additive. New tables only; no change to `Quiz`, `Result`, `Assignment`. Triggers: image count per item, append-only audit and review rows, `FormAnsweredBy` has no foreign key to responses. Deploy order: migration first, then code (as in the UI1 note).
 
+## 16a. Two gaps found while planning slice 1 (2026-10-19) - these DO block slice 1's schema
+
+- **Class and subject tags across branches.** `ClassGroup` and `Subject` are per-branch rows (each has a `branchId` and a composite `(branchId, id)` key). A GENERAL item (`branchId = null`, section 5) cannot point at one branch's `classGroupId` or `subjectId`: a composite foreign key needs a branch, and another branch's "JSS 1" is a different row. A "per subject" reviewer (section 6) has the same problem. Options:
+  - (a) tag by a text label matched on the normalised name or code: cheapest, but drifts ("JSS1" and "JSS 1"; the Arabic branches);
+  - **(b) recommended:** add nullable `ClassGroup.levelKey` and `Subject.subjectKey` (the migration fills them from the normalised name or code; an admin can edit them) and tag items and reviewers by key: additive, explicit, one small field on each existing table;
+  - (c) a superadmin-managed school-wide catalogue of levels and subjects that each branch maps its rows to: cleanest, most work (new screens).
+- **"Section" has no source in the data.** The design uses it ("a pupil in JSS") so reviewers never see a class. The schema has no such thing: a `Branch` is one of the four legacy sections (Primary or Secondary, English or Arabic) and has no JSS/SSS split. Options: **(a) recommended:** a nullable `ClassGroup.section` text the admin sets (the branch name is shown when it is empty); (b) use the branch name only ("a pupil in Secondary (English)"): simplest and most private, loses JSS versus SSS; (c) a fixed enum.
+- Both are the maintainer's call. Slice 1 starts only after they are answered.
+
 ## 16. Open items (small; none block slice 1)
 
 - Wording of the generic retirement text.
