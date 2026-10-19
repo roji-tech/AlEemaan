@@ -52,7 +52,7 @@ Every flow the API supports can be reached and used from a screen, in both theme
 - [x] New specs: students-screen, approvals-screen, scheme-levels, timetable-batch, announcements-audience, browser-security, portal-coursework (api and e2e), cross-branch-isolation, finance-access, hosted-schemes, settings-change-requests, student-csv.
 - [x] Stale tests repaired: attendance (fixed date aged out of the 7-day window), promotion and timetable (truncate; published results are write-protected), lms-a11y.
 - [x] Full suite before stage 7: 1526 passed, 5 failed (4 repaired, 1 timing test that passes alone).
-- [ ] Re-run the full suite on the final commit before the PR.
+- [x] Full suite on the final code (2026-10-19, production build, 1.7 h): **1538 passed, 2 failed, 18 skipped** (1558). Both failures were read before explaining: (1) `approvals-screen` on the phone: a strict-mode locator that also matched the page description (a vacuous pass on desktop), fixed in `tests/e2e/approvals-screen.spec.ts` and re-run on both projects: pass; (2) `https/host-cookie` login redirect exceeded the 5 s URL assertion while a second full suite (Octalve) ran on the same machine; it takes about 12 s alone and passes alone (all 7 https tests pass), so it is load-sensitive, and the extra load was ours. typecheck clean, lint 0 errors (1 existing warning).
 - [ ] Mutation passes: deferred to the end of Phase 2 (maintainer's call).
 
 ## 4. Notes for whoever picks this up

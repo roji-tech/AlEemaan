@@ -106,7 +106,7 @@ A detailed technical blueprint is documented in:
 - A fixed date in a test ages out of the 7-day teacher attendance window.
 - Do not run tests on `aleemaan_test` while a full suite runs; rebuild (`pnpm build`) before API/e2e runs, the servers under test are a production build.
 
-**Test state:** before stage 7 the full suite was 1526 passed, 5 failed (4 repaired, 1 timing test passing alone). Re-run on the final commit before opening the PR. Mutation passes still deferred to the end of Phase 2.
+**Test state:** final full run on the final code (2026-10-19): 1538 passed, 2 failed, 18 skipped; both failures read, one fixed (a test that asserted the wrong element), one load-sensitive (`https/host-cookie`, passes alone); details in `docs/tasks/0031-ui1-screens-and-security.md`. Mutation passes still deferred to the end of Phase 2.
 
 **Open / next (the maintainer decides order):**
 1. Open the AlEemaan PR into `dev` (check `base.ref` is `dev` before merging) and the Octalve PR into octalve-core `dev`; never promote to master/prod without approval.
@@ -181,3 +181,11 @@ Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitec
 - Classes and subjects are per-branch rows, so a "general" (all-branches) question cannot point at them. **Decided: tags are text matched by normalised name** ("we'll just have to do some normalization"): a tag keeps the label as typed plus a `labelKey` from one pure `normalizeLabel()`; nothing is added to `ClassGroup` or `Subject` for tags; per-subject reviewers work the same way.
 - "Section" (shown to reviewers instead of a class) had no source. **Decided: an optional `ClassGroup.section` the admin sets**; the branch name is shown when it is empty; it arrives with slice 5.
 - Details and the slice 1 plan: design note section 16a and `docs/tasks/0032-forms-and-question-bank.md` section 4.
+
+### 6.9 Standing rules added by the maintainer (2026-10-19, three messages)
+- **Always search for bugs, potential issues, design gaps and user-flow gaps**, in every task, not only the ones named. Findings go in `docs/open-items.md` section 1b with severity and evidence; defects are fixed with a test seen to fail first; product choices are asked.
+- **Also test edge cases and fuzz for security anomalies**: seeded, deterministic generators (no new dependency), random and hostile inputs, boundaries, malformed and oversized data, replays, concurrency. See `tests/unit/portal-token-fuzz.spec.ts` for the pattern.
+- **Test UI gaps, UX issues and user-flow gaps, "test all"**: for every screen or flow touched and its neighbours: empty, loading, error and success states, wording, keyboard and focus, both themes, phone width, axe, dead ends, an API with no screen. The whole-product browser audit is Task 0033 (runs last); this applies to every slice before it.
+- **Octalve and AlEemaan are kept in sync** (CLAUDE.md rule 7; Octalve's design is canonical for shared parts). A fix in one is checked against the other and the result recorded in both HANDOVER files, including "checked, not affected".
+- **Do not run two full suites at once** on the same machine: the second one slowed the first enough to fail a 5 s assertion (open-items 1b).
+

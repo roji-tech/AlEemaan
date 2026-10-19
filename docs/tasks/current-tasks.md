@@ -203,7 +203,8 @@
 - **Status:** In Progress (committed on `claude/ui-gaps-students-settings`, PR to `dev` pending). See `docs/tasks/0031-ui1-screens-and-security.md`.
 - [x] Students, Approvals, Scheme levels, timetable batch, portal hand-in and quiz screens.
 - [x] Cross-branch data exposure closed in finance, coursework, announcements, timetable, communication, promotion, sessions.
-- [ ] Final full-suite run, PR, and the migration ordering note to the maintainer.
+- [x] Final full-suite run: 1538 passed, 2 failed (read; one fixed, one load-sensitive and passing alone), 18 skipped.
+- [ ] PR into `dev` (base verified), merge, and the migration ordering note to the maintainer.
 
 ---
 

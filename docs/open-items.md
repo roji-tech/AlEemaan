@@ -38,6 +38,29 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Approval of `dev` -> `master` PR** — [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master` on 2026-10-17.
 - [x] **Approval of `master` -> `prod` PR** — [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) and [PR #60](https://github.com/roji-tech/AlEemaan/pull/60) merged into `prod` (Release v0.7.0).
 
+## 1b. Found by the bug hunt, 2026-10-19 (standing rule: always search for bugs, gaps, and fuzz/edge-test for security; see HANDOVER 6.9)
+
+Severity is the author's judgement; evidence is what was read or run. "Branch" = where the fix is.
+
+**Portal sign-in (`POST /api/v1/portal/session`, `lib/portal/*`)**
+- [ ] **HIGH: no rate limit and a guessable "secret".** The route does CSRF and nothing else. The secret may be the pupil's date of birth (about 5,500 candidates), **the last 4 or more digits of the guardian phone** (`matchesPhone`, 10,000 candidates, not the whole number), or the guardian's email; admission numbers come from a sequential counter. Anyone who can reach the site can try every pupil. Fix proposed: a limiter on sign-in (per client and per admission number, using `lib/auth/rate-limit.ts`) and a minimum suffix length; what the secret SHOULD be (a real secret or a magic link by default) is the maintainer's open decision above.
+- [ ] **HIGH: admission numbers can be enumerated** ("No active student found with this admission number" versus "Verification failed..."). Fix: one message and similar timing.
+- [ ] **MEDIUM-HIGH: siblings are inferred from an EQUAL guardian phone or email** (`findSiblingStudentIds`), so a shared or placeholder number gives one login access to unrelated children's results and invoices; the list is also put in a cookie (a browser drops one over 4 KB, so a big group silently cannot sign in). Needs a design decision (explicit guardian links).
+- [ ] **MEDIUM: portal sessions are stateless 7-day cookies with no revocation**: signing out only clears the browser's copy, and a changed phone number revokes nothing. The cookie also carries the guardian's phone and email in a readable (signed, not encrypted) payload.
+- [x] fixed in branch `claude/fail-closed-secrets`: the signing secret had a hard-coded fallback (see section 3b); a signed token of the wrong shape (for example `expiresAt: "abc"`, which never expired) was accepted.
+
+**Payments (`lib/finance`, `POST /api/v1/webhooks/paystack`)**
+- [ ] **HIGH: the public webhook verified its signature with `PAYSTACK_SECRET_KEY || "mock_secret"`**; with the key unset (the local `.env` has it empty) anyone who knows a payment reference could sign a `charge.success` and mark an invoice paid. Octalve already fixes this (`resolvePaystackMode`): AlEemaan had drifted. Fix in branch `claude/fail-closed-secrets`.
+- [ ] **MEDIUM: the webhook wrote its audit ledger BEFORE checking the signature**, keyed by an event id the sender chooses: unsigned requests fill the table and can overwrite a genuine event's row to `signatureValid=false`. Octalve: an unsigned delivery writes nothing. Same branch.
+- [ ] LOW: starting an online payment calls the gateway inside an open database transaction (a network call while the transaction is held).
+- [ ] LOW: `verifiedServerSide = true` is set from the webhook signature alone; the gateway's `verifyTransaction` is never called, so the field name overstates what was verified.
+- [ ] **GAP (needs the maintainer): online fee payment has no screen in AlEemaan.** The API (`POST /finance/invoices/[id]/pay` and the webhook) exists; the portal tells parents to pay by bank transfer or cash; the mock gateway's checkout URL is the hard-coded `http://localhost:3000/checkout/mock/<ref>` and no such page exists. Octalve has `PaystackMockModal` and the flow. Decide whether online payment is wanted in AlEemaan; Task 0033 assumed a mock checkout exists.
+
+**Process and tests**
+- [x] fixed in branch `claude/fail-closed-secrets`: when a startup hook throws, Next 16 keeps the process running and answers every request 500 (verified); the secret check now logs and exits with code 1.
+- [x] fixed: `tests/e2e/approvals-screen.spec.ts` asserted the page description instead of the request (a vacuous pass on desktop, a strict-mode failure on the phone).
+- [ ] `tests/https/host-cookie.spec.ts` is load-sensitive: its login redirect can exceed the 5 s URL assertion (about 12 s alone); it failed once while two suites shared the machine. Do not run two suites at once.
+
 ## 2. Remote Database Migrations (Deployed to db.prisma.io)
 
 All 25 migrations have been successfully executed and applied to the remote database on `db.prisma.io` via `pnpm exec prisma migrate deploy`. Schema is 100% up to date.
@@ -82,7 +105,7 @@ All 25 migrations have been successfully executed and applied to the remote data
 - [ ] **Question bank**: shared questions with class tags, admin approval, reuse in quizzes and forms, practice from the portal. Maintainer's decisions recorded in docs/HANDOVER.md section 6.1-6.5 (reviewers: general + per subject; scope general or branch; copy-on-use with offer-back; practice history). Design note written: docs/development-history/forms-and-question-bank-design.md (Task 0032).
 - [ ] Operations modules (admissions first). See Task 0030.
 - [ ] Portal sign-in secret is the guardian's phone number (weak).
-- [ ] **Portal cookie signing secret has a hard-coded fallback** (`src/lib/portal/auth.ts`, `getPortalSecret()`: `SESSION_SECRET || AUTH_SECRET || "<string in the source>"`; `AUTH_SECRET` was removed in 0.5.1.5 and `.env.example` documents neither). Found 2026-10-19. The maintainer runs the app locally only, and said to set it locally: done 2026-10-19 (`SESSION_SECRET`, 64 characters, in the git-ignored `.env`; it takes precedence over the older 28-character `AUTH_SECRET` that was already there; `.env.example` now documents it). **Still open:** the fallback string is still in the code; any other environment that sets neither variable can have a portal session forged. Proposed fix, not made (changes behaviour and needs `tests/support/env.ts` to supply a test secret): refuse to start without a secret of at least 32 characters, plus a test. Needs the maintainer's go.
+- [ ] **Portal cookie signing secret has a hard-coded fallback** (`src/lib/portal/auth.ts`, `getPortalSecret()`: `SESSION_SECRET || AUTH_SECRET || "<string in the source>"`; `AUTH_SECRET` was removed in 0.5.1.5 and `.env.example` documents neither). Found 2026-10-19. The maintainer runs the app locally only, and said to set it locally: done 2026-10-19 (`SESSION_SECRET`, 64 characters, in the git-ignored `.env`; it takes precedence over the older 28-character `AUTH_SECRET` that was already there; `.env.example` now documents it). **Still open:** the fallback string is still in the code; any other environment that sets neither variable can have a portal session forged. Proposed fix, not made (changes behaviour and needs `tests/support/env.ts` to supply a test secret): refuse to start without a secret of at least 32 characters, plus a test. **Maintainer said "go for it" (2026-10-19): done in branch `claude/fail-closed-secrets` (the server exits without a 32+ character `SESSION_SECRET`; tests incl. fuzz).**
 - [ ] **Walkthrough videos and PDFs that double as a flow audit** (Task 0033): for each project, one continuous browser-only journey from a freshly set-up empty database, in desktop light, desktop dark and phone; findings fixed. Decided 2026-10-19 to run LAST, after all other tasks. Spec: docs/tasks/0033-walkthrough-flow-audit.md.
 
 ## 4. Test debt (be honest about it)
