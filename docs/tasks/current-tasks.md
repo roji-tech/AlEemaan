@@ -209,7 +209,7 @@
 ---
 
 ### TASK-0032: Forms module and Question Bank
-- **Status:** Pending (design written and agreed; no code). See `docs/tasks/0032-forms-and-question-bank.md` and `docs/development-history/forms-and-question-bank-design.md`.
+- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) built on `claude/forms-qbank-slice-1`; slices 2 to 10 not started. See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
 
 ---
 

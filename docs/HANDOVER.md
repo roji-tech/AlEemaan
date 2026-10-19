@@ -183,6 +183,12 @@ Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitec
 - "Section" (shown to reviewers instead of a class) had no source. **Decided: an optional `ClassGroup.section` the admin sets**; the branch name is shown when it is empty; it arrives with slice 5.
 - Details and the slice 1 plan: design note section 16a and `docs/tasks/0032-forms-and-question-bank.md` section 4.
 
+### 6.8a Question bank slice 1 (2026-10-19)
+- Built on `claude/forms-qbank-slice-1`: the schema and additive migration `20261019210000_question_bank_foundation`, the 15 `bank.*` settings (a branch may only narrow), reviewers, the append-only audit, and the admin screen `/question-bank` (More menu). What is in it, where it differs from the plan, and the notes for slice 2 are in `docs/tasks/0032-forms-and-question-bank.md` section 4a.
+- Four defaults the design note never gave (daily cap 100, minimum pool 20, near-exam days 7, summary threshold floor 3) were confirmed by the maintainer on 2026-10-19.
+- **Images go through a storage adapter** (maintainer, 2026-10-19): Cloudinary, Cloudflare R2 and Amazon S3 are the first backends, chosen by environment, one per deployment, failing closed; served only through our own access-checked route; design in the task file section 4a. Octalve uses the same adapter. Octalve parity decisions answered the same day: "general" is school-wide only; settings changes there need the fresh re-authentication; parents' access is still open (note in the Octalve repo, `docs/development-history/forms-and-question-bank-parity.md`).
+- A shared-code bug found on the way: `withAuthGated` turned a NUL byte in `?branchId=` into a 500. Fixed in `src/lib/auth/branch-gate.ts`.
+
 ### 6.9 Standing rules added by the maintainer (2026-10-19, three messages)
 - **Always search for bugs, potential issues, design gaps and user-flow gaps**, in every task, not only the ones named. Findings go in `docs/open-items.md` section 1b with severity and evidence; defects are fixed with a test seen to fail first; product choices are asked.
 - **Also test edge cases and fuzz for security anomalies**: seeded, deterministic generators (no new dependency), random and hostile inputs, boundaries, malformed and oversized data, replays, concurrency. See `tests/unit/portal-token-fuzz.spec.ts` for the pattern.
