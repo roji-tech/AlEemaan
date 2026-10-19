@@ -77,7 +77,7 @@ All 25 migrations have been successfully executed and applied to the remote data
 ## 3b. Not built yet (decided, waiting for a go)
 
 - [ ] **Forms module**: quizzes stay as they are; new practice sets, questionnaires (member audiences, then public and anonymous, chosen per form), physical hand-in roll-call, manual marking.
-- [ ] **Question bank**: shared questions with class tags, admin approval, reuse in quizzes and forms, practice from the portal. Design questions are with the maintainer.
+- [ ] **Question bank**: shared questions with class tags, admin approval, reuse in quizzes and forms, practice from the portal. Maintainer's decisions recorded in the handoff 19.1 (reviewers: general + per subject; scope general or branch; copy-on-use with offer-back; practice history). Design note next.
 - [ ] Operations modules (admissions first). See Task 0030.
 - [ ] Portal sign-in secret is the guardian's phone number (weak).
 
