@@ -8,7 +8,20 @@ export const metadata: Metadata = { title: "Communication & Multi-Channel Messag
 export const dynamic = "force-dynamic";
 
 export default async function CommunicationPage() {
-  const { memberships, isSuperAdmin } = await requirePageSession();
+  const { memberships, isSuperAdmin, isAdmin } = await requirePageSession();
+
+  // The navigation hides this page from non-administrators, but a link or a typed address still arrives here: say no instead of showing the broadcast screen
+  // (the communication APIs refuse them regardless).
+  if (!isAdmin) {
+    return (
+      <div>
+        <PageHeader title="Communication" />
+        <p role="alert" className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
+          Only administrators can open this page.
+        </p>
+      </div>
+    );
+  }
 
   const branches = isSuperAdmin
     ? await prisma.branch.findMany({

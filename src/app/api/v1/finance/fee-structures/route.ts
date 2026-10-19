@@ -10,13 +10,18 @@ import { listFeeStructures, createFeeStructure, FinanceError } from "@/lib/finan
  * GET /api/v1/finance/fee-structures?branchId=...&periodId=...&classGroupId=...
  */
 export const GET = withAuth(
-  async (req: NextRequest) => {
+  async (req: NextRequest, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
       const branchId = searchParams.get("branchId");
 
       if (!branchId) {
         return fail("branchId query parameter is required", 400, "VALIDATION");
+      }
+
+      // Fees are an administrator's: a teacher, or an administrator of another branch, is refused (this used to answer anyone signed in with any branch's fees).
+      if (!(await canAdminister(auth.userId, branchId))) {
+        return fail("Forbidden: you do not administer this branch", 403, "FORBIDDEN");
       }
 
       const periodId = searchParams.get("periodId") ?? undefined;
@@ -29,7 +34,7 @@ export const GET = withAuth(
       return fail("Unable to retrieve fee structures", 500, "INTERNAL");
     }
   },
-  { roles: [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF] },
+  { roles: [Role.ADMIN] },
 );
 
 /**
