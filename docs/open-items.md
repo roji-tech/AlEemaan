@@ -80,6 +80,8 @@ All 25 migrations have been successfully executed and applied to the remote data
 - [ ] **Question bank**: shared questions with class tags, admin approval, reuse in quizzes and forms, practice from the portal. Maintainer's decisions recorded in docs/HANDOVER.md section 6.1-6.5 (reviewers: general + per subject; scope general or branch; copy-on-use with offer-back; practice history). Design note written: docs/development-history/forms-and-question-bank-design.md (Task 0032).
 - [ ] Operations modules (admissions first). See Task 0030.
 - [ ] Portal sign-in secret is the guardian's phone number (weak).
+- [ ] **Portal cookie signing secret has a hard-coded fallback** (`src/lib/portal/auth.ts`, `getPortalSecret()`: `SESSION_SECRET || AUTH_SECRET || "<string in the source>"`; `AUTH_SECRET` was removed in 0.5.1.5 and `.env.example` documents neither). Found 2026-10-19. The maintainer must confirm the live `SESSION_SECRET`; proposed fix: refuse to start without a secret of at least 32 characters, document it, add a test.
+- [ ] **Walkthrough videos and PDFs that double as a flow audit** (Task 0033): for each project, one continuous browser-only journey from a freshly set-up empty database, in desktop light, desktop dark and phone; findings fixed. Decided 2026-10-19 to run LAST, after all other tasks. Spec: docs/tasks/0033-walkthrough-flow-audit.md.
 
 ## 4. Test debt (be honest about it)
 

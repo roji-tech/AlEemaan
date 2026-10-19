@@ -209,3 +209,8 @@
 
 ### TASK-0032: Forms module and Question Bank
 - **Status:** Pending (design written and agreed; no code). See `docs/tasks/0032-forms-and-question-bank.md` and `docs/development-history/forms-and-question-bank-design.md`.
+
+---
+
+### TASK-0033: Walkthrough videos and PDFs that double as a flow audit
+- **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified, nothing built. See `docs/tasks/0033-walkthrough-flow-audit.md`.

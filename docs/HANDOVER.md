@@ -168,3 +168,8 @@ A detailed technical blueprint is documented in:
 
 ### 6.6 How the maintainer wants hand-offs done
 Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md` any more (maintainer's instruction, 2026-10-19); it is kept only as history. Keep `docs/tasks/current-tasks.md`, `docs/open-items.md` and the task file in step with every real change.
+
+### 6.7 Walkthrough videos and PDFs that double as a flow audit (2026-10-19) - runs LAST
+- The maintainer wants, **for each project separately**, a video and a PDF with screenshots of every feature, made **only by what a person can do in a browser** (click, type, choose files, follow links): no SQL, no API calls, no deep-link jumps, no silent "if visible" skips, one continuous journey from a freshly set-up empty database. It doubles as a flow audit and **its findings get fixed**.
+- Decisions: it runs **after all other tasks are done** (so after Task 0032); outside-the-browser steps use the in-app stand-ins (dev email inbox, mock payment, the on-screen two-step secret); **the full journey is recorded in all three: desktop light, desktop dark, phone**; defects and missing screens are fixed (with tests), product choices are asked, not guessed.
+- The full specification, rules and guardrails are in `docs/tasks/0033-walkthrough-flow-audit.md`. Nothing is built. Open question: does Octalve's question-bank parity count as part of "all tasks" before Octalve's walkthrough?
