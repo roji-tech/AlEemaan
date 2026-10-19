@@ -158,5 +158,10 @@ A detailed technical blueprint is documented in:
 5. Order of work proposed: PRs -> design note for Forms + question bank (plan-before-code, one note) -> practice sets -> question bank -> questionnaires -> physical hand-in -> manual marking.
 
 
+### 6.5b Question bank - last two answers (2026-10-19)
+- "Teachers only until a date" can be set by the exam approving reviewer OR by the uploader's admin (not by the uploader).
+- Pupil practice history is kept for the same retention as other pupil data. A pupil can only ARCHIVE entries (hide them from their own view), never delete them; archived entries stay under the normal retention and still feed the class-level summaries teachers see.
+- With these answered, the design note for the Forms module and the question bank can be written (plan-before-code), then built in the order in 6.5.
+
 ### 6.6 How the maintainer wants hand-offs done
 Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md` any more (maintainer's instruction, 2026-10-19); it is kept only as history. Keep `docs/tasks/current-tasks.md`, `docs/open-items.md` and the task file in step with every real change.
