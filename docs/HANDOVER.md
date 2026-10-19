@@ -163,5 +163,8 @@ A detailed technical blueprint is documented in:
 - Pupil practice history is kept for the same retention as other pupil data. A pupil can only ARCHIVE entries (hide them from their own view), never delete them; archived entries stay under the normal retention and still feed the class-level summaries teachers see.
 - With these answered, the design note for the Forms module and the question bank can be written (plan-before-code), then built in the order in 6.5.
 
+### 6.5c The design note exists
+`docs/development-history/forms-and-question-bank-design.md` is written (data model, permissions table, exam-secrecy rules, flows, API, settings keys, abuse controls, build order, tests). Task file: `docs/tasks/0032-forms-and-question-bank.md`. Start building at slice 1 only after the UI1 PR is merged. Small open items are listed in section 16 of the note.
+
 ### 6.6 How the maintainer wants hand-offs done
 Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md` any more (maintainer's instruction, 2026-10-19); it is kept only as history. Keep `docs/tasks/current-tasks.md`, `docs/open-items.md` and the task file in step with every real change.

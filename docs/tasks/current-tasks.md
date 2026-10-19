@@ -204,3 +204,8 @@
 - [x] Students, Approvals, Scheme levels, timetable batch, portal hand-in and quiz screens.
 - [x] Cross-branch data exposure closed in finance, coursework, announcements, timetable, communication, promotion, sessions.
 - [ ] Final full-suite run, PR, and the migration ordering note to the maintainer.
+
+---
+
+### TASK-0032: Forms module and Question Bank
+- **Status:** Pending (design written and agreed; no code). See `docs/tasks/0032-forms-and-question-bank.md` and `docs/development-history/forms-and-question-bank-design.md`.
