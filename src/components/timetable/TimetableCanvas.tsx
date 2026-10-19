@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getDayName, getShortDayName, findSlotClashes, type TimetableSlotInput } from "@/lib/timetable/rules";
 import { SlotEditModal, type SlotDto } from "./SlotEditModal";
+import { BatchSlotsModal } from "./BatchSlotsModal";
 
 export interface TimetableCanvasProps {
   branchId: string;
@@ -15,6 +16,7 @@ export interface TimetableCanvasProps {
 }
 
 export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers, readOnly = false, onRefresh }: TimetableCanvasProps) {
+  const [batchOpen, setBatchOpen] = useState(false);
   const [selectedArmId, setSelectedArmId] = useState<string>("ALL");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -134,13 +136,22 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
         </div>
 
         {!readOnly && (
-          <button
-            type="button"
-            onClick={() => handleOpenAdd()}
-            className="flex items-center gap-1.5 rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            <span>+</span> Schedule Period
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleOpenAdd()}
+              className="flex items-center gap-1.5 rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <span>+</span> Schedule Period
+            </button>
+            <button
+              type="button"
+              onClick={() => setBatchOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-line-strong bg-surface px-4 py-2 text-xs font-semibold text-fg transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              Same period, several days
+            </button>
+          </div>
         )}
       </div>
 
@@ -304,6 +315,16 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
       )}
 
       {/* Edit / Create Dialog */}
+      <BatchSlotsModal
+        key={batchOpen ? "open" : "closed"}
+        open={batchOpen}
+        branchId={branchId}
+        classArms={classArms}
+        subjects={subjects}
+        teachers={teachers}
+        onClose={() => setBatchOpen(false)}
+        onSaved={onRefresh}
+      />
       <SlotEditModal
         branchId={branchId}
         isOpen={modalOpen}

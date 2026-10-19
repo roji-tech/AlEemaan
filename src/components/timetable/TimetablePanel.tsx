@@ -32,14 +32,17 @@ export function TimetablePanel({ branches, isAdmin }: TimetablePanelProps) {
 
       // 2. Fetch academic reference data (arms, subjects, staff)
       const [armsRes, subsRes, staffRes] = await Promise.all([
-        fetch(`/api/v1/academics/arms?branchId=${branchId}`),
+        fetch(`/api/v1/academics/class-groups?branchId=${branchId}`),
         fetch(`/api/v1/academics/subjects?branchId=${branchId}`),
         fetch(`/api/v1/staff?branchId=${branchId}`),
       ]);
 
       if (armsRes.ok) {
+        // There is no list-arms route (GET /academics/arms does not exist, so this used to leave the list empty and no period could ever be scheduled):
+        // the arms come with their class from the class-groups list.
         const d = await armsRes.json();
-        setClassArms(d.data?.arms || d.data || []);
+        const groups: { name: string; arms: { id: string; name: string }[] }[] = d.data?.classGroups ?? [];
+        setClassArms(groups.flatMap((g) => g.arms.map((a) => ({ id: a.id, name: `${g.name} ${a.name}` }))));
       }
       if (subsRes.ok) {
         const d = await subsRes.json();
