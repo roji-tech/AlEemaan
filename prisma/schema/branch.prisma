@@ -54,6 +54,9 @@ model Branch {
   guardianLinkTokens    GuardianLinkToken[]
   notificationAuditLogs NotificationAuditLog[]
   promotionBatches      PromotionBatch[]
+  bankItems             QuestionBankItem[]
+  bankReviewers         QuestionBankReviewer[]
+  bankAudits            QuestionBankAudit[]
 
   createdAt DateTime @default(now())
 }
