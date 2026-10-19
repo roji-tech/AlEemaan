@@ -122,7 +122,9 @@ test("approvals: an administrator proposes verification fields; a superadmin gra
   await signInThroughUi(page, sup);
   await page.goto("/approvals");
   await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" });
-  await expect(page.getByText("Public verification page")).toBeVisible();
+  // The request itself, not the words: getByText("Public verification page") also matches the page's own description ("...report cards and public
+  // verification page show..."), so before the list had loaded it passed on the description (desktop) and, once both existed, failed on strict mode (phone).
+  await expect(page.getByRole("button", { name: new RegExp(`^Approve Public verification page from ${tag} Admin`) })).toBeVisible();
   await page.getByRole("tab", { name: "Self-approval" }).click();
   await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" }); // a superadmin sees every branch, the first alphabetically is not the home one
   await page.getByRole("button", { name: new RegExp(`Allow ${tag} Admin`) }).click();
