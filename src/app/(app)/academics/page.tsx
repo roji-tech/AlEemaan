@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // Classes, arms and subjects of each branch (Slice P1). The page offers the branches the person holds a STAFF role in (a superadmin: all) and whether they may
 // change each (an administrator of that branch, or a superadmin). It is display: the academics API behind every list and button decides, on every request.
 export default async function AcademicsPage() {
-  const { session, isAdmin } = await requirePageSession();
+  const { session, isAdmin, isSuperAdmin } = await requirePageSession();
   const visible = await branchIdsFor(session.userId);
   const scope = await adminScope(session.userId);
   const branches = await prisma.branch.findMany({
@@ -35,7 +35,10 @@ export default async function AcademicsPage() {
           You don&apos;t belong to a branch with staff access yet.
         </p>
       ) : (
-        <AcademicsSections branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))} />
+        <AcademicsSections
+          branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
+          isSuperAdmin={isSuperAdmin}
+        />
       )}
     </div>
   );

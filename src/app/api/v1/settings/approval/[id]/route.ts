@@ -119,6 +119,7 @@ export const PATCH = withAuth<Context>(
               const scheme = await tx.assessmentScheme.create({
                 data: {
                   branchId: draft.branchId,
+                  hosted: true,
                   name: draft.name,
                   totalMax: draft.totalMax,
                   examMax: draft.examMax,
