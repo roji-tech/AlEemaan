@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { gradeSubmissionSchema } from "@/lib/lms/validation";
 import { gradeSubmission, LmsError } from "@/lib/lms/service";
@@ -12,7 +13,8 @@ interface RouteParams {
 /**
  * PATCH /api/v1/lms/assignments/[id]/submissions/[subId]/grade
  */
-export const PATCH = withAuth(
+export const PATCH = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id: assignmentId, subId } = await params;

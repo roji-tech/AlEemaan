@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
@@ -9,7 +10,8 @@ import { listTimetableSlots, createTimetableSlot, TimetableClashError } from "@/
 /**
  * GET /api/v1/timetable?branchId=...&classArmId=...&staffRecordId=...&dayOfWeek=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "read-any",
   async (req: NextRequest) => {
     try {
       const { searchParams } = new URL(req.url);

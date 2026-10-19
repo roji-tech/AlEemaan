@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { Role, NotificationChannel } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { CreateTemplateSchema } from "@/lib/communication/validation";
 import { listTemplates, createTemplate } from "@/lib/communication/service";
@@ -8,7 +8,8 @@ import { listTemplates, createTemplate } from "@/lib/communication/service";
 /**
  * GET /api/v1/communication/templates?branchId=...&channel=...&search=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "staff-read",
   async (req: NextRequest) => {
     try {
       const { searchParams } = new URL(req.url);
@@ -38,7 +39,8 @@ export const GET = withAuth(
 /**
  * POST /api/v1/communication/templates
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "administer",
   async (req: NextRequest) => {
     try {
       const body = await req.json();

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { submitAssignmentSchema } from "@/lib/lms/validation";
 import { submitAssignment, getAssignmentById, LmsError } from "@/lib/lms/service";
@@ -13,7 +14,8 @@ interface RouteParams {
 /**
  * GET /api/v1/lms/assignments/[id]/submissions?branchId=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "staff-read",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
@@ -39,7 +41,8 @@ export const GET = withAuth(
 /**
  * POST /api/v1/lms/assignments/[id]/submissions
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "read-any",
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id } = await params;

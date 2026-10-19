@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { listPromotionBatches } from "@/lib/promotion/service";
 
@@ -8,7 +8,8 @@ import { listPromotionBatches } from "@/lib/promotion/service";
  * GET /api/v1/academics/promotion/batches
  * Lists promotion audit batches for a branch.
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "administer",
   async (req: NextRequest) => {
     try {
       const url = new URL(req.url);
