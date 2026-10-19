@@ -105,6 +105,7 @@ A detailed technical blueprint is documented in:
 - Published results are write-protected by a trigger: test cleanup must `resetDatabase()` (truncate), not `deleteMany`.
 - A fixed date in a test ages out of the 7-day teacher attendance window.
 - Do not run tests on `aleemaan_test` while a full suite runs; rebuild (`pnpm build`) before API/e2e runs, the servers under test are a production build.
+- **The build script runs `prisma generate` first (2026-10-19).** Vercel restores a cached `node_modules` ("Already up to date"), so Prisma's install-time generate does not run again and a schema change builds against the OLD client: PR #67's preview failed type-checking (`'hosted' does not exist in type AssessmentSchemeCreateInput`) while the same code built locally. Reproduced by generating from `dev`'s schema and running `tsc` (5 errors, the same as the Vercel log), fixed by `"build": "prisma generate && next build"` (0 errors). `prisma generate` needs no `DATABASE_URL`. Octalve Edu has the same stale-cache failure on its `dev` (see its HANDOVER).
 
 **Test state:** final full run on the final code (2026-10-19): 1538 passed, 2 failed, 18 skipped; both failures read, one fixed (a test that asserted the wrong element), one load-sensitive (`https/host-cookie`, passes alone); details in `docs/tasks/0031-ui1-screens-and-security.md`. Mutation passes still deferred to the end of Phase 2.
 
