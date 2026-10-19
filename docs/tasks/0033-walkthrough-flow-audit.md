@@ -13,7 +13,7 @@ For each project separately, produce a video and a PDF that show **every feature
 
 ## 2. Context & Related Docs
 - Decisions in the maintainer's words: `docs/HANDOVER.md` section 6.7.
-- Why it is last: the audit changes production code, so it should run once, against the finished product, including Task 0032 (Forms and question bank). Open question for the maintainer: whether Octalve's question-bank parity (which needs its own design note) counts as part of "all tasks" before Octalve's walkthrough.
+- Why it is last: the audit changes production code, so it should run once, against the finished product, including Task 0032 (Forms and question bank). Decided 2026-10-19: Octalve's question-bank parity (its own design note, then the build) counts as part of "all tasks", so it is done BEFORE Octalve's walkthrough.
 - Builds on: the Playwright setup in this repo; the production-build rule (`pnpm build` before any run); the dev email inbox (`EMAIL_TRANSPORT=inbox`, Phase 0.5.F); the theme cookie and tokens.
 
 ## 3. The rules (the maintainer's words, made enforceable)
