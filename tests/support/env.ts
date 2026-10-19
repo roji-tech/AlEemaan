@@ -86,6 +86,14 @@ process.env.MFA_ENCRYPTION_KEY = TEST_MFA_KEY;
 export const TEST_PORTAL_SECRET = "test-portal-session-secret-Zq7mLw0pXc9Vt3nBh8Ys2KdJf6";
 process.env.SESSION_SECRET = TEST_PORTAL_SECRET;
 
+/// Payments. The servers under test are production-shaped, so the mock gateway needs BOTH switches (lib/finance/paystack.ts `resolvePaystackMode`: FORCE_MOCK_PAYSTACK and
+/// ALLOW_MOCK_PAYMENTS_IN_PRODUCTION) and a key to sign webhooks with. Fixed here, unconditionally, and deliberately NOT the public MOCK_PAYSTACK_SECRET: a webhook signed
+/// with the public string must be refused by every server under test (tests/api/webhook-security.spec.ts).
+export const TEST_PAYSTACK_SECRET = "sk_test_harness_key_aleemaan_0123456789";
+process.env.FORCE_MOCK_PAYSTACK = "true";
+process.env.ALLOW_MOCK_PAYMENTS_IN_PRODUCTION = "true";
+process.env.PAYSTACK_SECRET_KEY = TEST_PAYSTACK_SECRET;
+
 /// Environment for the Next.js servers under test. Explicit and complete on
 /// purpose: nothing from a developer's shell or .env may change what is tested.
 export function serverEnv(appUrl: string): Record<string, string> {
@@ -106,7 +114,9 @@ export function serverEnv(appUrl: string): Record<string, string> {
     DEV_TOOLS_TOKEN: "",
     PWNED_PASSWORD_CHECK: "off",
     SESSION_SECRET: TEST_PORTAL_SECRET,
-    USE_MOCK_PAYSTACK: "true",
+    FORCE_MOCK_PAYSTACK: "true",
+    ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: "true",
+    PAYSTACK_SECRET_KEY: TEST_PAYSTACK_SECRET,
   };
 }
 

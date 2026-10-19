@@ -5,6 +5,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { initializePaymentSchema } from "@/lib/finance/validation";
 import { initializeGatewayPayment, FinanceError } from "@/lib/finance/service";
+import { PaymentsNotConfiguredError } from "@/lib/finance/paystack";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -47,6 +48,10 @@ export const POST = withAuth(
     } catch (error) {
       if (error instanceof FinanceError) {
         return fail(error.message, 400, "FINANCE_ERROR");
+      }
+      // No Paystack key on a production-shaped server (or the mock forced there): say so plainly, and nothing was started (the payment row is rolled back).
+      if (error instanceof PaymentsNotConfiguredError) {
+        return fail("Online payments are not set up on this server yet.", 503, "PAYMENTS_NOT_CONFIGURED");
       }
       console.error("[INVOICE_PAY_INIT_ERROR]", error);
       return fail("Failed to initialize payment", 500, "INTERNAL");
