@@ -1,9 +1,9 @@
 # AlEemaan — Project Status & Handover Documentation
 
-> **Last Updated:** 2026-10-18 (Post-Task 0030 Extended Staff HR Fields & Migrations)  
+> **Last Updated:** 2026-10-19 (Slice UI1 committed on a branch, question bank and Forms decisions - see section 6)  
 > **Scope:** AlEemaan School Management System (Single-Tenant, Multi-Branch Architecture)  
 > **Repository:** `roji-tech/AlEemaan`  
-> **Active Branch:** `dev` (Synchronized with `master`)
+> **Active Branch:** `dev` (Synchronized with `master`); unmerged work: `claude/ui-gaps-students-settings` (Slice UI1, section 6)
 
 ---
 
@@ -87,3 +87,76 @@ A detailed technical blueprint is documented in:
 
 - **Suite Status:** 585 tests passing, 0 failures, 18 documented design skips.
 - **Full Mutation Testing:** 45 mutations across Pagination (`P1`–`P19`), Validation (`V1`–`V8`), CSRF (`C1`–`C9`), and Password Policy (`W1`–`W9`) -> 100% caught.
+
+---
+
+## 6. Current work: Slice UI1, the Forms module and the question bank (2026-10-19) - START HERE
+
+**Where the code is:** AlEemaan branch `claude/ui-gaps-students-settings`, 12+ commits ahead of `dev`, **not pushed, no PR yet**. Octalve branch `claude/ui-fixes-hydration-nav`, uncommitted/unpushed. Details: `AlEemaan/docs/tasks/0031-ui1-screens-and-security.md`.
+
+**Migration order:** `20261019090000_hosted_schemes` (adds `AssessmentScheme.hosted`, rebuilds the one-live-scheme-per-scope index) must run on a live database BEFORE the code. Applied to the dev (:5434), `aleemaan_qa` and test databases only. The online test DB (db.prisma.io) was never reset (the reset was blocked by the permission system) and has the setup-wizard account from the first run.
+
+**What UI1 did:** the Students screen, Approvals page, scheme levels, timetable batch, phone navigation, enforcement wiring for layouts and verification; portal hand-in and quiz taking; and closed cross-branch exposure (finance, coursework, announcements, timetable, communication, promotion, sessions), the answer-key leak, and "act as any pupil" on submissions. Product mismatches found: missing Students screen; phone More button hidden; class-arm route used by timetable/announcements did not exist; P2e APIs without screens; hosted-scheme index collision; layout PATCH failing on a fresh DB; wrong admin wording; silent unplaced class; role names that do not exist on the Coursework page; LMS/Communication using undefined design tokens (unstyled); Octalve Coursework unreachable.
+
+**Rules learned (do not unlearn):**
+- A pupil record has no login. Pupils and guardians act only through the portal (`/portal`, session cookie, admission number + guardian phone). STUDENT/PARENT staff-style memberships read published content only and cannot name a pupil.
+- The app has no custom `dark:` variant: use the theme tokens (`text-ok-fg`, `bg-warn-bg`, `text-danger-fg`...). Tailwind classes such as `text-foreground`, `bg-primary`, `border-border` do NOT exist here or in Octalve.
+- Routes that take a `branchId` from the query/body must use `withBranch` or `withAuthGated` (`src/lib/auth/branch-gate.ts`); `withAuth({ roles })` only means "a role in SOME branch".
+- Published results are write-protected by a trigger: test cleanup must `resetDatabase()` (truncate), not `deleteMany`.
+- A fixed date in a test ages out of the 7-day teacher attendance window.
+- Do not run tests on `aleemaan_test` while a full suite runs; rebuild (`pnpm build`) before API/e2e runs, the servers under test are a production build.
+
+**Test state:** before stage 7 the full suite was 1526 passed, 5 failed (4 repaired, 1 timing test passing alone). Re-run on the final commit before opening the PR. Mutation passes still deferred to the end of Phase 2.
+
+**Open / next (the maintainer decides order):**
+1. Open the AlEemaan PR into `dev` (check `base.ref` is `dev` before merging) and the Octalve PR into octalve-core `dev`; never promote to master/prod without approval.
+2. **Forms module** (decided 2026-10-19): kinds quiz / practice set / questionnaire / physical hand-in; audiences member and public chosen per form; anonymity chosen per form (responses unlinked, a separate "has answered" table); teacher marking per question or per attempt; physical hand-in is a roll-call the teacher closes, a pupil can only REQUEST to be marked. Write the design note first.
+3. **Question bank** (requested 2026-10-19): questions reused in quizzes/tests/exams and in questionnaires (a separate bank), editable copies when used, saved in any format only after approval by an admin or people the admin assigns, class tags (several), pupils practise from the portal. Open design questions are listed in the conversation and must be answered before the note.
+4. Portal sign-in secret = guardian phone: replace.
+5. Rotate the DB/Redis credentials that were pasted in chat.
+6. Octalve: support-grants route now reads the platform administrator through `lib/support/grants.ts`; 3 routes have no UI (higher-ed transcript, people/enrolment-counts, students/[id]/report-card).
+
+### 6.1 Question bank - the maintainer's decisions (2026-10-19)
+- Questions are chosen from the bank when setting a test, exam or quiz, and may be modified at will. A SEPARATE bank for questionnaires is allowed.
+- Any format may be saved to the bank, but only after approval by an admin or the people the admin assigns: **general reviewers and per-subject reviewers**. Admins can always override.
+- **Scope is chosen by the admin per question: general (all branches) or restricted to one branch.**
+- Questions carry class labels, several allowed (a question may serve several classes).
+- Used in a quiz/exam, a question is a **copy with a link back to the bank item** (edits never change past papers). A modified copy can be offered back to the bank as a NEW question and must be approved before it enters the bank.
+- Pupils **practise from the portal** with bank questions by class and subject, see the right answer after trying, and a **practice history is kept** (progress over time; teachers may see class-level weak topics). Practice attempts are never marks.
+- Design note first (plan-before-code), then build. Not started.
+
+### 6.2 Question bank - second round of decisions and open points (2026-10-19)
+- Pupil practice: the pupil chooses feedback timing (answer after EACH question, or after finishing the whole set) and the NUMBER of questions; the maximum is set by the SUPERADMIN (not the branch admin) with a default.
+- Images on a question: at most 3 (maybe 4), each with a maximum size. Question types: single-choice AND multiple-selection (more than one right answer).
+- Reports on questions ("report an issue", not a public thread): pupil reports shown to reviewers by SECTION only (e.g. "a pupil in JSS"), not the class. Separate on/off switches for teacher reports and pupil reports; admins set them per branch; the superadmin can switch either off school-wide or for a branch; a branch cannot override a school-wide off.
+- Exam hold: see 6.3; the maintainer raised that hiding a held question is itself a signal to anyone who recognised it, and that a "similar to a held question" warning should go to the admin, not the uploader. Treated below in the design note.
+
+### 6.3 Question bank - exam secrecy redesign (2026-10-19) - supersedes the "hold" idea in 6.2
+- NO dynamic hold. A question the pupils could see must never disappear (a disappearing question tells anyone who knew it that an exam is near, and "question not available" is a disclosure). Rule: **a question may appear later, never disappear.**
+- Visibility is static, set at approval by the approver: PRACTICE (pupils may practise), TEACHERS_ONLY (never shown to pupils; a class of questions that is always teacher-only), or TEACHERS_ONLY_UNTIL <date/exam close> (appears for practice later). The uploader only ever sees "approved".
+- The "similar to a protected question" warning goes ONLY to the EXAM approving reviewer (a designated reviewer role), never the uploader or an ordinary reviewer. The approver can approve and keep the question out of the pupil pool until the exam closes.
+- A practice-pool question later chosen for an exam is NOT hidden; the exam item records "exposed to practice" so the teacher sees the risk.
+- A question created inside an exam is offered to the bank only when the teacher or an admin chooses.
+- Practice size: pupil picks the number; max and default set by the SUPERADMIN. The maintainer finds 10 too small: proposed default 20, presets 10/20/30/50, max 100, plus a per-pupil daily cap (anti-scraping). Superadmin also sets the minimum pool size before practice is offered for a subject/class and the date ranges (small-bank and large-bank behaviour).
+- Teachers' personal exam/test templates: a template used by a scheduled exam is hidden from sharing, copying and browsing until the exam closes.
+- Printing: teachers cannot print exam questions in the "near exam" and "exam" window; the window length is set by the SUPERADMIN. Open: an exam officer (the exam approving reviewer) must still be able to print for the sitting, audited and watermarked; browser print/screenshots cannot be fully prevented, so the controls are server-side PDF, watermark with name and time, and an audit trail.
+
+### 6.4 Question bank - reviewer scope and pupil printing (2026-10-19)
+- The exam approving reviewer can be GENERAL (all subjects) or PER SUBJECT (like the ordinary reviewers). Several allowed.
+- Pupil printing (proposed, awaiting the maintainer's confirmation): practice sets and a pupil's own finished practice may be printed any time (server-made PDF, pupil name and time watermark, counts toward the daily practice cap, answers only if already revealed); a quiz/assignment/exam the pupil has not yet submitted cannot be printed by the pupil (a teacher can release a printable handout for physical-hand-in work); after submission the pupil may print their own questions and answers; exam papers are never printable by pupils in the near-exam/exam window, and afterwards only when the teacher releases them.
+
+### 6.5 Question bank - access switches, screenshots, and the state at handover (2026-10-19)
+- The SUPERADMIN can disable access to the question banks per kind of person: pupils, staff, admins (each separately; and per branch). A disabled group sees no bank, no practice, no reports. Every switch change is audited.
+- Screenshots/photos: a browser or installed web app (PWA) CANNOT prevent screenshots or photos of a screen. Only a native wrapper can partly: Android (FLAG_SECURE blocks screenshots and recording), iOS (can detect a screenshot or recording, cannot block it). A second device's camera can never be stopped. Controls we CAN build: watermarked server-made PDFs, audit trail, rate limits, no dynamic hold. For in-school computer-based exams the real answer is controlled devices / a lockdown browser (separate project). Tell the maintainer this plainly.
+- "Log everything": every decision of this conversation is in sections 19.1-19.5 of this file; the build record is `AlEemaan/docs/tasks/0031-ui1-screens-and-security.md`.
+
+**STATE AT HANDOVER (read first):**
+1. AlEemaan: branch `claude/ui-gaps-students-settings` (14 commits ahead of `dev`, last code commit stage 7, then 2 docs commits). NOT pushed, NO PR. A full-suite run on the final commit was started in the background and its log is `full-ui1-final.log` in the session scratchpad (if the session is gone: re-run `TEST_DATABASE_URL=postgresql://roji:roji@127.0.0.1:5432/aleemaan_test pnpm exec playwright test --timeout=120000` after `pnpm build`, ~1.6 h; do not run anything else on `aleemaan_test` meanwhile). Before stage 7: 1526 passed, 5 failed (all explained and fixed or timing).
+2. Octalve: branch `claude/ui-fixes-hydration-nav`, commit d5f1129, not pushed, no PR. Full suite 2069 passed, 13 failed, explained in its `docs/tasks/current-tasks.md`; 2 pre-existing failures on `dev` remain (phone More sheet Users tab; academics "staff may LOOK" Open button).
+3. NOT done: opening the two PRs (check `base.ref` is `dev` before any merge; never promote to master/prod without approval); Forms module and question bank design note and build; portal sign-in secret replacement; credential rotation (maintainer); online-DB reset (blocked by the permission system, needs the maintainer); mutation passes (deferred to the end of Phase 2).
+4. Migration `20261019090000_hosted_schemes` must precede the AlEemaan code on any live database.
+5. Order of work proposed: PRs -> design note for Forms + question bank (plan-before-code, one note) -> practice sets -> question bank -> questionnaires -> physical hand-in -> manual marking.
+
+
+### 6.6 How the maintainer wants hand-offs done
+Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md` any more (maintainer's instruction, 2026-10-19); it is kept only as history. Keep `docs/tasks/current-tasks.md`, `docs/open-items.md` and the task file in step with every real change.
