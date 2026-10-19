@@ -3,6 +3,7 @@ import { fail, noStore } from "@/lib/api/envelope";
 import { withAuth, type AuthContext, type WithAuthOptions } from "@/lib/auth/with-auth";
 import { branchGrant } from "@/lib/auth/with-branch";
 import { heldRoleIn } from "@/lib/auth/branch-access";
+import { isPlausibleId } from "@/lib/api/ids";
 
 // `withAuth` plus "and the branch this request names is the caller's" - for the routes whose handler passes a `branchId` from the query string or the body straight
 // to a service (coursework, announcements, timetable, communication, promotion). Found by the browser security run (2026-10-19): `withAuth({ roles })` only says
@@ -42,8 +43,11 @@ export function withAuthGated<C = unknown>(
   return withAuth<C>(async (req, auth, routeContext) => {
     const named = await branchOf(req);
     if (named) {
+      // An id that cannot be a branch id (a NUL byte, a control character, a huge string) is a refusal like any other branch that is not the caller's, not a database
+      // error: Postgres rejects a NUL in a parameter and the request would end as a 500.
       const allowed =
-        level === "read-any"
+        isPlausibleId(named.id) &&
+        (level === "read-any"
           ? (await heldRoleIn(auth.userId, named.id)) !== null
           : (
               await branchGrant(
@@ -51,7 +55,7 @@ export function withAuthGated<C = unknown>(
                 named.id,
                 level === "staff-read" ? "staff-read" : level === "staff-write" ? "staff-write" : "administer",
               )
-            ).ok;
+            ).ok);
       if (!allowed) {
         return noStore(
           named.from === "body" ? fail("You don't have access to that branch.", 403, "FORBIDDEN") : fail("Not found", 404, "NOT_FOUND"),

@@ -5,6 +5,7 @@ import { fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
 import { getSessionFromRequest, type ResolvedSession } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
+import { hasUnusablePathParam } from "@/lib/api/ids";
 
 // The shared route guard: same name, file and call shape as Octalve Edu's
 // (domain-implementation-plan.md §0.5.1.6). It REPLACES `requireAdmin()`.
@@ -75,6 +76,11 @@ export function withAuth<C = unknown>(
     if (options.superAdmin && !(await isSuperAdmin(session.userId))) {
       return noStore(fail("You don't have permission to do that", 403, "FORBIDDEN"));
     }
+
+    // An id in the URL path that can only be a mistake or an attack (a NUL byte, a control character, 5 KB of text) is "not found": left alone it reaches a query and
+    // Postgres rejects it, which is a 500. Checked here once, after the authorization above (so who may do what is unchanged), for every route with a dynamic segment.
+    const params = await (routeContext as { params?: Promise<unknown> } | undefined)?.params;
+    if (hasUnusablePathParam(params)) return noStore(fail("Not found", 404, "NOT_FOUND"));
 
     const response = await handler(req, session, routeContext);
     // Responses to an authenticated request are user-specific: never cache.

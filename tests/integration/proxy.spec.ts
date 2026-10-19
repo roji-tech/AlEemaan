@@ -56,3 +56,40 @@ test("only the exact value 'true' relaxes it: anything else stays enforcing", ()
     else process.env.CSP_REPORT_ONLY = before;
   }
 });
+
+test.describe("broken percent-encoding in the path is a 400, not Next's 500", () => {
+  const at = (path: string) => proxy(new NextRequest(`http://localhost${path}`));
+
+  test("pages and the API both refuse it, uncacheable, without leaking anything", () => {
+    for (const path of [
+      "/login%ff",
+      "/verify/%ED%A0%80",
+      "/api/v1/announcements/%ff",
+      "/api/v1/students/a%C0%80b",
+      "/api/x/%",
+      "/api/x/%zz",
+    ]) {
+      const res = at(path);
+      expect(res.status, path).toBe(400);
+      expect(res.headers.get("cache-control"), path).toBe("no-store");
+      expect(res.headers.get("content-security-policy"), path).toBeNull();
+    }
+  });
+
+  test("well-formed encodings, including a NUL byte and emoji, go on to the route (which refuses them itself)", () => {
+    for (const path of [
+      "/login",
+      "/api/v1/announcements/%00",
+      "/api/v1/announcements/%F0%9F%98%80",
+      "/verify/abc%20def",
+      "/api/v1/x/%2F%2E%2E",
+    ]) {
+      expect(at(path).status, path).toBe(200);
+    }
+  });
+
+  test("an API request passes through without a page policy; a page request still gets one", () => {
+    expect(at("/api/v1/announcements").headers.get("content-security-policy")).toBeNull();
+    expect(at("/login").headers.get("content-security-policy")).toContain("script-src");
+  });
+});
