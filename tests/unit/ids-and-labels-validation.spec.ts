@@ -1,6 +1,6 @@
 import "../support/env";
 import { test, expect } from "@playwright/test";
-import { hasUnusablePathParam, isPlausibleId, isUnusablePathValue } from "@/lib/api/ids";
+import { UNUSABLE_PATH_VALUE_STAND_IN, hasUnusablePathParam, isPlausibleId, isUnusablePathValue, sanitizePathParams } from "@/lib/api/ids";
 import { hasForbiddenCharacters, idSchema } from "@/lib/question-bank/validation";
 
 // An id from a request must be the shape of a cuid before it reaches a query: a NUL byte in a parameter is a Postgres error, so the request would end as a 500 instead
@@ -78,5 +78,15 @@ test.describe("path values (applied to every dynamic route by withAuth)", () => 
     for (const odd of [undefined, null, {}, "text", 5, [], { id: 5 }, { id: null }, { id: [5] }]) {
       expect(hasUnusablePathParam(odd)).toBe(false);
     }
+  });
+
+  test("sanitizePathParams replaces only the unusable values, keeps the rest, and returns the same object when nothing changes", () => {
+    const fine = { id: "abc", day: "2026-10-19" };
+    expect(sanitizePathParams(fine)).toBe(fine);
+    expect(sanitizePathParams({ id: "a\u0000b", day: "2026-10-19" })).toEqual({ id: UNUSABLE_PATH_VALUE_STAND_IN, day: "2026-10-19" });
+    expect(sanitizePathParams({ path: ["ok", "x".repeat(300), "fine"] })).toEqual({ path: ["ok", UNUSABLE_PATH_VALUE_STAND_IN, "fine"] });
+    for (const odd of [undefined, null, "text", 5]) expect(sanitizePathParams(odd)).toBe(odd);
+    // the stand-in is itself a usable value (no loop) and is not a plausible-looking id of anything real
+    expect(isUnusablePathValue(UNUSABLE_PATH_VALUE_STAND_IN)).toBe(false);
   });
 });

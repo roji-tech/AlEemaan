@@ -13,19 +13,29 @@ const UNUSABLE_PATH_VALUE = /[\p{Cc}\p{Cs}]/u;
 
 export const isUnusablePathValue = (value: string): boolean => value.length > 256 || UNUSABLE_PATH_VALUE.test(value);
 
-/// True when any value in a route's `params` (a string, or an array of strings for a catch-all) is unusable.
-export function hasUnusablePathParam(params: unknown): boolean {
-  if (typeof params !== "object" || params === null) return false;
-  for (const value of Object.values(params)) {
-    if (
-      typeof value === "string"
-        ? isUnusablePathValue(value)
-        : Array.isArray(value) && value.some((v) => typeof v === "string" && isUnusablePathValue(v))
-    )
-      return true;
+/// What a path value that cannot be right is replaced with before a route sees it: a string no id, code or date equals, so the route answers exactly as it does for any
+/// id that does not exist (its own 404, its own words). That keeps "malformed" and "unknown" indistinguishable, which several routes promise and test.
+export const UNUSABLE_PATH_VALUE_STAND_IN = "_";
+
+/// The route's `params` with every unusable value (a string, or any part of a catch-all array) replaced by the stand-in. Returns the SAME object when nothing is unusable.
+export function sanitizePathParams<T>(params: T): T {
+  if (typeof params !== "object" || params === null) return params;
+  let changed = false;
+  const clean: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string" && isUnusablePathValue(value)) {
+      clean[key] = UNUSABLE_PATH_VALUE_STAND_IN;
+      changed = true;
+    } else if (Array.isArray(value) && value.some((v) => typeof v === "string" && isUnusablePathValue(v))) {
+      clean[key] = value.map((v) => (typeof v === "string" && isUnusablePathValue(v) ? UNUSABLE_PATH_VALUE_STAND_IN : v));
+      changed = true;
+    } else clean[key] = value;
   }
-  return false;
+  return changed ? (clean as T) : params;
 }
+
+/// True when any value in a route's `params` is unusable.
+export const hasUnusablePathParam = (params: unknown): boolean => sanitizePathParams(params) !== params;
 
 /// A path with broken percent-encoding ("%ff", "%ED%A0%80", a lone "%"): Next answers it with a 500 before any route runs, so it is refused earlier, in the proxy, as a 400.
 export function isMalformedPath(pathname: string): boolean {

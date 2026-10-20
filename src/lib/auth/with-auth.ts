@@ -5,7 +5,7 @@ import { fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
 import { getSessionFromRequest, type ResolvedSession } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
-import { hasUnusablePathParam } from "@/lib/api/ids";
+import { sanitizePathParams } from "@/lib/api/ids";
 
 // The shared route guard: same name, file and call shape as Octalve Edu's
 // (domain-implementation-plan.md §0.5.1.6). It REPLACES `requireAdmin()`.
@@ -77,12 +77,14 @@ export function withAuth<C = unknown>(
       return noStore(fail("You don't have permission to do that", 403, "FORBIDDEN"));
     }
 
-    // An id in the URL path that can only be a mistake or an attack (a NUL byte, a control character, 5 KB of text) is "not found": left alone it reaches a query and
-    // Postgres rejects it, which is a 500. Checked here once, after the authorization above (so who may do what is unchanged), for every route with a dynamic segment.
+    // An id in the URL path that can only be a mistake or an attack (a NUL byte, a control character, 5 KB of text) would reach a query and Postgres would reject it, which is
+    // a 500. It is replaced, once, here, for every route with a dynamic segment, by a value no id equals: the route then answers as it does for an id that does not exist
+    // (its own 404), so a malformed id and an unknown one stay indistinguishable. Done after the authorization above, so who may do what is unchanged.
     const params = await (routeContext as { params?: Promise<unknown> } | undefined)?.params;
-    if (hasUnusablePathParam(params)) return noStore(fail("Not found", 404, "NOT_FOUND"));
+    const clean = sanitizePathParams(params);
+    const safeContext = clean === params ? routeContext : ({ ...(routeContext as object), params: Promise.resolve(clean) } as C);
 
-    const response = await handler(req, session, routeContext);
+    const response = await handler(req, session, safeContext);
     // Responses to an authenticated request are user-specific: never cache.
     try {
       if (!response.headers.has("Cache-Control")) {

@@ -74,3 +74,41 @@ test("every dynamic API route answers a hostile path value with a client error, 
   expect(sent, "requests sent").toBeGreaterThan(900);
   expect(problems).toEqual([]); // collected, then asserted once: thousands of expect calls make a slow test slower
 });
+
+// A malformed id must look like an unknown one: the same status, the same error code and the same words. Several routes QUOTE the id in their 404 ("Student "x" not found"), so the
+// quoted value is compared as a placeholder: a malformed id is quoted as the stand-in `_`, an unknown one as itself. Nothing else may differ, and nothing may be a server error.
+test("on routes that read one row by id, a malformed id gets the same answer as an id that does not exist", async () => {
+  await resetDatabase();
+  await seedInstance();
+  const sup = await createUser({ role: Role.ADMIN });
+  const cookie = cookieHeader((await loginAs(sup)).token!);
+  const reads = [
+    "/api/v1/announcements/",
+    "/api/v1/students/",
+    "/api/v1/staff/",
+    "/api/v1/finance/invoices/",
+    "/api/v1/lms/quizzes/",
+    "/api/v1/communication/templates/",
+    "/api/v1/academics/sessions/",
+    "/api/v1/academics/schemes/teacher/",
+  ];
+  const STAND_IN = /(?<![A-Za-z0-9])_(?![A-Za-z0-9])/g;
+  const shape = (res: { status: number; json: unknown }, quoted: string) => {
+    const body = JSON.parse(JSON.stringify(res.json ?? null)) as { error?: { message?: string } } | null;
+    if (typeof body?.error?.message === "string")
+      body.error.message = body.error.message.split(quoted).join("<id>").replace(STAND_IN, "<id>");
+    return JSON.stringify({ status: res.status, body });
+  };
+  const unknownId = `c${"z".repeat(24)}`;
+  const problems: string[] = [];
+  for (const base of reads) {
+    const unknown = await api(`${base}${unknownId}`, { cookie });
+    expect(unknown.status, `${base} unknown id`).toBeLessThan(500);
+    for (const raw of ["%00", "a%00b", "%1f", "x".repeat(300)]) {
+      const odd = await api(`${base}${raw}`, { cookie });
+      if (shape(odd, "_") !== shape(unknown, unknownId))
+        problems.push(`${base}${raw.slice(0, 8)}: ${shape(odd, "_").slice(0, 120)} vs ${shape(unknown, unknownId).slice(0, 120)}`);
+    }
+  }
+  expect(problems).toEqual([]);
+});
