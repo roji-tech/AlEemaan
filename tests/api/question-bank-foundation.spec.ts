@@ -506,7 +506,7 @@ test.describe("reviewers", () => {
       general(teacher.id, { scope: "SUBJECT", subjectLabel: "" }),
       general(teacher.id, { scope: "SUBJECT", subjectLabel: "---" }),
       general(teacher.id, { scope: "SUBJECT", subjectLabel: "Maths\u0000" }),
-      general(teacher.id, { scope: "SUBJECT", subjectLabel: "Ma​ths" }),
+      general(teacher.id, { scope: "SUBJECT", subjectLabel: "Ma\u200bths" }),
       general(teacher.id, { scope: "SUBJECT", subjectLabel: "Maths\ud800" }),
       general(teacher.id, { scope: "SUBJECT", subjectLabel: "x".repeat(81) }),
       general(teacher.id, { scope: "GENERAL", subjectLabel: "Maths" }),

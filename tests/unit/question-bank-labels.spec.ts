@@ -67,17 +67,17 @@ test.describe("the plain rules", () => {
   });
 
   test("nothing meaningful left gives the empty key, which callers must refuse", () => {
-    for (const label of ["", " ", "\t\n", "---", "...", "___", "!@#$%^&*()", "\u0000", "​", "—", "()[]{}"]) {
+    for (const label of ["", " ", "\t\n", "---", "...", "___", "!@#$%^&*()", "\u0000", "\u200b", "—", "()[]{}"]) {
       expect(normalizeLabel(label), JSON.stringify(label)).toBe("");
     }
   });
 
   test("control characters, NUL, zero-width and bidi marks never reach the key", () => {
     expect(normalizeLabel("JSS\u00001")).toBe("jss1");
-    expect(normalizeLabel("J​SS‍1")).toBe("jss1");
-    expect(normalizeLabel("‮JSS 1‬")).toBe("jss1");
+    expect(normalizeLabel("J\u200bSS\u200d1")).toBe("jss1");
+    expect(normalizeLabel("\u202eJSS 1\u202c")).toBe("jss1");
     expect(normalizeLabel("JSS\u0007 1\u007f")).toBe("jss1");
-    expect(normalizeLabel("JSS﻿1")).toBe("jss1");
+    expect(normalizeLabel("JSS\ufeff1")).toBe("jss1");
   });
 
   test("emoji and symbols are dropped; a lone surrogate does not throw", () => {
@@ -110,9 +110,9 @@ test.describe("L1: it never throws and is idempotent", () => {
       "\t",
       "\n",
       " ",
-      "​",
-      "‮",
-      "﻿",
+      "\u200b",
+      "\u202e",
+      "\ufeff",
       "́",
       "ـ",
       "١",
