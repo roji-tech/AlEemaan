@@ -200,16 +200,27 @@
 ---
 
 ### TASK-0031: Slice UI1 - screens and security found by the browser run
-- **Status:** In Progress (committed on `claude/ui-gaps-students-settings`, PR to `dev` pending). See `docs/tasks/0031-ui1-screens-and-security.md`.
+- **Status:** Completed (merged into `dev` as [PR #67](https://github.com/roji-tech/AlEemaan/pull/67) on 2026-10-19 21:11 +01:00; the migration `20261019090000_hosted_schemes` must run on a live database before the code goes live, see `docs/HANDOVER.md` section 6). See `docs/tasks/0031-ui1-screens-and-security.md`.
 - [x] Students, Approvals, Scheme levels, timetable batch, portal hand-in and quiz screens.
 - [x] Cross-branch data exposure closed in finance, coursework, announcements, timetable, communication, promotion, sessions.
 - [x] Final full-suite run: 1538 passed, 2 failed (read; one fixed, one load-sensitive and passing alone), 18 skipped.
-- [ ] PR into `dev` (base verified), merge, and the migration ordering note to the maintainer.
+- [x] PR into `dev` (base verified) and merged; the migration ordering note is in `docs/HANDOVER.md` section 6.
 
 ---
 
 ### TASK-0032: Forms module and Question Bank
-- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) built on `claude/forms-qbank-slice-1`; slices 2 to 10 not started. See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
+- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) merged into `dev` as [PR #69](https://github.com/roji-tech/AlEemaan/pull/69) on 2026-10-20; slices 2 to 10 not started. See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
+
+---
+
+### TASK-0034: Bounded body read, source hygiene, two test repairs and the names check
+- **Status:** Completed: merged into `dev` as PRs #73 to #77 on 2026-10-20 (20:00:17 to 20:01:16 UTC), in order, each after its Vercel check passed and with `base.ref` checked to be `dev` (merge commits `414b116`, `a380ab6`, `00e43ca`, `5866bb2`, `8db6101`). See `docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md`.
+- [x] #73 `claude/bounded-body-read` (two commits): `validate()` and the branch gate read a request body through `readBoundedText`
+- [x] #74 `claude/chore-source-hygiene`: no invisible or direction-changing characters in the source, with a guard test
+- [x] #75 `claude/test-outbox-strict`, #76 `claude/test-startup-secrets-hermetic`: two test repairs
+- [x] #77 `claude/fix-names-need-a-visible-character`: a name needs a visible character
+- [x] The whole unit project on the merged `dev`: 481 passed
+- [ ] NOT run: the API, integration, e2e and https projects on the merged `dev` (no full suite was started)
 
 ---
 

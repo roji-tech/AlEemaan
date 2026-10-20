@@ -1,6 +1,6 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-10-07 (Users pages and invitations built — see "Users pages and invitations build" below; before that, 2026-10-05: auth rebuilt against the hardened shared design, then synced to Octalve Edu's
+Last Updated: 2026-10-20 (the status of that day is the first bullet of the summary below and the section at the end; before that, 2026-10-07: Users pages and invitations built — see "Users pages and invitations build" below; before that, 2026-10-05: auth rebuilt against the hardened shared design, then synced to Octalve Edu's
 built-and-verified implementation — see "Synced to Octalve Edu's verified auth" below; repo
 https://github.com/roji-tech/AlEemaan, public)
 
@@ -13,6 +13,7 @@ checked against the real repo, not what a plan says should exist.
 
 ## Overall Status Summary
 
+- **Status on 2026-10-20 (the current record is `docs/tasks/current-tasks.md` and `docs/HANDOVER.md` section 6; the bullets below are the history of the earlier phases and several describe the state of their own date):** the slices P1 to P8 and the 0.5 series are built and released (tasks 0001 to 0029; releases `v0.6.0` and `v0.7.1`); Slice UI1 (task 0031, PR #67) and the Forms and question bank slice 1 (task 0032, PR #69) are merged into `dev`, with the fail-closed secrets (#68), the branch gate that checks every branch a request names (#71) and the code catalogs (#72); five small changes (task 0034: bounded body read, source hygiene, two test repairs, the names check) are merged into `dev` as #73 to #77 (not promoted to `master` or `prod`); question-bank slices 2 to 10 and the walkthrough audit (task 0033, last) are not started.
 - **Planning**: the PRD exists as a Claude Doc (13 sections: Overview, Legacy System Context, School
   Structure, Users/Roles/Permissions, MVP Scope & Feature Reconciliation, Academic & Results
   Workflow, Finance & Payments, Public Site & CMS, Technical Architecture, Data Migration & Cutover,
@@ -173,6 +174,8 @@ An administrator can see the school's people (filters, paging), invite someone (
 
 ## Next action
 
+> **Note, 2026-10-20:** this section describes the state of 2026-10-07 and is kept as history. The current next actions are in `docs/HANDOVER.md` section 6 ("Open / next") and `docs/tasks/current-tasks.md`.
+
 **Phases 0.5.1.6 (the sync) and 0.5.A–0.5.F are merged to `master`** (the stacked PRs #4–#6 were merged into their stack bases rather
 than `master`, so they were consolidated into #7, which landed). **0.5.E (self-service) is merged too** ([#8](https://github.com/roji-tech/AlEemaan/pull/8), 2026-10-05), as is the roadmap doc
 ([#9](https://github.com/roji-tech/AlEemaan/pull/9)). Then, in order (2026-10-05, after a cross-repo plan review — see the plan's "Cross-repo review"): **(1)** ~~the shared API infrastructure ported from Octalve Edu~~ (**0.5.G**: pagination, `validate()`, breached-password check, plus a CSRF hardening fix — built,
@@ -291,5 +294,14 @@ Established a dedicated, mobile-first, WCAG 2.2 AA compliant self-service portal
 ## Release v0.6.0 Pipeline (2026-10-17)
 - **Staging Candidate Promotion (`dev` -> `master`):** [PR #53](https://github.com/roji-tech/AlEemaan/pull/53) approved and merged into `master`. All 26 feature milestones (0001–0026) consolidated on staging.
 - **Production Candidate Release (`master` -> `prod`):** [PR #54](https://github.com/roji-tech/AlEemaan/pull/54) open for maintainer approval and production migration run order execution.
+
+## Bounded body read, source hygiene, two test repairs, the names check (2026-10-20) - merged into `dev`, not promoted
+Record: `docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md`. Five pull requests off `dev` (`38556d4`), merged into `dev` in order on 2026-10-20 (20:00 to 20:01 UTC) at the maintainer's instruction, each after its Vercel check passed: #73 `claude/bounded-body-read` (two commits), #74 `claude/chore-source-hygiene`, #75 `claude/test-outbox-strict`, #76 `claude/test-startup-secrets-hermetic`, #77 `claude/fix-names-need-a-visible-character`.
+- **Request bodies:** `validate()` and the branch gate read through `readBoundedText` (`src/lib/api/read-body.ts`): a body with no declared length is refused as soon as it passes the cap.
+- **Hygiene:** no literal invisible or direction-changing characters in the tracked source; a guard test (`tests/unit/source-hygiene.spec.ts`) fails on one.
+- **Test repairs:** a corrupt line in the test inbox is an error, not "no mail"; the startup-secrets integration test no longer depends on the developer's `.env` and leaves no server running.
+- **Names:** a name needs a visible character.
+- **Verification:** unit 21 passed on the body-read branch and 54 API tests on a production build; the guard 2 tests; outbox 4; startup secrets 4 cases; the whole unit project on the merged `dev` 481 passed. NOT run: the API, integration, e2e and https projects on the merged `dev` (no full suite was started).
+- **Next action:** one full suite (API, integration, e2e, https) on the merged `dev`; then Forms and question bank slice 2 (task 0032).
 
 

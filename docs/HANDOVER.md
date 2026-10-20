@@ -90,9 +90,25 @@ A detailed technical blueprint is documented in:
 
 ---
 
-## 6. Current work: Slice UI1, the Forms module and the question bank (2026-10-19) - START HERE
+## 6. Current work (2026-10-20) - START HERE
 
-**Where the code is:** AlEemaan branch `claude/ui-gaps-students-settings`, 12+ commits ahead of `dev`, **not pushed, no PR yet**. Octalve branch `claude/ui-fixes-hydration-nav`, uncommitted/unpushed. Details: `AlEemaan/docs/tasks/0031-ui1-screens-and-security.md`.
+### 6.0 State on 2026-10-20
+
+**Merged into `dev` (by the maintainer):** [#67](https://github.com/roji-tech/AlEemaan/pull/67) Slice UI1 (2026-10-19), #68 fail-closed secrets, #69 Forms and question bank slice 1, #70 canonical Tailwind class names, #71 the branch gate checks every branch a request names and caps the body it reads, #72 the code catalogs (`docs/pages`, `docs/components`, `docs/functions`: one row per tracked file under `src/`, changed in the same commit as the file).
+
+**Merged into `dev` on 2026-10-20 at the maintainer's instruction ("merge all the PRs in order"), 20:00 to 20:01 UTC, each after its Vercel check passed and with `base.ref` checked to be `dev`:** #73 `claude/bounded-body-read` (two commits), #74 `claude/chore-source-hygiene`, #75 `claude/test-outbox-strict`, #76 `claude/test-startup-secrets-hermetic`, #77 `claude/fix-names-need-a-visible-character`. `dev` was `8db6101` after the five merges. The remote branches are kept. Nothing is promoted to `master` or `prod`. Task: `docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md` (merge commits and times are in its section 6).
+
+**Rules learned since 2026-10-19 (they apply to new code):**
+- A request body is read through `validate()` or `readBoundedText` (`src/lib/api/read-body.ts`), never `req.text()` or `req.json()` straight from the request; the branch gate had its own copy of the cap logic.
+- The source holds no literal invisible or direction-changing characters (a guard test, `tests/unit/source-hygiene.spec.ts`, fails on one): write them as escapes, and look at a file after a tool has edited it, because a tool can turn an escape sequence into the character itself.
+- A name needs a visible character: a name of only zero-width characters or other default-ignorable ones is refused (`checkName` in `src/lib/auth/profile-policy.ts`).
+- The email-change timing check runs a bcrypt compare in every sample, and its tolerance had been below its own noise (fixed in `6d3d9fe`): do not tighten it without measuring.
+
+**Open / next:** (1) one full suite (API, integration, e2e, https) on the merged `dev` (only the unit project has been run on it: 481 passed; see the task file, section 4); (2) Forms and question bank slices 2 to 10 (task 0032, section 4a; the design note and the decisions in 6.1 to 6.5b below); (3) Octalve question-bank parity (its own design note first); (4) the walkthrough audit (task 0033) runs last.
+
+### Earlier: 2026-10-19 (written before PRs #67 to #72 merged: where it says UI1 or slice 1 is "not pushed, no PR yet", that is no longer true)
+
+**Where the code is:** AlEemaan branch `claude/ui-gaps-students-settings`, 12+ commits ahead of `dev`, **not pushed, no PR yet** (merged since as #67). Octalve branch `claude/ui-fixes-hydration-nav`, uncommitted/unpushed (merged since into Octalve `dev` as its PR #31). Details: `AlEemaan/docs/tasks/0031-ui1-screens-and-security.md`.
 
 **Migration order:** `20261019090000_hosted_schemes` (adds `AssessmentScheme.hosted`, rebuilds the one-live-scheme-per-scope index) must run on a live database BEFORE the code. Applied to the dev (:5434), `aleemaan_qa` and test databases only. The online test DB (db.prisma.io) was never reset (the reset was blocked by the permission system) and has the setup-wizard account from the first run.
 
