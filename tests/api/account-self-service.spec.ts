@@ -357,12 +357,18 @@ test.describe("POST /email-change/request", () => {
     };
     const free: number[] = [];
     const takenTimes: number[] = [];
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 12; i++) {
       free.push(await time(uniqueEmail("free")));
       takenTimes.push(await time(taken.email));
     }
-    const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
-    expect(Math.abs(median(free) - median(takenTimes))).toBeLessThan(40); // ms
+    // What this can see, measured (2026-10-20): every sample contains a bcrypt compare at cost 12 (about 0.3 s alone, 1.4 s on a machine running other test suites), so the
+    // noise between two samples of identical code is 50 to 150 ms, and a leak of 60 ms was NOT reliably seen (one run in two). The old 40 ms tolerance on a difference of
+    // medians therefore failed at random under load (91 ms and 56 ms with identical code on both sides) and could not have caught a leak that small anyway.
+    // It now compares the LOWER quartile (other work on a busy machine only ever ADDS time, so the fast samples show what the route itself costs) with a tolerance of
+    // 150 ms, which catches work done before the answer that costs a mail round trip or more (a 400 ms mutation of the route is refused). A lookup of a few milliseconds before
+    // the answer is below what an HTTP timing measurement can show; the guard against that is the after() call in the route and its review.
+    const lowerQuartile = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 4)];
+    expect(Math.abs(lowerQuartile(free) - lowerQuartile(takenTimes))).toBeLessThan(150); // ms
   });
 
   test("a wrong password is refused, nothing is sent and nothing is stored — a stolen session alone isn't enough", async () => {
