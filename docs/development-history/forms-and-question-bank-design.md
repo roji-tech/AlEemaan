@@ -231,6 +231,8 @@ All additive. New tables only; no change to `Quiz`, `Result`, `Assignment`. Trig
 
 ## 16. Open items (small; none block slice 1)
 
+- **Four defaults the note never gave, set in slice 1 and CONFIRMED by the maintainer on 2026-10-19 (each is an ordinary setting an administrator can edit, except the floor):** `bank.practice.dailyCap` 100 (one full set a day), `bank.practice.minPoolSize` 20 (one default-sized set), `bank.print.nearExamDays` 7, and 3 as the lowest allowed `bank.smallSummary.min` (the "summary floor"; the start value stays 5). Two keys the note only implied exist as `bank.images.maxBytes` (500 KB) and `bank.images.maxLongSide` (1600 px).
+- **Images go through a storage adapter (maintainer, 2026-10-19): Cloudinary, Cloudflare R2 and Amazon S3 first** (R2 is the S3 backend with its own endpoint). Never served from a backend URL to a browser: our own route checks access and streams. Details in `docs/tasks/0032-forms-and-question-bank.md` section 4a.
 - Wording of the generic retirement text.
 - Whether partial credit for multiple selection should ship in slice 9.
 - The exact similarity method for overlap flags (start: normalised text plus trigram similarity; no external service).

@@ -1,0 +1,205 @@
+// --- Question bank, foundation (Task 0032 slice 1; design note docs/development-history/forms-and-question-bank-design.md) ---
+//
+// Only the tables slices 1 and 2 need. Forms, practice and reports arrive with their own slices so each migration stays reviewable. No existing table is changed (the
+// relation fields on Branch and User below produce no SQL).
+//
+// Not composite (branchId, id) like the rest of the schema, on purpose: a GENERAL item has `branchId = null` (it belongs to every branch), and a composite foreign key
+// with a null column is not enforced. Children point at the item by its id alone; a route reads an item only after checking its branchId (or that it is general).
+
+/// Which of the two banks an item lives in.
+enum BankKind {
+  ASSESSMENT
+  QUESTIONNAIRE
+}
+
+/// Named BankQuestionType because the quiz already owns `QuestionType`.
+enum BankQuestionType {
+  SINGLE
+  MULTI
+  TRUE_FALSE
+  SHORT
+  RATING
+  TEXT
+}
+
+/// Decided once, at approval, by someone senior ("a question may appear later, never disappear"). The default is the safest one: a row that nobody classified is never
+/// shown to a pupil.
+enum BankVisibility {
+  PRACTICE
+  TEACHERS_ONLY
+  TEACHERS_ONLY_UNTIL
+}
+
+enum BankItemStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  RETIRED
+}
+
+enum BankReviewOutcome {
+  APPROVED
+  EDITED
+  REJECTED
+  RETIRED
+}
+
+enum BankReviewerScope {
+  GENERAL
+  SUBJECT
+}
+
+/// A reusable question. `branchId` null = general (every branch), set = that branch only. Class and subject tags are TEXT (a label as typed plus a key from
+/// `normalizeLabel`), never foreign keys: ClassGroup and Subject rows belong to one branch (maintainer's decision of 2026-10-19, design note 16a).
+model QuestionBankItem {
+  id            String           @id @default(cuid())
+  branchId      String?
+  bank          BankKind         @default(ASSESSMENT)
+  type          BankQuestionType
+  prompt        String
+  explanation   String?
+  points        Int              @default(1)
+  difficulty    Int?
+  topic         String?
+  options       Json             @default("[]")
+  /// A string, or an array of strings for MULTI; null for questionnaire items. Never sent to a pupil before the question is answered.
+  correctAnswer Json?
+  subjectLabel  String?
+  subjectKey    String?
+  visibility    BankVisibility   @default(TEACHERS_ONLY)
+  /// For TEACHERS_ONLY_UNTIL: the date from which pupils may see it (the "until an assessment closes" form arrives with slice 3).
+  visibleFrom   DateTime?
+  status        BankItemStatus   @default(DRAFT)
+  /// A fix creates a new version; old versions are kept.
+  version       Int              @default(1)
+  submittedById String
+  approvedById  String?
+  approvedAt    DateTime?
+  retiredReason String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  branch      Branch?                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  submittedBy User                   @relation("BankItemSubmitter", fields: [submittedById], references: [id], onDelete: NoAction)
+  approvedBy  User?                  @relation("BankItemApprover", fields: [approvedById], references: [id], onDelete: NoAction)
+  images      QuestionBankImage[]
+  classTags   QuestionBankClassTag[]
+  reviews     QuestionBankReview[]
+  flags       QuestionOverlapFlag[]  @relation("FlagItem")
+  similarTo   QuestionOverlapFlag[]  @relation("FlagSimilarTo")
+
+  @@index([branchId, status])
+  @@index([status, visibility])
+  @@index([bank, subjectKey])
+}
+
+/// At most 4 per item (a trigger; the superadmin's setting, 3 or 4, is enforced by the service). Alt text is required unless the image is marked decorative (a check).
+model QuestionBankImage {
+  id         String   @id @default(cuid())
+  itemId     String
+  storageKey String
+  alt        String   @default("")
+  decorative Boolean  @default(false)
+  bytes      Int
+  width      Int
+  height     Int
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  item QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, sortOrder])
+}
+
+/// A class tag: the label as typed and its key. A branch's class matches when `normalizeLabel(ClassGroup.name)` equals `labelKey`.
+model QuestionBankClassTag {
+  id       String @id @default(cuid())
+  itemId   String
+  label    String
+  labelKey String
+
+  item QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, labelKey])
+  @@index([labelKey])
+}
+
+/// Every decision on an item, immutable: UPDATE and DELETE are refused by a trigger.
+model QuestionBankReview {
+  id         String            @id @default(cuid())
+  itemId     String
+  version    Int
+  reviewerId String
+  outcome    BankReviewOutcome
+  reason     String?
+  createdAt  DateTime          @default(now())
+
+  item     QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  reviewer User             @relation("BankReviewsGiven", fields: [reviewerId], references: [id], onDelete: NoAction)
+
+  @@index([itemId, createdAt])
+}
+
+/// Who may review. `branchId` null = a reviewer for every branch (assigned by a superadmin); set = that branch's reviewer (assigned by its administrator). GENERAL covers
+/// all subjects; SUBJECT names one (label as typed plus key). `isExamApprover` marks someone who sees overlap warnings and sets visibility. One row per person, branch,
+/// scope and subject (a unique index in the migration, because the columns are nullable).
+model QuestionBankReviewer {
+  id             String            @id @default(cuid())
+  userId         String
+  branchId       String?
+  scope          BankReviewerScope
+  subjectLabel   String?
+  subjectKey     String?
+  isExamApprover Boolean           @default(false)
+  assignedById   String
+  createdAt      DateTime          @default(now())
+
+  user       User    @relation("BankReviewerUser", fields: [userId], references: [id], onDelete: Cascade)
+  branch     Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  assignedBy User    @relation("BankReviewerAssigner", fields: [assignedById], references: [id], onDelete: NoAction)
+
+  @@index([userId])
+  @@index([branchId, scope])
+}
+
+/// A silent similarity hit, visible to exam approvers only. `similarToAssessmentQuestionId` has no foreign key yet: the assessment questions it points at arrive with
+/// slice 3.
+model QuestionOverlapFlag {
+  id                            String   @id @default(cuid())
+  itemId                        String
+  similarToItemId               String?
+  similarToAssessmentQuestionId String?
+  score                         Float
+  createdAt                     DateTime @default(now())
+
+  item      QuestionBankItem  @relation("FlagItem", fields: [itemId], references: [id], onDelete: Cascade)
+  similarTo QuestionBankItem? @relation("FlagSimilarTo", fields: [similarToItemId], references: [id], onDelete: SetNull)
+
+  @@index([itemId])
+}
+
+/// Append-only trail of every approval, rejection, retirement, visibility change, reviewer assignment and switch change: who, what, when, old and new value. UPDATE and
+/// DELETE are refused by a trigger. `branchId` null = a school-wide change. `itemId` carries no foreign key on purpose (like ResultAudit): the trail outlives the row.
+model QuestionBankAudit {
+  id          String   @id @default(cuid())
+  branchId    String?
+  itemId      String?
+  actorUserId String?
+  /// What kind of thing changed: "ITEM", "REVIEWER" or "SETTING".
+  entity      String
+  action      String
+  /// The setting key, or the reviewer row's id, when the entity is not an item.
+  ref         String?
+  oldValue    Json?
+  newValue    Json?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  actor  User?   @relation("BankAudits", fields: [actorUserId], references: [id], onDelete: NoAction)
+
+  @@index([branchId, createdAt])
+  @@index([itemId])
+  @@index([createdAt])
+}

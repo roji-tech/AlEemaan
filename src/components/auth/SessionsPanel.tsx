@@ -124,7 +124,7 @@ export function SessionsPanel() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
-                    <span className="min-w-0 break-words">{s.device}</span>
+                    <span className="min-w-0 wrap-break-word">{s.device}</span>
                     {s.current && (
                       <span className="inline-flex items-center rounded-full border border-ok-line bg-ok-bg px-2.5 py-0.5 text-xs font-semibold text-ok-fg">
                         This device

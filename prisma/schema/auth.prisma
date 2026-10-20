@@ -61,6 +61,12 @@ model User {
   announcements         Announcement[]
   notificationDispatches NotificationDispatch[]
   executedPromotions    PromotionBatch[]         @relation("PromotionExecutor")
+  bankItemsSubmitted    QuestionBankItem[]       @relation("BankItemSubmitter")
+  bankItemsApproved     QuestionBankItem[]       @relation("BankItemApprover")
+  bankReviewsGiven      QuestionBankReview[]     @relation("BankReviewsGiven")
+  bankReviewerRows      QuestionBankReviewer[]   @relation("BankReviewerUser")
+  bankReviewersAssigned QuestionBankReviewer[]   @relation("BankReviewerAssigner")
+  bankAudits            QuestionBankAudit[]      @relation("BankAudits")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

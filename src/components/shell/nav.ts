@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   ClipboardIcon,
   CreditCardIcon,
+  FileTextIcon,
   ShieldCheckIcon,
   GraduationCapIcon,
   HomeIcon,
@@ -47,6 +48,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Communication", href: "/communication", icon: MailIcon, adminOnly: true, inMore: true },
   { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true, inMore: true },
   { label: "Approvals", href: "/approvals", icon: ShieldCheckIcon, adminOnly: true, inMore: true },
+  { label: "Question bank", href: "/question-bank", icon: FileTextIcon, adminOnly: true, inMore: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
@@ -68,6 +70,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "/communication": "Communication",
   "/finance": "Finance",
   "/approvals": "Approvals and rules",
+  "/question-bank": "Question bank",
   "/users": "Users",
   "/account": "Account",
 };
