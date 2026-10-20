@@ -2,8 +2,9 @@
 
 # AlEemaan — orientation for whoever (or whatever) picks this up next
 
-> ### 🚨 ACTIVE HANDOVER FOR NEXT AI SESSION (Updated 2026-10-19)
+> ### 🚨 ACTIVE HANDOVER FOR NEXT AI SESSION (Updated 2026-10-20)
 > - **Primary Repository Handover:** [`docs/HANDOVER.md`](docs/HANDOVER.md) — **start at section 6** (current state, rules learned, every decision the maintainer made on 2026-10-19). Hand-offs go in this file, in each repository.
+> - **State on 2026-10-20:** PRs #67 to #77 are merged into `dev` (#73 to #77 are task 0034: bounded body read, source hygiene, two test repairs, the names check); nothing is promoted to `master`/`prod`; only the unit project has been run on the merged `dev` (481 passed), the rest of the suite is still to run — see `HANDOVER.md` section 6.0 and [`docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md`](docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md).
 > - **Operations & Admissions Architecture Blueprint:** [`docs/tasks/0030-phase-4-operations-and-admissions-blueprint.md`](docs/tasks/0030-phase-4-operations-and-admissions-blueprint.md) — Specifications for Extended HR/Payroll, Library, Transport, Inventory, NEMIS, and Admissions CRM.
 > - **Retired:** `/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md` is history only (the maintainer retired it on 2026-10-19). Do not read it for state and do not add to it.
 > - **Tasks Register:** [`/home/rojitech/Desktop/CODEC/out/tasks.md`](/home/rojitech/Desktop/CODEC/out/tasks.md).
