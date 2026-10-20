@@ -1,0 +1,166 @@
+# School app — Components
+
+The components behind the signed-in school app: one folder per screen area under `src/components/`, plus the two views that sit next to their page. The pages in
+`src/app/(app)/` stay thin (they check who is asking and render one of these); the screens call the API routes listed in [`../functions/school-app.md`](../functions/school-app.md).
+
+## `src/components/academics/`
+
+The panels behind the Academics page tabs: classes and subjects, assessment schemes and grade scales, staff and assignments, and the promotion console. All are client components that call `/api/v1/academics/*` and `/api/v1/staff/*` and only present what those routes allow; every edit control is hidden when the selected branch has `canEdit: false`.
+
+| File | Description |
+| --- | --- |
+| `AcademicsSections.tsx` | Client component (props `branches`, `isSuperAdmin`): the four tabs of the Academics page (Classes and subjects, Assessment and grading, Staff, Promotion & rollover) with Left/Right/Home/End key movement. Only the active tab's panel is mounted; the grading tab shows `GradingPanel` and `SchemeLevelsPanel` together. |
+| `ClassesPanel.tsx` | Client component: the selected branch's classes (with arms, enrolment counts and subject lists) and subjects, from `GET /api/v1/academics/class-groups` and `/subjects`. Creates and renames classes, arms and subjects (names up to 60 characters), sets a class's subjects (`PUT .../class-groups/[id]/subjects`) and archives classes and subjects; it has no restore button and no way to archive an arm. |
+| `common.ts` | `BranchChoice` (`{ id, name, canEdit }`), `Notice` and `say(reply, fallback)`, shared by the Academics panels: `say` turns a failed API reply into one sentence (401 session ended, 429 the server's message or the rate-limit text, status 0 network error, otherwise the server's message or the fallback). |
+| `GradingPanel.tsx` | Client component: a branch's assessment schemes and grade scales (`/api/v1/academics/assessment-schemes`, `/grade-scales`) with create and edit dialogs. An item flagged `locked` (results already use it) cannot be changed: the dialog saves it as a new version (`POST .../[id]/versions`); an unlocked one is changed in place (`PATCH`). Scales can be made default or archived (never the default one); at most 10 scheme parts and 12 bands. |
+| `promotion/PromotionConfirmModal.tsx` | Client dialog: the last step before a rollover. Recounts promoted, repeating, graduating and withdrawing students from the preview plus the manual overrides, and lists the effects (enrolments updated, new enrolments in the target session, audit trail). It sends nothing itself: the confirm button calls `onConfirm`. |
+| `promotion/PromotionConsole.tsx` | Client component, the "Promotion & rollover" tab. Picks branch, source and target session, source class and pass mark (default 50), calls `GET /api/v1/academics/promotion/preview`, keeps per-student overrides in memory and sends them with `POST /api/v1/academics/promotion/execute` as `{ studentId, decision, targetArmId, reason }`. The preview and execute buttons need `canEdit`; a second sub-tab shows `PromotionHistoryView`. |
+| `promotion/PromotionHistoryView.tsx` | Client component (prop `branchId`): the audit history of past promotion batches (`GET /api/v1/academics/promotion/batches`) and, per batch, a dialog of each student's average, recommended and final decision, target arm and override reason (`.../batches/[id]`). It reads the fields `initiatedByUser`, `sessionAverage`, `finalDecision`, `targetClassArm` and the mode `MANUAL_OVERRIDE`. If the detail request fails the dialog stays on "Loading records...". |
+| `promotion/PromotionPreviewTable.tsx` | Client component: the preview of one promotion run, with summary cards, per-term and session averages (marked against the pass mark), the system recommendation and, when `canManage`, selects for the final decision (Promote, Repeat, Graduate, Withdraw), target arm and override reason. Exports `StudentOverrideState`; the overrides themselves are held by the parent. |
+| `SchemeForm.tsx` | Client dialog form shared by the new-level scheme editors (school-wide, class, teacher): a name, up to 8 named continuous-assessment parts, exam marks and a live "adds up to X of 100" line that is only a hint (the server checks the total). Props switch on a reason box (500 characters), "share with branch", "make default" and a second "send for approval" button. Exports `SchemeBody`, `SchemeInitial`. |
+| `SchemeLevelsPanel.tsx` | Client component: the scheme levels above a branch's own default. A superadmin (`isSuperAdmin`) lists and creates school-wide schemes (`/api/v1/academics/schemes/global`, optionally as the default); any editor sets or changes the scheme of each class (`/schemes/class-group/[id]`, one request per class) through `SchemeForm`. Archived school-wide schemes are not shown. |
+| `StaffPanel.tsx` | Client component: the branch's staff records (`GET /api/v1/staff?branchId&status&q=`, current or archived) with create, edit and archive/restore, and a "Manage" dialog that links or unlinks a sign-in account (`/staff/[id]/account`) and adds or removes teaching assignments (`/staff/[id]/assignments`, subjects limited to those the chosen class studies). Non-editors only get "View". |
+
+## `src/components/results/`
+
+The panels behind the Results page tabs: entering marks, reviewing them, and reading or printing report cards. Client components over `/api/v1/academics/result-sheets`, `/results/*` and `/api/v1/students/[id]/report-card`; the server decides every rule and the browser only previews.
+
+| File | Description |
+| --- | --- |
+| `CardsPanel.tsx` | Client component: pick a term, class arm and student (`GET /api/v1/academics/arms/[id]/roster`, `GET /api/v1/students/[id]/report-card`), then print (`window.print()`) or download the card (`downloadReportCardHtml`). Editors of the branch also get a "preview with results not published yet" box and a remarks form (`PUT /api/v1/students/[id]/report-remarks`, 500 characters each) that is disabled once any subject is PUBLISHED or LOCKED. |
+| `EntryPanel.tsx` | Client component: the marks grid for one class arm, subject and term (`GET` and `PUT /api/v1/academics/result-sheets`, choices from `/result-sheets/options`). Total and grade are previewed in the browser; the server recomputes on save. Only rows with no result or a DRAFT result are editable, and a row must be filled completely or left blank (at most two decimals, not above each part's maximum). "Submit" (`POST .../results/transition`, action `submit`) is disabled while edits are unsaved. Renders `TeacherSchemePanel`. |
+| `ReportCard.tsx` | Presentational component (no hooks, no `"use client"`; exports the `Card` type): the printable report card from `GET /api/v1/students/[id]/report-card`. School header, student block, subject table (CA, exam, total, %, grade, remark), total/average/position/class-size tiles, the two remarks, the grading legend and a `/verify/<token>` link per published subject. `card.layout.options` add a next-term note and signature lines; the typed `logo` option is not drawn. |
+| `ResultsSections.tsx` | Client component (props `branches`, `isAdmin`): the Results page tabs Enter marks, Review (only when `isAdmin`) and Report cards, with Left/Right/Home/End keys. Only the active tab is mounted; the selected branch is held here and shared by the three panels, starting on the first branch the person can edit. |
+| `ReviewPanel.tsx` | Client component for administrators: the term's review queue (`GET /api/v1/academics/results/queue`), one card per arm and subject with counts by status (DRAFT, SUBMITTED, APPROVED, PUBLISHED, LOCKED) and group actions sent to `POST /api/v1/academics/results/transition`: approve or return, publish or revert, lock, unlock. Unlock asks for a reason of 5 to 300 characters; "View history" shows each student's audit trail (`GET .../results/[id]/history`). |
+| `TeacherSchemePanel.tsx` | Client component (props `branchId`, `subjectId`, `subjectName`): a teacher's own assessment schemes for one subject (`/api/v1/academics/schemes/teacher`). Each shows as DRAFT, PENDING, APPROVED or REJECTED with its rejection reason; DRAFT and REJECTED ones can be edited and sent for approval (`PATCH` with `submitForApproval`). Built on `SchemeForm` with reason, share-with-branch and approval button. |
+
+## `src/components/students/`
+
+The pupil register of the Students page.
+
+| File | Description |
+| --- | --- |
+| `StudentsPanel.tsx` | Client component (prop `branches`): a branch's pupils. Lists with search, current/archived filter and 25 per page (`GET /api/v1/students`), registers (`POST`, optional class and arm by name), edits (`PATCH`), archives (`DELETE`) and restores (`POST .../restore`); a `POSSIBLE_DUPLICATE` answer becomes a "register, save or restore anyway" prompt (ADR 0011). The import dialog parses a CSV in the browser (`parseStudentCsv`) and posts the rows to `POST /api/v1/students/import`. Every write control needs `branch.canEdit`. |
+
+## `src/components/attendance/`
+
+The daily roll call and the dialog administrators use to decide who may take it. Both are client components over `/api/v1/academics/attendance/*`.
+
+| File | Description |
+| --- | --- |
+| `AttendanceGrantModal.tsx` | Client dialog (props `open`, `onClose`, `branchId`), rendered for administrators only: sets or clears an arm's class teacher (`PATCH /api/v1/academics/arms/[id]/class-teacher`), adds an explicit attendance grant for a staff member on one arm (`POST /api/v1/academics/attendance/grants`) and lists and revokes active grants (`DELETE .../grants/[id]?branchId=`). Exports `AttendanceGrantItem`. |
+| `AttendancePanel.tsx` | Client component (props `branches`, `readOnly`, `isAdmin`): the daily roll call. Loads the arms the caller may take (`GET /api/v1/academics/attendance/arms`) and the roster (`GET /api/v1/academics/attendance`), marks each pupil PRESENT, LATE, ABSENT or EXCUSED with a remark of up to 500 characters and saves with `POST /api/v1/academics/attendance`. Editing needs the server's `canEdit` and a date no later than today; "Mark All Present" leaves EXCUSED rows alone. |
+
+## `src/components/timetable/`
+
+The weekly timetable of the Timetable page. Client components that call `/api/v1/timetable` and the academics and staff lists; clash checking in the browser uses `src/lib/timetable/rules.ts`, and the API repeats it.
+
+| File | Description |
+| --- | --- |
+| `BatchSlotsModal.tsx` | Client dialog: schedules one class arm, subject, teacher, time range and room on the ticked weekdays (Monday to Friday) in a single `POST /api/v1/timetable/batch`. The server schedules all of them or none; a `SCHEDULE_CLASH` answer is shown with "Nothing was scheduled". Room is limited to 50 characters; the form is disabled until the branch has an arm, a subject and a staff record. |
+| `SlotEditModal.tsx` | Client modal (a hand-built `role="dialog"`, not the shared `Dialog`; exports `SlotDto`) to add (`POST /api/v1/timetable`), change (`PATCH /api/v1/timetable/[id]`) or delete (`DELETE ...?branchId=`, after `window.confirm`) one period. Previews clashes with `findSlotClashes` and will not save a bad time range or a clash; the optional period number is limited to 1 to 12 here, while the API accepts any positive integer. |
+| `TimetableCanvas.tsx` | Client component: the branch's periods as a Monday to Friday grid (a Saturday column appears when a shown period is on day 6 or 7; Sunday periods appear only in the table) or as a table, filtered by class arm and teacher, with a "Clash" badge computed in the browser. Unless `readOnly` it offers "Schedule Period" (`SlotEditModal`) and "Same period, several days" (`BatchSlotsModal`). |
+| `TimetablePanel.tsx` | Client component (props `branches`, `isAdmin`): loads a branch's periods (`GET /api/v1/timetable?branchId=`) with its class groups (flattened to "class arm" choices), subjects and every live staff record (non-teaching staff too) as the teacher choices, and renders `TimetableCanvas`, read-only unless `isAdmin`. Everything is reloaded after each save. |
+
+## `src/components/lms/`
+
+The Coursework page: assignments, study materials and quizzes. All are client components; each call names the branch with `branchId`, and `userRole` (the caller's role in that branch) decides whether the staff buttons appear.
+
+| File | Description |
+| --- | --- |
+| `AssignmentModal.tsx` | Client component (uses `Dialog`): creates one assignment (`POST /api/v1/lms/assignments`): title, subject, optional class group, description, instructions, due date and time, total points (1 to 1000) and "accept late submissions". It always sends `status: "PUBLISHED"` (no draft) and no attachments. |
+| `AssignmentsList.tsx` | Client component: assignment cards for the branch (`GET /api/v1/lms/assignments`) with subject and status filters (sent to the API) and a browser-side search over title, subject and class. `ADMIN` and `TEACHING_STAFF` get "Create Assignment" (`AssignmentModal`), "Speed Grader" (`SpeedGraderModal`) and Delete, which archives; students and parents get a link to `/portal` to hand in. There is no edit action, and the Status filter offers CLOSED, which is not an `AssignmentStatus`. |
+| `LmsPanel.tsx` | Client component: the page body. A branch selector (only with more than one branch) and three keyboard-navigable tabs (arrow keys, Home, End): assignments, study materials, quizzes; only the active tab is mounted. It loads the branch's subjects and class groups from `/api/v1/academics/subjects` and `/class-groups` and passes them, with the caller's role in the selected branch (`rolesByBranch`, STUDENT when unknown), to the three lists. A failed load leaves the lists empty without a message. |
+| `MaterialModal.tsx` | Client component (uses `Dialog`): adds one material (`POST /api/v1/lms/materials`): title, subject, optional class group, type, link, description, inline notes and "publish immediately". The API schema keeps only title, subject, class group, description, content and attachments, so the type, the link and the publish switch are discarded. |
+| `MaterialsList.tsx` | Client component: cards of the branch's learning materials (`GET /api/v1/lms/materials`) with a subject filter and a browser-side search. Staff get "Add Material" (`MaterialModal`) and Delete, which archives. It expects `materialType`, `url` and `published` on each item, which the API does not return (the table has no such columns), so the type badge is empty and every card says "In-app resource". |
+| `QuizConsole.tsx` | Client component: quiz cards (`GET /api/v1/lms/quizzes`) with a subject filter, a browser-side search, question count, time limit and pass mark ("None" when empty; the grader then uses 50%). Staff get "Create Quiz" (`QuizModal`) and Delete, which archives; students and parents get a link to `/portal` to take it. No edit or attempt screen lives here. |
+| `QuizModal.tsx` | Client component (uses `Dialog`): builds a quiz and POSTs it to `/api/v1/lms/quizzes`: title, subject, optional class group, instructions, time limit (1 to 360 minutes), pass mark (0 to 100 %), status Published or Draft, and at least one question: multiple choice (option ids `opt-1`, `opt-2`, ... and a correct-answer radio), true/false, or short answer (an exact keyword, compared case-insensitively). The submit button always reads "Save & Publish Quiz", even for a draft, and a pass mark of 0 is sent as none. |
+| `SpeedGraderModal.tsx` | Client component (uses `Dialog`, wide): grades one assignment's submissions. Loads `GET .../assignments/{id}/submissions`, lists pupils with score or "Ungraded", shows the chosen submission's text and attachment links, and saves score and feedback with `PATCH .../submissions/{id}/grade` ("Save & Next Student"). An empty score is sent as `null`, which `gradeSubmissionSchema` rejects, so feedback cannot be saved without a score. Exports `SubmissionItem`. |
+
+## `src/components/announcements/`
+
+The announcements feed, its filters and the compose/edit dialog. All three are client components and talk to `/api/v1/announcements`.
+
+| File | Description |
+| --- | --- |
+| `AnnouncementComposerModal.tsx` | Client component: dialog to create, edit or delete one announcement (title, body, target roles, branch, class arm, expiry date, pin); also exports the `AnnouncementItem` type. Only a superadmin can choose "All Branches (School-Wide)"; others have the branch fixed. Two traps: form state is set once at mount and the feed keeps the dialog mounted, so Edit does not load the chosen row; "Save as Draft" calls `setStatus` and saves in the same handler, so the request still carries the previous `status`. |
+| `AnnouncementsFeed.tsx` | Client component: filter bar (text search over title and body, branch, status DRAFT / PUBLISHED / ARCHIVED), the "Post Announcement" button (only with `canCreate`) and one card per announcement with pinned, draft, archived, branch, class-arm and target-role badges. A branch filter still shows school-wide rows. "Edit" shows only for a superadmin or the author, narrower than the API, which also lets an ADMIN of the branch manage. |
+| `AnnouncementsPanel.tsx` | Client component: loads `GET /api/v1/announcements` (no `branchId`) and the class arms of the user's branch (the first branch when none) from `/api/v1/academics/class-groups?branchId=`, shows loading and error states and passes everything to `AnnouncementsFeed`. Props: `branches`, `isSuperAdmin`, `canCreate`, `userBranchId`, `currentUserId`. |
+
+## `src/components/communication/`
+
+The three tabs of the Communication page (broadcast, dispatch log, templates) and the panel that hosts them. All are client components and call `/api/v1/communication/*` for one branch at a time.
+
+| File | Description |
+| --- | --- |
+| `BroadcastComposer.tsx` | Client component: form for one broadcast (`POST /api/v1/communication/broadcast`): channel buttons SMS, Email, WhatsApp, In-App; audience `ALL_PARENTS`, `STAFF` or `STUDENTS` (the class-specific audiences the API knows are not offered); subject (Email and In-App only); body with a character count and live preview; five insertable tags. It sends no `variables`, so only `{{student_name}}` (parent audiences) is ever filled and `{{class_arm}}`, `{{school_name}}`, `{{date}}`, `{{due_date}}` go out literally. It says "successfully dispatched to N recipient(s)" even when every dispatch failed. |
+| `CommunicationPanel.tsx` | Client component: the page body. A branch selector (only with more than one branch, starting on `userBranchId`) and three keyboard-navigable tabs (arrow keys, Home, End): `BroadcastComposer`, `DispatchLogsView`, `TemplatesManager`. A sent broadcast switches to the logs tab. The `userRole` prop is accepted but not used. |
+| `DispatchLogsView.tsx` | Client component: paged table (15 rows) of `GET /api/v1/communication/dispatches` with search, channel and status filters (SENT, FAILED, QUEUED, RETRYING), a detail dialog (body, last error) and a Retry button on FAILED rows (`POST .../dispatches/{id}/retry`). A failed load shows as an empty table with no error text, and typing in the search box does not reset the page number. |
+| `TemplatesManager.tsx` | Client component: grid of the branch's notification templates (`/api/v1/communication/templates`) with a channel filter, a preview dialog and create, edit and delete (with a confirm). System templates (`isSystem`) offer Preview only; create takes an upper-case `code` and a channel, edit changes name, subject, body and the comma-separated variable list. Failed loads and failed deletes are swallowed silently. |
+
+## `src/components/finance/`
+
+The Finance page: invoices and payments on one tab, fee structures on the other. All are client components; amounts are shown with `formatNaira` and every call names the branch with `branchId`.
+
+| File | Description |
+| --- | --- |
+| `BatchInvoiceModal.tsx` | Client component (uses `Dialog`): picks a term, an optional class group and an optional due date and POSTs `/api/v1/finance/invoices`. Reports "N new invoices created, M existing invoices skipped"; the API's `skipped` also counts pupils with no applicable fee item. |
+| `DiscountModal.tsx` | Client component (uses `Dialog`): applies a waiver or discount to one invoice (`POST /api/v1/finance/invoices/{id}/discount`): amount, category (`MANUAL_OVERRIDE`, `SCHOLARSHIP`, `SIBLING_DISCOUNT`, `STAFF_CHILD`) and a required reason. The browser refuses an amount that is not above zero or not below the invoice total; the server's own check is that all discounts together stay within the gross amount. |
+| `FeeStructureModal.tsx` | Client component (uses `Dialog`): create or edit one fee item (name, amount above zero, term, optional class group = all classes) with POST `/api/v1/finance/fee-structures` or PATCH `.../{id}`; exports `FeeStructureItem`. Form state is read from `initialItem` once at mount and the panel keeps the dialog mounted, so Edit does not load the chosen item; a changed term is sent but dropped, because the update schema has no `periodId`. |
+| `FeeStructuresPanel.tsx` | Client component: the "Fee Schedules & Structures" tab: term filter, total of the listed items, a table with Edit and Delete (with a confirm) and "Add Fee Item" (both only with `canManage`), all through `FeeStructureModal`. The items come in as props from `FinancePanel`. |
+| `FinancePanel.tsx` | Client component: the page body with a branch selector (shown with more than one branch, but disabled for non-superadmins, and starting on `userBranchId`, the first membership, which need not be a branch the caller administers) and two tabs. One `loadData` fetches invoices, fee structures, class groups and sessions (flattened to periods labelled `<period> (<session>)`) in parallel; each refresh swaps the tab for a loading card. Invoices are requested with no `page` or `limit`, so only the API's default first 50 arrive. |
+| `InvoiceDetailModal.tsx` | Client component (uses `Dialog`): one invoice with student, term, totals (`totalAmount` is already net of discounts), line items, discounts as negative lines and the payment receipts; Print calls `window.print()`. "Waiver / Discount" and "Record Payment" show only with `canManage`, a balance above zero and a status other than WAIVED. Exports `InvoiceDetail`. |
+| `InvoicesDashboard.tsx` | Client component: KPI cards (invoiced, collected, outstanding, collection rate; computed in the browser from every loaded invoice, not from the filtered rows), status pills (UNPAID, PARTIALLY_PAID, PAID), term filter, search by pupil, admission number or invoice number, and the table. "View & Pay" loads `GET /api/v1/finance/invoices/{id}` into `InvoiceDetailModal`; "Batch Generate Invoices" (only with `canManage`) opens `BatchInvoiceModal`. No badge is drawn for CANCELLED. |
+| `RecordPaymentModal.tsx` | Client component (uses `Dialog`): records an offline payment (`POST .../invoices/{id}/record-payment`): amount (defaults to the balance, refused above it), method cash, POS or bank transfer, optional teller reference and note; the API issues the receipt number. The API also accepts the channels `card` and `mock` and wants a reference of at least 3 characters. |
+
+## `src/components/approvals/`
+
+The sections of the Approvals page. All are client components that call the `/api/v1/settings/*` routes; they only present the choices, and each API decides who may do what.
+
+| File | Description |
+| --- | --- |
+| `ApprovalsSections.tsx` | Client component: the tab strip of the Approvals page (ARIA tabs; Left, Right, Home and End move between tabs; only the active section is mounted): Requests, Report cards, Verification page and, for a superadmin only, Self-approval. Takes `branches` (each with `canEdit`) and `isSuperAdmin` and hands them to the four panels. |
+| `LayoutPanel.tsx` | Client component: which report-card layout a branch prints and which optional parts it shows (logo, signature line, next-term date). Loads `GET /api/v1/settings/layouts?branchId=` and saves with `PATCH` on the same route; a 202 means the change went to a superadmin for approval and the cards keep the old layout until then. A superadmin also gets a checkbox that makes every administrator's layout change need approval (`PUT /api/v1/settings/enforcement`, key `report_card_layout`). Controls are disabled for a branch the caller cannot edit. |
+| `RequestsPanel.tsx` | Client component: requests waiting for a decision, or approved or rejected, per branch (`GET /api/v1/settings/approval?branchId=&status=`): report-card layout, public verification page, or a teacher's assessment scheme, with who asked, why and the proposed values. Approve and Reject show on every PENDING row, whoever the viewer is (the header comment says only those who may decide see them); a decision needs a reason (up to 500 characters) and goes to `PATCH /api/v1/settings/approval/{id}`, which lets only a superadmin decide layout and verification requests and refuses anyone but a superadmin deciding their own request. |
+| `SelfApprovalPanel.tsx` | Client component, superadmin only: which administrators of a branch may approve their own marks. Lists the branch's administrators (`GET /api/v1/members?role=ADMIN`, first 100) with their grants (`GET /api/v1/settings/self-approval`), and "Allow" (`POST`, with an optional hidden reviewer) or "Withdraw" (`DELETE`). The reviewer is never shown to the administrator concerned. |
+| `VerificationPanel.tsx` | Client component: what the public verification page shows for a report card: pupil name and its format (first name and last initial, initials, full), subject, marks, grade. A superadmin chooses "Every branch" or one branch and saves directly; an administrator edits only a branch they administer, must give a reason, and the button reads "Send for approval" (a 202 from the API means the change waits for a superadmin). Loads `GET /api/v1/settings/verification`, saves with `PATCH`. |
+
+## `src/components/users/`
+
+The Users page: the people list with its dialogs, the open invitations, and the shared types. Every control calls `/api/v1/members` or `/api/v1/invitations`; hiding a control the API would refuse is a courtesy, the API is the check.
+
+| File | Description |
+| --- | --- |
+| `DeactivateDialog.tsx` | Client component, props `member`, `onClose`, `onDone(member, signedOut)`: confirmation before `POST /api/v1/members/{id}/deactivate`. The text says access to that branch ends at once, the person is signed out only if it was their last active branch, nothing is deleted and they can be reactivated. 401, 429 and network failures get fixed messages; other errors show the server's text. |
+| `EditMemberDialog.tsx` | Client component, props `member`, `branches`, `roleOptions`, `onClose`, `onSaved(member, changed)`: change one membership's role and/or branch. Only the fields that differ are sent to `PATCH /api/v1/members/{id}`, and nothing is sent when nothing changed; a `branchId` problem is shown beside the branch select, other refusals as the server words them. |
+| `InvitationsList.tsx` | Client component, props `invitations`, `busyId`, `onResend`, `onRevoke`: the open invitations (address, role label, branch, who invited, `expiryText`) with "Resend" (labelled "Send again" once expired) and "Revoke", each named after the address. While one row is busy the other rows' resend buttons, and every revoke button, are disabled. |
+| `InviteDialog.tsx` | Client component, props `open`, `onClose`, `branches`, `roleOptions`, `onInvited(invitation)`: the "Invite someone" form (address, role defaulting to `TEACHING_STAFF`, a required branch). Checks the address shape and the branch, then `POST /api/v1/invitations` `{ email, role, branchId }`; shows `email` and `branchId` problems beside their fields. The "7 days" in its text is a literal (the TTL is `INVITATION_TTL_DAYS`). The owner remounts it with a new `key` on each opening. |
+| `model.ts` | Types and display rules for the page: `Member` (a membership, so `id` is the membership id; `role`, `branchId`, `isSuperAdmin`, `status` of `active` or `deactivated`), `Invitation`, `PageMeta`, `BranchOption`, `ROLE_OPTIONS`, `roleOptionsFor(isSuperAdmin)` (drops `ADMIN` for anyone who is not a superadmin), `displayName`, `expiryText` ("Expires in 6 days" down to minutes, "Expired"). |
+| `SuperAdminDialog.tsx` | Client component, props `member`, `onClose`, `onDone(member, granted)`: confirm making someone a superadmin or removing it. It asks for the caller's own password and sends `PATCH /api/v1/members/{id}/superadmin` `{ superAdmin, password }`; a wrong password (`INVALID_PASSWORD`) shows beside the field, other refusals (yourself, the last superadmin) as the server words them. |
+| `UsersPanel.tsx` | Client component, props `branches`, `currentUserId`, `isSuperAdmin`: the whole Users page. Loads people from `GET /api/v1/members` (20 per page; filters for role, branch, status of active, deactivated or everyone, and a name-or-email search, debounced 300 ms, max 64 characters) and open invitations from `GET /api/v1/invitations?limit=100` (not paged). Opens the invite, edit, deactivate and superadmin dialogs, and calls reactivate, resend and revoke itself. The caller's own row has no actions, and for a non-superadmin neither do the rows of administrators and superadmins; results go to one polite live region. |
+
+## `src/components/question-bank/`
+
+The Question bank page (slice 1: who reviews, and the switches). Presentation only: the question bank APIs decide who may do what and say why not.
+
+| File | Description |
+| --- | --- |
+| `QuestionBankSections.tsx` | Client component, props `branches` (`BranchChoice`: `id`, `name`, `canEdit`) and `isSuperAdmin`: the page's two tabs, "Reviewers" and "Settings", as an ARIA tab list (Left, Right, Home and End move between tabs). Only the active tab's panel is mounted, so switching tabs reloads that panel's data. |
+| `ReviewersPanel.tsx` | Client component, props `branches`, `isSuperAdmin`: current reviewers from `GET /api/v1/question-bank/reviewers` (a branch plus the every-branch rows, marked "Set for every branch"; a superadmin can pick "Every branch" to see all), an add form (`POST`: a person, every subject or one typed subject, optional exam approver) and a confirmed remove (`DELETE .../reviewers/{id}`). People come from `GET /api/v1/members`, once per staff role (`ADMIN`, `TEACHING_STAFF`, `NON_TEACHING_STAFF`), 100 per role, with a debounced search. Only a superadmin can pick "Every branch" or remove such a row; someone who administers no branch sees an explanation. |
+| `SettingsPanel.tsx` | Client component, props `branches`, `isSuperAdmin`: the 15 `bank.*` switches for the school (a superadmin's first view) or one branch, from `GET /api/v1/question-bank/settings`. Each row shows its help, which way "stricter" goes, the default, the school's value and what applies, edited as a checkbox, a 3-or-4 select, a whole number or a comma-separated list of set sizes. On a branch, "Use the school's setting" clears the override (sends `null`). Saves only the changed rows with `PUT` and an optional reason (500 characters), showing the server's per-key problems under the row. |
+
+## Colocated with the page (`src/app/(app)/branches/`)
+
+The view the `/branches` page renders for a superadmin.
+
+| File | Description |
+| --- | --- |
+| `BranchesView.tsx` | Client component, props `branches: BranchRow[]` (`id`, `name`, `members`): the branch list (name and `memberLabel` of the active-member count, or an empty state) and an inline "New branch" form that `POST`s `{ name }` to `/api/v1/branches`. The name is trimmed, required and capped at 100 characters (`NAME_MAX`, mirrors the API's `createBranchSchema`). It answers 201 with a notice and `router.refresh()`, 409 as a duplicate name, 400 with the server's message, 403, a network failure, and 401 by replacing the route with `/login`. |
+
+## Colocated with the page (`src/app/(app)/settings/`)
+
+The view the `/settings` page renders for a superadmin.
+
+| File | Description |
+| --- | --- |
+| `SettingsView.tsx` | Client component, props `initialSettings`, `branches`, `initialSessions`; two tabs. "School Profile": seven fields (name, principal, phone, motto, address, email, website) sent whole to `PATCH /api/v1/settings/school`. "Academic Sessions & Terms": session cards filtered by branch, a new-session dialog (`POST /api/v1/academics/sessions`; the API creates the terms) and "Set Current" per term (`PATCH /api/v1/academics/periods/{id}`). A failed "Set Current" shows nothing; a successful one updates only the term flags, although the server also activates that session (closing the branch's previous active one) when it was not active; a new session is added as the API returns it (nested `branch`, ISO dates), so its branch badge is empty until reload. |
