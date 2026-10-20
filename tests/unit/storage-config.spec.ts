@@ -22,6 +22,8 @@ const r2 = {
   R2_ACCESS_KEY_ID: KEY_ID,
   R2_SECRET_ACCESS_KEY: SECRET,
 };
+const CLOUDINARY_URL = "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo";
+const cloudinary = { IMAGE_STORE: "cloudinary", CLOUDINARY_URL };
 const problem = (env: Record<string, string | undefined>, which?: string) => {
   const r = resolveStoreSettings(env, which);
   return r.ok ? null : r.problem;
@@ -30,7 +32,21 @@ const problem = (env: Record<string, string | undefined>, which?: string) => {
 test("nothing set, blank, or an unknown name: no store", () => {
   expect(problem({})).toMatch(/IMAGE_STORE is not set/);
   expect(problem({ IMAGE_STORE: "   " })).toMatch(/IMAGE_STORE is not set/);
-  for (const name of ["gcs", "azure", "local", "disk", "cloudinary", "s3,r2", "s3;", "../s3", "null", "undefined", "true", "\u0000"])
+  for (const name of [
+    "gcs",
+    "azure",
+    "local",
+    "disk",
+    "cloudinary2",
+    "cloudinary,s3",
+    "s3,r2",
+    "s3;",
+    "../s3",
+    "null",
+    "undefined",
+    "true",
+    "\u0000",
+  ])
     expect(problem({ IMAGE_STORE: name }), name).toMatch(/IMAGE_STORE must be one of/);
 });
 
@@ -130,6 +146,88 @@ test("r2: the endpoint comes from the account id, the region is auto, an explici
   expect(problem({ ...r2, IMAGE_STORE: "s3" })).toMatch(/s3 storage needs/);
 });
 
+test("cloudinary: a complete CLOUDINARY_URL resolves, whatever the case and spacing of the store name and the spacing of the value", () => {
+  const ok = resolveStoreSettings(cloudinary);
+  expect(ok).toEqual({
+    ok: true,
+    settings: {
+      name: "cloudinary",
+      cloudinary: { cloudName: "school-demo", apiKey: "123456789012345", apiSecret: "aBcDeFgHiJkLmNoPqRsTuVwXyZ0" },
+    },
+  });
+  expect(resolveStoreSettings({ IMAGE_STORE: "cloudinry", CLOUDINARY_URL }).ok).toBe(false); // a typo in the name: unknown, and no guessing
+  expect(resolveStoreSettings({ IMAGE_STORE: "  CLOUDinary ", CLOUDINARY_URL: `  ${CLOUDINARY_URL}  ` })).toEqual(ok); // case and spacing do not matter
+});
+
+test("cloudinary: a missing, malformed or over-long CLOUDINARY_URL is refused, the part named and the value never repeated", () => {
+  expect(problem({ IMAGE_STORE: "cloudinary" })).toMatch(/needs CLOUDINARY_URL/);
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "  " })).toMatch(/needs CLOUDINARY_URL/);
+  const looks = /must look like cloudinary:\/\/<api key>:<api secret>@<cloud name>/;
+  for (const bad of [
+    "http://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo",
+    "https://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo",
+    "cloudinary://123456789012345@school-demo",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0",
+    // the vendor's package reads options from this variable's query string (another API host, a proxy): nothing may follow the cloud name
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo?upload_prefix=https://evil.example",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo?api_proxy=http://evil.example:3128",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo#x",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo/",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo:443",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school demo",
+    "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@evil.example@school-demo",
+    "cloudinary://123456789012345:aBc:DeFgHiJkLmNoPqRsTuVwXyZ0@school-demo",
+  ])
+    expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: bad }), JSON.stringify(bad)).toMatch(looks);
+  // a value read from a file or a dashboard often ends in a newline: that is trimmed, not an error; a NUL byte inside is an error
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: `${CLOUDINARY_URL}\n` })).toBeNull();
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: `${CLOUDINARY_URL}\u0000` })).toMatch(/cloud name .* not valid/);
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo" })).toMatch(
+    /api key .* not valid/,
+  );
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://123456789012345:@school-demo" })).toMatch(
+    /api secret .* not valid/,
+  );
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@" })).toMatch(
+    /cloud name .* not valid/,
+  );
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://12345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo" })).toMatch(
+    /api key .* not valid/,
+  );
+  expect(
+    problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://1234567890abcde:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo" }),
+  ).toMatch(/api key .* not valid/);
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://123456789012345:short@school-demo" })).toMatch(
+    /api secret .* not valid/,
+  );
+  expect(problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: "cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@-x" })).toMatch(
+    /cloud name .* not valid/,
+  );
+  expect(
+    problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: `cloudinary://123456789012345:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@${"x".repeat(80)}` }),
+  ).toMatch(/cloud name .* not valid/);
+  // no message ever repeats a secret or the whole value
+  for (const bad of [
+    "cloudinary://123456789012345:short@school-demo",
+    "cloudinary://1:aBcDeFgHiJkLmNoPqRsTuVwXyZ0@school-demo",
+    `${CLOUDINARY_URL}?x=1`,
+  ]) {
+    const message = problem({ IMAGE_STORE: "cloudinary", CLOUDINARY_URL: bad }) ?? "";
+    expect(message).not.toContain("aBcDeFgHiJkLmNoPqRsTuVwXyZ0");
+    expect(message).not.toContain("short");
+    expect(message).not.toContain(bad);
+  }
+});
+
+test("cloudinary: the other stores' variables are not read, and an old image can name cloudinary while IMAGE_STORE names another store", () => {
+  expect(problem({ ...s3, ...r2, IMAGE_STORE: "cloudinary" })).toMatch(/needs CLOUDINARY_URL/);
+  const both = { ...s3, CLOUDINARY_URL };
+  expect(resolveStoreSettings(both).ok).toBe(true); // IMAGE_STORE=s3
+  const viaWhich = resolveStoreSettings(both, "cloudinary");
+  expect(viaWhich.ok && viaWhich.settings.name).toBe("cloudinary");
+  expect(problem(s3, "cloudinary")).toMatch(/needs CLOUDINARY_URL/); // its variable was removed: its images cannot be read
+});
+
 test("an old image can name another store than IMAGE_STORE: it resolves from that store's own variables", () => {
   const both = { ...s3, ...r2 }; // IMAGE_STORE is "r2" (the later spread)
   expect(resolveStoreSettings(both).ok && resolveStoreSettings(both).ok).toBe(true);
@@ -141,7 +239,8 @@ test("an old image can name another store than IMAGE_STORE: it resolves from tha
 test("getImageStore: throws StorageNotConfiguredError with no usable configuration, and caches one adapter per configuration", () => {
   const saved = { ...process.env };
   const clear = () => {
-    for (const k of Object.keys(process.env)) if (/^(IMAGE_STORE|S3_|R2_|ALLOW_MEMORY_IMAGE_STORE)/.test(k)) delete process.env[k];
+    for (const k of Object.keys(process.env))
+      if (/^(IMAGE_STORE|S3_|R2_|CLOUDINARY_|ALLOW_MEMORY_IMAGE_STORE)/.test(k)) delete process.env[k];
   };
   try {
     clear();
@@ -156,6 +255,13 @@ test("getImageStore: throws StorageNotConfiguredError with no usable configurati
     clear();
     Object.assign(process.env, r2);
     expect(getImageStore().name).toBe("r2");
+    clear();
+    Object.assign(process.env, cloudinary);
+    const c = getImageStore();
+    expect(c.name).toBe("cloudinary");
+    expect(getImageStore()).toBe(c);
+    clear();
+    Object.assign(process.env, r2);
     expect(() => getImageStore("s3")).toThrow(StorageNotConfiguredError);
     try {
       getImageStore("s3");

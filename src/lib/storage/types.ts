@@ -2,8 +2,8 @@
 // is NO method that returns one, on purpose. Every read goes through our own route, which checks who may see the thing first (a question bank image can belong to an unreleased
 // exam question), so no backend can hand out a link that outlives that check.
 
-/// The backends. `r2` (Cloudflare R2) speaks the S3 protocol, so it is the `s3` code with R2's endpoint and region. `cloudinary` is added with its own file.
-export const STORE_NAMES = ["s3", "r2", "memory"] as const;
+/// The backends. `r2` (Cloudflare R2) speaks the S3 protocol, so it is the `s3` code with R2's endpoint and region. `cloudinary` uses the vendor's package (cloudinary.ts).
+export const STORE_NAMES = ["s3", "r2", "cloudinary", "memory"] as const;
 export type StoreName = (typeof STORE_NAMES)[number];
 
 export type StoredObject = { bytes: Uint8Array; contentType: string };
