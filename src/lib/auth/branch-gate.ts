@@ -5,6 +5,7 @@ import { branchGrant } from "@/lib/auth/with-branch";
 import { heldRoleIn } from "@/lib/auth/branch-access";
 import { isPlausibleId } from "@/lib/api/ids";
 import { MAX_BODY_BYTES } from "@/lib/api/validate";
+import { readBoundedText } from "@/lib/api/read-body";
 
 // `withAuth` plus "and the branch this request names is the caller's" - for the routes whose handler passes a `branchId` from the query string or the body straight
 // to a service (coursework, announcements, timetable, communication, promotion). Found by the browser security run (2026-10-19): `withAuth({ roles })` only says
@@ -36,34 +37,11 @@ type Named = { id: string; from: "query" | "body" };
 type InBody = { kind: "none" } | { kind: "id"; id: string } | { kind: "not-text" } | { kind: "too-large" };
 type Naming = { named: Named | null; refusal: "DISAGREE" | "NOT_TEXT" | "TOO_LARGE" | null };
 
-/// The request's body as text, read from a copy so the handler can still read its own, never more than the cap: `null` when it is larger.
-async function boundedBodyText(req: NextRequest): Promise<string | null> {
-  const declared = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return null;
-  const body = req.clone().body;
-  if (!body) return "";
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_BODY_BYTES) {
-      // Not awaited, on purpose. The clone is one half of a tee, and a cancel of one half settles only when the OTHER half is cancelled too: that half belongs to a handler
-      // that will never run, so awaiting it here held a chunked, over-cap request open for ever (found by the first run of the size test).
-      reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-  return new TextDecoder().decode(Buffer.concat(chunks));
-}
-
 /// What the body says about the branch. Read whatever the Content-Type says (see above).
 async function branchInBody(req: NextRequest): Promise<InBody> {
   if (req.method === "GET" || req.method === "HEAD") return { kind: "none" };
-  const text = await boundedBodyText(req);
+  // Read from a copy, so the handler can still read its own body.
+  const text = await readBoundedText(req.clone(), MAX_BODY_BYTES);
   if (text === null) return { kind: "too-large" };
   let parsed: unknown;
   try {
