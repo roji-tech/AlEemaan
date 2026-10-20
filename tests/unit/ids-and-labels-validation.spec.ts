@@ -51,7 +51,18 @@ test.describe("hasForbiddenCharacters", () => {
   });
 
   test("control, zero-width, bidi, private-use and lone-surrogate characters are forbidden", () => {
-    for (const text of ["a\u0000b", "a\u0007", "a\u200bb", "a\u200db", "\u202eabc", "a\ufeffb", "a\ue000b", "a\ud800b", "a\u007fb", "a\u0085b"]) {
+    for (const text of [
+      "a\u0000b",
+      "a\u0007",
+      "a\u200bb",
+      "a\u200db",
+      "\u202eabc",
+      "a\ufeffb",
+      "a\ue000b",
+      "a\ud800b",
+      "a\u007fb",
+      "a\u0085b",
+    ]) {
       expect(hasForbiddenCharacters(text), JSON.stringify(text)).toBe(true);
     }
   });
