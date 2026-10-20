@@ -97,6 +97,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 ## Files that are stable reference — read once, trust, don't expect them to move
 
 - `docs/issues/README.md` — the **issues register** (known and suspected problems by severity and type, with an evidence level and a taxonomy of issue kinds). Add an issue the moment one is suspected, update it as it moves, link it from the task that fixes it; see its "How this register is used".
+- `docs/pages/`, `docs/components/`, `docs/functions/` — the **code catalogs**: every file under `src/` has exactly one row (pages: Route/File/Description; components and `lib/`: File/Description per folder; the API routes are catalogued inside `functions/`: Method/Route/File/Who/Description). Each folder's `index.md` says how it is laid out. A file added, renamed or deleted gets its row added, changed or removed in the same change.
 - `docs/adr/` — short ADRs (one per decision someone might reverse by mistake); read the index before changing RLS, locks, permissions, deactivation or migrations. Rules are in its README: never edit an accepted decision, supersede it.
 - `docs/legacy-feature-inventory.md` — a frozen factual snapshot of the 5 legacy repos as read on
   2026-09-28. Won't change unless the legacy system itself is re-audited.
