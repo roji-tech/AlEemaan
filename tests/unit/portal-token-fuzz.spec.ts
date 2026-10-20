@@ -27,9 +27,9 @@ const ALPHABETS = {
   ascii: Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(""),
   hostile: [
     "\u0000",
-    "‮",
-    "​",
-    "﻿",
+    "\u202e",
+    "\u200b",
+    "\ufeff",
     "\n",
     "\r\n",
     "\t",

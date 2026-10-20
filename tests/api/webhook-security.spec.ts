@@ -292,7 +292,7 @@ test.describe("fuzz: validly signed bodies of any shape never crash the endpoint
           '\'; DROP TABLE "Payment";--',
           "../../etc/passwd",
           "\u0000",
-          "‮",
+          "\u202e",
           "${jndi:ldap://x}",
           "{{7*7}}",
           "é😀",

@@ -5,7 +5,7 @@ import { CSV_TEMPLATE, MAX_CSV_ROWS, parseStudentCsv, splitCsv } from "../../src
 
 test.describe("splitCsv", () => {
   test("quoted cells keep commas, doubled quotes and line breaks; CRLF and a BOM are handled", () => {
-    expect(splitCsv('﻿a,"b,1","say ""hi"""\r\nx,"two\nlines",z\n')).toEqual([
+    expect(splitCsv('\ufeffa,"b,1","say ""hi"""\r\nx,"two\nlines",z\n')).toEqual([
       ["a", "b,1", 'say "hi"'],
       ["x", "two\nlines", "z"],
     ]);
