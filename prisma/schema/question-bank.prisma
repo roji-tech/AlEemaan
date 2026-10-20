@@ -86,6 +86,7 @@ model QuestionBankItem {
   images      QuestionBankImage[]
   classTags   QuestionBankClassTag[]
   reviews     QuestionBankReview[]
+  versions    QuestionBankItemVersion[]
   flags       QuestionOverlapFlag[]  @relation("FlagItem")
   similarTo   QuestionOverlapFlag[]  @relation("FlagSimilarTo")
 
@@ -96,20 +97,42 @@ model QuestionBankItem {
 
 /// At most 4 per item (a trigger; the superadmin's setting, 3 or 4, is enforced by the service). Alt text is required unless the image is marked decorative (a check).
 model QuestionBankImage {
-  id         String   @id @default(cuid())
-  itemId     String
-  storageKey String
-  alt        String   @default("")
-  decorative Boolean  @default(false)
-  bytes      Int
-  width      Int
-  height     Int
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  itemId      String
+  /// Unique: two rows can never point at one stored file.
+  storageKey  String   @unique
+  /// Which backend holds the file (`s3`, `r2`, `cloudinary` or `memory`; a check, kept equal to `STORE_NAMES` by a test). A row says where its own file is, so changing the
+  /// configured store later does not orphan the images already saved.
+  store       String
+  /// What OUR record says the file is (`image/jpeg`, `image/png` or `image/webp`; a check). It is the type the image is served as: the store is never asked.
+  contentType String
+  alt         String   @default("")
+  decorative  Boolean  @default(false)
+  bytes       Int
+  width       Int
+  height      Int
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
 
   item QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, sortOrder])
+}
+
+/// What the question looked like at one version ("a fix creates a new version, old versions are kept"). Written in the same transaction as the change; never updated or
+/// deleted (a trigger), like the review and audit rows. The snapshot holds the whole question including its answer key, so it is read by staff only.
+model QuestionBankItemVersion {
+  id          String   @id @default(cuid())
+  itemId      String
+  version     Int
+  snapshot    Json
+  actorUserId String
+  createdAt   DateTime @default(now())
+
+  item  QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  actor User             @relation("BankVersionsWritten", fields: [actorUserId], references: [id], onDelete: NoAction)
+
+  @@unique([itemId, version])
 }
 
 /// A class tag: the label as typed and its key. A branch's class matches when `normalizeLabel(ClassGroup.name)` equals `labelKey`.
