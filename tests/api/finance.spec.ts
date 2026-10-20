@@ -1,4 +1,4 @@
-import "../support/env";
+import { TEST_PAYSTACK_SECRET } from "../support/env";
 import { test, expect } from "@playwright/test";
 import { Gender, Role } from "@prisma/client";
 import { createUser, db, seedInstance } from "../support/db";
@@ -297,7 +297,7 @@ test.describe("Finance API", () => {
     expect(initData.authorizationUrl).toContain(initData.reference);
 
     // 2. Simulate webhook charge.success delivery
-    const secretKey = process.env.PAYSTACK_SECRET_KEY || "mock_secret";
+    const secretKey = TEST_PAYSTACK_SECRET; // the harness key the server under test verifies with (never the public mock string)
     const webhook = mockPaystack.generateWebhookPayload(initData.reference, secretKey, 4500000, "parent@example.com");
 
     const webhookRes = await api("/api/v1/webhooks/paystack", {
