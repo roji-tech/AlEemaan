@@ -42,6 +42,8 @@
 | 0030 | Release Staging | Release v0.7.1 Staging: Promote `dev` ➔ `master` | Completed | 2026-10-18 06:32:00 UTC | 2026-10-18 06:32:10 UTC | [PR #61](https://github.com/roji-tech/AlEemaan/pull/61) |
 | 0031 | Release Production | Release v0.7.1 Production: Promote `master` ➔ `prod` (Tagged `v0.7.1`) | Completed | 2026-10-18 06:32:40 UTC | 2026-10-18 06:32:55 UTC | [PR #62](https://github.com/roji-tech/AlEemaan/pull/62) |
 
+> **Note (2026-10-21):** this table stops at 0031, and its 0030 and 0031 are the two release rows of 2026-10-18, not the task files with those numbers. The task files 0030 to 0035 (the blueprint, Slice UI1, the Forms and question bank, the walkthrough audit, the bounded body read, the NUL scan) are in the sections below and in `docs/tasks/`.
+
 ---
 
 
@@ -209,7 +211,7 @@
 ---
 
 ### TASK-0032: Forms module and Question Bank
-- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) merged into `dev` as [PR #69](https://github.com/roji-tech/AlEemaan/pull/69) on 2026-10-20; slices 2 to 10 not started. See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
+- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) merged into `dev` as [PR #69](https://github.com/roji-tech/AlEemaan/pull/69) on 2026-10-20; slices 2 to 10 are not on `dev`. Slice 2's first six steps exist as seven local commits on `claude/forms-qbank-slice-2` (worktree `../AlEemaan-slice2`, not pushed, no PR; see `docs/HANDOVER.md` section 6.0). See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
 
 ---
 
@@ -221,6 +223,16 @@
 - [x] #77 `claude/fix-names-need-a-visible-character`: a name needs a visible character
 - [x] The whole unit project on the merged `dev`: 481 passed
 - [ ] NOT run: the API, integration, e2e and https projects on the merged `dev` (no full suite was started)
+
+---
+
+### TASK-0035: A NUL character in a request is refused before the handler
+- **Status:** Completed: merged into `dev` as [PR #79](https://github.com/roji-tech/AlEemaan/pull/79) on 2026-10-21 (01:41:01 UTC; merge commit `deb072f`, branch `claude/fix-nul-in-input`), after its Vercel check passed and with `base.ref` checked to be `dev`. See `docs/tasks/0035-a-nul-character-in-a-request-is-refused-before-the-handler.md`.
+- [x] `withAuth` refuses a NUL character in the query string (400, naming "query") and in a JSON body of a state-changing request (400, naming "body", read from a copy of the request), after the checks that say who may be here and before the handler; `validate()` refuses one in the body it parses
+- [x] `src/lib/api/no-nul.ts` (`holdsNul`, `NUL_MESSAGE`), the same file as in Octalve Edu (its task 0019)
+- [x] Failing first: 19 of 75 tests failed on a build without the wiring, 56 passed; on the branch 75 passed; the whole setup, unit, integration and api projects 1318 passed, 2 failed (the two tests that expected the old messages, updated; re-run alone: 2 passed)
+- [ ] NOT run: the e2e and https projects on the branch; a full suite of every project on the merged `dev`
+- [ ] Open: one shared reader and a central 400 for a body that is not valid JSON
 
 ---
 
