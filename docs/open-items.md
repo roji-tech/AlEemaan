@@ -24,6 +24,10 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Verification page (P2e):** bare minimum always shown (school, branch, class, term, publish date, "valid"); the superadmin selects additional fields (pupil name form, subject, marks, grade) per branch or for all branches; an admin's change to their branch requires superadmin approval. The existing test pinning an exact field list must become "minimum + configured fields", never looser than configured.
 - [x] **Attendance permissions (own slice after P2e):** who may take attendance for an arm: (1) the class/form teacher of that arm (teaching or non-teaching staff), (2) anyone granted explicit permission by an admin or superadmin for named arms or groups of arms, (3) admins/superadmins always may; everyone else is refused. Deploy: backfill each teacher's currently assigned arms as starting grants so no one loses access on ship day.
 
+**Request input (2026-10-21)**
+- [x] fixed in PR #79 (task 0035): a NUL character in the query string or the JSON body of a state-changing request answered 500 on lists, searches and free-text creates; it is now a 400 from `withAuth` (and from `validate()` for the body it parses).
+- [ ] Routes that read their own body should use one shared reader (bounded read, the NUL scan, a 400 for a body that is not valid JSON); 51 of the 128 route files read their body themselves.
+
 ## 1. Waiting on the maintainer
 
 - [x] **Question bank, two gaps in the design (found 2026-10-19; answered the same day):** (1) tags across branches: match by normalised name text (`normalizeLabel`, no column added to ClassGroup or Subject; the typed label and a key are stored); (2) "section": an optional `ClassGroup.section` set by the admin (branch name when empty), added with slice 5. Design note section 16a.

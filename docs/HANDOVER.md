@@ -1,9 +1,10 @@
 # AlEemaan — Project Status & Handover Documentation
 
-> **Last Updated:** 2026-10-19 (Slice UI1 committed on a branch, question bank and Forms decisions - see section 6)  
+> **Last Updated:** 2026-10-21 (state and next work: section 6.0; how to work here: section 7)  
 > **Scope:** AlEemaan School Management System (Single-Tenant, Multi-Branch Architecture)  
 > **Repository:** `roji-tech/AlEemaan`  
-> **Active Branch:** `dev` (Synchronized with `master`); unmerged work: `claude/ui-gaps-students-settings` (Slice UI1, section 6)
+> **Active Branch:** `dev` (69 commits ahead of `master`, which is `dev` as of PR #66 on 2026-10-18; `prod` is 5 commits behind `master`: nothing since is promoted)  
+> **Taking over? Read section 6.0, then section 7, then `CLAUDE.md`.**
 
 ---
 
@@ -58,13 +59,13 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ---
 
-## 3. Database Migrations Status (100% Deployed & Synchronized)
+## 3. Database Migrations Status (26 of 28 deployed live; the 2 newest are pending there)
 
-All 26 database migrations have been executed and validated against both local Docker and live production environments:
+The repository holds 28 migrations. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`) and the 28th (`20261019210000_question_bank_foundation`) are NOT recorded as run on the live one (the maintainer runs `pnpm db:migrate:deploy` there, `hosted_schemes` BEFORE its code is deployed):
 
 - **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 26 migrations applied.
 - **Live Remote Database:** `postgres://...:5432/postgres?sslmode=require` (`db.prisma.io:5432`) — 26 migrations applied.
-- **Latest Migration Applied:** `20261018150000_staff_extended_fields/migration.sql`
+- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261019210000_question_bank_foundation/migration.sql`.
 
 ---
 
@@ -90,21 +91,40 @@ A detailed technical blueprint is documented in:
 
 ---
 
-## 6. Current work (2026-10-20) - START HERE
+## 6. Current work (2026-10-21) - START HERE
 
-### 6.0 State on 2026-10-20
+### 6.0 State on 2026-10-21 (start here)
 
 **Merged into `dev` (by the maintainer):** [#67](https://github.com/roji-tech/AlEemaan/pull/67) Slice UI1 (2026-10-19), #68 fail-closed secrets, #69 Forms and question bank slice 1, #70 canonical Tailwind class names, #71 the branch gate checks every branch a request names and caps the body it reads, #72 the code catalogs (`docs/pages`, `docs/components`, `docs/functions`: one row per tracked file under `src/`, changed in the same commit as the file).
 
 **Merged into `dev` on 2026-10-20 at the maintainer's instruction ("merge all the PRs in order"), 20:00 to 20:01 UTC, each after its Vercel check passed and with `base.ref` checked to be `dev`:** #73 `claude/bounded-body-read` (two commits), #74 `claude/chore-source-hygiene`, #75 `claude/test-outbox-strict`, #76 `claude/test-startup-secrets-hermetic`, #77 `claude/fix-names-need-a-visible-character`. `dev` was `8db6101` after the five merges. The remote branches are kept. Nothing is promoted to `master` or `prod`. Task: `docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md` (merge commits and times are in its section 6).
 
+**Merged into `dev` on 2026-10-21 under the same standing authority:** #79 `claude/fix-nul-in-input` (merge commit `deb072f`, 01:41:01 UTC, after its Vercel check passed and with `base.ref` checked to be `dev`): a NUL character in the query string (400) or in the JSON body of a state-changing request (400) is refused by `withAuth` before the handler, and by `validate()` in the body it parses (`src/lib/api/no-nul.ts`, the same file as in Octalve Edu, whose PR #49 did the path, query and body there). It was a 500 on lists and searches and on free-text creates. Task: `docs/tasks/0035-a-nul-character-in-a-request-is-refused-before-the-handler.md`. `dev` is `deb072f`; `master` is `dev` as of PR #66 (2026-10-18) and `prod` is 5 commits behind it: `dev` is 69 commits ahead of `master`, and nothing since is promoted.
+
 **Rules learned since 2026-10-19 (they apply to new code):**
 - A request body is read through `validate()` or `readBoundedText` (`src/lib/api/read-body.ts`), never `req.text()` or `req.json()` straight from the request; the branch gate had its own copy of the cap logic.
 - The source holds no literal invisible or direction-changing characters (a guard test, `tests/unit/source-hygiene.spec.ts`, fails on one): write them as escapes, and look at a file after a tool has edited it, because a tool can turn an escape sequence into the character itself.
 - A name needs a visible character: a name of only zero-width characters or other default-ignorable ones is refused (`checkName` in `src/lib/auth/profile-policy.ts`).
+- A request that holds a NUL character is a bad request: refuse it centrally (`withAuth` for the query string and the body, `sanitizePathParams` for the path, `validate()` for the body it parses), never route by route; a route that reads its own body is covered by the `withAuth` scan, which reads a COPY of the request.
 - The email-change timing check runs a bcrypt compare in every sample, and its tolerance had been below its own noise (fixed in `6d3d9fe`): do not tighten it without measuring.
 
-**Open / next:** (1) one full suite (API, integration, e2e, https) on the merged `dev` (only the unit project has been run on it: 481 passed; see the task file, section 4); (2) Forms and question bank slices 2 to 10 (task 0032, section 4a; the design note and the decisions in 6.1 to 6.5b below); (3) Octalve question-bank parity (its own design note first); (4) the walkthrough audit (task 0033) runs last.
+**Local work that is NOT on `dev`:** two worktrees beside the main checkout, kept on purpose because they hold unfinished work: do not delete them.
+- `../AlEemaan-slice2`, branch `claude/forms-qbank-slice-2` (Forms and question bank, task 0032 slice 2): seven local commits, steps 1 to 6 (an image-storage adapter with S3, R2, Cloudinary and in-memory backends; `sharp` as a direct dependency; image processing so only pixels survive an upload; the "is this the same question as one we already have" overlap function; the migration for images, question versions and forward-only visibility; the pure module for who may do what with a question), 27 commits behind `origin/dev`, not pushed, no PR, with two untracked files (`src/lib/question-bank/item-input.ts` and its unit spec) that are the start of the next step. Two survivor tests are still to add (the private tracker says which).
+- `../AlEemaan-fix-promotion`, branch `claude/fix-promotion-screens`: no commit, 37 commits behind `origin/dev`, three modified files (`PromotionConsole.tsx`, `PromotionHistoryView.tsx`, `src/lib/promotion/service.ts`; last edited 2026-10-20 09:33). The diff changes the field names the console sends and the history view reads (`targetArmId` to `targetClassArmId`, `reason` to `overrideReason`, `initiatedByUser` to `executedBy`, and the record fields) and adds a change to the service. Whether it is finished or tested is NOT recorded here: read `git diff`, run the promotion specs on it, and ask the maintainer before deleting it.
+
+**Waiting on the maintainer (none of these blocks the next work):**
+1. The hosted database: `20261019090000_hosted_schemes` (it must run BEFORE the code is deployed there) and `20261019210000_question_bank_foundation` are not recorded as run on it (section 3 below says 26 migrations applied; the repository holds 28); and `pnpm admins:list` against the live database, to say who stays a superadmin (`docs/open-items.md` section 1).
+2. The older list in `docs/open-items.md` sections 1 and 3b and in the private tracker: provider keys, rotating the credentials that were exposed, parents A/B/C, the portal sign-in codes, slice-2 proposals, sibling grouping (S14), the materials design (F3), whether to add a catalog coverage test (a unit test that fails when a file under `src/` has no row), renaming `break-words` in three files, and any promotion to `master`/`prod`.
+3. Octalve's ADR 0018 (results approvers by scope) is Proposed there; this repository follows it after Octalve's slices land, so the maintainer's yes on its three proposed details also unblocks the port here.
+
+**Open / next, in order:**
+1. One full suite (API, integration, e2e, https) on the merged `dev` (only the unit project has been run on it: 481 passed; the setup, unit, integration and api projects were run on the branch of #79: 1318 of 1320, the two being tests updated since).
+2. One shared way to read a request body for the routes that read their own, with a bounded read, the NUL scan and a 400 for a body that is not valid JSON (51 of the 128 route files read their body themselves).
+3. The port of Octalve's approvers by scope (task 0020 there, ADR 0018), after Octalve's slices land: the maintainer's design is that staff are assigned to approve results generally, per section (primary, JSS, SSS) or per class (JSS 2 ...), set in the superadmin's settings, and see and act on only what is assigned; a general approver sees their whole branch. Terms here: superadmin for the administrator, branches for campuses; a section is a new small table, the migration gives today's approvers a general scope.
+4. Forms and question bank slices 2 to 10 (task 0032, section 4a; slice 2 is on the local branch above; the design note and the decisions in 6.1 to 6.5b below).
+5. Octalve question-bank parity (its own design note first), the `/video-guide` pages, a responsiveness audit.
+6. **The walkthrough audit (task 0033) runs LAST.**
+7. Read section 7 (how to work here) before anything else.
 
 ### Earlier: 2026-10-19 (written before PRs #67 to #72 merged: where it says UI1 or slice 1 is "not pushed, no PR yet", that is no longer true)
 
@@ -212,3 +232,61 @@ Use THIS file (`docs/HANDOVER.md` in each repository). Do not use `/home/rojitec
 - **Octalve and AlEemaan are kept in sync** (CLAUDE.md rule 7; Octalve's design is canonical for shared parts). A fix in one is checked against the other and the result recorded in both HANDOVER files, including "checked, not affected".
 - **Do not run two full suites at once** on the same machine: the second one slowed the first enough to fail a 5 s assertion (open-items 1b).
 
+---
+
+## 7. How to work here: authority, habits, running the tests, clean-up (2026-10-21)
+
+This section is the portable copy of what the previous AI session knew from the maintainer's instructions. It does not replace the working rules in [`CLAUDE.md`](../CLAUDE.md) or section 6.6 (how hand-offs are done) and 6.9 (the standing rules of 2026-10-19: always hunt for bugs, fuzz and edge-test, test the UI and the flow, keep the two products in step, do not run two full suites at once); it adds the rules that were given in conversation since and the practical knowledge of running this repository's tests on a shared machine. A session that starts from this repository alone (another AI, another tool, or a person) has everything it needs here and in the files this section names. The same section exists in Octalve Edu's `docs/HANDOVER.md`.
+
+### 7.1 Who may do what
+
+- **The maintainer** is the git user `roji-tech`. Product decisions are theirs. When a decision is genuinely theirs, ask one question and lead with a recommendation; when a conventional default exists, take it and say so in the PR.
+- **Merging into `dev`:** the AI may merge a PR into `dev` after its checks pass, as a MERGE COMMIT, and keeps the remote branch. The gate is: the PR is open, `base.ref` is `dev`, the head is the commit that was tested, the Vercel check is `SUCCESS`, and GitHub says `MERGEABLE`. The helper that checks all five and then merges is `bash /home/rojitech/Desktop/CODEC/out/tools/guarded-merge.sh roji-tech/AlEemaan <pr> <tested-head-sha-prefix>`.
+- **Never without the maintainer's explicit approval, each time:** merging or promoting into `master` or `prod`; accepting an ADR (an agent may draft one, only a person accepts it, so it stays "Proposed"); running a migration on a hosted database or writing a Vercel secret (the AI is blocked from both anyway: a PR that ships a migration says so and gives the run order).
+- **Pushing:** "push it" means push and nothing more. Pushing a branch and opening a PR are part of the normal flow; merging is only under the rule above.
+- **Not yours to touch:** the maintainer's own checkout and processes, and the local database containers. Remove only what you made (7.4).
+- **A refusal by the permission system is not an obstacle to route around:** reword or stop, and tell the maintainer exactly what was blocked and the command they can run themselves.
+- **Task 0033** (the walkthrough video and PDF that double as a flow audit) runs LAST, after all other tasks.
+
+### 7.2 Habits that apply to every task
+
+1. **Hunt for bugs, design gaps and user-flow gaps** in every task, not only the ones named; **fuzz and edge-test anything security-relevant**; **test the UI and the user flow** of every screen touched and its neighbours (6.9 lists what to look at). Report what you found, including what you did not fix.
+2. **A test is seen to fail first.** Run every new test on an UNFIXED production build (a worktree of `dev` with only the new specs and helpers) and check that it fails for the intended reason, with the controls passing; record the counts. If a failing-first run is impossible (a new table), say so in the PR.
+3. **Comprehensive commit messages and PR bodies (ADR 0013):** What, Why, Decisions, the bugs found on the way, and the tests: what failed first, what ran (names and counts), and what was NOT run. Commits end with the `Co-Authored-By:` trailer of the model that wrote them; PR bodies end with the "Generated with Claude Code" line.
+4. **Docs in the same pass:** with every batch update the task file and `docs/tasks/current-tasks.md`, the progress tracker (`docs/development-history/aleemaan_progress.md`), `docs/open-items.md`, section 6 of this file, the `CLAUDE.md` banner, and the code catalogs (`docs/pages`, `docs/components`, `docs/functions`: one row per tracked file under `src/`, in the same commit as the file; `python3 /home/rojitech/Desktop/CODEC/out/tools/verify_catalogs.py <repo>` checks them; a file that is not yet `git add`ed shows as EXTRA). The private tracker `/home/rojitech/Desktop/CODEC/out/tasks.md` gets an entry as well. Docs go on a docs-only branch off `dev`.
+5. **Both repositories are PUBLIC; neither product is live (maintainer, 2026-10-21).** In anything pushed (commit, PR, code comment, test name, catalog row, `docs/issues` row) describe the rule the code now enforces, in neutral words, never a way to exploit the old behaviour: no reproduction steps, no secrets. Exploit detail goes in the private tracker only (`/home/rojitech/Desktop/CODEC/out/tasks.md`, and for Octalve `octalve-review-leads-2026-10-20.md`, both outside git). `docs/issues`: write a row the moment a problem is suspected (where, what, status, and an honest `Live?` column); the maintainer chose that on 2026-10-21 (option C).
+6. **No fallback secrets in source:** a missing secret fails closed (PR #68). Keep this repository in step with Octalve Edu (its design is canonical for shared parts, AlEemaan is the stricter of the two where they differ); a fix in one is checked against the other and the result recorded in both HANDOVER files, including "checked, not affected".
+7. **Do not run two full suites at once** (there are no lanes here: 7.3).
+8. **Always clean up when done (7.4).**
+
+### 7.3 Running the tests here
+
+- **The servers under test are a production build** (`next start`): run `pnpm build` after any source change or the specs test the old code. `pnpm build` runs `prisma generate` first and type-checks the tests and any `.ts` file at the repository root, so a throwaway config must NOT be in the tree while it builds. `tsc --noEmit` alone shows only `LayoutProps` (a Next type that exists after a build): that is not an error.
+- **No lanes: one run at a time.** The ports are fixed (`tests/support/env.ts`: 3200 the plain-HTTP app, 3201 the same build behind the TLS proxy on 3543, 3202 the dev-tools server, 3203 the breach server, 3204 the breached-password stand-in) and the test database is `TEST_DATABASE_URL`, or `DATABASE_URL` with `_test` appended to the database name; the `setup` project creates, migrates and empties it. A second run collides on both.
+- **Playwright projects:** `setup`, `unit`, `integration`, `api`, `e2e-desktop`, `e2e-mobile`, `https` (`pnpm test:unit`, `test:api`, `test:e2e`, `test:https`). A whole `setup` + `unit` + `integration` + `api` run is about 45 minutes at load 8 to 20.
+- **The shared machine is often loaded:** run with `--timeout=120000`, and raise the web servers' START-UP wait from 60 s to 240 s with a throwaway config that changes nothing else: `/home/rojitech/Desktop/CODEC/out/tools/pw-wrapper.config.ts`, copied into the worktree as `pw-wrapper.config.ts` for the run and deleted afterwards (`/home/rojitech/Desktop/CODEC/out/tools/run-lane.example.sh` shows the shape; drop its `TEST_LANE`). Example: `nice -n 5 pnpm exec playwright test --config=pw-wrapper.config.ts --timeout=120000 --reporter=list --project=setup --project=api tests/api/<spec>`. A test that fails only under load must be shown to pass alone before it is called load-sensitive, and then repaired (task 0034 and Octalve's task 0019 are the pattern), not retried.
+- **Long jobs:** start them in the background (`run_in_background`) with a log, wait for the log's own `== run done` marker with an `until grep ...; do sleep 5; done` loop, and trust that marker, not the launcher's "completed". A log that contains a NUL character is binary to `grep`: use `grep -a` or `tr -d '\000'`.
+- **Local database:** `docker-compose.yml` (connection details: section 3). Scratch databases you create for a run are dropped at the end (7.4).
+
+### 7.4 Clean-up checklist (after every batch)
+
+1. Remove the worktrees you made once their branch is merged or dropped (`git worktree remove`; a refusal by the permission system means: give the maintainer the exact command). KEEP a worktree that holds unmerged work (6.0 names the two that exist).
+2. Delete the merged LOCAL branches you made. Never delete a remote branch.
+3. Stop your own processes (never `pkill -f` or `pgrep -f` with a pattern that appears in the same command line: it matches itself). Do not touch the maintainer's processes.
+4. Drop your scratch databases; delete throwaway configs (`pw-wrapper.config.ts`, `.env` copies), `test-results`, `playwright-report` and `.next` in your worktrees.
+5. At the very end of a long session clear the big scratchpad files.
+
+### 7.5 Tool habits that cost time when forgotten
+
+- A Write, Edit or Bash call can turn a backslash-u escape sequence in the text you send into the real character. Write such sequences with a doubled backslash, look at the result with `git diff`, and keep `tests/unit/source-hygiene.spec.ts` green.
+- The Edit tool needs the file to have been Read in the same session; `sed` does not count.
+- Run `pnpm exec prettier --check` on every file you changed before committing.
+- A new local branch made from `origin/dev` tracks `origin/dev`: `git branch --unset-upstream`, then `git push -u origin <branch>`.
+- `git log --format=%h`, not `--format=x`. Use the scratchpad directory for your own files, not `/tmp`.
+
+### 7.6 Where the things that are not in git live
+
+- `/home/rojitech/Desktop/CODEC/out/tasks.md`: the maintainer's single task tracker for both repositories (an entry per session, with the private findings).
+- `/home/rojitech/Desktop/CODEC/out/octalve-review-leads-2026-10-20.md`: unverified review leads from the Octalve catalog run (PRIVATE); AlEemaan is the twin of Octalve, so a lead there is worth checking here.
+- `/home/rojitech/Desktop/CODEC/out/tools/`: the helper scripts named above, with a README.
+- The previous AI session's own memory notes live in the maintainer's Claude Code profile and load only into a Claude Code session started in this project. Everything in them that matters is in this section and in section 6.

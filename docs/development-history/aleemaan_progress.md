@@ -1,6 +1,6 @@
 # AlEemaan — Development Progress Tracker
 
-Last Updated: 2026-10-20 (the status of that day is the first bullet of the summary below and the section at the end; before that, 2026-10-07: Users pages and invitations built — see "Users pages and invitations build" below; before that, 2026-10-05: auth rebuilt against the hardened shared design, then synced to Octalve Edu's
+Last Updated: 2026-10-21 (the status of that day is the first bullet of the summary below and the last two sections; before that, 2026-10-20: tasks 0034, merged as #73 to #77; before that, 2026-10-07: Users pages and invitations built — see "Users pages and invitations build" below; before that, 2026-10-05: auth rebuilt against the hardened shared design, then synced to Octalve Edu's
 built-and-verified implementation — see "Synced to Octalve Edu's verified auth" below; repo
 https://github.com/roji-tech/AlEemaan, public)
 
@@ -13,7 +13,7 @@ checked against the real repo, not what a plan says should exist.
 
 ## Overall Status Summary
 
-- **Status on 2026-10-20 (the current record is `docs/tasks/current-tasks.md` and `docs/HANDOVER.md` section 6; the bullets below are the history of the earlier phases and several describe the state of their own date):** the slices P1 to P8 and the 0.5 series are built and released (tasks 0001 to 0029; releases `v0.6.0` and `v0.7.1`); Slice UI1 (task 0031, PR #67) and the Forms and question bank slice 1 (task 0032, PR #69) are merged into `dev`, with the fail-closed secrets (#68), the branch gate that checks every branch a request names (#71) and the code catalogs (#72); five small changes (task 0034: bounded body read, source hygiene, two test repairs, the names check) are merged into `dev` as #73 to #77 (not promoted to `master` or `prod`); question-bank slices 2 to 10 and the walkthrough audit (task 0033, last) are not started.
+- **Status on 2026-10-21 (the current record is `docs/tasks/current-tasks.md` and `docs/HANDOVER.md` section 6; the bullets below are the history of the earlier phases and several describe the state of their own date):** the slices P1 to P8 and the 0.5 series are built and released (tasks 0001 to 0029; releases `v0.6.0` and `v0.7.1`); Slice UI1 (task 0031, PR #67) and the Forms and question bank slice 1 (task 0032, PR #69) are merged into `dev`, with the fail-closed secrets (#68), the branch gate that checks every branch a request names (#71) and the code catalogs (#72); five small changes (task 0034: bounded body read, source hygiene, two test repairs, the names check) are merged into `dev` as #73 to #77, and the NUL-character scan (task 0035) as #79 (none of it promoted to `master` or `prod`); question-bank slice 2 exists only as local, unpushed commits (`HANDOVER.md` section 6.0), slices 3 to 10 and the walkthrough audit (task 0033, last) are not started.
 - **Planning**: the PRD exists as a Claude Doc (13 sections: Overview, Legacy System Context, School
   Structure, Users/Roles/Permissions, MVP Scope & Feature Reconciliation, Academic & Results
   Workflow, Finance & Payments, Public Site & CMS, Technical Architecture, Data Migration & Cutover,
@@ -304,4 +304,8 @@ Record: `docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md`. F
 - **Verification:** unit 21 passed on the body-read branch and 54 API tests on a production build; the guard 2 tests; outbox 4; startup secrets 4 cases; the whole unit project on the merged `dev` 481 passed. NOT run: the API, integration, e2e and https projects on the merged `dev` (no full suite was started).
 - **Next action:** one full suite (API, integration, e2e, https) on the merged `dev`; then Forms and question bank slice 2 (task 0032).
 
-
+## A NUL character in a request is refused before the handler (2026-10-21) - merged into `dev`, not promoted
+Record: `docs/tasks/0035-a-nul-character-in-a-request-is-refused-before-the-handler.md`. One pull request off `dev` (`c93323b`), merged into `dev` on 2026-10-21 (01:41 UTC) after its Vercel check passed: #79 `claude/fix-nul-in-input` (merge commit `deb072f`). Octalve Edu has the same rule (its PR #49, task 0019).
+- **Rule:** a NUL character in the query string is a 400 naming "query" and in the JSON body of a state-changing request a 400 naming "body", for every route behind `withAuth` (`withAuth`, `withAuthGated`, `withBranch`), after the checks that say who may be here and before the handler; `validate()` refuses one in the body it parses. The body is read from a copy of the request, so the handler still reads its own. A NUL in a path segment was already a 404 (`sanitizePathParams`). `src/lib/api/no-nul.ts` is the same file as in Octalve Edu.
+- **Verification:** failing first (19 of 75 tests failed on a build without the wiring, 56 passed); on the branch 75 passed; the whole setup, unit, integration and api projects 1318 passed, 2 failed, the two being tests that expected the old messages (updated, re-run alone: 2 passed). NOT run: the e2e and https projects on the branch, and a full suite of every project on the merged `dev`.
+- **Next action:** one full suite (API, integration, e2e, https) on the merged `dev`; one shared reader and a central 400 for a body that is not valid JSON; then Forms and question bank slice 2 (task 0032), and the AlEemaan port of Octalve's approver scopes (ADR 0018 there, `Proposed`) after Octalve's slices land.
