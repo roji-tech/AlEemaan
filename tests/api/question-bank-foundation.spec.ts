@@ -645,7 +645,7 @@ test.describe("reviewers", () => {
 
 test.describe("the branch gate refuses ids that cannot be ids on routes that already existed", () => {
   // Found by fuzzing this slice: withAuthGated passed ?branchId= straight to a query, and a NUL byte there is a Postgres error, so the request ended as a 500.
-  test("six existing gated routes answer 404 (never 500) for a NUL byte or an oversized branch id, for an administrator and a superadmin (a teacher is refused earlier, 403 or 404)", async () => {
+  test("six existing gated routes answer 404 (never 500) for an oversized branch id and 400 for a NUL byte (refused by the central check before the gate), for an administrator and a superadmin (a teacher is refused earlier, 403, or 400 or 404 where the roles let them in)", async () => {
     const paths = [
       "/api/v1/communication/templates",
       "/api/v1/communication/dispatches",
@@ -659,7 +659,9 @@ test.describe("the branch gate refuses ids that cannot be ids on routes that alr
         for (const cookie of [ck.teacher, ck.admin, ck.super]) {
           const res = await api(`${path}?branchId=${raw}`, { cookie });
           // A teacher on a route whose roles exclude them is refused (403) before the branch id is looked at; an administrator and a superadmin always reach the gate.
-          const allowed = cookie === ck.teacher ? [403, 404] : [404];
+          // A NUL byte is refused with 400 by withAuth (lib/api/no-nul.ts) before the gate asks about the branch; any other id the gate cannot match is a 404.
+          const nul = raw.includes("%00");
+          const allowed = cookie === ck.teacher ? [403, 404, ...(nul ? [400] : [])] : nul ? [400] : [404];
           const who = cookie === ck.teacher ? "teacher" : cookie === ck.admin ? "admin" : "super";
           expect(allowed, `${who} ${path}?branchId=${raw.slice(0, 12)} -> ${res.status}`).toContain(res.status);
         }

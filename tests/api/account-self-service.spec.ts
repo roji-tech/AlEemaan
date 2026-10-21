@@ -87,7 +87,7 @@ test.describe("PATCH /account/profile", () => {
       ["", /enter your name/i],
       ["   ", /enter your name/i],
       ["a".repeat(101), /at most 100/],
-      ["Amina\u0000Yusuf", /can't be used/],
+      ["Amina\u0000Yusuf", /not valid/], // a NUL is refused by the central check (lib/api/no-nul.ts) before the schema, in its own words
       ["Amina\u202eYusuf", /can't be used/],
     ];
     for (const [name, message] of cases) {
