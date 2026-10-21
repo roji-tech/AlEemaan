@@ -25,6 +25,7 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Attendance permissions (own slice after P2e):** who may take attendance for an arm: (1) the class/form teacher of that arm (teaching or non-teaching staff), (2) anyone granted explicit permission by an admin or superadmin for named arms or groups of arms, (3) admins/superadmins always may; everyone else is refused. Deploy: backfill each teacher's currently assigned arms as starting grants so no one loses access on ship day.
 
 **Request input (2026-10-21)**
+- [~] task 0036 (PR pending): the proxy matcher took every API request, so a body that never ends was never answered; narrowed to paths with a percent sign. Every 413 now closes the connection after it (an oversize body is refused while the client is still sending).
 - [x] fixed in PR #79 (task 0035): a NUL character in the query string or the JSON body of a state-changing request answered 500 on lists, searches and free-text creates; it is now a 400 from `withAuth` (and from `validate()` for the body it parses).
 - [ ] Routes that read their own body should use one shared reader (bounded read, the NUL scan, a 400 for a body that is not valid JSON); 51 of the 128 route files read their body themselves.
 

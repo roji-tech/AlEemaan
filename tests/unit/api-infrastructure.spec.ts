@@ -329,4 +329,10 @@ test.describe("fail() — the error envelope", () => {
     });
     expect(await body(fail("No.", 418))).toEqual({ code: "418", message: "No." }); // the status is the default code
   });
+
+  test("a 413 closes the connection after it (the rest of the body may still be on its way); no other status does", () => {
+    expect(fail("Too big.", 413, "PAYLOAD_TOO_LARGE").headers.get("connection")).toBe("close");
+    for (const status of [400, 401, 403, 404, 409, 422, 429, 500])
+      expect(fail("No.", status).headers.get("connection"), String(status)).toBeNull();
+  });
 });

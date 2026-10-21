@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processPaystackWebhook } from "@/lib/finance/service";
 import { resolvePaystackMode } from "@/lib/finance/paystack";
+import { CLOSE_AFTER_RESPONSE } from "@/lib/api/envelope";
 
 // POST /api/v1/webhooks/paystack
 // Public webhook endpoint for Paystack payment notifications (ported from Octalve Edu's hardened route; Octalve's design is canonical for shared parts).
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   const rawBody = await readCapped(req, MAX_BODY_BYTES);
   if (!rawBody) {
-    return NextResponse.json({ received: false, error: "Payload too large." }, { status: 413 });
+    return NextResponse.json({ received: false, error: "Payload too large." }, { status: 413, headers: CLOSE_AFTER_RESPONSE });
   }
 
   try {
