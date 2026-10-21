@@ -6,6 +6,9 @@ import { validateCSRF } from "@/lib/auth/csrf";
 import { getSessionFromRequest, type ResolvedSession } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
 import { sanitizePathParams } from "@/lib/api/ids";
+import { holdsNul, NUL_MESSAGE } from "@/lib/api/no-nul";
+import { readBoundedText } from "@/lib/api/read-body";
+import { MAX_BODY_BYTES } from "@/lib/api/validate";
 
 // The shared route guard: same name, file and call shape as Octalve Edu's
 // (domain-implementation-plan.md §0.5.1.6). It REPLACES `requireAdmin()`.
@@ -31,6 +34,18 @@ export type WithAuthOptions = {
 };
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/// True when the request's body is JSON that holds a NUL character (lib/api/no-nul.ts). Read from a COPY of the request, so the handler can still read its own body. A body that
+/// is empty, is not JSON, or is longer than the cap for a JSON body is not judged here: the route (or validate()) says what is wrong with it.
+async function bodyHoldsNul(req: NextRequest): Promise<boolean> {
+  const text = await readBoundedText(req.clone(), MAX_BODY_BYTES);
+  if (!text) return false;
+  try {
+    return holdsNul(JSON.parse(text));
+  } catch {
+    return false;
+  }
+}
 
 export function withAuth<C = unknown>(
   handler: (req: NextRequest, auth: AuthContext, routeContext: C) => Promise<Response> | Response,
@@ -83,6 +98,15 @@ export function withAuth<C = unknown>(
     const params = await (routeContext as { params?: Promise<unknown> } | undefined)?.params;
     const clean = sanitizePathParams(params);
     const safeContext = clean === params ? routeContext : ({ ...(routeContext as object), params: Promise.resolve(clean) } as C);
+
+    // A NUL character in the query string, or in a JSON body (of any route, including one that reads its own body), is refused here for every route, whatever the route does with
+    // the value: PostgreSQL cannot store it and the request would end as a 500. After the checks above (someone who may not be here is told so first), before the handler.
+    if (holdsNul([...req.nextUrl.searchParams])) {
+      return noStore(fail("Some of the query parameters are not valid.", 400, "VALIDATION", [{ path: "query", message: NUL_MESSAGE }]));
+    }
+    if (!SAFE_METHODS.has(req.method) && (await bodyHoldsNul(req))) {
+      return noStore(fail("Some of the fields are not valid.", 400, "VALIDATION", [{ path: "body", message: NUL_MESSAGE }]));
+    }
 
     const response = await handler(req, session, safeContext);
     // Responses to an authenticated request are user-specific: never cache.
