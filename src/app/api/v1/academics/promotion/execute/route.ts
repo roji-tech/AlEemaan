@@ -6,6 +6,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { PromotionError } from "@/lib/promotion/service";
 import { executePromotionSchema } from "@/lib/promotion/validation";
 import { executePromotion } from "@/lib/promotion/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 /**
  * POST /api/v1/academics/promotion/execute
@@ -15,12 +16,9 @@ export const POST = withAuthGated(
   "administer",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      let body: Record<string, unknown>;
-      try {
-        body = await req.json();
-      } catch {
-        return fail("Invalid JSON payload", 400, "INVALID_BODY");
-      }
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
 
       const branchId = body?.branchId;
       if (!branchId || typeof branchId !== "string") {

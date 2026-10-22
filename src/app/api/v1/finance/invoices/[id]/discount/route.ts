@@ -5,6 +5,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { applyDiscountSchema } from "@/lib/finance/validation";
 import { applyDiscount, FinanceError } from "@/lib/finance/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,7 +29,9 @@ export const POST = withAuth(
         return fail("Forbidden: You do not have permission to apply discounts for this branch", 403, "FORBIDDEN");
       }
 
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = applyDiscountSchema.safeParse(body);
 
       if (!parsed.success) {

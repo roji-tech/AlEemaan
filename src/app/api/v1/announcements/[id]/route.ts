@@ -7,6 +7,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { updateAnnouncementSchema } from "@/lib/announcements/validation";
 import { getAnnouncement, updateAnnouncement, deleteAnnouncement, AnnouncementPermissionError } from "@/lib/announcements/service";
 import type { ViewerProfile } from "@/lib/announcements/rules";
+import { readJsonBody } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -67,7 +68,9 @@ export const PATCH = withAuthGated<RouteParams>(
   async (req: NextRequest, auth: AuthContext, { params }) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = updateAnnouncementSchema.safeParse(body);
 
       if (!parsed.success) {

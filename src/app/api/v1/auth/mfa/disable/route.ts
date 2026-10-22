@@ -12,6 +12,7 @@ import { MfaUnavailableError, mfaConfigured } from "@/lib/auth/mfa/secret-box";
 import { disableMfa, hasActiveMfa, verifySecondFactor } from "@/lib/auth/mfa/service";
 import { mfaDisabledEmail } from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/auth/mfa/disable  { password, code }  or  { password, recoveryCode }      (plan §0.5.D)
 // Turning the second factor OFF needs BOTH things: the password and a current second factor — otherwise a
@@ -33,12 +34,9 @@ export const POST = withAuth(async (req, auth) => {
     return fail("Too many attempts. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
   const parsed = schema.safeParse(body);
   const factor = parsed.success ? parseSecondFactor(parsed.data) : null;
   if (!parsed.success || !factor) {

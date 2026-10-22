@@ -5,6 +5,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
 import { auditPersonEvent } from "@/lib/auth/audit";
 import { revokeOwnSession } from "@/lib/auth/session-devices";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/auth/sessions/revoke  { sessionId }                                       (plan §0.5.E)
 // Ends one of the caller's OWN other sessions. The current session is refused (that is signing out), and a
@@ -17,12 +18,9 @@ export const POST = withAuth(async (req, auth) => {
   if (!(await reserveAttempt(`sessions:revoke:${auth.userId}`, LIMIT))) {
     return fail("Too many attempts. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
   const parsed = schema.safeParse(body);
   if (!parsed.success) return fail("That session no longer exists.", 404, "NOT_FOUND");
   const { sessionId } = parsed.data;

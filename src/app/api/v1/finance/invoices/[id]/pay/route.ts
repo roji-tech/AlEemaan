@@ -6,6 +6,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { initializePaymentSchema } from "@/lib/finance/validation";
 import { initializeGatewayPayment, FinanceError } from "@/lib/finance/service";
 import { PaymentsNotConfiguredError } from "@/lib/finance/paystack";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,7 +31,9 @@ export const POST = withAuth(
         return fail("Invoice not found or access denied", 404, "NOT_FOUND");
       }
 
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = initializePaymentSchema.safeParse({ ...body, invoiceId: id });
 
       if (!parsed.success) {

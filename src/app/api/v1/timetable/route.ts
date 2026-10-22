@@ -6,6 +6,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { createTimetableSlotSchema } from "@/lib/timetable/validation";
 import { listTimetableSlots, createTimetableSlot, TimetableClashError } from "@/lib/timetable/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/timetable?branchId=...&classArmId=...&staffRecordId=...&dayOfWeek=...
@@ -49,7 +50,9 @@ export const GET = withAuthGated(
 export const POST = withAuth(
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createTimetableSlotSchema.safeParse(body);
 
       if (!parsed.success) {

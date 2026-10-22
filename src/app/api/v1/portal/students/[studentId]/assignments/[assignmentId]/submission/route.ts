@@ -5,6 +5,7 @@ import { getPortalSession } from "@/lib/portal/auth";
 import { submitPortalAssignment, PortalLmsError } from "@/lib/portal/service";
 import { LmsError } from "@/lib/lms/service";
 import { submitAssignmentSchema } from "@/lib/lms/validation";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * POST /api/v1/portal/students/[studentId]/assignments/[assignmentId]/submission
@@ -16,12 +17,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ studen
   if (!session) return noStore(fail("Portal session expired or unauthorized", 401));
 
   const { studentId, assignmentId } = await context.params;
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return noStore(fail("Invalid JSON body", 400));
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return noStore(read.response);
+  const body = read.json;
   const parsed = submitAssignmentSchema.safeParse(body);
   if (!parsed.success) return noStore(fail(parsed.error.issues[0]?.message ?? "Invalid submission", 400, "VALIDATION"));
 

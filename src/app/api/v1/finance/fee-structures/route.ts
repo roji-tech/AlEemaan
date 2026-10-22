@@ -5,6 +5,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { createFeeStructureSchema } from "@/lib/finance/validation";
 import { listFeeStructures, createFeeStructure, FinanceError } from "@/lib/finance/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/finance/fee-structures?branchId=...&periodId=...&classGroupId=...
@@ -43,7 +44,9 @@ export const GET = withAuth(
 export const POST = withAuth(
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createFeeStructureSchema.safeParse(body);
 
       if (!parsed.success) {

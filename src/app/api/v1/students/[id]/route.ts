@@ -6,6 +6,7 @@ import { studentBranchId, studentNotFound } from "@/lib/students/scope";
 import { withBranch } from "@/lib/auth/with-branch";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { getStudent, updateStudent, archiveStudent, studentUpdateSchema } from "@/lib/students/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -36,12 +37,9 @@ export const GET = withAuth<Context>(
  */
 export const PATCH = withAuth<Context>(
   async (req, admin, context) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
+    const read = await readJsonBody(req);
+    if (!read.ok) return read.response;
+    const body = read.json;
 
     const parsed = studentUpdateSchema.safeParse(body);
     if (!parsed.success) {

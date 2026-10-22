@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
 import { scopeOrForbidden } from "@/lib/members/http";
+import { readJsonBody } from "@/lib/api/validate";
 
 const createBranchSchema = z.object({
   name: z.string().trim().min(1, "Branch name is required").max(100),
@@ -36,12 +37,9 @@ export const GET = withAuth(
  */
 export const POST = withAuth(
   async (req, admin) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
+    const read = await readJsonBody(req);
+    if (!read.ok) return read.response;
+    const body = read.json;
 
     const parsed = createBranchSchema.safeParse(body);
     if (!parsed.success) {

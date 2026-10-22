@@ -4,6 +4,8 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { studentBranchId, studentNotFound } from "@/lib/students/scope";
 import { restoreStudent } from "@/lib/students/service";
+import { readBoundedText } from "@/lib/api/read-body";
+import { MAX_BODY_BYTES } from "@/lib/api/validate";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -18,10 +20,16 @@ export const POST = withAuth<Context>(
       const { id } = await context.params;
 
       let body: { allowDuplicate?: boolean } = {};
-      try {
-        body = await req.json();
-      } catch {
-        // Empty body is acceptable
+      // The body is optional ({ allowDuplicate }): an empty or non-JSON body keeps the default. It is read no further than the cap.
+      const text = await readBoundedText(req, MAX_BODY_BYTES).catch(() => "");
+      if (text === null) return fail("That request is too large.", 413, "PAYLOAD_TOO_LARGE");
+      if (text.trim()) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === "object") body = parsed;
+        } catch {
+          // not JSON: keep the default
+        }
       }
 
       try {

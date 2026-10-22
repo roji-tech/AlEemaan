@@ -5,6 +5,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { listStudents, createStudent, studentInputSchema } from "@/lib/students/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 const STAFF_ROLES = [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF] as const;
 
@@ -43,12 +44,9 @@ export const GET = withAuth(
  */
 export const POST = withAuth(
   async (req, admin) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
+    const read = await readJsonBody(req);
+    if (!read.ok) return read.response;
+    const body = read.json;
 
     const parsed = studentInputSchema.safeParse(body);
     if (!parsed.success) {

@@ -5,6 +5,7 @@ import { validateCSRF } from "@/lib/auth/csrf";
 import { getClientIp, refundAttempt, reserveAttempt } from "@/lib/auth/rate-limit";
 import { PORTAL_COOKIE_NAME, setPortalCookie, clearPortalCookie } from "@/lib/portal/auth";
 import { authenticatePortalViaToken, authenticatePortalViaAdmission, resolvePortalSessionData } from "@/lib/portal/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 // Input is bounded and clean BEFORE anything reaches the database. Found by the bug hunt of 2026-10-19: there was no length limit (a 5 MB admission number went to
 // the query) and a null byte made Postgres throw, which surfaced as a 500. Control characters, bidirectional overrides and lone surrogates are never part of an
@@ -52,12 +53,9 @@ export async function POST(req: NextRequest) {
     return noStore(fail(RATE_LIMITED, 429, "RATE_LIMITED"));
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return noStore(fail("Invalid JSON body", 400));
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return noStore(read.response);
+  const body = read.json;
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
