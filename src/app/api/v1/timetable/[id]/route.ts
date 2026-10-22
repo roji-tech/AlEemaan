@@ -6,6 +6,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateTimetableSlotSchema } from "@/lib/timetable/validation";
 import { getTimetableSlot, updateTimetableSlot, deleteTimetableSlot, TimetableClashError } from "@/lib/timetable/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -47,7 +48,9 @@ export const PATCH = withAuth<RouteParams>(
   async (req: NextRequest, auth: AuthContext, { params }) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {

@@ -6,6 +6,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { submitQuizAttemptSchema } from "@/lib/lms/validation";
 import { attemptQuiz, LmsError } from "@/lib/lms/service";
 import { resolveSubmitter } from "@/lib/lms/submitter";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,7 +20,9 @@ export const POST = withAuthGated(
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id: quizId } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {

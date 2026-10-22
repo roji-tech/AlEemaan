@@ -7,6 +7,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { createAnnouncementSchema } from "@/lib/announcements/validation";
 import { listAnnouncements, createAnnouncement, AnnouncementPermissionError } from "@/lib/announcements/service";
 import type { ViewerProfile } from "@/lib/announcements/rules";
+import { readJsonBody } from "@/lib/api/validate";
 
 async function resolveViewer(userId: string, requestedBranchId?: string | null): Promise<ViewerProfile> {
   const user = await prisma.user.findUnique({
@@ -63,7 +64,9 @@ export const POST = withAuthGated(
   "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createAnnouncementSchema.safeParse(body);
 
       if (!parsed.success) {

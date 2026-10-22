@@ -5,6 +5,7 @@ import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createMaterialSchema } from "@/lib/lms/validation";
 import { listMaterials, createMaterial } from "@/lib/lms/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/lms/materials?branchId=...&subjectId=...&classGroupId=...
@@ -40,7 +41,9 @@ export const POST = withAuthGated(
   "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createMaterialSchema.safeParse(body);
 
       if (!parsed.success) {

@@ -7,6 +7,7 @@ import { getSessionFromRequest } from "@/lib/auth/session";
 import { previewInvitation } from "@/lib/invitations/service";
 import { isInvitationToken } from "@/lib/invitations/token";
 import { ROLE_LABELS } from "@/lib/roles";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/invitations/preview  { token }                                              (Users pages — a port of Octalve Edu's 0.5.4)
 // What the accept page shows before anyone commits: the school, the branch, the role, a MASKED address, whether that address already has an
@@ -25,12 +26,9 @@ async function handle(req: NextRequest) {
   if (!(await reserveAttempt(`invite:preview:ip:${getClientIp(req)}`, IP_LIMIT))) {
     return fail("Too many attempts. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
-  let json: unknown;
-  try {
-    json = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const json = read.json;
   const parsed = schema.safeParse(json);
   if (!parsed.success || !isInvitationToken(parsed.data.token)) return fail(INVALID_LINK, 400, "INVALID_TOKEN");
 

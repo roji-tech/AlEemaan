@@ -5,6 +5,7 @@ import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { BroadcastMessageSchema } from "@/lib/communication/validation";
 import { broadcastMessage } from "@/lib/communication/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 /**
  * POST /api/v1/communication/broadcast
@@ -13,7 +14,9 @@ export const POST = withAuthGated(
   "administer",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body?.branchId;
 
       if (!branchId) {

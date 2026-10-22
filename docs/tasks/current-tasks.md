@@ -232,12 +232,12 @@
 - [x] `src/lib/api/no-nul.ts` (`holdsNul`, `NUL_MESSAGE`), the same file as in Octalve Edu (its task 0019)
 - [x] Failing first: 19 of 75 tests failed on a build without the wiring, 56 passed; on the branch 75 passed; the whole setup, unit, integration and api projects 1318 passed, 2 failed (the two tests that expected the old messages, updated; re-run alone: 2 passed)
 - [ ] NOT run: the e2e and https projects on the branch; a full suite of every project on the merged `dev`
-- [ ] Open: one shared reader and a central 400 for a body that is not valid JSON
+- [x] The shared reader: task 0038 (below). [ ] Open: a central 400 in `withAuth` (not done on purpose)
 
 ---
 
 ### TASK-0036: Only an API path with a percent sign comes through the proxy
-- **Status:** In progress: branch `claude/fix-proxy-api-matcher`, PR pending. See `docs/tasks/0036-proxy-api-matcher-narrowed.md`.
+- **Status:** Completed: merged into `dev` as PR #83 (branch `claude/fix-proxy-api-matcher`). See `docs/tasks/0036-proxy-api-matcher-narrowed.md`.
 - [x] The matcher entry is `/api/(.*%.*)`; a request body that never ends gets the route's own 413 again (the twin of Octalve Edu's task 0021, module A).
 - [x] Failing first: the new stall spec failed on `dev` (no answer within 20 s), its three controls passed.
 - [x] Every 413 carries `Connection: close` (found by the whole-suite run: the request after a refused oversize body could be reset); failing first, then the stall spec, the `fail()` unit test and the gate spec repeated 6 times pass.
@@ -249,7 +249,13 @@
 - **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified, nothing built. See `docs/tasks/0033-walkthrough-flow-audit.md`.
 
 ### TASK-0037: The promotion screens send the fields the server reads, start on the right sessions, and the server refuses a rollover that cannot be right
-- **Status:** Completed on the branch (verified; PR open): branch `claude/fix-promotion-screens`. See `docs/tasks/0037-promotion-screens-and-checks.md`.
+- **Status:** Completed: merged into `dev` as PR #84 (branch `claude/fix-promotion-screens`); the final-term decision is open. See `docs/tasks/0037-promotion-screens-and-checks.md`.
 - [x] The console and the history view use the server's field names; the console starts on the active session and the one after it; the server checks the sessions, the next class and every override before it writes, and each pupil is processed once.
 - [x] Failing first on a build of unmodified `dev` (20 failed, 22 passed, with the reader specs); on the branch the three promotion specs: 36 passed, 0 failed. Not run: e2e-mobile, https, the whole other projects.
 - [ ] Open, the maintainer's decision: enforce the final-term `eligibility` flag on the server?
+
+### TASK-0038: One shared reader for a request body
+- **Status:** Completed on the branch (verified; PR open): branch `claude/shared-body-reader`. See `docs/tasks/0038-shared-request-body-reader.md`.
+- [x] `readJsonBody` and `readJsonObject` in `src/lib/api/validate.ts`; the 51 route files that read their own body use them (37 + 12 + the 2 optional-body routes through `readBoundedText`); `validate()` calls the same reader
+- [x] `tests/unit/route-body-guard.spec.ts` (a route that reads a body any other way fails) and `tests/api/own-body-routes.spec.ts` (a sweep of every such route)
+- [x] Failing first on a build of unmodified `dev`; on the branch the guard and the sweep 153 passed. Not run: e2e, https, the whole other projects, a full suite on the merged `dev`

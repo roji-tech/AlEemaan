@@ -6,6 +6,7 @@ import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { submitAssignmentSchema } from "@/lib/lms/validation";
 import { submitAssignment, getAssignmentById, LmsError } from "@/lib/lms/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,7 +47,9 @@ export const POST = withAuthGated(
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {

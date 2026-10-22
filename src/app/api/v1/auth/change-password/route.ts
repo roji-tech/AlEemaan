@@ -11,6 +11,7 @@ import { auditPersonEvent } from "@/lib/auth/audit";
 import { deleteUserChallenges } from "@/lib/auth/mfa/challenge";
 import { passwordChangedEmail } from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/auth/change-password  { currentPassword, newPassword }   (plan §0.5.C)
 // A stolen session alone must not be enough to take over the account, so the CURRENT password is
@@ -29,12 +30,9 @@ export const POST = withAuth(async (req, auth) => {
     return fail("Too many attempts. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
   const parsed = schema.safeParse(body);
   if (!parsed.success) return fail("Enter your current and new password.", 400, "VALIDATION");
   const { currentPassword, newPassword } = parsed.data;

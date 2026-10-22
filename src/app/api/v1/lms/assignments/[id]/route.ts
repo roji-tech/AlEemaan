@@ -5,6 +5,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { updateAssignmentSchema } from "@/lib/lms/validation";
 import { isBranchStaff, hideSubmissions } from "@/lib/lms/audience";
 import { getAssignmentById, updateAssignment, archiveAssignment, LmsError } from "@/lib/lms/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -47,7 +48,9 @@ export const PATCH = withAuthGated(
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {

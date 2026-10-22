@@ -6,6 +6,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { withBranch } from "@/lib/auth/with-branch";
 import { listSessions, createSession, createSessionSchema, DomainError } from "@/lib/academics/sessions";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/academics/sessions
@@ -33,12 +34,9 @@ export const GET = withAuth(async (req, auth) => {
  */
 export const POST = withAuth(
   async (req, admin) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
+    const read = await readJsonBody(req);
+    if (!read.ok) return read.response;
+    const body = read.json;
 
     const parsed = createSessionSchema.safeParse(body);
     if (!parsed.success) {

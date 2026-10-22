@@ -6,6 +6,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { createAssignmentSchema } from "@/lib/lms/validation";
 import { isBranchStaff } from "@/lib/lms/audience";
 import { listAssignments, createAssignment } from "@/lib/lms/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/lms/assignments?branchId=...&subjectId=...&classGroupId=...&status=...
@@ -51,7 +52,9 @@ export const POST = withAuthGated(
   "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createAssignmentSchema.safeParse(body);
 
       if (!parsed.success) {

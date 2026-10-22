@@ -8,6 +8,7 @@ import { verifyPassword, PASSWORD_MAX_LENGTH } from "@/lib/auth/password";
 import { completeSignIn } from "@/lib/auth/complete-sign-in";
 import { createChallenge } from "@/lib/auth/mfa/challenge";
 import { hasActiveMfa } from "@/lib/auth/mfa/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 const loginSchema = z.object({
   // 254 = the practical RFC 5321 maximum; also bounds the size of the
@@ -58,12 +59,9 @@ async function handleLogin(req: NextRequest): Promise<NextResponse> {
     return fail(RATE_LIMITED_MESSAGE, 429, "RATE_LIMITED");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {

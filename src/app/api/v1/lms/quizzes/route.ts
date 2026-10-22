@@ -6,6 +6,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { createQuizSchema } from "@/lib/lms/validation";
 import { isBranchStaff, hideAnswerKey } from "@/lib/lms/audience";
 import { listQuizzes, createQuiz } from "@/lib/lms/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/lms/quizzes?branchId=...&subjectId=...&status=...
@@ -46,7 +47,9 @@ export const POST = withAuthGated(
   "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createQuizSchema.safeParse(body);
 
       if (!parsed.success) {
