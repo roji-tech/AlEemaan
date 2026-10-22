@@ -236,5 +236,14 @@
 
 ---
 
+### TASK-0036: Only an API path with a percent sign comes through the proxy
+- **Status:** In progress: branch `claude/fix-proxy-api-matcher`, PR pending. See `docs/tasks/0036-proxy-api-matcher-narrowed.md`.
+- [x] The matcher entry is `/api/(.*%.*)`; a request body that never ends gets the route's own 413 again (the twin of Octalve Edu's task 0021, module A).
+- [x] Failing first: the new stall spec failed on `dev` (no answer within 20 s), its three controls passed.
+- [x] Every 413 carries `Connection: close` (found by the whole-suite run: the request after a refused oversize body could be reset); failing first, then the stall spec, the `fail()` unit test and the gate spec repeated 6 times pass.
+- [ ] The result of the broader run, in the PR.
+
+---
+
 ### TASK-0033: Walkthrough videos and PDFs that double as a flow audit
 - **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified, nothing built. See `docs/tasks/0033-walkthrough-flow-audit.md`.
