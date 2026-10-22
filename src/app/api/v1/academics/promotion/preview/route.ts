@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
 import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
+import { PromotionError } from "@/lib/promotion/service";
 import { promotionPreviewQuerySchema } from "@/lib/promotion/validation";
 import { previewPromotion } from "@/lib/promotion/service";
 
@@ -39,6 +40,7 @@ export const GET = withAuthGated(
       const preview = await previewPromotion(parsed.data);
       return ok(preview);
     } catch (error) {
+      if (error instanceof PromotionError) return fail(error.message, error.status, "PROMOTION_REFUSED");
       console.error("[PROMOTION_PREVIEW_GET_ERROR]", error);
       return fail("Unable to generate promotion preview", 500, "INTERNAL");
     }
@@ -78,6 +80,7 @@ export const POST = withAuthGated(
       const preview = await previewPromotion(parsed.data);
       return ok(preview);
     } catch (error) {
+      if (error instanceof PromotionError) return fail(error.message, error.status, "PROMOTION_REFUSED");
       console.error("[PROMOTION_PREVIEW_POST_ERROR]", error);
       return fail("Unable to generate promotion preview", 500, "INTERNAL");
     }

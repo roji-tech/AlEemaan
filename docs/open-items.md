@@ -24,6 +24,10 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 - [x] **Verification page (P2e):** bare minimum always shown (school, branch, class, term, publish date, "valid"); the superadmin selects additional fields (pupil name form, subject, marks, grade) per branch or for all branches; an admin's change to their branch requires superadmin approval. The existing test pinning an exact field list must become "minimum + configured fields", never looser than configured.
 - [x] **Attendance permissions (own slice after P2e):** who may take attendance for an arm: (1) the class/form teacher of that arm (teaching or non-teaching staff), (2) anyone granted explicit permission by an admin or superadmin for named arms or groups of arms, (3) admins/superadmins always may; everyone else is refused. Deploy: backfill each teacher's currently assigned arms as starting grants so no one loses access on ship day.
 
+**Promotion (2026-10-21)**
+- [~] task 0037 (PR pending): the console sent field names the server did not read (an override lost its arm and reason), started on the wrong pair of sessions, and the server accepted a target session before the source or of another branch, an arm of the wrong class and PROMOTED out of the last class; two simultaneous rollovers could process a pupil twice.
+- [ ] Decision for the maintainer: should the server REFUSE a rollover before the session's last term (today the console and the confirm dialog only warn)? A school may promote early on purpose; if enforced it should be overridable by an administrator with a reason.
+
 **Request input (2026-10-21)**
 - [~] task 0036 (PR pending): the proxy matcher took every API request, so a body that never ends was never answered; narrowed to paths with a percent sign. Every 413 now closes the connection after it (an oversize body is refused while the client is still sending).
 - [x] fixed in PR #79 (task 0035): a NUL character in the query string or the JSON body of a state-changing request answered 500 on lists, searches and free-text creates; it is now a 400 from `withAuth` (and from `validate()` for the body it parses).

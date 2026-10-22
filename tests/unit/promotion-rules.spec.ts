@@ -6,6 +6,9 @@ import {
   resolveNextClassGroup,
   resolveTargetArm,
   validateSessionPromotionEligibility,
+  defaultPromotionSessions,
+  sessionAfter,
+  sessionPairProblem,
 } from "@/lib/promotion/rules";
 
 test.describe("Student Promotion Pure Rules (Unit)", () => {
@@ -155,6 +158,50 @@ test.describe("Student Promotion Pure Rules (Unit)", () => {
       const res = validateSessionPromotionEligibility(periods);
       expect(res.eligible).toBe(true);
       expect(res.finalPeriodOrdinal).toBe(2);
+    });
+  });
+
+  // The sessions list arrives newest first; the console used its first two entries as source and target, i.e. evaluated the newer session and enrolled into the older one.
+  test.describe("which sessions a rollover starts with", () => {
+    const s2425 = { id: "s2425", startDate: "2024-09-01", status: "CLOSED" };
+    const s2526 = { id: "s2526", startDate: "2025-09-01", status: "ACTIVE" };
+    const s2627 = { id: "s2627", startDate: "2026-09-01", status: "PLANNED" };
+
+    test("the active session is evaluated and the one that begins after it is the target, whatever order the list comes in", () => {
+      for (const list of [
+        [s2627, s2526, s2425],
+        [s2425, s2526, s2627],
+        [s2526, s2627, s2425],
+      ]) {
+        expect(defaultPromotionSessions(list)).toEqual({ sourceId: "s2526", targetId: "s2627" });
+      }
+    });
+
+    test("with no active session, the second newest is evaluated and the newest is the target", () => {
+      const quiet = [s2627, { ...s2526, status: "CLOSED" }, s2425];
+      expect(defaultPromotionSessions(quiet)).toEqual({ sourceId: "s2526", targetId: "s2627" });
+    });
+
+    test("the newest session being active leaves no target (the next session has to be created first)", () => {
+      expect(defaultPromotionSessions([{ ...s2627, status: "ACTIVE" }, s2526])).toEqual({ sourceId: "s2627", targetId: "" });
+    });
+
+    test("one session, or none", () => {
+      expect(defaultPromotionSessions([s2526])).toEqual({ sourceId: "s2526", targetId: "" });
+      expect(defaultPromotionSessions([])).toEqual({ sourceId: "", targetId: "" });
+    });
+
+    test("sessionAfter is the session that begins next, or empty", () => {
+      expect(sessionAfter([s2627, s2526, s2425], "s2425")).toBe("s2526");
+      expect(sessionAfter([s2627, s2526, s2425], "s2627")).toBe("");
+      expect(sessionAfter([s2627, s2526, s2425], "unknown")).toBe("");
+    });
+
+    test("a pair is refused when it is the same session or the target does not begin after the source", () => {
+      expect(sessionPairProblem(s2526, s2627)).toBeNull();
+      expect(sessionPairProblem(s2526, s2526)).toMatch(/different/);
+      expect(sessionPairProblem(s2627, s2526)).toMatch(/begin after/);
+      expect(sessionPairProblem(s2526, { id: "twin", startDate: "2025-09-01" })).toMatch(/begin after/);
     });
   });
 });

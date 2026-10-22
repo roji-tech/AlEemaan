@@ -247,3 +247,9 @@
 
 ### TASK-0033: Walkthrough videos and PDFs that double as a flow audit
 - **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified, nothing built. See `docs/tasks/0033-walkthrough-flow-audit.md`.
+
+### TASK-0037: The promotion screens send the fields the server reads, start on the right sessions, and the server refuses a rollover that cannot be right
+- **Status:** Completed on the branch (verified; PR open): branch `claude/fix-promotion-screens`. See `docs/tasks/0037-promotion-screens-and-checks.md`.
+- [x] The console and the history view use the server's field names; the console starts on the active session and the one after it; the server checks the sessions, the next class and every override before it writes, and each pupil is processed once.
+- [x] Failing first on a build of unmodified `dev` (20 failed, 22 passed, with the reader specs); on the branch the three promotion specs: 36 passed, 0 failed. Not run: e2e-mobile, https, the whole other projects.
+- [ ] Open, the maintainer's decision: enforce the final-term `eligibility` flag on the server?

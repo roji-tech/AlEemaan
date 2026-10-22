@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import { withAuthGated } from "@/lib/auth/branch-gate";
 import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
+import { PromotionError } from "@/lib/promotion/service";
 import { executePromotionSchema } from "@/lib/promotion/validation";
 import { executePromotion } from "@/lib/promotion/service";
 
@@ -39,6 +40,7 @@ export const POST = withAuthGated(
       const result = await executePromotion(parsed.data, auth.userId);
       return ok(result, {}, 201);
     } catch (error) {
+      if (error instanceof PromotionError) return fail(error.message, error.status, "PROMOTION_REFUSED");
       console.error("[PROMOTION_EXECUTE_ERROR]", error);
       return fail("Unable to execute student promotion", 500, "INTERNAL");
     }
