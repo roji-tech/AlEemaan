@@ -132,7 +132,12 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
           No promotion batches have been executed for this branch yet.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
+        <div
+          role="region"
+          aria-label="Promotion history"
+          tabIndex={0}
+          className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
           <table className="w-full text-left text-sm text-fg" aria-label="Promotion history batches">
             <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
@@ -258,7 +263,13 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                 </div>
               </div>
 
-              <div className="max-h-96 overflow-y-auto rounded-xl border border-line">
+              {/* A region that scrolls must take keyboard focus, or a keyboard user cannot reach the rows past the edge. */}
+              <div
+                role="region"
+                aria-label="Records of this batch"
+                tabIndex={0}
+                className="max-h-96 overflow-auto rounded-xl border border-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
                 <table className="w-full text-left text-xs" aria-label="Batch student records">
                   <thead className="sticky top-0 border-b border-line bg-surface-2 font-semibold uppercase text-fg-muted">
                     <tr>

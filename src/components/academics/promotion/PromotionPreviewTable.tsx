@@ -109,7 +109,12 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
       )}
 
       {/* Responsive Accessible Table Container */}
-      <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
+      <div
+        role="region"
+        aria-label="Promotion preview"
+        tabIndex={0}
+        className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
         <table id={tableId} className="w-full text-left text-sm text-fg" aria-label="Student promotion preview">
           <caption className="sr-only">
             Student academic performance, term scores, overall average, system recommendation, and promotion decision controls.
