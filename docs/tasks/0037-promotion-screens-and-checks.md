@@ -37,13 +37,14 @@ The edits in the worktree renamed what the console SENDS and what the history vi
 - [x] Confirm modal: says when it is not the final term, and that a repeated run is safe.
 - [x] Tests: `tests/unit/promotion-rules.spec.ts` (+6), `tests/api/promotion-checks.spec.ts` (new, 7 tests), `tests/e2e/promotion-flow.spec.ts` (new, 3 tests).
 - [x] Catalog rows (`docs/functions/school-app.md`), `docs/HANDOVER.md` section 6.0, `docs/open-items.md`, the progress tracker.
+- [x] Follow-up (2026-10-23): the full suite on the merged `dev` found, in the e2e-mobile project that this task had not run, an accessibility violation (axe `scrollable-region-focusable`) in the history details dialog: its table of records scrolls at phone width and a region that scrolls must be reachable by keyboard. The three tables of the promotion screens (preview, history batches, a batch's records) are now labelled regions with `tabIndex={0}` and a visible focus ring, as the marks-entry table already was; the records table scrolls in both directions. The existing `promotion-flow` mobile test is the regression test: it failed on unmodified `dev` (twice, in the full run and alone) and passes on the branch.
 - [ ] Open, the maintainer's decision: the final-term `eligibility` flag is still only SHOWN (a warning in the preview and the confirm dialog), not enforced by the server. A school may legitimately promote early (a transfer, a mid-year restructure); enforcing it would remove that. Say if it should become a refusal that an administrator can override with a reason.
 
 ## 5. Unified Verification & Quality Gates
 - Order: `tsc` (ignoring the known `LayoutProps` error), eslint, prettier check, `pnpm build`, then the specs.
 - Failing first: the new unit, api and e2e specs (together with the reader specs of task 0038) run against a production build of unmodified `dev` (3fff09e): 20 failed and 22 passed (the setup test and the existing promotion-rule tests as controls). Every new promotion test failed there.
 - On the branch (production build; setup, unit, api and e2e-desktop projects, the three promotion specs): 36 passed, 0 failed. `tsc` (ignoring the known `LayoutProps` error), eslint, prettier and the catalogs (396 rows) clean; `pnpm build` clean.
-- Not run: the e2e-mobile and https projects; the whole setup, unit, integration and api projects on the branch; a full suite of every project on the merged `dev`.
+- Not run at the time: the e2e-mobile and https projects; the whole setup, unit, integration and api projects on the branch; a full suite of every project on the merged `dev`. The full suite was run afterwards and found the mobile violation fixed by the follow-up above; the promotion-flow spec passes on desktop and phone on the fixed build (7 passed with the setup test).
 
 ## 6. Notes
 - The server is the authority: the console's defaults and its hint are a convenience; every rule above is checked again on the server.
