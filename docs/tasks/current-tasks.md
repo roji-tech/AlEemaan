@@ -246,7 +246,7 @@
 ---
 
 ### TASK-0033: Walkthrough videos and PDFs that double as a flow audit
-- **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified, nothing built. See `docs/tasks/0033-walkthrough-flow-audit.md`.
+- **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified and refined (2026-10-23: phases P0 to P4, recon versus final runs, one timeline as the source of captions and ticks, negative rows per role, the actors and observers rule), nothing built, 0 of 9 items done. Waits for Task 0032 slices 2 to 10, Octalve's question-bank parity and a green full suite on each `dev`. See `docs/tasks/0033-walkthrough-flow-audit.md`.
 
 ### TASK-0037: The promotion screens send the fields the server reads, start on the right sessions, and the server refuses a rollover that cannot be right
 - **Status:** Completed: merged into `dev` as PR #84 (branch `claude/fix-promotion-screens`); the final-term decision is open. See `docs/tasks/0037-promotion-screens-and-checks.md`.
