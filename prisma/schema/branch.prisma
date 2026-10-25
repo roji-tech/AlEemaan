@@ -15,6 +15,8 @@ model Branch {
   enrollments       StudentEnrollment[]
   attendanceRecords AttendanceRecord[]
   classGroups       ClassGroup[]
+  sections          Section[]
+  resultApprovalScopes ResultApprovalScope[]
   classArms         ClassArm[]
   subjects          Subject[]
   subjectOfferings  SubjectOffering[]
@@ -104,6 +106,8 @@ model Membership {
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   staffRecords StaffRecord[]
+  /// Where this person approves results in this branch (task 0039); empty = nowhere.
+  resultApprovalScopes ResultApprovalScope[]
 
   createdAt DateTime @default(now())
 

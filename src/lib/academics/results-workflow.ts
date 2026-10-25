@@ -4,12 +4,17 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
 import { canSelfApproveResults } from "@/lib/settings/approvals";
+import { approverScope, covers, hasAnyScope, type ApproverScope } from "@/lib/academics/approver-scope";
 import { ConflictError, ForbiddenError } from "@/lib/academics/structure";
 
 // Results, Slice P2b: the REVIEW WORKFLOW. DRAFT -> SUBMITTED -> APPROVED -> PUBLISHED -> LOCKED, with the back-steps and the unlock. The caller's authority over the
 // BRANCH was checked by `withBranch` in the route; here each action has its own rule (who, from which status), a batch is ALL OR NOTHING in one transaction with the
 // rows locked, and every step writes a ResultAudit row in that transaction. The database separately refuses any status without its dates and people, and any change
 // to a result's content once it has left DRAFT (migrations ...120000 and ...130000), so a bug here cannot rewrite history.
+//
+// Who may do what (task 0039): the author submits their own results; an ADMINISTRATOR of the branch does every other action; an APPROVER (an active staff member holding
+// CAN_APPROVE_RESULTS, given somewhere to approve) does the actions marked `approverMay` on results in their scope - all of the batch or none of it. Unlock is for an
+// administrator only: it takes a published result back into correction and needs a written reason.
 
 export const ACTIONS = ["submit", "return", "approve", "revert", "publish", "lock", "unlock"] as const;
 export type Action = (typeof ACTIONS)[number];
@@ -20,16 +25,24 @@ export const transitionInput = z.strictObject({
 });
 export type TransitionInput = z.infer<typeof transitionInput>;
 
-type Rule = { from: readonly ResultStatus[]; to: ResultStatus; adminOnly: boolean; needsReason?: boolean; noSelf?: boolean };
+type Rule = {
+  from: readonly ResultStatus[];
+  to: ResultStatus;
+  adminOnly: boolean;
+  /// An approver with the result in their scope may do it too (never `unlock`).
+  approverMay?: boolean;
+  needsReason?: boolean;
+  noSelf?: boolean;
+};
 /// The whole machine in one table. `unlock` takes a published OR locked result back to APPROVED (a published result must be correctable before its term closes);
 /// it needs a written reason and is the only way back from PUBLISHED / LOCKED.
 export const RULES: Record<Action, Rule> = {
   submit: { from: ["DRAFT"], to: "SUBMITTED", adminOnly: false },
-  return: { from: ["SUBMITTED"], to: "DRAFT", adminOnly: true },
-  approve: { from: ["SUBMITTED"], to: "APPROVED", adminOnly: true, noSelf: true },
-  revert: { from: ["APPROVED"], to: "SUBMITTED", adminOnly: true },
-  publish: { from: ["APPROVED"], to: "PUBLISHED", adminOnly: true },
-  lock: { from: ["PUBLISHED"], to: "LOCKED", adminOnly: true },
+  return: { from: ["SUBMITTED"], to: "DRAFT", adminOnly: true, approverMay: true },
+  approve: { from: ["SUBMITTED"], to: "APPROVED", adminOnly: true, approverMay: true, noSelf: true },
+  revert: { from: ["APPROVED"], to: "SUBMITTED", adminOnly: true, approverMay: true },
+  publish: { from: ["APPROVED"], to: "PUBLISHED", adminOnly: true, approverMay: true },
+  lock: { from: ["PUBLISHED"], to: "LOCKED", adminOnly: true, approverMay: true },
   unlock: { from: ["PUBLISHED", "LOCKED"], to: "APPROVED", adminOnly: true, needsReason: true },
 };
 const PAST_TENSE: Record<ResultStatus, string> = {
@@ -86,11 +99,20 @@ export const contentHash = (
     )
     .digest("hex");
 
+/// The one answer for "you may not": no permission, no scope, an action only an administrator takes, or a result outside the scope (a response never says which).
+const NOT_AUTHORISED = "Only an administrator of this branch, or an approver assigned to these results, can do that.";
+
 /// Runs one action on a batch of results, all or nothing. `role` is the caller's role in the branch (ADMIN = an administrator of it or a superadmin).
 export async function transitionResults(actorUserId: string, role: Role, branchId: string, input: TransitionInput) {
   const rule = RULES[input.action];
   const admin = role === Role.ADMIN;
-  if (rule.adminOnly && !admin) throw new ForbiddenError("Only an administrator of this branch can do that.");
+  // Anyone who is not an administrator and takes an action beyond submitting must be an approver with somewhere to approve; where is checked per result below.
+  let scope: ApproverScope | null = null;
+  if (rule.adminOnly && !admin) {
+    if (!rule.approverMay) throw new ForbiddenError(NOT_AUTHORISED);
+    scope = await approverScope(branchId, actorUserId);
+    if (!hasAnyScope(scope)) throw new ForbiddenError(NOT_AUTHORISED);
+  }
   const reason = input.reason?.trim() || null;
   if (rule.needsReason && (reason?.length ?? 0) < 5) throw new ConflictError("Give a reason of at least 5 characters.");
   const ids = [...new Set(input.resultIds)];
@@ -103,6 +125,7 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
     >`SELECT "id" FROM "Result" WHERE "id" IN (${Prisma.join(ids)}) AND "branchId" = ${branchId} ORDER BY "id" FOR UPDATE`;
     if (rows.length !== ids.length) throw new ConflictError("Some of those results no longer exist.");
     const results = await tx.result.findMany({ where: { id: { in: ids } } });
+    if (scope && results.some((r) => !covers(scope, r.classArmId))) throw new ForbiddenError(NOT_AUTHORISED);
     const wrongState = results.filter((r) => !rule.from.includes(r.status));
     if (wrongState.length > 0) {
       throw new ConflictError(
@@ -202,10 +225,13 @@ export async function resultHistory(branchId: string, resultId: string) {
 
 export const queueQuery = z.object({ branchId: z.string().min(1), periodId: z.string().min(1) });
 
-/// The review queue: for a term, each (arm, subject) with how many results are in each status - and their ids, so an action can be applied to a whole group.
-export async function reviewQueue(branchId: string, periodId: string) {
+/// The review queue: for a term, each (arm, subject) with how many results are in each status - and their ids, so an action can be applied to a whole group. With `scope`
+/// (an approver), only the arms it reaches.
+export async function reviewQueue(branchId: string, periodId: string, scope?: ApproverScope) {
+  // An approver sees the arms their scope reaches (a general scope: all of them); an administrator passes no scope and sees everything.
+  const armFilter = scope && !scope.general ? { classArmId: { in: [...scope.armIds] } } : {};
   const rows = await prisma.result.findMany({
-    where: { branchId, periodId },
+    where: { branchId, periodId, ...armFilter },
     select: { id: true, classArmId: true, subjectId: true, status: true },
     orderBy: { id: "asc" },
   });

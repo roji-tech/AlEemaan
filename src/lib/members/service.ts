@@ -1,4 +1,4 @@
-import type { Prisma, Role } from "@prisma/client";
+import { Permission, type Prisma, type Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 
@@ -25,6 +25,8 @@ export type PublicMember = {
   branchName: string;
   /// School-wide authority (`User.isSuperAdmin`), independent of the role held in this branch.
   isSuperAdmin: boolean;
+  /// Holds CAN_APPROVE_RESULTS in this branch (task 0039): may approve the results in their scope. Set only by a superadmin.
+  canApproveResults: boolean;
   status: MemberStatus;
   joinedAt: Date;
 };
@@ -34,6 +36,7 @@ const MEMBER_SELECT = {
   userId: true,
   role: true,
   branchId: true,
+  permissions: true,
   deactivatedAt: true,
   createdAt: true,
   user: { select: { name: true, email: true, isSuperAdmin: true } },
@@ -51,6 +54,7 @@ const toPublic = (row: MemberRow): PublicMember => ({
   branchId: row.branchId,
   branchName: row.branch.name,
   isSuperAdmin: row.user.isSuperAdmin,
+  canApproveResults: row.permissions.includes(Permission.CAN_APPROVE_RESULTS),
   status: row.deactivatedAt ? "deactivated" : "active",
   joinedAt: row.createdAt,
 });
@@ -110,7 +114,11 @@ export type MemberFailure =
   /// The person already has a membership in the branch it would move to (one membership per person per branch).
   | "BRANCH_TAKEN"
   /// A deactivated member must be reactivated before anything else about them changes.
-  | "DEACTIVATED";
+  | "DEACTIVATED"
+  /// Only a superadmin says who may approve results (task 0039, decision 2).
+  | "SUPERADMIN_ONLY"
+  /// Only teaching and non-teaching staff are given the right to approve results; an administrator already can, and a pupil or a parent never.
+  | "NOT_APPROVER_ROLE";
 
 /// `signedOut` (deactivation only): true when this was the person's last active membership, so their sessions were deleted.
 export type MemberResult = { ok: true; member: PublicMember; changed: boolean; signedOut?: boolean } | { ok: false; reason: MemberFailure };
@@ -140,7 +148,7 @@ function refuse(current: MemberRow, scope: AdminScope): MemberFailure | null {
 export async function changeMember(
   actorUserId: string,
   membershipId: string,
-  change: { role?: Role; branchId?: string },
+  change: { role?: Role; branchId?: string; canApproveResults?: boolean },
   scope: AdminScope,
 ): Promise<MemberResult> {
   return prisma.$transaction(async (tx): Promise<MemberResult> => {
@@ -151,6 +159,10 @@ export async function changeMember(
     if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
     if (current.deactivatedAt) return { ok: false, reason: "DEACTIVATED" };
     if (!scope.superAdmin && change.role === "ADMIN") return { ok: false, reason: "ADMIN_ONLY" }; // only a superadmin makes an administrator
+    if (change.canApproveResults !== undefined && !scope.superAdmin) return { ok: false, reason: "SUPERADMIN_ONLY" }; // only a superadmin says who approves results
+    const newRole = change.role ?? current.role;
+    const mayApprove = newRole === "TEACHING_STAFF" || newRole === "NON_TEACHING_STAFF";
+    if (change.canApproveResults === true && !mayApprove) return { ok: false, reason: "NOT_APPROVER_ROLE" };
 
     if (change.branchId) {
       const branch = await tx.branch.findUnique({ where: { id: change.branchId }, select: { id: true } });
@@ -166,7 +178,23 @@ export async function changeMember(
     }
     const roleChanged = change.role !== undefined && change.role !== current.role;
     const branchChanged = change.branchId !== undefined && change.branchId !== current.branchId;
-    if (!roleChanged && !branchChanged) return { ok: true, member: toPublic(current), changed: false }; // a no-op writes nothing
+    const holdsNow = current.permissions.includes(Permission.CAN_APPROVE_RESULTS);
+    // Where this person approves (task 0039) follows the permission: granting it gives a GENERAL scope (the whole branch) for the superadmin to narrow; taking it away, or
+    // a role that cannot hold it, removes every scope. A move to another branch removes them too: a scope names the sections and classes of ONE branch.
+    const wantsNow = change.canApproveResults ?? holdsNow;
+    const willHold = wantsNow && mayApprove;
+    const permissionChanged = willHold !== holdsNow;
+    if (!roleChanged && !branchChanged && !permissionChanged) return { ok: true, member: toPublic(current), changed: false }; // a no-op writes nothing
+
+    const scopesBefore =
+      holdsNow || branchChanged
+        ? await tx.resultApprovalScope.findMany({
+            where: { branchId: current.branchId, userId: current.userId },
+            select: { kind: true, sectionId: true, classGroupId: true },
+          })
+        : [];
+    const clearScopes = scopesBefore.length > 0 && (branchChanged || (permissionChanged && !willHold));
+    if (clearScopes) await tx.resultApprovalScope.deleteMany({ where: { branchId: current.branchId, userId: current.userId } });
 
     // (Changing a role never removes school-wide authority: that is the person's superadmin flag, revoked on its own — `setSuperAdmin`.)
 
@@ -174,7 +202,17 @@ export async function changeMember(
     try {
       updated = await tx.membership.update({
         where: { id: current.id },
-        data: { ...(roleChanged ? { role: change.role } : {}), ...(branchChanged ? { branchId: change.branchId } : {}) },
+        data: {
+          ...(roleChanged ? { role: change.role } : {}),
+          ...(branchChanged ? { branchId: change.branchId } : {}),
+          ...(permissionChanged
+            ? {
+                permissions: willHold
+                  ? [...current.permissions, Permission.CAN_APPROVE_RESULTS]
+                  : current.permissions.filter((p) => p !== Permission.CAN_APPROVE_RESULTS),
+              }
+            : {}),
+        },
         select: MEMBER_SELECT,
       });
     } catch (error) {
@@ -203,6 +241,40 @@ export async function changeMember(
           targetId: current.id,
           beforeValue: { branchId: current.branchId },
           afterValue: { branchId: change.branchId },
+        },
+      });
+    }
+    if (permissionChanged) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "MEMBER_PERMISSIONS_CHANGED",
+          targetType: "Membership",
+          targetId: current.id,
+          beforeValue: { canApproveResults: holdsNow },
+          afterValue: { canApproveResults: willHold },
+        },
+      });
+      if (willHold) {
+        await tx.resultApprovalScope.create({
+          data: { branchId: updated.branchId, userId: current.userId, kind: "GENERAL", createdById: actorUserId },
+        });
+      }
+    }
+    const grantsGeneral = permissionChanged && willHold;
+    if (clearScopes || grantsGeneral) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "RESULT_APPROVAL_SCOPE_CHANGED",
+          targetType: "Membership",
+          targetId: current.id,
+          beforeValue: {
+            scopes: scopesBefore.map((row) => ({ kind: row.kind, sectionId: row.sectionId, classGroupId: row.classGroupId })),
+          },
+          afterValue: grantsGeneral
+            ? { scopes: [{ kind: "GENERAL" }], grantedWith: "CAN_APPROVE_RESULTS" }
+            : { scopes: [], removedWith: branchChanged ? "branch change" : "CAN_APPROVE_RESULTS" },
         },
       });
     }

@@ -39,10 +39,13 @@ export function UsersPanel({
   branches,
   currentUserId,
   isSuperAdmin,
+  hasMfa,
 }: {
   branches: BranchOption[];
   currentUserId: string;
   isSuperAdmin: boolean;
+  /// The signed-in superadmin has two-step verification on, so a change that needs a fresh proof asks for a code and not the password.
+  hasMfa: boolean;
 }) {
   const [searchText, setSearchText] = useState("");
   const [q, setQ] = useState("");
@@ -315,6 +318,11 @@ export function UsersPanel({
                           Superadmin
                         </span>
                       )}
+                      {member.canApproveResults && (
+                        <span className="ml-2 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold text-brand-fg">
+                          Approves results
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-fg-2">
                       <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Branch: </span>
@@ -427,6 +435,8 @@ export function UsersPanel({
         onClose={() => setEditing(null)}
         branches={branches}
         roleOptions={roleOptionsFor(isSuperAdmin)}
+        isSuperAdmin={isSuperAdmin}
+        hasMfa={hasMfa}
         onSaved={(member, changed) => {
           flushSync(() => setEditing(null));
           setNotice({

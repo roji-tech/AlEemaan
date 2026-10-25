@@ -46,6 +46,15 @@ export function memberFailure(reason: MemberFailure): Response {
       ]);
     case "DEACTIVATED":
       return fail("This person is deactivated. Reactivate them first.", 409, "DEACTIVATED");
+    case "SUPERADMIN_ONLY":
+      return fail("Only a superadmin can say who may approve results.", 403, "FORBIDDEN");
+    case "NOT_APPROVER_ROLE":
+      return fail(
+        "Only teaching and non-teaching staff are given this. An administrator can approve results already.",
+        409,
+        "NOT_APPROVER_ROLE",
+        [{ path: "body.canApproveResults", message: "Only teaching and non-teaching staff can be given this." }],
+      );
   }
 }
 

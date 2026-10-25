@@ -261,6 +261,7 @@
 - [x] Failing first on a build of unmodified `dev`; on the branch the guard and the sweep 153 passed. Not run: e2e, https, the whole other projects, a full suite on the merged `dev`
 
 ### TASK-0039: Results approvers by scope (the port of Octalve Edu's task 0020 and ADR 0018)
-- **Status:** Planned 2026-10-25, nothing built. See `docs/tasks/0039-approvers-by-scope-port.md` (what differs from Octalve, the design, seven slices, four decisions with a recommendation each).
-- [ ] Slice 1 (permission read, tables, scope rules, workflow, queue), slice 2a (the setting), slice 2b (the API), slice 3 (the screen)
-- [ ] Open, the maintainer's decisions: how a person becomes an approver here; who may assign them; publish and lock need the scope; a fresh password for the change
+- **Status:** Slice 1 built 2026-10-25 (branch `claude/approvers-scope-rules`); slices 2a, 2b, 3 remain. The maintainer accepted all four decisions as recommended. See `docs/tasks/0039-approvers-by-scope-port.md` (what differs from Octalve, the design, seven slices, four decisions with a recommendation each).
+- [x] Slice 1 (permission read, tables, scope rules, workflow, queue)
+- [ ] Slice 2a (the setting), slice 2b (the API), slice 3 (the screen)
+- [x] The maintainer's decisions (2026-10-25): the permission makes an approver; the superadmin assigns; publish and lock need the scope; a fresh password or two-step code for these routes

@@ -1,7 +1,7 @@
 # 0039: Results approvers by scope (the AlEemaan side of Octalve Edu's task 0020 and ADR 0018)
 
 - **Period / Focus:** planned 2026-10-25 (the maintainer's decision of 2026-10-21 and its acceptance on 2026-10-23, recorded in Octalve Edu's ADR 0018; this repository follows it)
-- **Status:** Pending (planned, 0 of 7 slices done; nothing is built)
+- **Status:** In progress (slice 1 built on `claude/approvers-scope-rules`, 2026-10-25; slices 2a, 2b and 3 remain)
 - **Priority:** Medium
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** `dev`; one branch and PR per slice
@@ -23,7 +23,7 @@ Read from `dev` on 2026-10-25.
 | Step-up | `verifyStepUpProof` (the password, or the authenticator or recovery code when two-step is on) on every settings write | the settings routes under `src/app/api/v1/settings/` **do not ask for a fresh proof**; the password check and the two-step verification exist in `src/lib/auth/` but no settings route calls them | decision 4 |
 | Review queue | a teacher sees their arms plus their scope's arms | `GET /academics/results/queue` is administrators only; a teacher sees nothing to review | an approver needs a queue limited to their scope |
 
-The migration therefore does **not** give anyone a General scope: today's approvers are administrators, who are held to no scope (as in Octalve). New approvers start with none and approve nothing until the superadmin assigns somewhere (fail closed).
+The migration therefore does **not** give anyone a General scope: today's approvers are administrators, who are held to no scope (as in Octalve). **Changed when building slice 1 (2026-10-25):** turning the permission on gives the person a GENERAL scope (the whole branch) for the superadmin to narrow, because a permission that approves nothing until a screen that does not exist yet (slice 3) is used would leave the feature dead; with no scope row at all an approver still approves nothing (fail closed). Turning it off, a role that cannot hold it, or a move to another branch removes the scope rows (a move keeps the permission).
 
 ## 3. Design
 - **Tables.** `Section { id, branchId, name (1 to 80), sortOrder, archivedAt }` with one live name per branch (case-insensitive, a partial unique index); `ClassGroup.sectionId` (nullable) with a composite key `(branchId, sectionId)`; `ResultApprovalScope { id, branchId, userId, kind GENERAL | SECTION | CLASS, sectionId?, classGroupId?, createdById }` with a check that the kind and the target agree, one row per person and target, and `ON DELETE` rules that keep history. Nothing is deleted: sections are archived.
@@ -34,18 +34,18 @@ The migration therefore does **not** give anyone a General scope: today's approv
 - **Settings routes and screen** (superadmin; a branch administrator reads their own branch): sections (list, add, rename, archive, restore), the section of a class group, the approvers of a branch with their scopes, and replacing a person's scopes (General cannot be combined with others; a person of another branch is refused; an archived target is refused). Every write is audited with before and after, and (decision 4) asks for a fresh proof. The screen is a "Results approval" part of the settings, with the states and the checks of Octalve's slice 3 (empty, loading, error; keyboard; both themes; phone; axe).
 
 ## 4. Work Breakdown (one PR each; the hosted migrations are for the maintainer to run)
-- [ ] Slice 1: how a person becomes an approver (decision 1), and the rules: `Section`, `ClassGroup.sectionId`, `ResultApprovalScope`, the migration, `approverScope`, `transitionResults` limited by scope, the queue and the results list limited by scope; failing first by mutation.
+- [x] Slice 1 (built 2026-10-25; PR and test record in the HANDOVER): how a person becomes an approver (decision 1), and the rules: `Section`, `ClassGroup.sectionId`, `ResultApprovalScope`, the migration, `approverScope`, `transitionResults` limited by scope, the queue and the results list limited by scope; failing first by mutation.
 - [ ] Slice 2a: the setting `results.unsectionedClassApproval` and the rule that reads it.
 - [ ] Slice 2b: the superadmin's API for sections and approver scopes, audited, with re-authentication.
 - [ ] Slice 3: the settings screen.
 - [ ] Docs in each slice: the catalogs, the tracker, `current-tasks.md`, `open-items.md`, HANDOVER section 4.
 - [ ] Mutation passes (deferred to the end of Phase 2).
 
-## 5. Decisions for the maintainer (build to the recommendation until they answer)
+## 5. Decisions (answered by the maintainer on 2026-10-25: all four as recommended, the fourth with "YES")
 1. **How does a staff member become an approver here?** *Recommended:* turn on the stored `CAN_APPROVE_RESULTS` permission for this one capability and nothing else (a small, tested read of `Membership.permissions` in the results rules, and a tick box on the Users screen that only a superadmin can use), rather than building the whole lightweight-permissions design for four permissions at once. The scope rows say where; the permission says whether. Alternative: a scope row alone makes someone an approver (no permission), which is simpler and leaves `CAN_APPROVE_RESULTS` unused.
 2. **May a branch administrator assign approvers in their own branch, or only the superadmin?** The maintainer said "set in the superadmin's settings". *Recommended:* the superadmin only, a branch administrator can read their branch's list.
 3. **Publish and lock** need the same scope as approve in Octalve. *Recommended:* keep that; if a school wants a person who approves but cannot publish, that is a separate permission and not part of this task.
 4. **Should a change of who approves ask for a fresh password (or the two-step code), as it does in Octalve Edu?** AlEemaan's settings routes do not ask for one today. *Recommended:* yes, for the scope routes only, using the password and two-step checks that already exist in `src/lib/auth/`; changing who may approve results is the kind of change a stolen session should not be able to make quietly. Alternative: follow the other settings routes and ask for nothing.
 
 ## 6. Where it stands
-Nothing is built. Slice 1 can start from the recommendations; a different answer to decision 1 changes only how a person becomes an approver, and a different answer to decision 4 changes only slice 2b. Octalve Edu's PRs #54, #64, #65 and #66 carry the finished design, its tests (including the by-mutation proofs) and its screen to copy from.
+Slice 1 is built: the permission is read in the results rules and given on the Users screen by a superadmin with a fresh password or two-step code (`PATCH /members/[id]` `{ canApproveResults, stepUp }`, which also made `src/lib/auth/step-up.ts` for the later routes), the tables (`Section`, `ClassGroup.sectionId`, `ResultApprovalScope`, migration `20261025120000_results_approval_scopes`, additive, nobody gets a scope from it), `approverScope`, the transitions, the review queue, a result's history and the sheet read limited by scope, and the Review tab for approvers (Unlock is an administrator's alone). Sections cannot be created yet and scopes other than GENERAL cannot be assigned: that is slice 2b (API) and slice 3 (screen). Octalve Edu's PRs #54, #64, #65 and #66 carry the finished design, its tests (including the by-mutation proofs) and its screen to copy from.
