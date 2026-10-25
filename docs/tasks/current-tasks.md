@@ -211,7 +211,7 @@
 ---
 
 ### TASK-0032: Forms module and Question Bank
-- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) merged into `dev` as [PR #69](https://github.com/roji-tech/AlEemaan/pull/69) on 2026-10-20; slices 2 to 10 are not on `dev`. Slice 2's first six steps exist as seven local commits on `claude/forms-qbank-slice-2` (worktree `../AlEemaan-slice2`, not pushed, no PR; see `docs/HANDOVER.md` section 6.0). See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
+- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) merged into `dev` as [PR #69](https://github.com/roji-tech/AlEemaan/pull/69) on 2026-10-20; slices 2 to 10 are not on `dev`. Slice 2 is cut into 2.0 (the pure parts and the migration, `claude/forms-qbank-slice-2`, PR open 2026-10-25), 2.1 (service and API), 2.2 (images) and 2.3 (screens); see `docs/tasks/0032-forms-and-question-bank.md` section 4b. See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
 
 ---
 

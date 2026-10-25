@@ -64,6 +64,7 @@ model User {
   bankItemsSubmitted    QuestionBankItem[]       @relation("BankItemSubmitter")
   bankItemsApproved     QuestionBankItem[]       @relation("BankItemApprover")
   bankReviewsGiven      QuestionBankReview[]     @relation("BankReviewsGiven")
+  bankVersionsWritten   QuestionBankItemVersion[] @relation("BankVersionsWritten")
   bankReviewerRows      QuestionBankReviewer[]   @relation("BankReviewerUser")
   bankReviewersAssigned QuestionBankReviewer[]   @relation("BankReviewerAssigner")
   bankAudits            QuestionBankAudit[]      @relation("BankAudits")

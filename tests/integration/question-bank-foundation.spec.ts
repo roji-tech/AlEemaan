@@ -28,7 +28,18 @@ const item = (over: Record<string, unknown> = {}) =>
   });
 const image = (itemId: string, over: Record<string, unknown> = {}) =>
   db.questionBankImage.create({
-    data: { itemId, storageKey: `k/${Math.random()}`, alt: "A diagram", bytes: 1000, width: 100, height: 100, sortOrder: 0, ...over },
+    data: {
+      itemId,
+      storageKey: `k/${Math.random()}`,
+      store: "memory", // slice 2 made the store and the content type required
+      contentType: "image/png",
+      alt: "A diagram",
+      bytes: 1000,
+      width: 100,
+      height: 100,
+      sortOrder: 0,
+      ...over,
+    },
   });
 
 test.describe("the migration is additive", () => {

@@ -59,13 +59,13 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ---
 
-## 3. Database Migrations Status (26 of 29 deployed live; the 3 newest are pending there)
+## 3. Database Migrations Status (26 of 30 deployed live; the 4 newest are pending there)
 
-The repository holds 29 migrations once the approvers PR is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`) and the 29th (`20261025120000_results_approval_scopes`, additive: a type, two tables and a nullable column; it gives nobody a scope) are NOT recorded as run on the live one (the maintainer runs `pnpm db:migrate:deploy` there, `hosted_schemes` BEFORE its code is deployed):
+The repository holds 30 migrations once the slice 2.0 PR is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`) the 29th (`20261025120000_results_approval_scopes`, additive: a type, two tables and a nullable column; it gives nobody a scope) and the 30th (`20261026090000_question_bank_core`, additive: one table, a column, triggers) are NOT recorded as run on the live one (the maintainer runs `pnpm db:migrate:deploy` there, `hosted_schemes` BEFORE its code is deployed):
 
 - **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 26 migrations applied.
 - **Live Remote Database:** `postgres://...:5432/postgres?sslmode=require` (`db.prisma.io:5432`) — 26 migrations applied.
-- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261025120000_results_approval_scopes/migration.sql`.
+- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261026090000_question_bank_core/migration.sql`.
 
 ---
 
@@ -109,11 +109,11 @@ A detailed technical blueprint is documented in:
 - The email-change timing check runs a bcrypt compare in every sample, and its tolerance had been below its own noise (fixed in `6d3d9fe`): do not tighten it without measuring.
 
 **Local work that is NOT on `dev`:** two worktrees beside the main checkout, kept on purpose because they hold unfinished work: do not delete them.
-- `../AlEemaan-slice2`, branch `claude/forms-qbank-slice-2` (Forms and question bank, task 0032 slice 2): seven local commits, steps 1 to 6 (an image-storage adapter with S3, R2, Cloudinary and in-memory backends; `sharp` as a direct dependency; image processing so only pixels survive an upload; the "is this the same question as one we already have" overlap function; the migration for images, question versions and forward-only visibility; the pure module for who may do what with a question), 27 commits behind `origin/dev`, not pushed, no PR, with two untracked files (`src/lib/question-bank/item-input.ts` and its unit spec) that are the start of the next step. Two survivor tests are still to add (the private tracker says which).
+- `../AlEemaan-slice2`, branch `claude/forms-qbank-slice-2` (Forms and question bank, task 0032 slice 2.0, plan in `docs/tasks/0032-forms-and-question-bank.md` section 4b): rebased onto `dev` on 2026-10-25 and offered as a PR with the pure parts and the migration (an image-storage adapter with S3, R2, Cloudinary and in-memory backends; `sharp` as a direct dependency; image processing so only pixels survive an upload; the overlap function; the migration `20261026090000_question_bank_core`; the pure module for who may do what with a question; the pure module for what a teacher may send). The service, routes, image routes and screens (2.1 to 2.3) are not built. Mutation passes are deferred with the rest.
 - `../AlEemaan-fix-promotion`, branch `claude/fix-promotion-screens`: its uncommitted edits (2026-10-20) were read, finished and tested on 2026-10-21 (task 0037; merged into `dev` as PR #84 on 2026-10-22; the final-term decision is open, see `docs/open-items.md`). They renamed the console's and the history view's fields to the ones the server reads and sends (the schemas silently dropped the old names, so an override lost its arm and reason); reading them found a wrong default pair of sessions in the console and several checks the server lacked. Delete this worktree once the PR is merged.
 
 **Waiting on the maintainer (none of these blocks the next work):**
-1. The hosted database: `20261019090000_hosted_schemes` and `20261025120000_results_approval_scopes` (each must run BEFORE the code that needs it is deployed there) and `20261019210000_question_bank_foundation` are not recorded as run on it (section 3 below says 26 migrations applied; the repository holds 29); and `pnpm admins:list` against the live database, to say who stays a superadmin (`docs/open-items.md` section 1).
+1. The hosted database: `20261019090000_hosted_schemes` and `20261025120000_results_approval_scopes` (each must run BEFORE the code that needs it is deployed there) `20261019210000_question_bank_foundation` and `20261026090000_question_bank_core` (in that order, before the question bank code is deployed) are not recorded as run on it (section 3 below says 26 migrations applied; the repository holds 30); and `pnpm admins:list` against the live database, to say who stays a superadmin (`docs/open-items.md` section 1).
 2. The older list in `docs/open-items.md` sections 1 and 3b and in the private tracker: provider keys, rotating the credentials that were exposed, parents A/B/C, the portal sign-in codes, slice-2 proposals, sibling grouping (S14), the materials design (F3), whether to add a catalog coverage test (a unit test that fails when a file under `src/` has no row), renaming `break-words` in three files, and any promotion to `master`/`prod`.
 3. Octalve's ADR 0018 (results approvers by scope) is Proposed there; this repository follows it after Octalve's slices land, so the maintainer's yes on its three proposed details also unblocks the port here.
 

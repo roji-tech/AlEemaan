@@ -1,7 +1,7 @@
 # 0032: Forms module and Question Bank
 
 - **Period / Focus:** designed 2026-10-19; slice 1 (foundation) built 2026-10-19, verification in progress (see section 4a)
-- **Status:** In progress (slice 1 built, not yet merged; slices 2 to 10 not started)
+- **Status:** In progress (slice 1 merged; slice 2 split into 2.0 to 2.3, see section 4b: 2.0 in review, the rest not started; slices 3 to 10 not started)
 - **Priority:** High
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** one branch and PR per slice, each off `dev` (slice 1: `claude/forms-qbank-slice-1`)
@@ -95,6 +95,25 @@ Scope of "foundation" (design note 13.1), refined by what the code already has:
 - `integration/startup-secrets.spec.ts:48`, four cases: a fault in the test, not in the app. The local `.env` holds a real `SESSION_SECRET`, so the server started instead of refusing, and the first failure left a server on port 3205 that broke the next three. Fixed on its own branch (`claude/test-startup-secrets-hermetic`): the child's environment blanks both secrets and the whole process group is killed.
 - `e2e/responsive-and-a11y.spec.ts:451` and `e2e/users.spec.ts:351`: both pass alone; the machine's load average was 18 to 46 (other projects).
 - `https/host-cookie.spec.ts:24`: failed again when re-run at that load; its failure snapshot shows the dashboard rendered, so login reached `/dashboard` after the test's 5-second wait. It passed on a later run at a load of 14 to 19. Cause not proven beyond that: the snapshot and the later pass point at the 5-second wait, not at the app, but nothing here rules out a slow login path.
+
+## 4b. Slice 2 (bank core): what is built and the plan for the rest (2026-10-25)
+
+Slice 2 is cut into PRs so each stays reviewable; the migration and the hosted database order are in the last PR section.
+
+**2.0 - the pure parts and the migration (this PR; no route, no screen yet)**
+- An image-storage adapter (`src/lib/storage/`: S3, R2, Cloudinary through the vendor's package, in-memory for tests; fails closed; no method returns a URL) and `sharp` as a direct dependency; `src/lib/question-bank/images.ts` (only pixels survive an upload); `overlap.ts` (the silent "same question" score, method v1); `rules.ts` and `viewer.ts` (who may do what, one pure module over facts read in one round trip); `item-input.ts` (what a teacher may send, the stored shape and its inverse).
+- Migration `20261026090000_question_bank_core` (additive): `QuestionBankItemVersion` (append-only), the image `store` column, the forward-only visibility trigger (a question may appear later, never disappear; the dates are compared as UTC, found and fixed on a +1 server), the approval check constraint.
+- Tests: 74 unit (item-input, rules, overlap, images, hygiene), the storage unit specs, the migration's integration spec (19 with the setup test).
+
+**2.1 - the service and the API (next PR).** `items-service.ts` over `rules.ts`: create and edit a draft (every change snapshots a `QuestionBankItemVersion` and bumps `version`), submit (draft or rejected becomes PENDING; the overlap score against the bank's other items and against questions of not-yet-closed assessments writes `QuestionOverlapFlag` rows, which only exam approvers can ever see: the submitter's status is just pending, then approved), list and read with `staffMaySee` applied in the query (never filtered after loading), "my questions". Review: `review-queue` limited to the viewer's `reviewPower`, approve (sets the scope, class tags, subject, visibility and date), reject (a reason), edit-as-reviewer, retire (a reason; images stay); each decision re-reads the viewer INSIDE the transaction (`loadViewer(userId, tx)`), so someone deactivated a moment ago decides nothing; reviews and audit rows are append-only. Routes (all `withAuthGated`, each in `route-role-guard` with its reason): `GET/POST /api/v1/question-bank/items`, `GET/PATCH .../items/[id]`, `POST .../items/[id]/submit|approve|reject|retire`, `GET .../review-queue`. Tests first: integration (transitions, versions, scope, the in-transaction viewer), API (a matrix per role including a reviewer of another branch and a branch administrator of ANOTHER branch, the cross-branch probe on every route, the one-answer rule for what the viewer may not know exists, an audit row for every change), secrecy (the uploader never learns a flag exists; response shapes carry no overlap data for anyone else).
+
+**2.2 - images (after 2.1).** `POST .../items/[id]/images` (multipart; `processQuestionImage` then the configured store; the maximum from `bank.images.max`; alt text required unless decorative), `DELETE`, and `GET .../images/[imageId]` which runs the item's access check and streams the bytes with `Cache-Control: private, no-store` (no backend URL ever reaches a browser). 503 "image storage is not configured" when no store resolves. Contract tests against the memory store and the S3 stand-in; a JPEG with GPS data comes back without it. Real S3, R2 and Cloudinary runs need credentials and are reported NOT run until the maintainer supplies them.
+
+**2.3 - screens (after 2.2).** The `/question-bank` page gets Browse, My questions (write, edit, upload images, submit) and Review queue (approve, edit, reject, retire; overlap flags only for exam approvers) beside the existing Reviewers and Settings panels, with the states (empty, loading, error with Try again, saved), keyboard use, both themes, phone width, axe; nav stays.
+
+**Deploy:** the hosted database needs `20261026090000_question_bank_core` before this code is deployed there, after `20261019210000_question_bank_foundation`. Both are additive.
+
+**Not in slice 2:** use in assessments (slice 3), pupil practice (4), reports (5), forms (6 to 8), marking (9), printing (10).
 
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.
