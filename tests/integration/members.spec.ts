@@ -43,6 +43,7 @@ test.describe("listMembers", () => {
     expect(Object.keys(members[0]).sort()).toEqual([
       "branchId",
       "branchName",
+      "canApproveResults",
       "email",
       "id",
       "isSuperAdmin",

@@ -78,11 +78,16 @@ model ClassGroup {
   branchId   String
   name       String
   sortOrder  Int       @default(0)
+  /// The section this class is in ("Primary", "JSS", "SSS"), used to say where a person approves results (task 0039). Null = in no section. A section and its
+  /// classes are of the same branch: the composite key below refuses any other.
+  sectionId  String?
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
 
   branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  section   Section?           @relation(fields: [branchId, sectionId], references: [branchId, id], onDelete: NoAction)
+  approvalScopes ResultApprovalScope[]
   arms      ClassArm[]
   offerings SubjectOffering[]
   schemes      AssessmentScheme[]
@@ -93,6 +98,26 @@ model ClassGroup {
   quizzes                Quiz[]
   sourcePromotionBatches PromotionBatch[]        @relation("SourceClassBatches")
   targetPromotionBatches PromotionBatch[]        @relation("TargetClassBatches")
+
+  @@unique([branchId, id])
+  @@index([branchId])
+  @@index([branchId, sectionId])
+}
+
+/// A named group of classes of one branch ("Primary", "JSS", "SSS"), used to say where a person approves results (task 0039). Archived, never deleted: classes and approval
+/// scopes point at it. Live names are unique per branch, ignoring case (a partial index in the migration SQL).
+model Section {
+  id         String    @id @default(cuid())
+  branchId   String
+  name       String
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  branch         Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroups    ClassGroup[]
+  approvalScopes ResultApprovalScope[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -387,6 +412,33 @@ model Result {
   @@unique([branchId, id])
   @@index([branchId, periodId, classArmId])
   @@index([branchId, studentId, periodId])
+}
+
+/// What an approver's scope covers (task 0039): GENERAL = every class of the branch, SECTION = every class in one section, CLASS = one class (all its arms).
+enum ApprovalScopeKind {
+  GENERAL
+  SECTION
+  CLASS
+}
+
+/// Where one person approves results in one branch (task 0039). Only a member who holds CAN_APPROVE_RESULTS has rows; no rows means nothing to approve (fail closed). Rows are
+/// added and removed, never edited. The migration adds what the schema cannot say: the kind/target CHECK and the unique index on (person, branch, kind, target).
+model ResultApprovalScope {
+  id           String            @id @default(cuid())
+  branchId     String
+  userId       String
+  kind         ApprovalScopeKind
+  sectionId    String?
+  classGroupId String?
+  createdById  String?
+  createdAt    DateTime          @default(now())
+
+  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  membership Membership  @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: Cascade)
+  section    Section?    @relation(fields: [branchId, sectionId], references: [branchId, id], onDelete: NoAction)
+  classGroup ClassGroup? @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+
+  @@index([branchId, userId])
 }
 
 /// Append-only history of every result: each entry, edit, transition and unlock, in the same transaction as the change. UPDATE and DELETE are refused by triggers.

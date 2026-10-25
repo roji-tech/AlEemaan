@@ -17,6 +17,8 @@ export type Member = {
   branchName: string;
   /// School-wide authority, independent of the role held in this branch.
   isSuperAdmin: boolean;
+  /// May approve the results in their scope (task 0039). Set only by a superadmin.
+  canApproveResults: boolean;
   status: "active" | "deactivated";
   joinedAt: string;
 };
@@ -43,6 +45,9 @@ export const ROLE_OPTIONS: SelectOption[] = (Object.keys(ROLE_LABELS) as RoleNam
 /// What a caller may assign: a branch administrator never makes an administrator (the API refuses it too), a superadmin may.
 export const roleOptionsFor = (isSuperAdmin: boolean): SelectOption[] =>
   isSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter((option) => option.value !== "ADMIN");
+
+/// Roles that can be given the right to approve results: teaching and non-teaching staff (an administrator already can; a pupil or a parent never).
+export const canBeApprover = (role: RoleName): boolean => role === "TEACHING_STAFF" || role === "NON_TEACHING_STAFF";
 
 export const displayName = (member: Pick<Member, "name" | "email">) => member.name?.trim() || member.email || "Unnamed person";
 
