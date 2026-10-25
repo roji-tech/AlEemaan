@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { STORE_NAMES } from "@/lib/storage/types";
 
-// Question bank core (Task 0032 slice 2; migration 20261020130000_question_bank_core): the database itself keeps the rule "a question may appear later, never disappear",
+// Question bank core (Task 0032 slice 2; migration 20261026090000_question_bank_core): the database itself keeps the rule "a question may appear later, never disappear",
 // keeps every version of a question, says where each picture is stored and what it is, and refuses an approved item that does not say who approved it. Written before any
 // service code, so the service is built to fit rules that already hold whichever code writes.
 
@@ -46,7 +46,7 @@ const inFuture = (ms = 3_600_000) => new Date(Date.now() + ms);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test.describe("the migration is additive", () => {
-  const sql = readFileSync(join(process.cwd(), "prisma", "migrations", "20261020130000_question_bank_core", "migration.sql"), "utf8");
+  const sql = readFileSync(join(process.cwd(), "prisma", "migrations", "20261026090000_question_bank_core", "migration.sql"), "utf8");
   const statements = sql
     .split("\n")
     .filter((line) => !line.trim().startsWith("--"))
