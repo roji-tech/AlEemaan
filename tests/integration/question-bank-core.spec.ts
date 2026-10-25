@@ -209,6 +209,29 @@ test.describe("visibility only moves forward", () => {
     expect((await item({ visibility: "PRACTICE" })).visibility).toBe("PRACTICE");
   });
 
+  test("the rule does not depend on the database server's time zone: the dates are UTC, whatever zone the session is in", async () => {
+    // "visibleFrom" is a timestamp without a zone that holds UTC. Compared with now() in the session's zone, a server set to Africa/Lagos (+1) refused a date one hour
+    // ahead, and a server west of UTC would have accepted a date that had passed. Found on a +1 development machine; tested here in the two extreme zones.
+    const inZone = async (zone: string, visibleFrom: Date) =>
+      db.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL TIME ZONE '${zone}'`);
+        return tx.questionBankItem.create({
+          data: {
+            branchId: home.id,
+            type: "SINGLE",
+            prompt: "What is 2 + 2?",
+            submittedById: author.id,
+            visibility: "TEACHERS_ONLY_UNTIL",
+            visibleFrom,
+          },
+        });
+      });
+    for (const zone of ["Pacific/Kiritimati", "UTC", "Pacific/Pago_Pago"]) {
+      expect((await inZone(zone, inFuture(30 * 60_000))).visibility, zone).toBe("TEACHERS_ONLY_UNTIL"); // half an hour ahead is ahead everywhere
+      await rejects(inZone(zone, new Date(Date.now() - 30 * 60_000)), /must be in the future/); // half an hour ago has passed everywhere
+    }
+  });
+
   test("two updates at once cannot end in a step backwards: whichever order they land in, the question ends in PRACTICE", async () => {
     for (let round = 0; round < 12; round++) {
       const q = await item({ visibility: "TEACHERS_ONLY_UNTIL", visibleFrom: inFuture() });

@@ -42,6 +42,9 @@ CREATE FUNCTION "question_bank_visibility_forward"() RETURNS trigger LANGUAGE pl
 DECLARE
   old_rank integer;
   new_rank integer;
+  -- "visibleFrom" is a TIMESTAMP without a time zone that holds UTC (that is how Prisma writes it); now() is compared in the session's zone, so on a server set to any zone but UTC the
+  -- two were an hour or more apart. Compare like with like.
+  utc_now timestamp := (now() AT TIME ZONE 'UTC');
 BEGIN
   IF TG_OP = 'UPDATE' AND NEW."visibility" = OLD."visibility" AND NEW."visibleFrom" IS NOT DISTINCT FROM OLD."visibleFrom" THEN
     RETURN NEW; -- nothing about visibility changes
@@ -50,7 +53,7 @@ BEGIN
   -- a date that is set or moved is in the future (a date that has passed is PRACTICE, and is set as PRACTICE)
   IF NEW."visibility" = 'TEACHERS_ONLY_UNTIL'
      AND (TG_OP = 'INSERT' OR OLD."visibility" <> 'TEACHERS_ONLY_UNTIL' OR NEW."visibleFrom" IS DISTINCT FROM OLD."visibleFrom")
-     AND NEW."visibleFrom" <= now() THEN
+     AND NEW."visibleFrom" <= utc_now THEN
     RAISE EXCEPTION 'The date a question becomes visible must be in the future' USING ERRCODE = 'check_violation';
   END IF;
 
@@ -61,7 +64,7 @@ BEGIN
       RAISE EXCEPTION 'A question may appear later, never disappear: visibility only moves forward' USING ERRCODE = 'check_violation';
     END IF;
     -- its date has passed, so pupils can already see it: it cannot be pushed back (the check above already refused a new date in the past)
-    IF OLD."visibility" = 'TEACHERS_ONLY_UNTIL' AND OLD."visibleFrom" <= now() AND NEW."visibility" = 'TEACHERS_ONLY_UNTIL' THEN
+    IF OLD."visibility" = 'TEACHERS_ONLY_UNTIL' AND OLD."visibleFrom" <= utc_now AND NEW."visibility" = 'TEACHERS_ONLY_UNTIL' THEN
       RAISE EXCEPTION 'A question may appear later, never disappear: its date has passed' USING ERRCODE = 'check_violation';
     END IF;
   END IF;
