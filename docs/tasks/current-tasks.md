@@ -265,3 +265,7 @@
 - [x] Slice 1 (permission read, tables, scope rules, workflow, queue)
 - [ ] Slice 2a (the setting), slice 2b (the API), slice 3 (the screen)
 - [x] The maintainer's decisions (2026-10-25): the permission makes an approver; the superadmin assigns; publish and lock need the scope; a fresh password or two-step code for these routes
+
+### TASK-0040: The portal tells a pupil from a guardian, and what each may do is an admin setting
+- **Status:** Planned 2026-10-25 (the maintainer answered yes to the three questions and asked for the access to be an admin setting); not started. See `docs/tasks/0040-portal-pupil-guardian-separation.md`.
+- [ ] Step 1: the session records the actor; a guard on every portal route; the per-branch `portal_access` setting with its audited admin screen. Separate credentials (step 2) stay an open item.
