@@ -13,7 +13,7 @@ const RETIRED_DEFAULT = "aleemaan-portal-secure-hmac-secret-salt-2026"; // the s
 
 const payload = (): PortalSessionPayload => {
   const now = Math.floor(Date.now() / 1000);
-  return { primaryStudentId: "s-1", allowedStudentIds: ["s-1"], issuedAt: now, expiresAt: now + 3600 };
+  return { actor: "GUARDIAN", primaryStudentId: "s-1", allowedStudentIds: ["s-1"], issuedAt: now, expiresAt: now + 3600 };
 };
 
 test.describe("portalSecretProblem (a pure function of the environment)", () => {

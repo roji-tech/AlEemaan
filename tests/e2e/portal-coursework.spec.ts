@@ -56,7 +56,7 @@ test("a pupil hands in work and takes a quiz in the portal", async ({ page }) =>
 
   await page.goto("/portal");
   await page.fill("#admissionNo", "2026/0001");
-  await page.fill("#secret", "08011110001");
+  await page.fill("#secret", "2013-05-10"); // the date of birth: the pupil signs in, who may hand in work and take quizzes
   await page.click("button:has-text('Access Student Portal')");
   await page.click("button[role='tab']:has-text('Coursework (LMS)')");
 

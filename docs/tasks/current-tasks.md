@@ -267,5 +267,5 @@
 - [x] The maintainer's decisions (2026-10-25): the permission makes an approver; the superadmin assigns; publish and lock need the scope; a fresh password or two-step code for these routes
 
 ### TASK-0040: The portal tells a pupil from a guardian, and what each may do is an admin setting
-- **Status:** Planned 2026-10-25 (the maintainer answered yes to the three questions and asked for the access to be an admin setting); not started. See `docs/tasks/0040-portal-pupil-guardian-separation.md`.
-- [ ] Step 1: the session records the actor; a guard on every portal route; the per-branch `portal_access` setting with its audited admin screen. Separate credentials (step 2) stay an open item.
+- **Status:** Step 1 built 2026-10-26 (branch `claude/portal-actor-and-access`); the maintainer answered yes to the three questions and asked for the access to be an admin setting. Step 2 (real separate credentials) is not started. See `docs/tasks/0040-portal-pupil-guardian-separation.md`.
+- [x] Step 1: the session records the actor; a guard on every portal route; the per-branch `portal_access` setting with its audited admin screen. Separate credentials (step 2) stay an open item.

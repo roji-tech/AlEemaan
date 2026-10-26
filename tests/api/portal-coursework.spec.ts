@@ -11,8 +11,10 @@ import { api, cookieHeader, loginAs } from "../support/http";
 let home: { id: string };
 let ids: { s1: string; s2: string; assignment: string; draft: string; quiz: string; q1: string; q2: string };
 
-const portalCookie = async (admissionNo: string, phone: string) => {
-  const res = await api("/api/v1/portal/session", { body: { admissionNo, secret: phone } });
+/// Signs in as the PUPIL (the date of birth) unless a phone number is given, which signs in as the GUARDIAN (task 0040: only the pupil hands in work and takes quizzes by default).
+const PUPIL_SECRET = "2013-05-10";
+const portalCookie = async (admissionNo: string, secret: string = PUPIL_SECRET) => {
+  const res = await api("/api/v1/portal/session", { body: { admissionNo, secret } });
   expect(res.status).toBe(200);
   return res.setCookies[0]!.split(";")[0]!;
 };
@@ -77,7 +79,7 @@ test.beforeEach(async () => {
 });
 
 test("a pupil hands in work and takes a quiz through the portal; the answer key never reaches the browser", async () => {
-  const cookie = await portalCookie("2026/0001", "08011110001");
+  const cookie = await portalCookie("2026/0001");
 
   const lms = await api(`/api/v1/portal/students/${ids.s1}/lms`, { cookie });
   expect(lms.status).toBe(200);
@@ -104,10 +106,10 @@ test("a pupil hands in work and takes a quiz through the portal; the answer key 
 });
 
 test("a portal session acts only for its own pupils, and only on published, targeted work", async () => {
-  const cookie = await portalCookie("2026/0001", "08011110001");
+  const cookie = await portalCookie("2026/0001");
   const url = (student: string, assignment: string) => `/api/v1/portal/students/${student}/assignments/${assignment}/submission`;
 
-  // A classmate (not linked to this guardian) and a draft are refused.
+  // A classmate (not linked to this sign-in) and a draft are refused.
   expect((await api(url(ids.s2, ids.assignment), { method: "POST", cookie, body: { content: "x", attachments: [] } })).status).toBe(403);
   expect((await api(url(ids.s1, ids.draft), { method: "POST", cookie, body: { content: "x", attachments: [] } })).status).toBe(404);
   expect((await api(`/api/v1/portal/students/${ids.s2}/quizzes/${ids.quiz}/attempt`, { method: "POST", cookie, body: { answers: [] } })).status).toBe(403);

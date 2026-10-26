@@ -14,7 +14,8 @@ interface PortalOverviewTabProps {
       percentage: number;
       recent: Array<{ status: string; date: string }>;
     };
-    finance: {
+    /** Absent when this sign-in may not see fees (task 0040): the server then sends no fee figure at all. */
+    finance?: {
       totalInvoiced: number;
       totalPaid: number;
       outstandingBalance: number;
@@ -28,9 +29,11 @@ interface PortalOverviewTabProps {
     }>;
   };
   onNavigateTab: (tabId: "results" | "finance" | "lms") => void;
+  /** The sections this sign-in may open: a button to one it cannot open is not shown. */
+  tabs: readonly string[];
 }
 
-export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTabProps) {
+export function PortalOverviewTab({ overview, onNavigateTab, tabs }: PortalOverviewTabProps) {
   const { student, attendance, finance, announcements } = overview;
   const enrollment = student.enrollments?.[0];
 
@@ -39,7 +42,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
       {/* Student Profile Card */}
       <div className="bg-surface border border-line rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-brand-strong text-brand-contrast flex items-center justify-center font-bold text-2xl shrink-0 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-brand-strong text-white flex items-center justify-center font-bold text-2xl shrink-0 shadow-xs">
             {student.firstName[0]}
             {student.lastName[0]}
           </div>
@@ -71,13 +74,16 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
         </div>
 
         <div className="flex items-center gap-2.5 w-full md:w-auto">
+          {tabs.includes("results") && (
           <button
             type="button"
             onClick={() => onNavigateTab("results")}
-            className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-brand-strong hover:bg-brand-strong-hover text-brand-contrast text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
+            className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-brand-strong hover:bg-brand-strong-hover text-white text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
           >
             View Report Card
           </button>
+          )}
+          {tabs.includes("finance") && (
           <button
             type="button"
             onClick={() => onNavigateTab("finance")}
@@ -85,6 +91,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
           >
             Fees & Billing
           </button>
+          )}
         </div>
       </div>
 
@@ -115,7 +122,8 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
           </div>
         </div>
 
-        {/* Finance KPI */}
+        {/* Finance KPI: only when the server sent it */}
+        {finance && (
         <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between text-fg-muted text-xs font-semibold uppercase tracking-wider mb-2">
             <span>School Fee Balance</span>
@@ -138,6 +146,8 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
           </div>
         </div>
 
+        )}
+
         {/* Academic Session KPI */}
         <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between text-fg-muted text-xs font-semibold uppercase tracking-wider mb-2">
@@ -152,6 +162,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
             <span>
               Guardian: <strong className="text-fg">{student.guardianName || "N/A"}</strong>
             </span>
+            {tabs.includes("lms") && (
             <button
               type="button"
               onClick={() => onNavigateTab("lms")}
@@ -159,6 +170,7 @@ export function PortalOverviewTab({ overview, onNavigateTab }: PortalOverviewTab
             >
               LMS Homework →
             </button>
+            )}
           </div>
         </div>
       </div>

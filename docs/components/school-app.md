@@ -157,10 +157,16 @@ The view the `/branches` page renders for a superadmin.
 | --- | --- |
 | `BranchesView.tsx` | Client component, props `branches: BranchRow[]` (`id`, `name`, `members`): the branch list (name and `memberLabel` of the active-member count, or an empty state) and an inline "New branch" form that `POST`s `{ name }` to `/api/v1/branches`. The name is trimmed, required and capped at 100 characters (`NAME_MAX`, mirrors the API's `createBranchSchema`). It answers 201 with a notice and `router.refresh()`, 409 as a duplicate name, 400 with the server's message, 403, a network failure, and 401 by replacing the route with `/login`. |
 
+## `src/components/settings/`
+
+| File | Description |
+| --- | --- |
+| `PortalAccessPanel.tsx` | Client component, prop `branches`; the "Portal access" tab of the Settings page (task 0040). A branch select (the first branch to begin with) loads `GET /api/v1/settings/portal-access`; a table of areas against Pupil and Guardian, each a checkbox named "Pupil: Fees and invoices" and so on (44 x 44 px hit area), plus a select per actor for question practice (stored now, effective when practice arrives). "Save changes" (disabled until something differs) checks the value with the same schema the server uses, then `PATCH`es the whole value; success moves focus to the message, a refusal is shown in the server's words and nothing is stored. "Use the recommended settings" fills the defaults without saving, "Discard changes" returns to what is stored, and the last changes are listed with who made them and a "Gave more access" mark. States: loading, load error with Try again, no branch. |
+
 ## Colocated with the page (`src/app/(app)/settings/`)
 
 The view the `/settings` page renders for a superadmin.
 
 | File | Description |
 | --- | --- |
-| `SettingsView.tsx` | Client component, props `initialSettings`, `branches`, `initialSessions`; two tabs. "School Profile": seven fields (name, principal, phone, motto, address, email, website) sent whole to `PATCH /api/v1/settings/school`. "Academic Sessions & Terms": session cards filtered by branch, a new-session dialog (`POST /api/v1/academics/sessions`; the API creates the terms) and "Set Current" per term (`PATCH /api/v1/academics/periods/{id}`). A failed "Set Current" shows nothing; a successful one updates only the term flags, although the server also activates that session (closing the branch's previous active one) when it was not active; a new session is added as the API returns it (nested `branch`, ISO dates), so its branch badge is empty until reload. |
+| `SettingsView.tsx` | Client component, props `initialSettings`, `branches`, `initialSessions`; three tabs (School Profile, Academic Sessions & Terms, Portal access). "School Profile": seven fields (name, principal, phone, motto, address, email, website) sent whole to `PATCH /api/v1/settings/school`. "Academic Sessions & Terms": session cards filtered by branch, a new-session dialog (`POST /api/v1/academics/sessions`; the API creates the terms) and "Set Current" per term (`PATCH /api/v1/academics/periods/{id}`). A failed "Set Current" shows nothing; a successful one updates only the term flags, although the server also activates that session (closing the branch's previous active one) when it was not active; a new session is added as the API returns it (nested `branch`, ISO dates), so its branch badge is empty until reload. |

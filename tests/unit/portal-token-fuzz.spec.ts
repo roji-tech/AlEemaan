@@ -62,6 +62,7 @@ function randomString(next: () => number, maxLength: number): string {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 const good = (over: Partial<PortalSessionPayload> = {}): PortalSessionPayload => ({
+  actor: "GUARDIAN",
   primaryStudentId: "stu_1",
   allowedStudentIds: ["stu_1", "stu_2"],
   guardianPhone: "+2348012345678",
