@@ -117,6 +117,9 @@ export function serverEnv(appUrl: string): Record<string, string> {
     FORCE_MOCK_PAYSTACK: "true",
     ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: "true",
     PAYSTACK_SECRET_KEY: TEST_PAYSTACK_SECRET,
+    // Question pictures are kept in the server's own memory (the test harness is the only thing allowed to ask for this on a production-shaped server).
+    IMAGE_STORE: "memory",
+    ALLOW_MEMORY_IMAGE_STORE_IN_PRODUCTION: "true",
   };
 }
 
@@ -141,5 +144,7 @@ export function devToolsServerEnv(): Record<string, string> {
     APP_ENV: "staging",
     DEV_TOOLS: "true",
     DEV_TOOLS_TOKEN: DEV_TOOLS_TEST_TOKEN,
+    // The one server with NO image store: the pictures routes must answer 503 there.
+    IMAGE_STORE: "",
   };
 }
