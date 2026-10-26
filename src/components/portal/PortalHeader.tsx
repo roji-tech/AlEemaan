@@ -30,7 +30,7 @@ export function PortalHeader({ students, selectedStudentId, onSelectStudent, onS
         {/* Brand & Active Branch */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-brand-strong text-brand-contrast flex items-center justify-center font-bold text-base shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-brand-strong text-white flex items-center justify-center font-bold text-base shadow-xs">
               AE
             </div>
             <div>

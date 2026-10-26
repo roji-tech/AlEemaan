@@ -1,7 +1,7 @@
 # 0040: Portal sign-in tells a pupil from a guardian, and what each may do is an admin setting
 
 - **Period / Focus:** requested 2026-10-25 (the maintainer answered yes to all three questions and added: "put them to admin settings")
-- **Status:** Pending (planned, not started; waits for Task 0039 slice 1 to merge so the two do not touch the same files at once)
+- **Status:** Step 1 built 2026-10-26 on `claude/portal-actor-and-access` (PR and test record in the HANDOVER); step 2, real separate credentials, is not started
 - **Priority:** Medium (open item "portal sign-in secret is the guardian's phone", `docs/open-items.md`)
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** to be created off `dev` when the work starts
@@ -30,18 +30,18 @@ Today the portal asks for an admission number and ONE secret (the date of birth,
 ## 3. Design
 - **Who is acting.** The signed session payload gains `actor: "PUPIL" | "GUARDIAN"`. Sign-in by the date of birth is a PUPIL; sign-in by the guardian's phone or e-mail, or by a guardian link token, is a GUARDIAN. A token without `actor` (a cookie signed before this change, valid for up to 7 days) is read as GUARDIAN, the more restricted of the two for submitting and the less restricted for invoices, which is what it could do before; it is not widened. `parsePayload` rejects any other value. The siblings list is built only for a GUARDIAN; a PUPIL's `allowedStudentIds` is their own id (this also narrows the open item about siblings inferred from a shared contact for the pupil's side).
 - **The setting.** A branch setting `portal_access` stored in `SettingValue` (scope BRANCH, the same place as the report-card layout), value `{ pupil: Access, guardian: Access }`, where `Access` is booleans `overview`, `results`, `invoices`, `materials`, `submitWork`, `takeQuizzes`, `siblings` and `practice: "NONE" | "SUMMARY" | "FULL"`. No row means the defaults in the table; a missing or unknown key falls back to the default for that key, so a later release can add a key without a migration. Pure resolver `resolvePortalAccess(value)` in `src/lib/portal/access.ts` (unit tested).
-- **Enforcement.** A single guard `portalMay(session, student, capability)` that every portal route and the portal page call after the session check. A refusal is a 403 with one message ("Your sign-in does not include this."), the same for every capability, and the screens do not show a link the guard would refuse. The overview and results cannot be turned off for both actors together (a portal with nothing in it); the settings route refuses that.
-- **Who edits.** `PATCH /api/v1/settings/portal-access` for an administrator of the branch (a superadmin for any branch), strict body, validated; every change writes a `SettingAudit` row with the old and new value. A change that gives the PUPIL invoices or the GUARDIAN submitting is flagged in the audit as widening. No approval flow and no fresh proof in step 1 (the data is the school's own, the change is audited and reversible); if the maintainer wants either, the setting joins `ENFORCEABLE_KEYS`.
+- **Enforcement.** A single guard `portalMay(session, student, capability)` that every portal route and the portal page call after the session check. A refusal is a 403 with one message ("Your sign-in does not include this."), the same for every capability, and the screens do not show a link the guard would refuse. CHANGED WHEN BUILT: each actor must keep at least one of overview, results, invoices and coursework (a sign-in that opens an empty portal is a dead end), and handing in work or taking a quiz needs the coursework section; the settings route and the screen refuse the rest. Money is kept out of everything an actor without `invoices` is given: their overview carries no fee figure and a blocked report card says only that it is not available yet, with no amount. A guardian who may not take quizzes is not sent the quizzes either.
+- **Who edits.** CHANGED WHEN BUILT (2026-10-26): the superadmin only, not a branch administrator. The screen is a tab of the Settings page, which is a superadmin page ("Only superadmins can view and manage school settings"), and an API with no screen for the other role would repeat the mistake Task 0031 was written to correct. `PATCH /api/v1/settings/portal-access`, strict body, validated; every change writes a `SettingAudit` row with the old and new value, and a change that gives somebody more than before is marked `CHANGED_WIDENING`. No approval flow and no fresh proof in step 1 (the data is the school's own, the change is audited and reversible); if the maintainer wants either, the setting joins `ENFORCEABLE_KEYS`.
 - **The screen.** A "Portal access" section on the Settings page: a table, one row per area, a column for each actor, checkboxes (the practice row is a select), a Save button, the audit trail below. States: loading, load error with Try again, saved, refused. Phone width and both themes, axe on each state.
 
 ## 4. Work Breakdown
-- [ ] 1 `src/lib/portal/access.ts`: types, defaults, `resolvePortalAccess`, `portalMay` (unit spec)
-- [ ] 2 Session payload `actor`; set at every sign-in path; `parsePayload` and the legacy-cookie rule; siblings only for a guardian
-- [ ] 3 Guard on the six portal API routes and the portal page; the screens hide what is refused
-- [ ] 4 `portal_access` read/write service, `GET/PATCH /api/v1/settings/portal-access`, audit
-- [ ] 5 Settings screen section
-- [ ] 6 Tests: unit (resolver, payload), integration/api (every route by actor and by setting, the audit, the strict body, a legacy cookie), e2e (the screen, desktop and phone, both themes; a pupil and a guardian each find what the table says)
-- [ ] 7 Docs: HANDOVER, `open-items.md`, `current-tasks.md`, catalogs, ADR-style note for the actor rule
+- [x] 1 `src/lib/portal/access.ts`: types, defaults, `resolvePortalAccess`, `allowedTabs`, `portalAccessInput`, `widens` (unit spec); the guard is `portalGate` in `guard.ts`
+- [x] 2 Session payload `actor`; set at every sign-in path; `parsePayload` and the legacy-cookie rule; siblings only when the branch's setting for that actor allows them, and checked again on every request
+- [x] 3 Guard on the six portal API routes and the portal page; the screens hide what is refused
+- [x] 4 `portal_access` read/write service, `GET/PATCH /api/v1/settings/portal-access`, audit
+- [x] 5 Settings screen: the "Portal access" tab
+- [x] 6 Tests: unit (resolver, payload), integration/api (every route by actor and by setting, the audit, the strict body, a legacy cookie), e2e (the screen, desktop and phone, both themes; a pupil and a guardian each find what the table says)
+- [x] 7 Docs: HANDOVER, `open-items.md`, `current-tasks.md`, catalogs, ADR-style note for the actor rule
 - [ ] Mutation passes (deferred to the end of Phase 2)
 
 ## 5. Not in step 1

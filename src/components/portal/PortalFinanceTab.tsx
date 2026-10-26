@@ -243,7 +243,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
             <button
               type="button"
               onClick={() => setSelectedInvoice(null)}
-              className="w-full py-2.5 rounded-xl bg-brand-strong hover:bg-brand-strong-hover text-brand-contrast text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
+              className="w-full py-2.5 rounded-xl bg-brand-strong hover:bg-brand-strong-hover text-white text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
             >
               Done
             </button>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
+import { PortalAccessPanel } from "@/components/settings/PortalAccessPanel";
 
 type SchoolSettingsState = {
   name: string;
@@ -45,7 +46,7 @@ type Props = {
 };
 
 export function SettingsView({ initialSettings, branches, initialSessions }: Props) {
-  const [activeTab, setActiveTab] = useState<"profile" | "academics">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal">("profile");
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
@@ -154,7 +155,19 @@ export function SettingsView({ initialSettings, branches, initialSessions }: Pro
         >
           Academic Sessions & Terms
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("portal")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
+            activeTab === "portal" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Portal access
+        </button>
       </div>
+
+      {/* Tab 3: what a pupil and a guardian may do in the portal */}
+      {activeTab === "portal" && <PortalAccessPanel branches={branches} />}
 
       {/* Tab 1: Profile */}
       {activeTab === "profile" && (

@@ -50,6 +50,9 @@ export interface PortalLms {
 interface PortalLmsTabProps {
   lms: PortalLms;
   student: PortalStudentRecord;
+  /** What this sign-in may do here (task 0040): a guardian reads the coursework but does not hand in work or take quizzes for the pupil. */
+  canSubmit: boolean;
+  canQuiz: boolean;
   /** Called after work is handed in or a quiz is taken, so the lists show the new state. */
   onChanged: () => Promise<void> | void;
 }
@@ -270,7 +273,7 @@ function QuizDialog({ quiz, studentId, onClose, onDone }: { quiz: QuizItem; stud
   );
 }
 
-export function PortalLmsTab({ lms, student, onChanged }: PortalLmsTabProps) {
+export function PortalLmsTab({ lms, student, canSubmit, canQuiz, onChanged }: PortalLmsTabProps) {
   const { assignments, materials, quizzes } = lms;
   const [handing, setHanding] = useState<AssignmentItem | null>(null);
   const [taking, setTaking] = useState<QuizItem | null>(null);
@@ -334,7 +337,7 @@ export function PortalLmsTab({ lms, student, onChanged }: PortalLmsTabProps) {
                   <div className="mt-2">
                     {a.closed ? (
                       <span className="text-xs text-fg-muted">The deadline has passed and late work is not accepted.</span>
-                    ) : submission?.status === "GRADED" ? null : (
+                    ) : submission?.status === "GRADED" || !canSubmit ? null : (
                       <button type="button" onClick={() => setHanding(a)} className={linkButton} aria-label={`${submission ? "Hand in again" : "Hand in"}: ${a.title}`}>
                         {submission ? "Hand in again" : "Hand in"}
                       </button>
@@ -353,7 +356,8 @@ export function PortalLmsTab({ lms, student, onChanged }: PortalLmsTabProps) {
         )}
       </div>
 
-      {/* Quizzes */}
+      {/* Quizzes: only for someone who may take them (the server does not send them to anyone else) */}
+      {canQuiz && (
       <div className="bg-surface border border-line rounded-2xl p-5 sm:p-6 shadow-sm">
         <h3 className="text-base font-bold text-fg mb-4 flex items-center justify-between">
           <span>Quizzes</span>
@@ -382,6 +386,7 @@ export function PortalLmsTab({ lms, student, onChanged }: PortalLmsTabProps) {
           </div>
         )}
       </div>
+      )}
 
       {/* Learning Materials & Notes */}
       <div className="bg-surface border border-line rounded-2xl p-5 sm:p-6 shadow-sm">

@@ -13,6 +13,7 @@ test.describe("Portal Auth & Security Rules", () => {
     test("round-trips a valid portal session payload", () => {
       const now = Math.floor(Date.now() / 1000);
       const payload: PortalSessionPayload = {
+        actor: "GUARDIAN",
         primaryStudentId: "student-123",
         allowedStudentIds: ["student-123", "student-456"],
         guardianPhone: "+2348012345678",
@@ -35,6 +36,7 @@ test.describe("Portal Auth & Security Rules", () => {
     test("rejects a tampered payload or signature", () => {
       const now = Math.floor(Date.now() / 1000);
       const payload: PortalSessionPayload = {
+        actor: "GUARDIAN",
         primaryStudentId: "student-123",
         allowedStudentIds: ["student-123"],
         issuedAt: now,
@@ -56,6 +58,7 @@ test.describe("Portal Auth & Security Rules", () => {
     test("rejects an expired session token", () => {
       const past = Math.floor(Date.now() / 1000) - 100;
       const payload: PortalSessionPayload = {
+        actor: "GUARDIAN",
         primaryStudentId: "student-123",
         allowedStudentIds: ["student-123"],
         issuedAt: past - 3600,

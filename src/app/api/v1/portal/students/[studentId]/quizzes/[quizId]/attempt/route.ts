@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ok, fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import { getPortalSession } from "@/lib/portal/auth";
+import { portalGate } from "@/lib/portal/guard";
 import { attemptPortalQuiz, PortalLmsError } from "@/lib/portal/service";
 import { LmsError } from "@/lib/lms/service";
 import { submitQuizAttemptSchema } from "@/lib/lms/validation";
@@ -13,10 +13,10 @@ import { readJsonBody } from "@/lib/api/validate";
  */
 export async function POST(req: NextRequest, context: { params: Promise<{ studentId: string; quizId: string }> }) {
   if (!validateCSRF(req)) return noStore(fail("Cross-origin request blocked", 403, "CSRF"));
-  const session = getPortalSession(req);
-  if (!session) return noStore(fail("Portal session expired or unauthorized", 401));
-
   const { studentId, quizId } = await context.params;
+  const gate = await portalGate(req, studentId, "takeQuizzes");
+  if (!gate.ok) return gate.response;
+  const { session } = gate;
   const read = await readJsonBody(req);
   if (!read.ok) return noStore(read.response);
   const body = read.json;

@@ -12,6 +12,8 @@ import {
 import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus, QuizStatus } from "@prisma/client";
 import { submitAssignment, attemptQuiz } from "@/lib/lms/service";
 import { reportCardVisibleTo } from "@/lib/academics/report-card";
+import { accessFor, type Access, type Actor } from "./access";
+import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
 
 export interface PortalAuthResult {
   success: boolean;
@@ -19,6 +21,22 @@ export interface PortalAuthResult {
   sessionToken?: string;
   student?: Record<string, unknown>;
   siblingStudents?: Record<string, unknown>[];
+  /// Who signed in, and what each linked pupil's branch lets them do (task 0040).
+  actor?: Actor;
+  access?: Record<string, Access>;
+}
+
+/// What `actor` may do for each of these pupils, by the settings of the pupil's own branch.
+export async function portalAccessFor(students: readonly { id: string; branchId: string }[], actor: Actor): Promise<Record<string, Access>> {
+  const byBranch = await getPortalAccessByBranch(students.map((student) => student.branchId));
+  return Object.fromEntries(students.map((student) => [student.id, accessFor(byBranch.get(student.branchId)!, actor)]));
+}
+
+/// The pupils this sign-in reaches: the pupil alone, or every pupil sharing the guardian's contact when the branch's setting for this actor allows siblings. (A later
+/// change of the setting is also applied on every request: lib/portal/guard.ts.)
+async function linkedStudentIds(student: { id: string; branchId: string; guardianPhone: string | null; guardianEmail: string | null }, actor: Actor): Promise<string[]> {
+  const access = accessFor(await getPortalAccess(student.branchId), actor);
+  return access.siblings ? findSiblingStudentIds(student) : [student.id];
 }
 
 /**
@@ -63,7 +81,8 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
   }
 
   const primaryStudent = linkToken.student;
-  const siblingIds = await findSiblingStudentIds(primaryStudent);
+  const actor: Actor = "GUARDIAN"; // the link is sent to the guardian
+  const siblingIds = await linkedStudentIds(primaryStudent, actor);
 
   const siblingStudents = await prisma.studentRecord.findMany({
     where: {
@@ -82,6 +101,7 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
 
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
+    actor,
     primaryStudentId: primaryStudent.id,
     allowedStudentIds: siblingStudents.map((s) => s.id),
     guardianPhone: primaryStudent.guardianPhone,
@@ -97,6 +117,8 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
     sessionToken,
     student: primaryStudent,
     siblingStudents,
+    actor,
+    access: await portalAccessFor(siblingStudents, actor),
   };
 }
 
@@ -148,7 +170,9 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     return { success: false, error: PORTAL_SIGNIN_FAILED };
   }
 
-  const siblingIds = await findSiblingStudentIds(student);
+  // The date of birth is the pupil's own; a phone number or an e-mail address is the guardian's.
+  const actor: Actor = matchesDateOfBirth(cleanSecret, student.dateOfBirth) ? "PUPIL" : "GUARDIAN";
+  const siblingIds = await linkedStudentIds(student, actor);
 
   const siblingStudents = await prisma.studentRecord.findMany({
     where: {
@@ -167,6 +191,7 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
 
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
+    actor,
     primaryStudentId: student.id,
     allowedStudentIds: siblingStudents.map((s) => s.id),
     guardianPhone: student.guardianPhone,
@@ -182,6 +207,8 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     sessionToken,
     student,
     siblingStudents,
+    actor,
+    access: await portalAccessFor(siblingStudents, actor),
   };
 }
 
@@ -221,7 +248,8 @@ export async function resolvePortalSessionData(cookieToken: string | undefined |
 /**
  * Retrieves the comprehensive overview for a verified student.
  */
-export async function getStudentPortalOverview(studentId: string, allowedStudentIds: string[]) {
+/// `showFees`: whether this actor may see money (the branch's `invoices` setting for them). When not, the answer carries no fee total at all, not a hidden one (task 0040).
+export async function getStudentPortalOverview(studentId: string, allowedStudentIds: string[], showFees: boolean) {
   if (!allowedStudentIds.includes(studentId)) {
     throw new Error("UNAUTHORIZED_STUDENT_ACCESS");
   }
@@ -309,12 +337,16 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
       percentage: attendancePercentage,
       recent: attendanceRecords.slice(0, 10),
     },
-    finance: {
-      totalInvoiced,
-      totalPaid,
-      outstandingBalance,
-      hasOutstanding: outstandingBalance > 0,
-    },
+    ...(showFees
+      ? {
+          finance: {
+            totalInvoiced,
+            totalPaid,
+            outstandingBalance,
+            hasOutstanding: outstandingBalance > 0,
+          },
+        }
+      : {}),
     announcements,
   };
 }
@@ -322,13 +354,21 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
 /**
  * Retrieves published academic results and report cards for a student.
  */
-export async function getStudentPortalResults(studentId: string, allowedStudentIds: string[]) {
+/// `showFees` as for the overview: an actor who may not see money is told the report card is not available yet, in words that name no amount, and the answer carries none.
+export async function getStudentPortalResults(studentId: string, allowedStudentIds: string[], showFees: boolean) {
   if (!allowedStudentIds.includes(studentId)) {
     throw new Error("UNAUTHORIZED_STUDENT_ACCESS");
   }
 
   const canView = await reportCardVisibleTo(studentId, { kind: "portal" });
   if (!canView) {
+    if (!showFees) {
+      return {
+        reportCards: [],
+        blockedByUnpaidFees: true,
+        message: "Your report card is not available yet. Please ask your guardian or the school office.",
+      };
+    }
     const invoices = await prisma.invoice.findMany({
       where: { studentId, status: { not: InvoiceStatus.CANCELLED } },
       select: { totalAmount: true, amountPaid: true },

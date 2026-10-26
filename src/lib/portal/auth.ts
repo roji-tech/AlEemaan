@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { portalSecret } from "./secret";
+import type { Actor } from "./access";
 
 export const PORTAL_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -42,6 +43,9 @@ export function getPortalSession(req: { cookies: { get(name: string): { value: s
 }
 
 export interface PortalSessionPayload {
+  /// Who is acting: a PUPIL (signed in with the date of birth) or a GUARDIAN (the guardian's phone or e-mail, or a link token). Task 0040. A cookie signed before this existed has
+  /// no actor and is read as a GUARDIAN, which is what it could do before; it is never widened to a pupil's or anyone's more.
+  actor: Actor;
   primaryStudentId: string;
   allowedStudentIds: string[];
   guardianPhone?: string | null;
@@ -122,11 +126,13 @@ const isTime = (value: unknown): value is number => typeof value === "number" &&
 function parsePayload(raw: unknown): PortalSessionPayload | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const p = raw as Record<string, unknown>;
+  if (p.actor !== undefined && p.actor !== "PUPIL" && p.actor !== "GUARDIAN") return null;
   if (!isId(p.primaryStudentId)) return null;
   if (!Array.isArray(p.allowedStudentIds) || !p.allowedStudentIds.every(isId)) return null;
   if (!isTime(p.issuedAt) || !isTime(p.expiresAt)) return null;
   if (!isContact(p.guardianPhone) || !isContact(p.guardianEmail)) return null;
   return {
+    actor: p.actor === "PUPIL" ? "PUPIL" : "GUARDIAN",
     primaryStudentId: p.primaryStudentId,
     allowedStudentIds: [...p.allowedStudentIds],
     ...(p.guardianPhone !== undefined ? { guardianPhone: p.guardianPhone } : {}),
