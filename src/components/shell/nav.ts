@@ -48,7 +48,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Communication", href: "/communication", icon: MailIcon, adminOnly: true, inMore: true },
   { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true, inMore: true },
   { label: "Approvals", href: "/approvals", icon: ShieldCheckIcon, adminOnly: true, inMore: true },
-  { label: "Question bank", href: "/question-bank", icon: FileTextIcon, adminOnly: true, inMore: true },
+  { label: "Question bank", href: "/question-bank", icon: FileTextIcon, staffOnly: true, inMore: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 

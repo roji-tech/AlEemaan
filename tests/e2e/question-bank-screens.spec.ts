@@ -69,13 +69,13 @@ async function people() {
 const optionFor = (p: { name: string; email: string }) => `${p.name} (${p.email})`;
 
 test.describe("who sees the page", () => {
-  test("an administrator finds Question bank in the navigation; a teacher does not, and is told so if they go there", async ({
+  test("an administrator finds Question bank in the navigation and all five sections; a teacher gets Browse and My questions only; a pupil is told it is for staff", async ({
     page,
     browser,
     baseURL,
     isMobile,
   }) => {
-    const { admin, teacher } = await people();
+    const { admin, teacher, pupil } = await people();
     await signInThroughUi(page, admin);
     if (isMobile) {
       await mainNav(page).getByRole("button", { name: "More" }).click();
@@ -89,10 +89,21 @@ test.describe("who sees the page", () => {
     const other = await browser.newContext({ baseURL: baseURL! });
     const teacherPage = await other.newPage();
     await signInThroughUi(teacherPage, teacher);
-    await expect(teacherPage.getByRole("link", { name: "Question bank" })).toHaveCount(0);
     await teacherPage.goto("/question-bank");
-    await expect(teacherPage.getByRole("main").getByRole("alert")).toContainText("Only administrators can open this page.");
-    await expect(teacherPage.getByRole("tab")).toHaveCount(0);
+    // a teacher writes and browses; choosing reviewers and the switches stay with administrators, and the queue with reviewers
+    await expect(teacherPage.getByRole("tab", { name: "Browse" })).toBeVisible();
+    await expect(teacherPage.getByRole("tab", { name: "My questions" })).toBeVisible();
+    for (const hidden of ["Reviewers", "Settings", "Review queue"]) await expect(teacherPage.getByRole("tab", { name: hidden })).toHaveCount(0);
+    await expect(teacherPage.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+    // a pupil has no business here
+    const pupilContext = await browser.newContext({ baseURL: baseURL! });
+    const pupilPage = await pupilContext.newPage();
+    await signInThroughUi(pupilPage, pupil);
+    await pupilPage.goto("/question-bank");
+    await expect(pupilPage.getByRole("main").getByRole("alert")).toContainText("Only staff can open this page.");
+    await expect(pupilPage.getByRole("tab")).toHaveCount(0);
+    await pupilContext.close();
     await other.close();
   });
 });
@@ -104,6 +115,7 @@ test.describe("reviewers", () => {
     const { admin, teacher, pupil } = await people();
     await signInThroughUi(page, admin);
     await page.goto("/question-bank");
+    await page.getByRole("tab", { name: "Reviewers" }).click();
     await expect(page.getByRole("tab", { name: "Reviewers" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByText("No reviewers yet.")).toBeVisible();
 
@@ -161,6 +173,7 @@ test.describe("reviewers", () => {
     const { sup, admin, teacher } = await people();
     await signInThroughUi(page, sup);
     await page.goto("/question-bank");
+    await page.getByRole("tab", { name: "Reviewers" }).click();
     await page.getByLabel("Reviewers for").selectOption({ label: "Every branch (all reviewers)" });
     await page.getByLabel("Person").selectOption({ label: optionFor(teacher) });
     await page.getByRole("button", { name: "Add reviewer" }).click();
@@ -171,6 +184,7 @@ test.describe("reviewers", () => {
     const adminPage = await (await browser.newContext({ baseURL: baseURL! })).newPage();
     await signInThroughUi(adminPage, admin);
     await adminPage.goto("/question-bank");
+    await adminPage.getByRole("tab", { name: "Reviewers" }).click();
     const row = adminPage.getByRole("listitem").filter({ hasText: teacher.name });
     await expect(row).toContainText("Every branch");
     await expect(row).toContainText("Set for every branch");
@@ -198,6 +212,7 @@ test.describe("reviewers: a large staff list", () => {
     try {
       await signInThroughUi(page, admin);
       await page.goto("/question-bank");
+      await page.getByRole("tab", { name: "Reviewers" }).click();
       await expect(page.getByText("Showing the first 100 of each kind of staff.")).toBeVisible();
       const person = page.getByLabel("Person");
       await expect(person.locator("option", { hasText: `${tag} Staff 105` })).toHaveCount(0); // beyond the first 100
@@ -230,6 +245,7 @@ test.describe("reviewers: a large staff list", () => {
     const { admin } = await people();
     await signInThroughUi(page, admin);
     await page.goto("/question-bank");
+    await page.getByRole("tab", { name: "Reviewers" }).click();
     await page.getByLabel("Search staff").fill("zzz-no-such-person");
     await expect(page.getByLabel("Person").locator("option")).toHaveText(["Nobody matches"]);
   });
@@ -305,7 +321,7 @@ test.describe("settings", () => {
     await page.goto("/question-bank");
     await page.getByRole("tab", { name: "Settings" }).click();
     await expect(page.getByLabel("Settings for")).toHaveCount(0); // one branch, not a superadmin: nothing to choose
-    await expect(page.getByText(/A branch can only make a switch stricter/)).toBeVisible();
+    await expect(page.getByRole("tabpanel").getByText(/A branch can only make a switch stricter/)).toBeVisible();
     const staff = page.getByLabel("Teachers and other staff can use the question bank");
     await expect(staff).not.toBeChecked(); // the school's value
 
