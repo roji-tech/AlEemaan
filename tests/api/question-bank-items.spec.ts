@@ -207,6 +207,8 @@ test.describe("sending for review, and the queue", () => {
     expect(await ids("otherTeacher")).toEqual([]);
     expect(await ids("otherAdmin")).toEqual([]);
     expect(await ids("super")).toEqual([maths.id, english.id, own.id].sort());
+    // a reviewer for every branch has no branch to be narrowed to: everything pending in the branches they are staff in, and not their own
+    expect(await ids("every")).toEqual([maths.id, english.id, own.id].sort());
     expect((await api(QUEUE)).status).toBe(401);
     expect((await api(QUEUE, { cookie: ck.student })).status).toBe(403);
   });

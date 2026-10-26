@@ -181,15 +181,17 @@ export const retireItem = (input: { userId: string; id: string; reason: string }
 export async function reviewQueue(input: { userId: string; branchId?: string }): Promise<{ items: ItemView[] }> {
   const viewer = await loadViewer(input.userId);
   const reviewerBranches = new Set<string | null>(viewer.reviewerRows.map((row) => row.branchId));
+  const administered = viewer.memberships.filter((m) => m.role === "ADMIN").map((m) => m.branchId);
+  // A reviewer for every branch has no branch to be narrowed to; anyone else only reaches the branches they administer or review for. Built as plain conditions: an empty `{}`
+  // inside `OR` is not "everything" (a reviewer for every branch was shown an empty queue).
+  const everyBranch = viewer.isSuperAdmin || reviewerBranches.has(null);
+  const branches = [...new Set([...administered, ...[...reviewerBranches].filter((id): id is string => id !== null)])];
   const where = viewer.isSuperAdmin
     ? { status: "PENDING" as const }
     : {
         status: "PENDING" as const,
         submittedById: { not: viewer.userId },
-        OR: [
-          { branchId: { in: viewer.memberships.filter((m) => m.role === "ADMIN").map((m) => m.branchId) } },
-          ...(reviewerBranches.has(null) ? [{}] : [{ branchId: { in: [...reviewerBranches].filter((id): id is string => id !== null) } }]),
-        ],
+        ...(everyBranch ? {} : { branchId: { in: branches } }),
       };
   const rows = await prisma.questionBankItem.findMany({
     where: { ...where, ...(input.branchId ? { branchId: input.branchId } : {}) },
