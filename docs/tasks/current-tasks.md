@@ -261,10 +261,9 @@
 - [x] Failing first on a build of unmodified `dev`; on the branch the guard and the sweep 153 passed. Not run: e2e, https, the whole other projects, a full suite on the merged `dev`
 
 ### TASK-0039: Results approvers by scope (the port of Octalve Edu's task 0020 and ADR 0018)
-- **Status:** Slices 1 and 2a merged; 2b built 2026-10-26 (branch `claude/approvers-unsectioned-setting`); 3 remains. The maintainer accepted all four decisions as recommended. See `docs/tasks/0039-approvers-by-scope-port.md` (what differs from Octalve, the design, seven slices, four decisions with a recommendation each).
+- **Status:** Slices 1, 2a and 2b merged; slice 3 built 2026-10-26 (branch `claude/approvers-unsectioned-setting`). All four slices are built. The maintainer accepted all four decisions as recommended. See `docs/tasks/0039-approvers-by-scope-port.md` (what differs from Octalve, the design, seven slices, four decisions with a recommendation each).
 - [x] Slice 1 (permission read, tables, scope rules, workflow, queue)
-- [x] Slice 2a (the setting), slice 2b (the API)
-- [ ] Slice 3 (the screen)
+- [x] Slice 2a (the setting), slice 2b (the API), slice 3 (the screen)
 - [x] The maintainer's decisions (2026-10-25): the permission makes an approver; the superadmin assigns; publish and lock need the scope; a fresh password or two-step code for these routes
 
 ### TASK-0040: The portal tells a pupil from a guardian, and what each may do is an admin setting
