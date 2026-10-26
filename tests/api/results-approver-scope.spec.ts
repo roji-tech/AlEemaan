@@ -4,6 +4,7 @@ import { Permission } from "@prisma/client";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { resultsWorld } from "../support/results-world";
+import { UNSECTIONED_KEY, getUnsectionedClassApproval, setUnsectionedClassApproval } from "../../src/lib/academics/unsectioned-approval";
 
 // Results are approved by assignment (task 0039, slice 1): an approver is a staff member who holds CAN_APPROVE_RESULTS and has been given somewhere to approve (the
 // whole branch, a section, or a class). They act on the results in their scope, all of a batch or none of it, and never unlock. The review queue, a result's history and
@@ -314,5 +315,113 @@ test.describe("what an approver sees", () => {
     expect(reply.status, reply.text).toBe(200);
     expect(reply.json.data.periods.length).toBeGreaterThan(0);
     expect(reply.json.data.pairs ?? []).toEqual([]);
+  });
+});
+
+// Slice 2a: the branch setting results.unsectionedClassApproval. SSS 1 is in no section; under ANY_SECTION_APPROVER a person with a live Section scope reaches it too.
+test.describe("classes that belong to no section", () => {
+  const setting = (branchId: string, value: unknown) =>
+    db.settingValue.upsert({
+      where: { scope_branchId_key: { scope: "BRANCH", branchId, key: UNSECTIONED_KEY } },
+      create: { scope: "BRANCH", branchId, key: UNSECTIONED_KEY, value: value as never, status: "APPROVED" },
+      update: { value: value as never },
+    });
+  const queueArms = async (cookie: string) =>
+    (await api(`${QUEUE}?branchId=${home.id}&periodId=${w.period.id}`, { cookie })).json.data.queue.map((g: { classArmId: string }) => g.classArmId).sort();
+
+  test("by default a Section approver does not reach a class in no section, with no row or with the default written out", async () => {
+    const a = await approver([{ section: w.section.id }]);
+    expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status).toBe(403);
+    await setting(home.id, "GENERAL_OR_CLASS_ONLY");
+    expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status).toBe(403);
+    expect(await queueArms(a.cookie)).toEqual([w.classes.jss1.armId, w.classes.jss2.armId].sort());
+  });
+
+  test("under ANY_SECTION_APPROVER a Section approver also acts on, and sees in the queue, the classes in no section", async () => {
+    await setting(home.id, "ANY_SECTION_APPROVER");
+    const a = await approver([{ section: w.section.id }]);
+    const { jss1, jss2, sss1 } = w.classes;
+    expect(await queueArms(a.cookie)).toEqual([jss1.armId, jss2.armId, sss1.armId].sort());
+    expect((await api(`/api/v1/academics/results/${sss1.resultId}/history`, { cookie: a.cookie })).status).toBe(200);
+    expect((await go(a.cookie, "approve", Object.values(w.classes).map((c) => c.resultId))).status).toBe(200);
+    expect(await allStatuses()).toEqual(["APPROVED", "APPROVED", "APPROVED"]);
+  });
+
+  test("it gives nothing to a person with no scope, with a Class scope only, or without the permission", async () => {
+    await setting(home.id, "ANY_SECTION_APPROVER");
+    const { jss1, sss1 } = w.classes;
+    expect((await go((await approver([])).cookie, "approve", [sss1.resultId])).status).toBe(403);
+    const classOnly = await approver([{ group: jss1.groupId }]);
+    expect((await go(classOnly.cookie, "approve", [sss1.resultId])).status).toBe(403);
+    expect((await go(classOnly.cookie, "approve", [jss1.resultId])).status).toBe(200);
+    expect((await go((await approver([{ section: w.section.id }], { permission: false })).cookie, "approve", [sss1.resultId])).status).toBe(403);
+    expect(await statusOf(sss1.resultId)).toBe("SUBMITTED");
+  });
+
+  test("an archived section grants nothing, so it widens nothing", async () => {
+    await setting(home.id, "ANY_SECTION_APPROVER");
+    const a = await approver([{ section: w.section.id }]);
+    await db.section.update({ where: { id: w.section.id }, data: { archivedAt: new Date() } });
+    expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status).toBe(403);
+    expect(await queueArms(a.cookie)).toEqual([]);
+  });
+
+  test("a branch's setting is that branch's: another branch's value changes nothing here", async () => {
+    await setting(other.id, "ANY_SECTION_APPROVER");
+    const a = await approver([{ section: w.section.id }]);
+    expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status).toBe(403);
+  });
+
+  test("a damaged stored value is the default, and putting the default back ends the widening", async () => {
+    const a = await approver([{ section: w.section.id }]);
+    for (const damaged of ["any_section_approver", true, { value: "ANY_SECTION_APPROVER" }, null]) {
+      await setting(home.id, damaged);
+      expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status, JSON.stringify(damaged)).toBe(403);
+    }
+    await setting(home.id, "ANY_SECTION_APPROVER");
+    expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status).toBe(200);
+    expect((await go(w.admin.cookie, "revert", [w.classes.sss1.resultId])).status).toBe(200); // back to SUBMITTED, waiting for an approver again
+    expect(await statusOf(w.classes.sss1.resultId)).toBe("SUBMITTED");
+    await setting(home.id, "GENERAL_OR_CLASS_ONLY");
+    expect((await go(a.cookie, "approve", [w.classes.sss1.resultId])).status).toBe(403);
+  });
+
+  test("a General approver and an administrator are not changed by the setting either way", async () => {
+    const general = await approver(["GENERAL"]);
+    for (const value of ["GENERAL_OR_CLASS_ONLY", "ANY_SECTION_APPROVER"]) {
+      await setting(home.id, value);
+      expect(await queueArms(general.cookie)).toHaveLength(3);
+      expect(await queueArms(w.admin.cookie)).toHaveLength(3);
+    }
+  });
+});
+
+test.describe("saving the setting", () => {
+  const audit = () => db.settingAudit.findMany({ where: { settingKey: UNSECTIONED_KEY, branchId: home.id }, orderBy: { createdAt: "asc" } });
+
+  test("the first read is the default; turning it on is audited as widening; turning it off is a plain change; saving the same value again writes nothing", async () => {
+    const by = await actor(Role.ADMIN);
+    expect(await getUnsectionedClassApproval(home.id)).toBe("GENERAL_OR_CLASS_ONLY");
+
+    const on = await setUnsectionedClassApproval(home.id, "ANY_SECTION_APPROVER", by.user.id);
+    expect(on).toEqual({ before: "GENERAL_OR_CLASS_ONLY", after: "ANY_SECTION_APPROVER", changed: true, widening: true });
+    expect(await getUnsectionedClassApproval(home.id)).toBe("ANY_SECTION_APPROVER");
+
+    expect(await setUnsectionedClassApproval(home.id, "ANY_SECTION_APPROVER", by.user.id)).toMatchObject({ changed: false, widening: false });
+    const off = await setUnsectionedClassApproval(home.id, "GENERAL_OR_CLASS_ONLY", by.user.id);
+    expect(off).toMatchObject({ changed: true, widening: false });
+
+    expect((await audit()).map((row) => [row.action, row.oldValue, row.newValue, row.actorUserId])).toEqual([
+      ["CHANGED_WIDENING", "GENERAL_OR_CLASS_ONLY", "ANY_SECTION_APPROVER", by.user.id],
+      ["CHANGED", "ANY_SECTION_APPROVER", "GENERAL_OR_CLASS_ONLY", by.user.id],
+    ]);
+  });
+
+  test("saving the default on a branch with no row creates the row and no audit line; the next branch is untouched", async () => {
+    const by = await actor(Role.ADMIN);
+    expect(await setUnsectionedClassApproval(home.id, "GENERAL_OR_CLASS_ONLY", by.user.id)).toMatchObject({ changed: false });
+    expect(await db.settingValue.count({ where: { key: UNSECTIONED_KEY, branchId: home.id } })).toBe(1);
+    expect(await audit()).toEqual([]);
+    expect(await db.settingValue.count({ where: { key: UNSECTIONED_KEY, branchId: other.id } })).toBe(0);
   });
 });
