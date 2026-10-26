@@ -160,6 +160,14 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
   "PUT v1/question-bank/settings/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
+  "POST v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/items/[id]/route.ts":
+    "no branch is named in the request: the branch is the ITEM's, and question-bank/rules (staffMaySee, with a viewer read inside the transaction) decides; a question the person may not see is the same 404 as one that does not exist",
+  "GET v1/question-bank/review-queue/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
   "GET v1/timetable/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/timetable/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
@@ -285,6 +293,14 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
   "PUT v1/question-bank/settings/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
+  "POST v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/items/[id]/route.ts":
+    "no branch is named in the request: the branch is the ITEM's, and question-bank/rules (staffMaySee, with a viewer read inside the transaction) decides; a question the person may not see is the same 404 as one that does not exist",
+  "GET v1/question-bank/review-queue/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
   "DELETE v1/question-bank/reviewers/[id]/route.ts":
     "the branch is the reviewer ROW's, never the request's: the caller must administer that branch (canAdminister) or be a superadmin, and an every-branch row (branchId null) is a superadmin's alone, which withBranch does not model; unknown and not-yours are the same 404",
 };
