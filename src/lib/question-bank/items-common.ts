@@ -224,6 +224,7 @@ export const snapshotOf = (row: ItemRow): Prisma.InputJsonValue => ({
   correctAnswer: row.correctAnswer as Prisma.InputJsonValue,
   subject: row.subjectLabel,
   classTags: row.classTags.map((tag) => tag.label),
+  images: row.images.map((image) => ({ id: image.id, alt: image.alt, decorative: image.decorative })),
   visibility: row.visibility,
   visibleFrom: row.visibleFrom ? row.visibleFrom.toISOString() : null,
   status: row.status,
