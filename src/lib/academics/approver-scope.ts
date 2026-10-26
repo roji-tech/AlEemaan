@@ -1,5 +1,6 @@
 import { Permission, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getUnsectionedClassApproval } from "./unsectioned-approval";
 
 // Where one member approves results in one branch (task 0039; the design Octalve Edu built as its ADR 0018). The transitions that need approval authority (return, approve,
 // revert, publish, lock), the review queue, a result's history and the sheet read by the review screen all ask the functions here, so what a person sees and what they
@@ -7,6 +8,9 @@ import { prisma } from "@/lib/db";
 //
 // An approver is an ACTIVE member of the branch with a staff role who holds CAN_APPROVE_RESULTS. Their scope is only ever read from `ResultApprovalScope`: no row, no results
 // (fail closed). The permission is checked again on every call, so taking it away ends the authority even while rows remain.
+//
+// The branch setting `results.unsectionedClassApproval` (slice 2a) decides one more thing: under ANY_SECTION_APPROVER a person who holds a live Section scope also reaches the
+// classes of the branch that are in no section. Under the default it adds nothing.
 
 /// `approver`: holds the permission as an active staff member of the branch. `general`: every class of the branch. Otherwise the arms of the sections and classes assigned.
 export type ApproverScope = { approver: boolean; general: boolean; armIds: ReadonlySet<string> };
@@ -43,12 +47,21 @@ export async function approverScope(branchId: string, userId: string): Promise<A
         OR: [
           ...(sectionIds.length > 0 ? [{ sectionId: { in: sectionIds }, section: { is: { archivedAt: null } } }] : []),
           ...(classGroupIds.length > 0 ? [{ id: { in: classGroupIds } }] : []),
+          ...((await reachesUnsectioned(branchId, sectionIds)) ? [{ sectionId: null }] : []),
         ],
       },
     },
     select: { id: true },
   });
   return { approver: true, general: false, armIds: new Set(arms.map((arm) => arm.id)) };
+}
+
+/// Whether a person with these Section scopes also reaches the classes that are in no section: the branch allows it, and at least one of the sections is live (an archived
+/// section grants nothing, so it widens nothing either).
+async function reachesUnsectioned(branchId: string, sectionIds: readonly string[]): Promise<boolean> {
+  if (sectionIds.length === 0) return false;
+  if ((await getUnsectionedClassApproval(branchId)) !== "ANY_SECTION_APPROVER") return false;
+  return (await prisma.section.count({ where: { branchId, id: { in: [...sectionIds] }, archivedAt: null } })) > 0;
 }
 
 /// Whether the scope reaches a result of this arm (the arm a result was entered in is stored on it, so a later move of the pupil does not change who reviews it).

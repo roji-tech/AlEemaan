@@ -1,7 +1,7 @@
 # 0039: Results approvers by scope (the AlEemaan side of Octalve Edu's task 0020 and ADR 0018)
 
 - **Period / Focus:** planned 2026-10-25 (the maintainer's decision of 2026-10-21 and its acceptance on 2026-10-23, recorded in Octalve Edu's ADR 0018; this repository follows it)
-- **Status:** In progress (slice 1 built on `claude/approvers-scope-rules`, 2026-10-25; slices 2a, 2b and 3 remain)
+- **Status:** In progress (slices 1 and 2a built (2a on `claude/approvers-unsectioned-setting`, 2026-10-26); 2b and 3 remain)
 - **Priority:** Medium
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** `dev`; one branch and PR per slice
@@ -35,7 +35,7 @@ The migration therefore does **not** give anyone a General scope: today's approv
 
 ## 4. Work Breakdown (one PR each; the hosted migrations are for the maintainer to run)
 - [x] Slice 1 (built 2026-10-25; PR and test record in the HANDOVER): how a person becomes an approver (decision 1), and the rules: `Section`, `ClassGroup.sectionId`, `ResultApprovalScope`, the migration, `approverScope`, `transitionResults` limited by scope, the queue and the results list limited by scope; failing first by mutation.
-- [ ] Slice 2a: the setting `results.unsectionedClassApproval` and the rule that reads it.
+- [x] Slice 2a (built 2026-10-26): the setting `results.unsectionedClassApproval` (a `SettingValue` row per branch, `GENERAL_OR_CLASS_ONLY` by default, or `ANY_SECTION_APPROVER`; anything else reads as the default, so a damaged row can only narrow), `unsectioned-approval.ts` (read, resolve and write; every change in `SettingAudit`, `CHANGED_WIDENING` when the wider value is turned on) and the rule in `approverScope`: a person with a LIVE Section scope also reaches the branch's classes that are in no section. An archived section widens nothing; a Class scope, a General scope and an administrator are unaffected. No migration. Tests: `tests/unit/unsectioned-approval.spec.ts`, a new part of `tests/api/results-approver-scope.spec.ts` (the default, the wider value, no scope, a Class scope only, no permission, an archived section, another branch's value, a damaged value, General and an administrator unchanged, the audit rows); mutation checks (each failed a test, then restored): the setting ignored, an archived section widening, a damaged value read as the wider one.
 - [ ] Slice 2b: the superadmin's API for sections and approver scopes, audited, with re-authentication.
 - [ ] Slice 3: the settings screen.
 - [ ] Docs in each slice: the catalogs, the tracker, `current-tasks.md`, `open-items.md`, HANDOVER section 4.
