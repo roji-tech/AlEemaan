@@ -1,7 +1,7 @@
 # 0039: Results approvers by scope (the AlEemaan side of Octalve Edu's task 0020 and ADR 0018)
 
 - **Period / Focus:** planned 2026-10-25 (the maintainer's decision of 2026-10-21 and its acceptance on 2026-10-23, recorded in Octalve Edu's ADR 0018; this repository follows it)
-- **Status:** In progress (all four slices built (slice 1 merged; 2a, 2b and 3 on `claude/approvers-unsectioned-setting`, 2026-10-26); the hosted migration of slice 1 and the mutation pass of Phase 2 remain)
+- **Status:** In progress (all four slices merged into `dev`: slice 1 earlier, 2a, 2b and 3 as PRs #98, #99 and #100 on 2026-10-26; the hosted migrations and the mutation pass of Phase 2 remain)
 - **Priority:** Medium
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** `dev`; one branch and PR per slice
