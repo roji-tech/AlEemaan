@@ -61,6 +61,7 @@ model Branch {
   bankAudits            QuestionBankAudit[]
   practiceSessions      PracticeSession[]
   practiceAttempts      PracticeAttempt[]
+  questionReports       QuestionReport[]
 
   createdAt DateTime @default(now())
 }

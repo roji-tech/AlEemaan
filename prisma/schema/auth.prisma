@@ -68,6 +68,8 @@ model User {
   bankReviewerRows      QuestionBankReviewer[]   @relation("BankReviewerUser")
   bankReviewersAssigned QuestionBankReviewer[]   @relation("BankReviewerAssigner")
   bankAudits            QuestionBankAudit[]      @relation("BankAudits")
+  bankReportsFiled      QuestionReport[]         @relation("ReportTeacher")
+  bankReportsResolved   QuestionReport[]         @relation("ReportResolver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

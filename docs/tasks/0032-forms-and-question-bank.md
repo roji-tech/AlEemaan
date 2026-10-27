@@ -21,7 +21,7 @@ Teachers reuse reviewed questions from a bank; pupils practise from the portal; 
 - [x] 2 Bank core: submit, review queue, approve/reject/retire, class tags, images, scopes, visibility, overlap flags (PRs #92, #94, #95, #96, #97)
 - [x] 3 Use in assessments: copy on use, offer-back, template hiding
 - [x] 4 Pupil practice: sessions, feedback timing, size and caps, history, archive
-- [ ] 5 Reports on questions: queue, outcomes, switches, re-grade offer
+- [x] 5 Reports on questions: queue, outcomes, switches, re-grade offer
 - [ ] 6 Practice sets (ungraded forms)
 - [ ] 7 Questionnaires: members, public, anonymous, summaries
 - [ ] 8 Paper work: roll call, close, maximum duration, pupil request
@@ -233,6 +233,42 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/unit/pupil-practice.spec.ts`: 13 pure logic unit tests passed.
   - `tests/unit/route-role-guard.spec.ts`: 7 route guard tests passed.
   - `tests/api/pupil-practice.spec.ts`: 7 API integration tests passed.
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
+
+## 4f. Slice 5 as built (2026-10-28)
+
+**What is built:**
+- **Schema & Migration:** `20261028180000_question_reports`:
+  - Added `QuestionReportStatus` enum (`OPEN`, `RESOLVED`, `DISMISSED`).
+  - Added `QuestionReportOutcome` enum (`FIXED`, `NOT_AN_ERROR`, `NEEDS_DISCUSSION`).
+  - Added `QuestionReport` model with check constraints:
+    - Reason length between 5 and 1000 characters.
+    - Role constraint (`'TEACHER' | 'PUPIL'`).
+    - Resolution sanity constraint: `OPEN` status requires null `resolvedAt` and `outcome`; non-`OPEN` requires non-null `resolvedAt`.
+  - Added relation fields to `User`, `StudentRecord`, `Branch`, and `QuestionBankItem`.
+- **Pure Domain Logic:** `src/lib/question-bank/reports.ts`:
+  - `sanitizeReportReason`: strips standard URLs and markdown link syntax (`[anchor](url)` -> `anchor`), collapses whitespace, rejects control characters (NUL bytes).
+  - `maskReporterForReviewer`: formats reviewer display to role and section only (e.g. "Pupil in JSS 1", "Teacher in Primary"), strictly preventing NDPA personal data leakage to reviewers.
+  - `computeRegradeImpact`: scans copied assessment questions and student attempts, producing clear warnings and offer messages for reviewers before applying fixes.
+  - `validateReportOutcome`: validates outcome types, minimum explanation lengths, and target status transitions.
+- **Service & Routes:**
+  - `src/lib/question-bank/reports-service.ts`:
+    - `reportQuestionAsTeacher`: validates teacher report permission, sanitizes reason, checks switch `bank.reports.teachers`, records append-only audit trail.
+    - `reportQuestionAsPupil`: enforces invariant that pupil must have practiced the question (`PracticeAttempt`), checks switch `bank.reports.pupils`.
+    - `listReportsForReviewer`: returns scrubbed reports with NDPA-masked reporters and live re-grade impact calculations.
+    - `resolveQuestionReport`: resolves report status, stores reviewer explanation, applies optional assessment re-grade on copied questions, and audits resolution.
+    - `getPupilReportHistory`: provides pupils with transparency on their filed reports and reviewer outcome reasons.
+  - Routes:
+    - `POST /api/v1/question-bank/items/[id]/report`: staff reporting.
+    - `GET /api/v1/question-bank/reports`: reviewer queue.
+    - `PATCH /api/v1/question-bank/reports/[id]`: reviewer resolution.
+    - `POST /api/v1/portal/students/[studentId]/practice/reports`: pupil reporting.
+    - `GET /api/v1/portal/students/[studentId]/practice/reports`: pupil report history.
+  - Registered all new handlers in `tests/unit/route-role-guard.spec.ts`.
+- **Tests & Verification:**
+  - `tests/unit/question-reports.spec.ts`: 15 domain rule unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
+  - `tests/api/question-reports.spec.ts`: 8 comprehensive API integration tests passed.
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
 ## 5. Definition of done (every slice)

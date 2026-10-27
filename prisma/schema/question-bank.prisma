@@ -92,6 +92,7 @@ model QuestionBankItem {
   flags       QuestionOverlapFlag[]  @relation("FlagItem")
   similarTo   QuestionOverlapFlag[]  @relation("FlagSimilarTo")
   practiceAttempts PracticeAttempt[]
+  reports     QuestionReport[]
 
   @@index([branchId, status])
   @@index([status, visibility])
@@ -289,3 +290,50 @@ model PracticeAttempt {
   @@index([branchId, studentId, archivedAt])
   @@index([branchId, bankItemId])
 }
+
+// --- Question Reports (Task 0032 slice 5; design note §8.5) ---
+
+enum QuestionReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum QuestionReportOutcome {
+  FIXED
+  NOT_AN_ERROR
+  NEEDS_DISCUSSION
+}
+
+/// An issue reported on a question by a teacher or pupil ("report an issue", not a thread).
+/// Reviewers see role and section only (NDPA privacy protection: pupil identities never shown).
+model QuestionReport {
+  id                String                 @id @default(cuid())
+  branchId          String?
+  itemId            String
+  itemVersion       Int
+  reporterRole      String                 // "TEACHER" | "PUPIL"
+  reporterSection   String                 // e.g. "JSS", "SSS", or branch name
+  reporterUserId    String?
+  reporterStudentId String?
+  reason            String
+  status            QuestionReportStatus   @default(OPEN)
+  outcome           QuestionReportOutcome?
+  outcomeReason     String?
+  resolvedById      String?
+  resolvedAt        DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @default(now()) @updatedAt
+
+  branch          Branch?          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  item            QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  reporterUser    User?            @relation("ReportTeacher", fields: [reporterUserId], references: [id], onDelete: SetNull)
+  reporterStudent StudentRecord?   @relation("ReportPupil", fields: [reporterStudentId], references: [id], onDelete: SetNull)
+  resolvedBy      User?            @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([branchId, status])
+  @@index([itemId, status])
+  @@index([reporterUserId])
+  @@index([reporterStudentId])
+}
+
