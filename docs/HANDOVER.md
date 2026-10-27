@@ -86,7 +86,7 @@ A detailed technical blueprint is documented in:
 
 ## 5. Verification & Test Suite Health
 
-- **Suite Status:** see 6.00 for the full run on the `dev` of 2026-10-27; the figure of 585 below is from the early phases and is out of date (the run of 2026-10-23 had 1995 passed, 18 skipped).
+- **Suite Status:** 2,376 tests passing, 18 skipped (designed skips), 2 failed (both fully investigated: 1 timing flake under load passing alone in 8.5s; 1 stale link count assertion from Question Bank addition to staff nav, fixed); details in 6.00.
 - **Full Mutation Testing:** 45 mutations across Pagination (`P1`–`P19`), Validation (`V1`–`V8`), CSRF (`C1`–`C9`), and Password Policy (`W1`–`W9`) -> 100% caught.
 
 ---
@@ -107,12 +107,14 @@ A detailed technical blueprint is documented in:
 3. **Step 2 of task 0040 needs NEW decisions** (the earlier three questions were answered yes and step 1 was built on them): what replaces the guardian's phone as the sign-in secret (recommended: a one-time code per pupil or guardian that the school hands out); whether siblings come from explicit guardian-to-pupil links (recommended: a link table, not a shared phone number); whether portal sessions can be revoked (recommended: a session table).
 4. **A proposal to confirm or overrule:** Octalve's question-bank setting `bank.parents.view` (`NONE`, `SUMMARY`, `FULL`) has its equivalent here already, `portal_access.guardian.practice`, so no second key was added; the two differences (the guardian default is `SUMMARY` here, `NONE` there; no school-wide ceiling here) are in task 0040 section 3.
 5. **Clean-up (done locally on 2026-10-27, at the maintainer's request):** the worktrees `../AlEemaan-approvers` and `../AlEemaan-portal` (both clean, both merged) were removed, and 60 local branches whose tip is in `dev` were deleted. Kept: `../AlEemaan-slice2` (the one used for the test runs; reused for every slice from 2.2 on) and the main checkout, which is on `claude/style-canonical-classes-dev-portal` (merged) and holds an UNTRACKED older draft of `docs/tasks/0040-portal-pupil-guardian-separation.md` (the committed file on `dev` is the current one; it stops a switch to `dev` until the draft is moved or deleted, so it was left for the maintainer). Local branches not merged into `dev`, left alone: `claude/fix-invoice-numbers`, `claude/staff-extended-fields`, `claude/task-0027-review-history-dialog`, `docs/handover-and-operations-blueprint`. The REMOTE branches (about 83 merged ones) were not deleted: deleting a published branch is outward-facing, so say if they should go. The old text below about "kept on purpose" worktrees is the record of 2026-10-21.
-6. **Promotion:** a `dev` to `master` PR was opened on 2026-10-27 at the maintainer's request (see the PR list). It is merged only when the maintainer approves that specific PR, and the full-suite result above is a condition worth waiting for.
+6. **Promotion:** a `dev` to `master` PR (#105) was opened on 2026-10-27 at the maintainer's request and merged into `master` on the maintainer's approval.
 
-**Verification as of this entry:** per slice, on `aleemaan_test`: 0039 slice 2a 29 tests and 3 of 3 mutations caught; 2b 34 tests and 7 of 7 mutations caught (10 of 10 with the slice 3 side); slice 3 five end-to-end tests on desktop and five on a phone. NOT mutation-checked: the slice 3 screen. **The full run of every project on the merged `dev` is NOT recorded yet:** the first run (2026-10-27) was cut off at about 2,170 tests with none failed when its session ended, so it counts for nothing; it was restarted the same day and the result goes here and in section 5 when it finishes.
+**Verification as of this entry:** per slice, on `aleemaan_test`: 0039 slice 2a 29 tests and 3 of 3 mutations caught; 2b 34 tests and 7 of 7 mutations caught (10 of 10 with the slice 3 side); slice 3 five end-to-end tests on desktop and five on a phone. NOT mutation-checked: the slice 3 screen. **Full run on merged `dev` (2026-10-27, 2.1 h):** 2,376 passed, 18 skipped, 2 failed. Both failures investigated:
+1. `tests/api/mfa-account.spec.ts:176`: timing flake during 2.1h machine load (30s TOTP boundary between confirm and login replay); re-run alone immediately, it passed in 8.5s.
+2. `tests/e2e/shell.spec.ts:188`: stale test assertion expecting 7 desktop links for teaching staff (`mainNav().getByRole('link')`), failing because PR #96 made Question Bank `staffOnly: true`, adding "Question bank" to the desktop sidebar (8 links: Overview, Students, Coursework, Attendance, Results, Timetable, Announcements, Question bank). Repaired to `isMobile ? 2 : 8` and verified passing alone (3/3 passed).
 
 **Next, in order:**
-1. Record the full-suite result above if it is not there, then the Octalve full run (its own HANDOVER).
+1. Octalve full run on its merged `dev` (its own HANDOVER).
 2. Forms and question bank slice 3 (use in assessments), 4 (pupil practice; this is where `portal_access.guardian.practice` is first READ) and 5 (reports); the plan is task 0032 section 4a and the decisions in 6.1 to 6.5b.
 3. Task 0040 step 2, when the maintainer has answered item 3 above.
 4. The `/video-guide` pages and a responsiveness audit. **The walkthrough audit (task 0033) runs LAST.**
