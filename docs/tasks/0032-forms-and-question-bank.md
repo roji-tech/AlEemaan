@@ -17,9 +17,9 @@ Teachers reuse reviewed questions from a bank; pupils practise from the portal; 
 - Builds on Slice UI1 (Task 0031): portal hand-in and quizzes, `withAuthGated`, theme tokens.
 
 ## 3. Work Breakdown
-- [ ] 1 Foundation: models, migration, settings keys, reviewers, audit, route-guard entries
-- [ ] 2 Bank core: submit, review queue, approve/reject/retire, class tags, images, scopes, visibility, overlap flags
-- [ ] 3 Use in assessments: copy on use, offer-back, template hiding
+- [x] 1 Foundation: models, migration, settings keys, reviewers, audit, route-guard entries (PR #69)
+- [x] 2 Bank core: submit, review queue, approve/reject/retire, class tags, images, scopes, visibility, overlap flags (PRs #92, #94, #95, #96, #97)
+- [x] 3 Use in assessments: copy on use, offer-back, template hiding
 - [ ] 4 Pupil practice: sessions, feedback timing, size and caps, history, archive
 - [ ] 5 Reports on questions: queue, outcomes, switches, re-grade offer
 - [ ] 6 Practice sets (ungraded forms)
@@ -137,6 +137,72 @@ Slice 2 is cut into PRs so each stays reviewable; the migration and the hosted d
 **Deploy:** the hosted database needs `20261026090000_question_bank_core` before this code is deployed there, after `20261019210000_question_bank_foundation`. Both are additive.
 
 **Not in slice 2:** use in assessments (slice 3), pupil practice (4), reports (5), forms (6 to 8), marking (9), printing (10).
+
+## 4c. Slice 3 plan: Use in assessments (copy on use, offer-back, template hiding)
+
+**Objective & Scope (design note sections 2, 7, 8.2, 8.3):**
+Bridge approved Question Bank items into assessments (Quizzes and Tests) with strict exam secrecy, immutable past papers, and teacher authoring ergonomics.
+
+1. **Schema & Migration (additive, `prisma/schema/lms.prisma` and `prisma/schema/question-bank.prisma`):**
+   - `QuizQuestion`:
+     - `sourceItemId String?`: link to `QuestionBankItem(id)`.
+     - `sourceVersion Int?`: version of the bank item at the moment it was copied.
+     - `exposedToPractice Boolean @default(false)`: marked true if the bank item's visibility was `PRACTICE` when copied into the assessment.
+     - Index on `[sourceItemId]`.
+   - `Quiz`:
+     - `isExamTemplate Boolean @default(false)`: marks an assessment template.
+     - `examWindowStart DateTime?`: start of scheduled exam window.
+     - `examWindowEnd DateTime?`: end of scheduled exam window.
+   - `QuestionBankItem`:
+     - `visibleAfterQuizId String?`: for `TEACHERS_ONLY_UNTIL` tied to an assessment's completion.
+     - Index on `[visibleAfterQuizId]`.
+
+2. **Domain Logic & Pure Units (`src/lib/question-bank/assessments.ts`):**
+   - `copyFromBankItem`: deep-copies prompt, type (maps `BankQuestionType` to quiz `QuestionType`), options, correctAnswer, and points. Computes `exposedToPractice = (visibility === "PRACTICE" || (visibility === "TEACHERS_ONLY_UNTIL" && visibleFrom && visibleFrom <= now))`.
+   - `prepareOfferBack`: maps a quiz question into a new `QuestionBankItem` draft payload with status `PENDING`, version 1, bank `ASSESSMENT`. Invariant: never mutates or overwrites `sourceItemId`.
+   - `isTemplateHidden`: pure rule returning true if `isExamTemplate` is set, `now` is within or before `examWindowEnd`, and caller is not the owner/creator or superadmin.
+
+3. **Services & Endpoints:**
+   - Copy-on-use integration in `createQuiz` and `updateQuiz` in `src/lib/lms/service.ts`.
+   - Offer-back API: `POST /api/v1/question-bank/items/offer-back`. Creates a new item in status `PENDING`, runs `refreshOverlap` (silent similarity detection), records audit trail.
+   - Template hiding enforcement in `listQuizzes` and `getQuizById`.
+
+4. **UI Consoles:**
+   - "Add from Question Bank" modal in Quiz builder (`QuizConsole.tsx`): filter by subject and class tag, preview, deep-copy into quiz.
+   - Pill on copied questions: "From Bank (vX)".
+   - Warning banner when `exposedToPractice` is true: *"Warning: This question is in the pupil practice pool."*
+   - "Offer back to Question Bank" button on custom or edited questions.
+   - Exam template toggle with window dates.
+
+5. **Tests:**
+   - Unit: `tests/unit/question-bank-assessments.spec.ts`.
+   - Integration: `tests/integration/question-bank-assessments.spec.ts`.
+   - API: `tests/api/question-bank-offer-back.spec.ts` and `tests/api/lms-quizzes-copy-on-use.spec.ts`.
+   - E2E: `tests/e2e/question-bank-assessments.spec.ts`.
+
+## 4d. Slice 3 as built (2026-10-27)
+
+**What is built:**
+- **Schema & Migration:** `20261027140000_question_bank_assessments`:
+  - `Quiz`: added `isExamTemplate` (BOOLEAN DEFAULT false), `examWindowStart` (TIMESTAMPTZ), `examWindowEnd` (TIMESTAMPTZ).
+  - `QuizQuestion`: added `sourceItemId` (TEXT), `sourceVersion` (INTEGER), `exposedToPractice` (BOOLEAN DEFAULT false), and index on `[sourceItemId]`.
+  - `QuestionBankItem`: added `visibleAfterQuizId` (TEXT), and index on `[visibleAfterQuizId]`.
+- **Pure Domain Logic:** `src/lib/question-bank/assessments.ts`:
+  - `mapBankTypeToQuizType` and `mapQuizTypeToBankType`.
+  - `isExposedToPractice`: evaluates whether bank item visibility exposes questions to pupils (`PRACTICE` or `TEACHERS_ONLY_UNTIL` with past `visibleFrom`).
+  - `copyFromBankItem`: deep-copies prompt, type, options, correctAnswer, and records provenance (`sourceItemId`, `sourceVersion`, `exposedToPractice`).
+  - `prepareOfferBackPayload`: translates assessment question into a valid itemBody payload for `parseItem`, creating an immutable new item in the review queue.
+  - `isTemplateHidden`: enforces exam template secrecy (author and superadmin always see; other teachers blocked before and during window).
+- **Service & Routes:**
+  - `src/lib/lms/service.ts`: `createQuiz`, `updateQuiz`, `listQuizzes`, `getQuizById` enforce exam template secrecy and copy-on-use provenance.
+  - `src/lib/question-bank/items-service.ts`: `offerBackItem` offers an assessment question back to the bank as a brand-new `PENDING` item with version 1 snapshot and audit row, without mutating the quiz question.
+  - `src/app/api/v1/question-bank/items/offer-back/route.ts`: gated with `withAuthGated("staff-read")`, `BANK_STAFF_ROLES`.
+  - `tests/unit/route-role-guard.spec.ts`: allowlist entries registered for both routes.
+- **Tests & Verification:**
+  - `tests/unit/question-bank-assessments.spec.ts`: 14 unit tests (mapping, copying, secrecy rules, offer-back formatting).
+  - `tests/unit/route-role-guard.spec.ts`: 7 tests passing.
+  - `tests/api/question-bank-assessments.spec.ts`: 4 end-to-end API tests covering copy-on-use provenance, exam secrecy during/after window, and offer-back permissions and immutability.
+  - `pnpm exec tsc --noEmit` and `pnpm build`: passed with 0 errors.
 
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.

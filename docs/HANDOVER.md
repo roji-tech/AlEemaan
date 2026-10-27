@@ -59,13 +59,13 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ---
 
-## 3. Database Migrations Status (26 of 30 deployed live; the 4 newest are pending there)
+## 3. Database Migrations Status (26 of 31 deployed live; the 5 newest are pending there)
 
-The repository holds 30 migrations once the slice 2.0 PR is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`) the 29th (`20261025120000_results_approval_scopes`, additive: a type, two tables and a nullable column; it gives nobody a scope) and the 30th (`20261026090000_question_bank_core`, additive: one table, a column, triggers) are NOT recorded as run on the live one (the maintainer runs `pnpm db:migrate:deploy` there, `hosted_schemes` BEFORE its code is deployed):
+The repository holds 31 migrations once Slice 3 is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`), the 29th (`20261025120000_results_approval_scopes`), the 30th (`20261026090000_question_bank_core`), and the 31st (`20261027140000_question_bank_assessments`, additive: columns on Quiz, QuizQuestion, QuestionBankItem) are pending on live:
 
-- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 26 migrations applied.
+- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 31 migrations applied.
 - **Live Remote Database:** `postgres://...:5432/postgres?sslmode=require` (`db.prisma.io:5432`) — 26 migrations applied.
-- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261026090000_question_bank_core/migration.sql`.
+- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261027140000_question_bank_assessments/migration.sql`.
 
 ---
 
@@ -98,7 +98,7 @@ A detailed technical blueprint is documented in:
 **On `dev` (tip `bcdeaff`, PR #102):** everything below is merged; nothing is promoted to `master` or `prod` (that needs the maintainer's approval).
 - **Results approvers by scope (task 0039) is complete:** slice 1 earlier; 2a PR #98 (the branch setting `results.unsectionedClassApproval`), 2b PR #99 (the superadmin's API for sections and where each approver approves, under `/api/v1/settings/results-approval`), 3 PR #100 (the "Results approval" tab of Settings). Octalve Edu's ADR 0018 is Accepted there.
 - **The portal tells a pupil from a guardian (task 0040, step 1)** is PR #93; step 2 (real separate credentials) is NOT started.
-- **Forms and question bank (task 0032):** slice 1 and all of slice 2 are merged: 2.0 PR #92, 2.1 #94 (service and API), 2.2 #95 (pictures), 2.3 #96 (the screens: Browse, My questions, Review queue), and the fix #97 (a reviewer for every branch saw an empty queue). Slices 3 to 10 are not started. Octalve Edu has the same bank (its task 0024, slices A to E, PRs #68 to #72).
+- **Forms and question bank (task 0032):** slice 1 and all of slice 2 are merged: 2.0 PR #92, 2.1 #94 (service and API), 2.2 #95 (pictures), 2.3 #96 (the screens: Browse, My questions, Review queue), and the fix #97 (a reviewer for every branch saw an empty queue). Slice 3 (use in assessments: copy-on-use, offer-back, template hiding) is built, type-checked, and verified on branch `claude/forms-qbank-slice-3` (14 unit tests, 7 route guards, 4 API tests all green). Slices 4 to 10 are next. Octalve Edu has the same bank (its task 0024, slices A to E, PRs #68 to #72).
 - Other merges since 2026-10-21: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
 
 **Waiting on the maintainer (none blocks the next code work):**
