@@ -1,10 +1,10 @@
 # AlEemaan — Project Status & Handover Documentation
 
-> **Last Updated:** 2026-10-21 (state and next work: section 6.0; how to work here: section 7)  
+> **Last Updated:** 2026-10-27 (state and next work: section 6.00; how to work here: section 7)  
 > **Scope:** AlEemaan School Management System (Single-Tenant, Multi-Branch Architecture)  
 > **Repository:** `roji-tech/AlEemaan`  
 > **Active Branch:** `dev` (69 commits ahead of `master`, which is `dev` as of PR #66 on 2026-10-18; `prod` is 5 commits behind `master`: nothing since is promoted)  
-> **Taking over? Read section 6.0, then section 7, then `CLAUDE.md`.**
+> **Taking over? Read section 6.00, then section 7, then `CLAUDE.md`.**
 
 ---
 
@@ -86,14 +86,41 @@ A detailed technical blueprint is documented in:
 
 ## 5. Verification & Test Suite Health
 
-- **Suite Status:** 585 tests passing, 0 failures, 18 documented design skips.
+- **Suite Status:** see 6.00 for the full run on the `dev` of 2026-10-27; the figure of 585 below is from the early phases and is out of date (the run of 2026-10-23 had 1995 passed, 18 skipped).
 - **Full Mutation Testing:** 45 mutations across Pagination (`P1`–`P19`), Validation (`V1`–`V8`), CSRF (`C1`–`C9`), and Password Policy (`W1`–`W9`) -> 100% caught.
 
 ---
 
-## 6. Current work (2026-10-21) - START HERE
+## 6. Current work (2026-10-27) - START HERE
 
-### 6.0 State on 2026-10-21 (start here)
+### 6.00 State on 2026-10-27 (start here; this supersedes 6.0 of 2026-10-21 below, which is kept as the record)
+
+**On `dev` (tip `bcdeaff`, PR #102):** everything below is merged; nothing is promoted to `master` or `prod` (that needs the maintainer's approval).
+- **Results approvers by scope (task 0039) is complete:** slice 1 earlier; 2a PR #98 (the branch setting `results.unsectionedClassApproval`), 2b PR #99 (the superadmin's API for sections and where each approver approves, under `/api/v1/settings/results-approval`), 3 PR #100 (the "Results approval" tab of Settings). Octalve Edu's ADR 0018 is Accepted there.
+- **The portal tells a pupil from a guardian (task 0040, step 1)** is PR #93; step 2 (real separate credentials) is NOT started.
+- **Forms and question bank (task 0032):** slice 1 and all of slice 2 are merged: 2.0 PR #92, 2.1 #94 (service and API), 2.2 #95 (pictures), 2.3 #96 (the screens: Browse, My questions, Review queue), and the fix #97 (a reviewer for every branch saw an empty queue). Slices 3 to 10 are not started. Octalve Edu has the same bank (its task 0024, slices A to E, PRs #68 to #72).
+- Other merges since 2026-10-21: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
+
+**Waiting on the maintainer (none blocks the next code work):**
+1. The hosted database, in this order, each BEFORE the code that needs it is deployed there: `20261019090000_hosted_schemes`, `20261019210000_question_bank_foundation`, `20261025120000_results_approval_scopes`, `20261026090000_question_bank_core` (section 3 still says 26 applied; the repository holds 30). The AI never runs a migration on the hosted database.
+2. `IMAGE_STORE` and its credentials for pictures on a hosted deployment (without one the picture routes answer 503 and the rest of the bank works); rotating the exposed credentials; the held docs PR #81 (answers on ISS-0021); `pnpm admins:list` against the live database; the older list in `docs/open-items.md`.
+3. **Step 2 of task 0040 needs NEW decisions** (the earlier three questions were answered yes and step 1 was built on them): what replaces the guardian's phone as the sign-in secret (recommended: a one-time code per pupil or guardian that the school hands out); whether siblings come from explicit guardian-to-pupil links (recommended: a link table, not a shared phone number); whether portal sessions can be revoked (recommended: a session table).
+4. **A proposal to confirm or overrule:** Octalve's question-bank setting `bank.parents.view` (`NONE`, `SUMMARY`, `FULL`) has its equivalent here already, `portal_access.guardian.practice`, so no second key was added; the two differences (the guardian default is `SUMMARY` here, `NONE` there; no school-wide ceiling here) are in task 0040 section 3.
+5. **Clean-up (done locally on 2026-10-27, at the maintainer's request):** the worktrees `../AlEemaan-approvers` and `../AlEemaan-portal` (both clean, both merged) were removed, and 60 local branches whose tip is in `dev` were deleted. Kept: `../AlEemaan-slice2` (the one used for the test runs; reused for every slice from 2.2 on) and the main checkout, which is on `claude/style-canonical-classes-dev-portal` (merged) and holds an UNTRACKED older draft of `docs/tasks/0040-portal-pupil-guardian-separation.md` (the committed file on `dev` is the current one; it stops a switch to `dev` until the draft is moved or deleted, so it was left for the maintainer). Local branches not merged into `dev`, left alone: `claude/fix-invoice-numbers`, `claude/staff-extended-fields`, `claude/task-0027-review-history-dialog`, `docs/handover-and-operations-blueprint`. The REMOTE branches (about 83 merged ones) were not deleted: deleting a published branch is outward-facing, so say if they should go. The old text below about "kept on purpose" worktrees is the record of 2026-10-21.
+6. **Promotion:** a `dev` to `master` PR was opened on 2026-10-27 at the maintainer's request (see the PR list). It is merged only when the maintainer approves that specific PR, and the full-suite result above is a condition worth waiting for.
+
+**Verification as of this entry:** per slice, on `aleemaan_test`: 0039 slice 2a 29 tests and 3 of 3 mutations caught; 2b 34 tests and 7 of 7 mutations caught (10 of 10 with the slice 3 side); slice 3 five end-to-end tests on desktop and five on a phone. NOT mutation-checked: the slice 3 screen. **The full run of every project on the merged `dev` is NOT recorded yet:** the first run (2026-10-27) was cut off at about 2,170 tests with none failed when its session ended, so it counts for nothing; it was restarted the same day and the result goes here and in section 5 when it finishes.
+
+**Next, in order:**
+1. Record the full-suite result above if it is not there, then the Octalve full run (its own HANDOVER).
+2. Forms and question bank slice 3 (use in assessments), 4 (pupil practice; this is where `portal_access.guardian.practice` is first READ) and 5 (reports); the plan is task 0032 section 4a and the decisions in 6.1 to 6.5b.
+3. Task 0040 step 2, when the maintainer has answered item 3 above.
+4. The `/video-guide` pages and a responsiveness audit. **The walkthrough audit (task 0033) runs LAST.**
+
+**Rules learned since 2026-10-21 (they apply to new code):** `OR: [{ ... }, {}]` in a Prisma `where` is NOT "match everything" (found by the Octalve port: leave the condition out); `contains` treats `%` and `_` as wildcards, so escape the text; a nested `<dialog>` closing fires `close` on the parent, so `Dialog` ignores a close whose target is not itself; keep zod out of client components (the CSP reports an `eval`); a multipart or raw body is read only through `readBoundedForm` / `readBoundedBytes` (`src/lib/api/read-body.ts`); the test servers run `IMAGE_STORE=memory` (the dev-tools server has none, for the 503 case); this repository has no formatter and long lines, so do not run a default prettier over existing files.
+
+### 6.0 State on 2026-10-21 (the record; see 6.00 above for now)
+
 
 **Merged into `dev` (by the maintainer):** [#67](https://github.com/roji-tech/AlEemaan/pull/67) Slice UI1 (2026-10-19), #68 fail-closed secrets, #69 Forms and question bank slice 1, #70 canonical Tailwind class names, #71 the branch gate checks every branch a request names and caps the body it reads, #72 the code catalogs (`docs/pages`, `docs/components`, `docs/functions`: one row per tracked file under `src/`, changed in the same commit as the file).
 
@@ -115,7 +142,7 @@ A detailed technical blueprint is documented in:
 **Waiting on the maintainer (none of these blocks the next work):**
 1. The hosted database: `20261019090000_hosted_schemes` and `20261025120000_results_approval_scopes` (each must run BEFORE the code that needs it is deployed there) `20261019210000_question_bank_foundation` and `20261026090000_question_bank_core` (in that order, before the question bank code is deployed) are not recorded as run on it (section 3 below says 26 migrations applied; the repository holds 30); and `pnpm admins:list` against the live database, to say who stays a superadmin (`docs/open-items.md` section 1).
 2. The older list in `docs/open-items.md` sections 1 and 3b and in the private tracker: provider keys, rotating the credentials that were exposed, parents A/B/C, the portal sign-in codes, slice-2 proposals, sibling grouping (S14), the materials design (F3), whether to add a catalog coverage test (a unit test that fails when a file under `src/` has no row), renaming `break-words` in three files, and any promotion to `master`/`prod`.
-3. Octalve's ADR 0018 (results approvers by scope) is Proposed there; this repository follows it after Octalve's slices land, so the maintainer's yes on its three proposed details also unblocks the port here.
+3. ~~Octalve's ADR 0018 (results approvers by scope) is Proposed there~~ It is Accepted there and the port here is merged (task 0039, see 6.00).
 
 **Found in Octalve Edu on 2026-10-21 and now verified here (task 0036, branch `claude/fix-proxy-api-matcher`, merged into `dev` as PR #83 on 2026-10-22):** this repository's `src/proxy.ts` had the same matcher entry, `{ source: "/api/:path*" }`, which makes Next buffer a proxied request's body and wait for its END before the route runs, so a body that never ends was never answered (the route's own 413 never came). The new `tests/api/body-cap-stall.spec.ts` failed on `dev` (no answer within 20 s; its three controls passed). The entry is now `{ source: "/api/(.*%.*)" }`: only an API path with a percent sign (the only kind that can be badly encoded) comes through the proxy, and a guard in `tests/integration/proxy.spec.ts` keeps it so. **Found by the whole-suite run after that change:** with the proxy no longer reading the body, a body over the cap is refused while the client may still be sending, and the request after it could be reset on the reused connection (the spec `tests/api/branch-gate-both-sources.spec.ts`, the test after its 1 MiB-body test, failed in 4 of 6 repeats; it passed 4 of 4 on an unmodified `dev` build). Every 413 now carries `Connection: close` (`fail()` and the payment webhook), and the stall spec has two tests for it (the header; eight rounds of an oversize body followed by an ordinary request). The same change is on Octalve Edu's `dev` (its PR #59).
 
