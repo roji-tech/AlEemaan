@@ -5,6 +5,7 @@ import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createQuizSchema } from "@/lib/lms/validation";
 import { isBranchStaff, hideAnswerKey } from "@/lib/lms/audience";
+import { isSuperAdmin } from "@/lib/auth/branch-access";
 import { listQuizzes, createQuiz } from "@/lib/lms/service";
 import { readJsonBody } from "@/lib/api/validate";
 
@@ -25,11 +26,18 @@ export const GET = withAuthGated(
       const subjectId = searchParams.get("subjectId") ?? undefined;
       const status = searchParams.get("status") as QuizStatus | undefined;
 
-      const staff = await isBranchStaff(auth.userId, branchId);
-      const quizzes = await listQuizzes(branchId, {
-        subjectId,
-        status: staff ? (status && Object.values(QuizStatus).includes(status) ? status : undefined) : QuizStatus.PUBLISHED,
-      });
+      const [staff, superAdmin] = await Promise.all([
+        isBranchStaff(auth.userId, branchId),
+        isSuperAdmin(auth.userId),
+      ]);
+      const quizzes = await listQuizzes(
+        branchId,
+        {
+          subjectId,
+          status: staff ? (status && Object.values(QuizStatus).includes(status) ? status : undefined) : QuizStatus.PUBLISHED,
+        },
+        { userId: auth.userId, isSuperAdmin: superAdmin },
+      );
 
       return ok(staff ? quizzes : quizzes.map(hideAnswerKey));
     } catch (error) {

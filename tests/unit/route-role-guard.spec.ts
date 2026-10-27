@@ -143,6 +143,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "DELETE v1/lms/quizzes/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/quizzes/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/lms/quizzes/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
@@ -169,6 +171,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
   "GET v1/question-bank/items/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
   "POST v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "POST v1/question-bank/items/offer-back/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/question-bank/items/[id]/route.ts":
     "no branch is named in the request: the branch is the ITEM's, and question-bank/rules (staffMaySee, with a viewer read inside the transaction) decides; a question the person may not see is the same 404 as one that does not exist",
@@ -266,6 +270,8 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "DELETE v1/lms/quizzes/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/quizzes/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/lms/quizzes/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/settings/approval/[id]/route.ts": "approval details retrieved with branch scope verification",
@@ -308,6 +314,8 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/question-bank/items/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
   "POST v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "POST v1/question-bank/items/offer-back/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/question-bank/items/[id]/route.ts":
     "no branch is named in the request: the branch is the ITEM's, and question-bank/rules (staffMaySee, with a viewer read inside the transaction) decides; a question the person may not see is the same 404 as one that does not exist",

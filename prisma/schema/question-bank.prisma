@@ -69,16 +69,18 @@ model QuestionBankItem {
   subjectKey    String?
   visibility    BankVisibility   @default(TEACHERS_ONLY)
   /// For TEACHERS_ONLY_UNTIL: the date from which pupils may see it (the "until an assessment closes" form arrives with slice 3).
-  visibleFrom   DateTime?
-  status        BankItemStatus   @default(DRAFT)
+  visibleFrom        DateTime?
+  /// For TEACHERS_ONLY_UNTIL: the assessment whose close unlocks the item for pupils.
+  visibleAfterQuizId String?
+  status             BankItemStatus   @default(DRAFT)
   /// A fix creates a new version; old versions are kept.
-  version       Int              @default(1)
-  submittedById String
-  approvedById  String?
-  approvedAt    DateTime?
-  retiredReason String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @default(now()) @updatedAt
+  version            Int              @default(1)
+  submittedById      String
+  approvedById       String?
+  approvedAt         DateTime?
+  retiredReason      String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @default(now()) @updatedAt
 
   branch      Branch?                @relation(fields: [branchId], references: [id], onDelete: Restrict)
   submittedBy User                   @relation("BankItemSubmitter", fields: [submittedById], references: [id], onDelete: NoAction)
@@ -93,6 +95,7 @@ model QuestionBankItem {
   @@index([branchId, status])
   @@index([status, visibility])
   @@index([bank, subjectKey])
+  @@index([visibleAfterQuizId])
 }
 
 /// At most 4 per item (a trigger; the superadmin's setting, 3 or 4, is enforced by the service). Alt text is required unless the image is marked decorative (a check).
