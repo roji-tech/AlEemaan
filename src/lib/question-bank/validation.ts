@@ -23,3 +23,14 @@ export const submitPracticeAnswerSchema = z.object({
 export const archivePracticeAttemptSchema = z.object({
   archived: z.boolean(),
 });
+
+export const createQuestionReportSchema = z.object({
+  reason: z.string().min(5).max(1000),
+});
+
+export const resolveQuestionReportSchema = z.object({
+  outcome: z.enum(["FIXED", "NOT_AN_ERROR", "NEEDS_DISCUSSION"]),
+  outcomeReason: z.string().min(3).max(1000),
+  applyRegrade: z.boolean().optional(),
+});
+

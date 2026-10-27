@@ -71,6 +71,10 @@ const ALLOWED: Record<string, string> = {
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "PATCH v1/portal/students/[studentId]/practice/history/[id]/route.ts":
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "POST v1/portal/students/[studentId]/practice/reports/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "GET v1/portal/students/[studentId]/practice/reports/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
 };
 
 /// A handler declares who may call it with `roles:` or `superAdmin: true`.
@@ -193,6 +197,10 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
   "GET v1/timetable/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/timetable/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/question-bank/items/[id]/report/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/reports/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided in reports-service)",
 };
 
 /// Third assertion (ADR 0015): a handler that names a branch is wrapped by `withBranch` - the structure that makes the branch check impossible to forget -
@@ -211,6 +219,10 @@ const NOT_WRAPPED: Record<string, string> = {
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/finish/route.ts":
     "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
   "PATCH v1/portal/students/[studentId]/practice/history/[id]/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/practice/reports/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "GET v1/portal/students/[studentId]/practice/reports/route.ts":
     "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
   "GET v1/academics/sessions/route.ts": "a list narrowed to the caller's own branches (branchIdsFor); acts on no single branch",
   "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
@@ -345,6 +357,10 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
   "DELETE v1/question-bank/reviewers/[id]/route.ts":
     "the branch is the reviewer ROW's, never the request's: the caller must administer that branch (canAdminister) or be a superadmin, and an every-branch row (branchId null) is a superadmin's alone, which withBranch does not model; unknown and not-yours are the same 404",
+  "POST v1/question-bank/items/[id]/report/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/reports/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided in reports-service)",
 };
 
 function routeFiles(dir: string): string[] {
