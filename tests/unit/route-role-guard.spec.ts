@@ -59,6 +59,18 @@ const ALLOWED: Record<string, string> = {
     "portal hand-in: verified by HMAC portal session cookie and allowedStudentIds; the pupil's enrolment fixes the branch and class",
   "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
     "portal quiz attempt: verified by HMAC portal session cookie and allowedStudentIds; the pupil's enrolment fixes the branch and class",
+  "GET v1/portal/students/[studentId]/practice/options/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "POST v1/portal/students/[studentId]/practice/sessions/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "POST v1/portal/students/[studentId]/practice/sessions/[id]/answers/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "POST v1/portal/students/[studentId]/practice/sessions/[id]/finish/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "GET v1/portal/students/[studentId]/practice/history/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "PATCH v1/portal/students/[studentId]/practice/history/[id]/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
 };
 
 /// A handler declares who may call it with `roles:` or `superAdmin: true`.
@@ -192,6 +204,14 @@ const NOT_WRAPPED: Record<string, string> = {
     "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
     "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/practice/sessions/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/practice/sessions/[id]/answers/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/practice/sessions/[id]/finish/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "PATCH v1/portal/students/[studentId]/practice/history/[id]/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
   "GET v1/academics/sessions/route.ts": "a list narrowed to the caller's own branches (branchIdsFor); acts on no single branch",
   "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
   "GET v1/students/route.ts": "a list narrowed to the caller's visible branches (branchIdsFor); acts on no single branch",
@@ -303,6 +323,8 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/portal/students/[studentId]/results/route.ts": "portal student results verified by portal session cookie",
   "GET v1/portal/students/[studentId]/invoices/route.ts": "portal student invoices verified by portal session cookie",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS verified by portal session cookie",
+  "GET v1/portal/students/[studentId]/practice/options/route.ts": "portal student practice options verified by portal session cookie",
+  "GET v1/portal/students/[studentId]/practice/history/route.ts": "portal student practice history verified by portal session cookie",
   "GET v1/question-bank/reviewers/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
   "POST v1/question-bank/reviewers/route.ts":

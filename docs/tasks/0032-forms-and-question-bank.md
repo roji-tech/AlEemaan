@@ -20,7 +20,7 @@ Teachers reuse reviewed questions from a bank; pupils practise from the portal; 
 - [x] 1 Foundation: models, migration, settings keys, reviewers, audit, route-guard entries (PR #69)
 - [x] 2 Bank core: submit, review queue, approve/reject/retire, class tags, images, scopes, visibility, overlap flags (PRs #92, #94, #95, #96, #97)
 - [x] 3 Use in assessments: copy on use, offer-back, template hiding
-- [ ] 4 Pupil practice: sessions, feedback timing, size and caps, history, archive
+- [x] 4 Pupil practice: sessions, feedback timing, size and caps, history, archive
 - [ ] 5 Reports on questions: queue, outcomes, switches, re-grade offer
 - [ ] 6 Practice sets (ungraded forms)
 - [ ] 7 Questionnaires: members, public, anonymous, summaries
@@ -203,6 +203,37 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/unit/route-role-guard.spec.ts`: 7 tests passing.
   - `tests/api/question-bank-assessments.spec.ts`: 4 end-to-end API tests covering copy-on-use provenance, exam secrecy during/after window, and offer-back permissions and immutability.
   - `pnpm exec tsc --noEmit` and `pnpm build`: passed with 0 errors.
+
+## 4e. Slice 4 as built (2026-10-27)
+
+**What is built:**
+- **Schema & Migration:** `20261028120000_pupil_practice`:
+  - Added `PracticeFeedbackMode` enum (`EACH`, `END`).
+  - Added `PracticeSession` model (`id`, `branchId`, `studentId`, `classGroupId`, `subjectLabel`, `subjectKey`, `topic`, `size`, `feedbackMode`, `itemIds`, `startedAt`, `finishedAt`).
+  - Added `PracticeAttempt` model (`id`, `sessionId`, `branchId`, `studentId`, `bankItemId`, `version`, `answer`, `correct`, `answeredAt`, `archivedAt`).
+  - Added relation fields to `Branch`, `StudentRecord`, and `QuestionBankItem`.
+- **Pure Domain Logic:** `src/lib/question-bank/practice.ts`:
+  - `isItemAvailableForPractice`: checks `bank === "ASSESSMENT"`, `status === "APPROVED"`, and visibility (`PRACTICE` or `TEACHERS_ONLY_UNTIL` with past `visibleFrom`).
+  - `scrubQuestionForPupil`: strips `correctAnswer` and `explanation` so answer keys are never sent to pupils before answering.
+  - `evaluatePracticeAnswer`: validates and scores answers for `SINGLE`, `MULTI`, `TRUE_FALSE`, and `SHORT` question types with whitespace and case normalization.
+  - `computeDailyCapRemaining`: computes remaining daily question allowance (`dailyCap - todayAttempts`, floor 0).
+  - `determineSessionSize`: clamps requested session size to presets, branch/school `maxQuestions`, and available pool count.
+  - `aggregateGuardianSummary`: generates aggregated performance metrics (`totalSessions`, `totalAttempted`, `totalCorrect`, `overallAccuracy`, `topics`) without disclosing prompts, options, or pupil responses.
+- **Service & Routes:**
+  - `src/lib/question-bank/practice-service.ts`: `getPracticeOptions`, `startPracticeSession`, `submitPracticeAnswer`, `finishPracticeSession`, `getPracticeHistory`, `archivePracticeAttempt`.
+  - Portal Routes under `src/app/api/v1/portal/students/[studentId]/practice/`:
+    - `GET options`: returns available subjects, topic counts, minPoolSize, daily cap remaining.
+    - `POST sessions`: starts randomized practice session with scrubbed questions.
+    - `POST sessions/[id]/answers`: submits answer with instant feedback (`EACH` mode) or deferred feedback (`END` mode).
+    - `POST sessions/[id]/finish`: finalizes session, computes score and delivers full answer key explanations.
+    - `GET history`: returns child's practice sessions (`FULL`) or guardian metrics (`SUMMARY`), rejecting `practice: "NONE"`.
+    - `PATCH history/[id]`: toggles `archivedAt` while preserving analytics.
+  - Route role guard registration in `tests/unit/route-role-guard.spec.ts` under `ALLOWED`, `NOT_WRAPPED`, and `BRANCH_CHECKED_ELSEWHERE`.
+- **Tests & Verification:**
+  - `tests/unit/pupil-practice.spec.ts`: 13 pure logic unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route guard tests passed.
+  - `tests/api/pupil-practice.spec.ts`: 7 API integration tests passed.
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.
