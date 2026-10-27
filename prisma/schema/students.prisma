@@ -43,6 +43,8 @@ model StudentRecord {
   quizAttempts          QuizAttempt[]
   guardianLinkTokens    GuardianLinkToken[]
   promotionRecords      PromotionRecord[]
+  practiceSessions      PracticeSession[]
+  practiceAttempts      PracticeAttempt[]
 
   @@unique([branchId, id])
   @@index([branchId])

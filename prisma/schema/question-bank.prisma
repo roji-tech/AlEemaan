@@ -91,6 +91,7 @@ model QuestionBankItem {
   versions    QuestionBankItemVersion[]
   flags       QuestionOverlapFlag[]  @relation("FlagItem")
   similarTo   QuestionOverlapFlag[]  @relation("FlagSimilarTo")
+  practiceAttempts PracticeAttempt[]
 
   @@index([branchId, status])
   @@index([status, visibility])
@@ -228,4 +229,63 @@ model QuestionBankAudit {
   @@index([branchId, createdAt])
   @@index([itemId])
   @@index([createdAt])
+}
+
+// --- Pupil Practice (Task 0032 slice 4; design note docs/development-history/forms-and-question-bank-design.md §8.4) ---
+
+enum PracticeFeedbackMode {
+  EACH
+  END
+}
+
+/// A pupil's practice set. Draws random approved PRACTICE items for the pupil's class. Never graded; private to the pupil.
+model PracticeSession {
+  id           String               @id @default(cuid())
+  branchId     String
+  studentId    String
+  classGroupId String?
+  subjectLabel String?
+  subjectKey   String?
+  topic        String?
+  size         Int
+  feedbackMode PracticeFeedbackMode @default(EACH)
+  itemIds      Json                 @default("[]")
+  startedAt    DateTime             @default(now())
+  finishedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @default(now()) @updatedAt
+
+  branch   Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student  StudentRecord     @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  attempts PracticeAttempt[]
+
+  @@unique([branchId, id])
+  @@index([branchId, studentId])
+  @@index([branchId, studentId, startedAt])
+}
+
+/// An answer given in a practice session. Kept for history; a pupil can archive entries (hidden from pupil's view, still feeds class summaries).
+model PracticeAttempt {
+  id         String    @id @default(cuid())
+  sessionId  String
+  branchId   String
+  studentId  String
+  bankItemId String
+  version    Int
+  answer     Json
+  correct    Boolean
+  answeredAt DateTime  @default(now())
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  branch   Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session  PracticeSession  @relation(fields: [branchId, sessionId], references: [branchId, id], onDelete: Cascade)
+  student  StudentRecord    @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  bankItem QuestionBankItem @relation(fields: [bankItemId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, sessionId])
+  @@index([branchId, studentId])
+  @@index([branchId, studentId, archivedAt])
+  @@index([branchId, bankItemId])
 }

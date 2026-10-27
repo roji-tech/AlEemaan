@@ -59,6 +59,8 @@ model Branch {
   bankItems             QuestionBankItem[]
   bankReviewers         QuestionBankReviewer[]
   bankAudits            QuestionBankAudit[]
+  practiceSessions      PracticeSession[]
+  practiceAttempts      PracticeAttempt[]
 
   createdAt DateTime @default(now())
 }

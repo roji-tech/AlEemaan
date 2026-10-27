@@ -13,7 +13,9 @@ import { getPortalAccessByBranch } from "./access-service";
 export const PORTAL_REFUSED = "Your sign-in does not include this.";
 const NOT_YOURS = "You are not authorized to view this student";
 
-export type PortalGate = { ok: true; session: PortalSessionPayload; access: Access } | { ok: false; response: NextResponse };
+export type PortalGate =
+  | { ok: true; session: PortalSessionPayload; access: Access; branchId: string }
+  | { ok: false; response: NextResponse };
 
 const refuse = (response: NextResponse): PortalGate => ({ ok: false, response: noStore(response) });
 
@@ -37,5 +39,5 @@ export async function portalGate(req: NextRequest, studentId: string | undefined
   }
   const access = accessFor(byBranch.get(asked.branchId)!, session.actor);
   if (!access[capability]) return refuse(fail(PORTAL_REFUSED, 403, "PORTAL_ACCESS"));
-  return { ok: true, session, access };
+  return { ok: true, session, access, branchId: asked.branchId };
 }
