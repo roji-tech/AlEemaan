@@ -31,7 +31,7 @@ Full detail: `docs/development-history/domain-implementation-plan.md` "Build des
 **Request input (2026-10-21)**
 - [x] task 0036 (merged as PR #83): the proxy matcher took every API request, so a body that never ends was never answered; narrowed to paths with a percent sign. Every 413 now closes the connection after it (an oversize body is refused while the client is still sending).
 - [x] fixed in PR #79 (task 0035): a NUL character in the query string or the JSON body of a state-changing request answered 500 on lists, searches and free-text creates; it is now a 400 from `withAuth` (and from `validate()` for the body it parses).
-- [~] task 0038 (PR open): the 51 route files that read their own body now use one shared reader (`readJsonBody`, `readJsonObject`: bounded read, the NUL scan, a 400 `INVALID_BODY` for a body that is not valid JSON or, where an object is needed, not an object); a guard test fails on a route that reads a body any other way. Still open: a central 400 in `withAuth` (not done on purpose: the routes need their own refusal).
+- [x] task 0038 (merged, PR #85): the 51 route files that read their own body now use one shared reader (`readJsonBody`, `readJsonObject`: bounded read, the NUL scan, a 400 `INVALID_BODY` for a body that is not valid JSON or, where an object is needed, not an object); a guard test fails on a route that reads a body any other way. Still open: a central 400 in `withAuth` (not done on purpose: the routes need their own refusal).
 
 ## 1. Waiting on the maintainer
 
