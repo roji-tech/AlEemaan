@@ -1,7 +1,7 @@
 # 0037: The promotion screens send the fields the server reads, start on the right sessions, and the server refuses a rollover that cannot be right
 
 - **Period / Focus:** 2026-10-21 (finishing the uncommitted edits found in the worktree `../AlEemaan-fix-promotion`, branch `claude/fix-promotion-screens`, last touched 2026-10-20)
-- **Status:** Completed on the branch (verified below; PR open). One decision is left to the maintainer (the final-term check).
+- **Status:** Completed and merged (PR #84, with the follow-up #87; verified below). One decision is left to the maintainer (the final-term check).
 - **Priority:** High (an administrator who overrides a pupil's decision loses the arm and the reason; the console's default sessions enrol pupils into the OLDER session)
 - **Assignee:** Agent (Claude)
 - **Target Branch / PR:** `dev`; branch `claude/fix-promotion-screens`

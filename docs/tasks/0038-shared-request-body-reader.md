@@ -1,7 +1,7 @@
 # 0038: One shared reader for a request body (`readJsonBody`, `readJsonObject`)
 
 - **Period / Focus:** 2026-10-22 (the twin of Octalve Edu's task 0021, module B and C; register row ISS-0027 there)
-- **Status:** Completed on the branch (verified below; PR open)
+- **Status:** Completed and merged (PR #85; verified below)
 - **Priority:** Medium (a missing size cap and a 500 for a body that is not JSON on 51 routes)
 - **Assignee:** Agent (Claude)
 - **Target Branch / PR:** `dev`; branch `claude/shared-body-reader`

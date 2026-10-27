@@ -128,7 +128,7 @@ A detailed technical blueprint is documented in:
 6. **The walkthrough audit (task 0033) runs LAST.**
 7. Read section 7 (how to work here) before anything else.
 
-**Shared body reader (2026-10-22, task 0038, branch `claude/shared-body-reader`, PR open):** the 51 route files that read their own request body use `readJsonBody` / `readJsonObject` (`src/lib/api/validate.ts`); `tests/unit/route-body-guard.spec.ts` fails on a route that reads a body any other way, and `tests/api/own-body-routes.spec.ts` sweeps them. A new route that reads its own body must use the reader. The same change is in Octalve Edu (its PR #57).
+**Shared body reader (2026-10-22, task 0038, branch `claude/shared-body-reader`, merged as PR #85):** the 51 route files that read their own request body use `readJsonBody` / `readJsonObject` (`src/lib/api/validate.ts`); `tests/unit/route-body-guard.spec.ts` fails on a route that reads a body any other way, and `tests/api/own-body-routes.spec.ts` sweeps them. A new route that reads its own body must use the reader. The same change is in Octalve Edu (its PR #57).
 
 ### Earlier: 2026-10-19 (written before PRs #67 to #72 merged: where it says UI1 or slice 1 is "not pushed, no PR yet", that is no longer true)
 
