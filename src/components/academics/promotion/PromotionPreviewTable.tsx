@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { PromotionDecision } from "@prisma/client";
 import type { PromotionPreviewResponse, StudentPreviewRow } from "@/lib/promotion/service";
+import { resolveTargetArm } from "@/lib/promotion/rules";
 
 export interface StudentOverrideState {
   decision: PromotionDecision;
@@ -88,7 +89,7 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
         <div
           role="status"
           aria-live="polite"
-          className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-300"
+          className="flex items-center justify-between rounded-xl border border-warn-line bg-warn-bg px-4 py-2.5 text-xs text-warn-fg"
         >
           <span>
             <strong>{overrideCount}</strong> manual decision {overrideCount === 1 ? "override" : "overrides"} applied.
@@ -108,12 +109,17 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
       )}
 
       {/* Responsive Accessible Table Container */}
-      <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
+      <div
+        role="region"
+        aria-label="Promotion preview"
+        tabIndex={0}
+        className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
         <table id={tableId} className="w-full text-left text-sm text-fg" aria-label="Student promotion preview">
           <caption className="sr-only">
             Student academic performance, term scores, overall average, system recommendation, and promotion decision controls.
           </caption>
-          <thead className="border-b border-line bg-surface-muted text-xs font-semibold text-fg-muted uppercase">
+          <thead className="border-b border-line bg-surface-2 text-xs font-semibold text-fg-muted uppercase">
             <tr>
               <th scope="col" className="px-4 py-3">
                 Student
@@ -152,14 +158,19 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
               preview.students.map((student: StudentPreviewRow) => {
                 const currentOverride = overrides.get(student.studentId);
                 const effectiveDecision = currentOverride?.decision ?? student.recommendedDecision;
-                const effectiveArmId = currentOverride?.targetArmId ?? student.targetClassArmId ?? undefined;
+                // Only an arm the admin CHOSE is sent to the server; the arm shown otherwise is the one the final decision leads to (the matching arm of the next class for a
+                // promotion, the pupil's own arm for a repeat), which the server works out itself.
+                const explicitArmId = currentOverride?.targetArmId;
+                const shownArmId =
+                  explicitArmId ??
+                  (effectiveDecision === PromotionDecision.PROMOTED
+                    ? resolveTargetArm(student.currentArmName, preview.targetArms)
+                    : student.currentArmId) ??
+                  undefined;
                 const isOverridden = !!currentOverride;
 
                 return (
-                  <tr
-                    key={student.studentId}
-                    className={`transition-colors hover:bg-surface-muted/50 ${isOverridden ? "bg-amber-500/5" : ""}`}
-                  >
+                  <tr key={student.studentId} className={`transition-colors hover:bg-surface-2/50 ${isOverridden ? "bg-warn-bg" : ""}`}>
                     <td className="px-4 py-3">
                       <div className="font-medium text-fg">
                         {student.firstName} {student.lastName}
@@ -215,15 +226,13 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
                             } else {
                               onOverrideChange(student.studentId, {
                                 decision: newDecision,
-                                targetArmId: effectiveArmId,
+                                targetArmId: explicitArmId,
                                 reason: currentOverride?.reason,
                               });
                             }
                           }}
                           className={`rounded-lg border px-2.5 py-1 text-xs font-medium focus-visible:outline-2 focus-visible:outline-ring ${
-                            isOverridden
-                              ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-                              : "border-line bg-surface text-fg"
+                            isOverridden ? "border-warn-line bg-warn-bg text-warn-fg" : "border-line bg-surface text-fg"
                           }`}
                         >
                           <option value={PromotionDecision.PROMOTED}>Promote</option>
@@ -240,7 +249,7 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
                         canManage && preview.targetArms.length > 0 ? (
                           <select
                             aria-label={`Target arm for ${student.firstName} ${student.lastName}`}
-                            value={effectiveArmId || ""}
+                            value={shownArmId || ""}
                             onChange={(e) => {
                               onOverrideChange(student.studentId, {
                                 decision: effectiveDecision,
@@ -258,7 +267,7 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
                           </select>
                         ) : (
                           <span className="text-xs font-medium text-fg">
-                            {student.targetClassArmName || preview.targetArms[0]?.name || "—"}
+                            {preview.targetArms.find((a) => a.id === shownArmId)?.name ?? "—"}
                           </span>
                         )
                       ) : (
@@ -277,11 +286,11 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
                           onChange={(e) => {
                             onOverrideChange(student.studentId, {
                               decision: effectiveDecision,
-                              targetArmId: effectiveArmId,
+                              targetArmId: explicitArmId,
                               reason: e.target.value,
                             });
                           }}
-                          className="w-full min-w-28 rounded-lg border border-amber-500/40 bg-surface px-2 py-1 text-xs text-fg placeholder:text-fg-muted focus-visible:outline-2 focus-visible:outline-ring"
+                          className="w-full min-w-28 rounded-lg border border-warn-line bg-surface px-2 py-1 text-xs text-fg placeholder:text-fg-muted focus-visible:outline-2 focus-visible:outline-ring"
                         />
                       ) : (
                         <span className="text-xs text-fg-muted">—</span>

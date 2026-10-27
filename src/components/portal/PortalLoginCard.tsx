@@ -62,7 +62,7 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
   return (
     <div className="w-full max-w-md mx-auto bg-surface border border-line rounded-2xl p-6 sm:p-8 shadow-card-v text-fg">
       <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-strong text-brand-contrast mb-3 shadow-xs">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-strong text-white mb-3 shadow-xs">
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
             <path
@@ -114,7 +114,7 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
           aria-live="polite"
           className="mb-5 p-3 rounded-xl bg-danger-bg border border-danger-line text-danger-text text-sm flex items-start gap-2.5"
         >
-          <svg className="w-5 h-5 flex-shrink-0 text-danger-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <svg className="w-5 h-5 shrink-0 text-danger-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path
               fillRule="evenodd"
               d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
@@ -180,11 +180,11 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 px-4 rounded-xl bg-brand-strong hover:bg-brand-strong-hover active:scale-[0.99] text-brand-contrast font-medium text-sm transition-all duration-150 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand"
+          className="w-full mt-2 py-3 px-4 rounded-xl bg-brand-strong hover:bg-brand-strong-hover active:scale-[0.99] text-white font-medium text-sm transition-all duration-150 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand"
         >
           {loading ? (
             <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-brand-contrast" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>

@@ -55,6 +55,10 @@ const ALLOWED: Record<string, string> = {
   "GET v1/portal/students/[studentId]/invoices/route.ts":
     "portal student invoices: verified by HMAC portal session cookie and allowedStudentIds",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS: verified by HMAC portal session cookie and allowedStudentIds",
+  "POST v1/portal/students/[studentId]/assignments/[assignmentId]/submission/route.ts":
+    "portal hand-in: verified by HMAC portal session cookie and allowedStudentIds; the pupil's enrolment fixes the branch and class",
+  "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
+    "portal quiz attempt: verified by HMAC portal session cookie and allowedStudentIds; the pupil's enrolment fixes the branch and class",
 };
 
 /// A handler declares who may call it with `roles:` or `superAdmin: true`.
@@ -78,52 +82,101 @@ const NAMES_A_BRANCH = /branchId|studentId|students?\/\[id\]|membershipId/;
 
 /// "METHOD path-under-api" -> why it needs no helper call in its own source.
 const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
-  "GET v1/academics/promotion/batches/[id]/route.ts": "promotion batch details scoped by authorized branchId and admin role",
-  "GET v1/academics/promotion/batches/route.ts": "promotion batches list scoped by authorized branchId and admin role",
-  "POST v1/academics/promotion/execute/route.ts": "promotion execution scoped by authorized branchId and admin role",
-  "GET v1/academics/promotion/preview/route.ts": "promotion preview scoped by authorized branchId and admin role",
-  "POST v1/academics/promotion/preview/route.ts": "promotion preview scoped by authorized branchId and admin role",
+  "GET v1/academics/promotion/batches/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/academics/promotion/batches/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/academics/promotion/execute/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/academics/promotion/preview/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/academics/promotion/preview/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "POST v1/academics/schemes/global/route.ts": "superadmin or admin approval workflow checks branch access",
   "GET v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
   "PATCH v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
-  "GET v1/academics/sessions/route.ts": "a list every signed-in person needs (content); acts on no single branch",
-  "GET v1/announcements/route.ts": "announcements scoped by user membership branch in query",
-  "POST v1/announcements/route.ts": "announcement creation scoped by authorized branch in payload",
-  "POST v1/communication/broadcast/route.ts": "broadcast audience resolution scoped by authorized branchId in payload",
-  "POST v1/communication/dispatches/[id]/retry/route.ts": "dispatch retry scoped by branchId",
-  "GET v1/communication/dispatches/route.ts": "dispatches list filtered by branchId",
-  "GET v1/communication/templates/[id]/route.ts": "template details retrieved and checked by branchId",
-  "PATCH v1/communication/templates/[id]/route.ts": "template update verified by branchId and admin role",
-  "DELETE v1/communication/templates/[id]/route.ts": "template delete verified by branchId and admin role",
-  "GET v1/communication/templates/route.ts": "templates list filtered by branchId",
-  "POST v1/communication/templates/route.ts": "template creation verified by branchId and admin role",
-  "GET v1/finance/fee-structures/route.ts": "fee structures query filtered by authorized branchId",
-  "POST v1/finance/invoices/[id]/pay/route.ts": "invoice payment checked against branch invoice record",
-  "GET v1/finance/invoices/[id]/route.ts": "invoice access verified against branch invoice record",
-  "GET v1/finance/invoices/route.ts": "invoices list filtered by branchId and user role",
-  "GET v1/lms/assignments/[id]/route.ts": "assignment retrieved and checked by branchId in query",
-  "PATCH v1/lms/assignments/[id]/route.ts": "assignment update verified by branchId and admin/teacher role",
-  "DELETE v1/lms/assignments/[id]/route.ts": "assignment delete verified by branchId and admin/teacher role",
-  "PATCH v1/lms/assignments/[id]/submissions/[subId]/grade/route.ts": "grade submission verified by branchId and teacher/admin role",
-  "GET v1/lms/assignments/[id]/submissions/route.ts": "submissions list verified by branchId and assignment",
-  "POST v1/lms/assignments/[id]/submissions/route.ts": "student submission verified by branchId and student membership",
-  "GET v1/lms/assignments/route.ts": "assignments list filtered by branchId and accessible subjects",
-  "GET v1/lms/materials/[id]/route.ts": "material access verified by branchId",
-  "PATCH v1/lms/materials/[id]/route.ts": "material update verified by branchId and admin/teacher role",
-  "DELETE v1/lms/materials/[id]/route.ts": "material delete verified by branchId and admin/teacher role",
-  "GET v1/lms/materials/route.ts": "materials list filtered by branchId",
-  "POST v1/lms/quizzes/[id]/attempt/route.ts": "quiz attempt evaluated and saved within branch scope",
-  "GET v1/lms/quizzes/[id]/route.ts": "quiz details retrieved and checked by branchId",
-  "DELETE v1/lms/quizzes/[id]/route.ts": "quiz deletion verified by branchId and admin/teacher role",
-  "GET v1/lms/quizzes/route.ts": "quizzes list filtered by branchId",
+  "GET v1/announcements/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/announcements/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/broadcast/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/dispatches/[id]/retry/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/dispatches/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/templates/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/communication/templates/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/communication/templates/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/templates/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/templates/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/assignments/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/assignments/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/lms/assignments/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/assignments/[id]/submissions/[subId]/grade/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/assignments/[id]/submissions/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/lms/assignments/[id]/submissions/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/assignments/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/materials/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/materials/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/lms/materials/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/materials/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/lms/quizzes/[id]/attempt/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/quizzes/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/lms/quizzes/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/quizzes/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
+  "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
+  "GET v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PATCH v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "GET v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "POST v1/settings/results-approval/sections/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/approvers/[userId]/scopes/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
   "POST v1/settings/self-approval/route.ts": "self-approval configured per branch with admin role check",
   "DELETE v1/settings/self-approval/route.ts": "self-approval deleted per branch with admin role check",
   "GET v1/settings/verification/route.ts": "verification settings queried by branchId",
-  "PATCH v1/settings/verification/route.ts": "verification settings updated by branchId",
   "POST v1/setup/route.ts": "public first-run setup creates branch and administrator",
-  "GET v1/timetable/[id]/route.ts": "timetable entry queried by branchId",
-  "GET v1/timetable/route.ts": "timetable entries listed by branchId",
+  "GET v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "POST v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "PUT v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
+  "POST v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/items/[id]/route.ts":
+    "no branch is named in the request: the branch is the ITEM's, and question-bank/rules (staffMaySee, with a viewer read inside the transaction) decides; a question the person may not see is the same 404 as one that does not exist",
+  "GET v1/question-bank/review-queue/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
+  "GET v1/timetable/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/timetable/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
 };
 
 /// Third assertion (ADR 0015): a handler that names a branch is wrapped by `withBranch` - the structure that makes the branch check impossible to forget -
@@ -131,31 +184,50 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 /// join this list without someone writing why; the aim is for it to shrink.
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
-  "GET v1/academics/sessions/route.ts": "a list every signed-in person needs (content); acts on no single branch",
+  "POST v1/portal/students/[studentId]/assignments/[assignmentId]/submission/route.ts":
+    "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
+    "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
+  "GET v1/academics/sessions/route.ts": "a list narrowed to the caller's own branches (branchIdsFor); acts on no single branch",
   "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
   "GET v1/students/route.ts": "a list narrowed to the caller's visible branches (branchIdsFor); acts on no single branch",
   "GET v1/students/[id]/route.ts":
     "reads one student through a visible-branches filter (another branch's student is the same 404); to move to staff-read",
   "POST v1/invitations/route.ts": "the branch is checked by lib/members/http (scopeOrForbidden); to move to administer",
   "POST v1/setup/route.ts": "public first-run setup: creates the first branch and administrator, there is no caller to ask",
-  "GET v1/academics/promotion/batches/[id]/route.ts": "promotion batch queried by branchId",
-  "GET v1/academics/promotion/batches/route.ts": "promotion batches query filtered by branchId",
-  "POST v1/academics/promotion/execute/route.ts": "promotion execution verified by authorized branchId in payload",
-  "GET v1/academics/promotion/preview/route.ts": "promotion preview checked by authorized branchId in query",
-  "POST v1/academics/promotion/preview/route.ts": "promotion preview checked by authorized branchId in payload",
+  "GET v1/academics/promotion/batches/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/academics/promotion/batches/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/academics/promotion/execute/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/academics/promotion/preview/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/academics/promotion/preview/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "POST v1/academics/schemes/global/route.ts": "superadmin or admin approval workflow checks branch access",
   "GET v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
   "PATCH v1/academics/schemes/teacher/[id]/route.ts": "scheme draft ownership and branch checked in draft query",
-  "GET v1/announcements/route.ts": "announcements scoped by user membership branch in query",
-  "POST v1/announcements/route.ts": "announcement creation scoped by authorized branch in payload",
-  "POST v1/communication/broadcast/route.ts": "broadcast audience resolution scoped by authorized branchId in payload",
-  "POST v1/communication/dispatches/[id]/retry/route.ts": "dispatch retry scoped by branchId",
-  "GET v1/communication/dispatches/route.ts": "dispatches list filtered by branchId",
-  "GET v1/communication/templates/[id]/route.ts": "template details retrieved and checked by branchId",
-  "PATCH v1/communication/templates/[id]/route.ts": "template update verified by branchId and admin role",
-  "DELETE v1/communication/templates/[id]/route.ts": "template delete verified by branchId and admin role",
-  "GET v1/communication/templates/route.ts": "templates list filtered by branchId",
-  "POST v1/communication/templates/route.ts": "template creation verified by branchId and admin role",
+  "GET v1/announcements/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/announcements/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/broadcast/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/dispatches/[id]/retry/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/dispatches/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/templates/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/communication/templates/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/communication/templates/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/templates/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/templates/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/finance/fee-structures/[id]/route.ts": "fee structure update verified against branch scope",
   "DELETE v1/finance/fee-structures/[id]/route.ts": "fee structure delete verified against branch scope",
   "GET v1/finance/fee-structures/route.ts": "fee structures query filtered by authorized branchId",
@@ -166,38 +238,83 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/finance/invoices/[id]/route.ts": "invoice access verified against branch invoice record",
   "GET v1/finance/invoices/route.ts": "invoices list filtered by branchId and user role",
   "POST v1/finance/invoices/route.ts": "batch invoice generation checked against branch scope",
-  "GET v1/lms/assignments/[id]/route.ts": "assignment retrieved and checked by branchId in query",
-  "PATCH v1/lms/assignments/[id]/route.ts": "assignment update verified by branchId and admin/teacher role",
-  "DELETE v1/lms/assignments/[id]/route.ts": "assignment delete verified by branchId and admin/teacher role",
-  "PATCH v1/lms/assignments/[id]/submissions/[subId]/grade/route.ts": "grade submission verified by branchId and teacher/admin role",
-  "GET v1/lms/assignments/[id]/submissions/route.ts": "submissions list verified by branchId and assignment",
-  "POST v1/lms/assignments/[id]/submissions/route.ts": "student submission verified by branchId and student membership",
-  "GET v1/lms/assignments/route.ts": "assignments list filtered by branchId and accessible subjects",
-  "GET v1/lms/materials/[id]/route.ts": "material access verified by branchId",
-  "PATCH v1/lms/materials/[id]/route.ts": "material update verified by branchId and admin/teacher role",
-  "DELETE v1/lms/materials/[id]/route.ts": "material delete verified by branchId and admin/teacher role",
-  "GET v1/lms/materials/route.ts": "materials list filtered by branchId",
-  "POST v1/lms/quizzes/[id]/attempt/route.ts": "quiz attempt evaluated and saved within branch scope",
-  "GET v1/lms/quizzes/[id]/route.ts": "quiz details retrieved and checked by branchId",
-  "DELETE v1/lms/quizzes/[id]/route.ts": "quiz deletion verified by branchId and admin/teacher role",
-  "GET v1/lms/quizzes/route.ts": "quizzes list filtered by branchId",
+  "GET v1/lms/assignments/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/assignments/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/lms/assignments/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/assignments/[id]/submissions/[subId]/grade/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/assignments/[id]/submissions/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/lms/assignments/[id]/submissions/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/assignments/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/materials/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/lms/materials/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/lms/materials/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/materials/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/lms/quizzes/[id]/attempt/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/quizzes/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/lms/quizzes/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/lms/quizzes/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/settings/approval/[id]/route.ts": "approval details retrieved with branch scope verification",
   "PATCH v1/settings/approval/[id]/route.ts": "approval decision verified against branch admin permissions",
+  "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
+  "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
+  "GET v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PATCH v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "GET v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "POST v1/settings/results-approval/sections/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/approvers/[userId]/scopes/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
   "POST v1/settings/self-approval/route.ts": "self-approval configured per branch with admin role check",
   "DELETE v1/settings/self-approval/route.ts": "self-approval deleted per branch with admin role check",
   "GET v1/settings/verification/route.ts": "verification settings queried by branchId",
-  "PATCH v1/settings/verification/route.ts": "verification settings updated by branchId",
-  "GET v1/timetable/[id]/route.ts": "timetable entry queried by branchId",
-  "PATCH v1/timetable/[id]/route.ts": "timetable entry update verified by branchId",
-  "DELETE v1/timetable/[id]/route.ts": "timetable entry delete verified by branchId",
+  "PATCH v1/settings/verification/route.ts":
+    "a superadmin acts school-wide or on any branch; an administrator only on a branch they administer, checked inline with canAdminister (the branchId is nullable, which withBranch does not model)",
+  "GET v1/timetable/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "PATCH v1/timetable/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "DELETE v1/timetable/[id]/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "POST v1/timetable/batch/route.ts": "batch timetable creation verified by branchId",
-  "GET v1/timetable/route.ts": "timetable entries listed by branchId",
-  "POST v1/timetable/route.ts": "timetable creation verified by branchId",
+  "GET v1/timetable/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/timetable/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/portal/students/[studentId]/overview/route.ts": "portal student overview verified by portal session cookie",
   "GET v1/portal/students/[studentId]/results/route.ts": "portal student results verified by portal session cookie",
   "GET v1/portal/students/[studentId]/invoices/route.ts": "portal student invoices verified by portal session cookie",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS verified by portal session cookie",
+  "GET v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "POST v1/question-bank/reviewers/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "PUT v1/question-bank/settings/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
+  "GET v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
+  "POST v1/question-bank/items/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/items/[id]/route.ts":
+    "no branch is named in the request: the branch is the ITEM's, and question-bank/rules (staffMaySee, with a viewer read inside the transaction) decides; a question the person may not see is the same 404 as one that does not exist",
+  "GET v1/question-bank/review-queue/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided row by row by question-bank/rules staffMaySee)",
+  "DELETE v1/question-bank/reviewers/[id]/route.ts":
+    "the branch is the reviewer ROW's, never the request's: the caller must administer that branch (canAdminister) or be a superadmin, and an every-branch row (branchId null) is a superadmin's alone, which withBranch does not model; unknown and not-yours are the same 404",
 };
 
 function routeFiles(dir: string): string[] {

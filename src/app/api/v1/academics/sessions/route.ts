@@ -3,19 +3,24 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
+import { branchIdsFor } from "@/lib/auth/branch-access";
 import { withBranch } from "@/lib/auth/with-branch";
 import { listSessions, createSession, createSessionSchema, DomainError } from "@/lib/academics/sessions";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/academics/sessions
  * Authenticated. Lists academic sessions (optionally filtered by ?branchId=...).
  */
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, auth) => {
   try {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get("branchId") || undefined;
 
-    const sessions = await listSessions(branchId);
+    // Only the caller's own branches (a superadmin: all). Found by the browser security run: with no `?branchId=` every branch's calendar came back to anyone.
+    const mine = await branchIdsFor(auth.userId);
+    if (mine !== "all" && branchId && !mine.includes(branchId)) return fail("Not found", 404, "NOT_FOUND");
+    const sessions = (await listSessions(branchId)).filter((s) => mine === "all" || mine.includes(s.branchId));
     return ok({ sessions });
   } catch (error) {
     console.error("[ACADEMIC_SESSIONS_GET_ERROR]", error);
@@ -29,12 +34,9 @@ export const GET = withAuth(async (req) => {
  */
 export const POST = withAuth(
   async (req, admin) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
+    const read = await readJsonBody(req);
+    if (!read.ok) return read.response;
+    const body = read.json;
 
     const parsed = createSessionSchema.safeParse(body);
     if (!parsed.success) {

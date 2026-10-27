@@ -514,52 +514,99 @@ export async function fulfillPayment(reference: string, verifiedAmountInKobo: nu
 }
 
 // --- Paystack Webhook Handler ---
+//
+// Ported from Octalve Edu (its F2/F3 hardening; Octalve's design is canonical for shared parts). Until 2026-10-19 this wrote its audit ledger BEFORE checking the
+// signature, keyed by an event id the SENDER chose (an unsigned request could fill the table, or overwrite a genuine event's row to `signatureValid = false`), took
+// the signing secret from `PAYSTACK_SECRET_KEY || "mock_secret"` (anyone could sign a charge.success), and gave an event that carried no id one made from the clock,
+// so the same body was a new event every time.
 
-export async function processPaystackWebhook(rawBody: string | Buffer, signatureHeader: string | null | undefined) {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY || "mock_secret";
-  const isValid = verifyPaystackSignature(rawBody, signatureHeader, secretKey);
+/// What a delivery turned into.
+export type WebhookOutcome =
+  /// Unsigned or wrongly signed: NOTHING was written. Answered 401.
+  | { status: "invalid_signature"; eventId: string }
+  /// Fulfilled (or already was). `duplicate` when this event had been processed before.
+  | { status: "processed"; eventId: string; duplicate?: true }
+  /// Signed, but not an event this system acts on.
+  | { status: "ignored"; eventId: string }
+  /// A deliberate refusal (an amount that does not match...): recorded on the event row, answered 200, because retrying cannot change it.
+  | { status: "refused"; eventId: string; error: string }
+  /// A transient failure (database, network): answered 503 so the provider retries; the event stays unprocessed.
+  | { status: "retry"; eventId: string };
+
+type ParsedWebhook = { event?: unknown; data?: { id?: unknown; reference?: unknown; amount?: unknown; channel?: unknown } };
+const MAX_EVENT_ID_LENGTH = 128;
+
+/// The event's identity, derived from the payload itself and never from the clock, so the same body is the same event.
+export function webhookEventId(parsed: ParsedWebhook, rawPayloadHash: string): string {
+  const candidate = parsed.data?.id ?? parsed.data?.reference;
+  const usable = (typeof candidate === "number" && Number.isFinite(candidate)) || (typeof candidate === "string" && candidate.length > 0);
+  return (usable ? String(candidate) : `sha256:${rawPayloadHash.slice(0, 32)}`).slice(0, MAX_EVENT_ID_LENGTH);
+}
+
+export async function processPaystackWebhook(
+  rawBody: string | Buffer,
+  signatureHeader: string | null | undefined,
+  secretKey: string,
+): Promise<WebhookOutcome> {
   const rawPayloadHash = computePayloadHash(rawBody);
 
-  let payload: { event?: string; data?: { id?: number; reference?: string; amount?: number; channel?: string } } = {};
+  let parsed: ParsedWebhook = {};
   try {
-    payload = JSON.parse(typeof rawBody === "string" ? rawBody : rawBody.toString("utf8"));
+    const value: unknown = JSON.parse(typeof rawBody === "string" ? rawBody : rawBody.toString("utf8"));
+    if (value && typeof value === "object" && !Array.isArray(value)) parsed = value as ParsedWebhook;
   } catch {
-    // Ignore parse error, logged below
+    // Not JSON: there is no event to process; it can only be ignored (or refused as unsigned below).
+  }
+  const eventId = webhookEventId(parsed, rawPayloadHash);
+
+  // An unsigned or wrongly signed delivery is not evidence of anything: it writes NOTHING (no ledger row an outsider could fill or overwrite).
+  if (!verifyPaystackSignature(rawBody, signatureHeader, secretKey)) {
+    return { status: "invalid_signature", eventId };
   }
 
-  const eventId = String(payload.data?.id || `evt_${Date.now()}`);
+  const existing = await prisma.paymentWebhookEvent.findUnique({
+    where: { provider_eventId: { provider: PaymentProvider.PAYSTACK, eventId } },
+  });
+  if (existing?.processedAt) return { status: "processed", eventId, duplicate: true };
 
-  // Record webhook audit log
+  // The (signed) delivery goes in the ledger; `processedAt` is set only once it has been acted on.
   await prisma.paymentWebhookEvent.upsert({
-    where: {
-      provider_eventId: {
-        provider: PaymentProvider.PAYSTACK,
-        eventId,
-      },
-    },
-    update: {
-      signatureValid: isValid,
-      processedAt: new Date(),
-    },
+    where: { provider_eventId: { provider: PaymentProvider.PAYSTACK, eventId } },
     create: {
       provider: PaymentProvider.PAYSTACK,
       eventId,
-      eventType: payload.event,
-      signatureValid: isValid,
+      eventType: typeof parsed.event === "string" ? parsed.event.slice(0, 64) : null,
+      signatureValid: true,
       rawPayloadHash,
-      processedAt: new Date(),
+      processedAt: null,
     },
+    update: { signatureValid: true },
   });
 
-  if (!isValid) {
-    throw new FinanceError("Invalid webhook signature", "INVALID_SIGNATURE");
+  const data = parsed.data;
+  if (parsed.event === "charge.success" && typeof data?.reference === "string" && data.reference && typeof data.amount === "number") {
+    try {
+      await fulfillPayment(data.reference, data.amount, typeof data.channel === "string" ? data.channel : undefined);
+    } catch (err) {
+      if (err instanceof FinanceError) {
+        await prisma.paymentWebhookEvent.update({
+          where: { provider_eventId: { provider: PaymentProvider.PAYSTACK, eventId } },
+          data: { error: err.message.slice(0, 500) },
+        });
+        return { status: "refused", eventId, error: err.message };
+      }
+      console.error("[PAYSTACK_WEBHOOK_TRANSIENT]", err);
+      return { status: "retry", eventId };
+    }
+
+    await prisma.paymentWebhookEvent.update({
+      where: { provider_eventId: { provider: PaymentProvider.PAYSTACK, eventId } },
+      data: { processedAt: new Date(), error: null },
+    });
+    return { status: "processed", eventId };
   }
 
-  if (payload.event === "charge.success" && payload.data?.reference && payload.data.amount) {
-    await fulfillPayment(payload.data.reference, payload.data.amount, payload.data.channel);
-  }
-
-  return { received: true, valid: isValid };
+  return { status: "ignored", eventId };
 }
 
 // --- Discounts & Waivers ---

@@ -8,6 +8,7 @@ import { auditPersonEvent } from "@/lib/auth/audit";
 import { clearSessionCookie } from "@/lib/auth/session";
 import { emailChangedNotice } from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/auth/email-change/confirm  { token }                                      (plan §0.5.E)
 // Step 2: the link mailed to the NEW address. Public on purpose — it is opened from a mail client, signed in or
@@ -31,12 +32,9 @@ async function handle(req: NextRequest) {
     return fail("Too many attempts. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
   const parsed = schema.safeParse(body);
   if (!parsed.success) return fail(INVALID_LINK, 400, "INVALID_TOKEN");
 

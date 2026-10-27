@@ -7,7 +7,8 @@ import { PortalHeader } from "@/components/portal/PortalHeader";
 import { PortalOverviewTab } from "@/components/portal/PortalOverviewTab";
 import { PortalResultsTab } from "@/components/portal/PortalResultsTab";
 import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
-import { PortalLmsTab } from "@/components/portal/PortalLmsTab";
+import { PortalLmsTab, type PortalLms } from "@/components/portal/PortalLmsTab";
+import { allowedTabs, type Access, type PortalTab } from "@/lib/portal/access";
 
 interface OverviewState {
   student: PortalStudentRecord;
@@ -84,31 +85,6 @@ interface InvoiceState {
   }>;
 }
 
-interface LmsState {
-  assignments: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    subjectName: string;
-    dueDate: string | null;
-    totalPoints: number;
-    submission: {
-      status: string;
-      score: number | null;
-      feedback: string | null;
-    } | null;
-  }>;
-  materials: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    subjectName: string;
-    content: string | null;
-    attachments: unknown;
-    createdAt: string;
-  }>;
-}
-
 function PortalContent() {
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("token") || undefined;
@@ -117,16 +93,18 @@ function PortalContent() {
   const [authenticated, setAuthenticated] = useState(false);
   const [students, setStudents] = useState<PortalStudentRecord[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"overview" | "results" | "finance" | "lms">("overview");
+  const [activeTab, setActiveTab] = useState<PortalTab>("overview");
+  // What this sign-in may do for each pupil (task 0040), from the server. The screens only decide what to show: every route checks again.
+  const [accessByStudent, setAccessByStudent] = useState<Record<string, Access>>({});
 
   // Tab data states
   const [tabLoading, setTabLoading] = useState(false);
   const [overviewData, setOverviewData] = useState<OverviewState | null>(null);
   const [resultsData, setResultsData] = useState<ReportCardState[]>([]);
   const [resultsBlocked, setResultsBlocked] = useState(false);
-  const [resultsBalance, setResultsBalance] = useState(0);
+  const [resultsBalance, setResultsBalance] = useState<number | undefined>(undefined);
   const [financeData, setFinanceData] = useState<InvoiceState[]>([]);
-  const [lmsData, setLmsData] = useState<LmsState>({ assignments: [], materials: [] });
+  const [lmsData, setLmsData] = useState<PortalLms>({ assignments: [], materials: [], quizzes: [] });
 
   // Initial session check
   useEffect(() => {
@@ -137,9 +115,13 @@ function PortalContent() {
           const json = await res.json();
           if (json.data && json.data.students?.length > 0) {
             setStudents(json.data.students);
+            setAccessByStudent(json.data.access ?? {});
             setSelectedStudentId(json.data.students[0].id);
             setAuthenticated(true);
           }
+        } else {
+          // Read (and drop) the body of the "no session" answer: a chunked response nobody reads stays open in the browser, so the page never went idle.
+          await res.text().catch(() => "");
         }
       } catch {
         // Not authenticated
@@ -150,34 +132,40 @@ function PortalContent() {
     checkSession();
   }, []);
 
-  // Fetch data for selected student and active tab
+  // The sections this sign-in may open for the pupil shown, and the one on screen: the chosen one if it is allowed, otherwise the first that is.
+  const currentAccess = accessByStudent[selectedStudentId];
+  const tabs: PortalTab[] = currentAccess ? allowedTabs(currentAccess) : [];
+  const shownTab: PortalTab = tabs.includes(activeTab) ? activeTab : (tabs[0] ?? activeTab);
+
+  // Fetch data for selected student and the section on screen
   useEffect(() => {
-    if (!authenticated || !selectedStudentId) return;
+    if (!authenticated || !selectedStudentId || !currentAccess || tabs.length === 0) return;
 
     let ignore = false;
 
     async function fetchData() {
       try {
-        if (activeTab === "overview") {
+        if (shownTab === "overview") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/overview`);
           const json = await res.json();
           if (!ignore && res.ok) setOverviewData(json.data);
-        } else if (activeTab === "results") {
+        } else if (shownTab === "results") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/results`);
           const json = await res.json();
           if (!ignore && res.ok) {
             setResultsData(json.data.reportCards || []);
             setResultsBlocked(Boolean(json.data.blockedByUnpaidFees));
-            setResultsBalance(Number(json.data.outstandingBalance || 0));
+            // No amount in the answer means this sign-in may not see fees: it is left undefined, not shown as zero.
+            setResultsBalance(json.data.outstandingBalance === undefined ? undefined : Number(json.data.outstandingBalance || 0));
           }
-        } else if (activeTab === "finance") {
+        } else if (shownTab === "finance") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/invoices`);
           const json = await res.json();
           if (!ignore && res.ok) setFinanceData(json.data.invoices || []);
-        } else if (activeTab === "lms") {
+        } else if (shownTab === "lms") {
           const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/lms`);
           const json = await res.json();
-          if (!ignore && res.ok) setLmsData(json.data);
+          if (!ignore && res.ok) setLmsData({ quizzes: [], ...json.data });
         }
       } catch {
         // Tab fetch failure
@@ -191,9 +179,10 @@ function PortalContent() {
     return () => {
       ignore = true;
     };
-  }, [authenticated, selectedStudentId, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `tabs` and `currentAccess` follow `accessByStudent`, which is listed
+  }, [authenticated, selectedStudentId, shownTab, accessByStudent]);
 
-  const handleTabChange = (tab: "overview" | "results" | "finance" | "lms") => {
+  const handleTabChange = (tab: PortalTab) => {
     setTabLoading(true);
     setActiveTab(tab);
   };
@@ -204,9 +193,10 @@ function PortalContent() {
     setOverviewData(null);
   };
 
-  const handleLoginSuccess = (data: { student: PortalStudentRecord; siblingStudents: PortalStudentRecord[] }) => {
+  const handleLoginSuccess = (data: { student: PortalStudentRecord; siblingStudents: PortalStudentRecord[]; access?: Record<string, Access> }) => {
     const all = data.siblingStudents && data.siblingStudents.length > 0 ? data.siblingStudents : [data.student];
     setStudents(all);
+    setAccessByStudent(data.access ?? {});
     setSelectedStudentId(data.student.id);
     setAuthenticated(true);
     setTabLoading(true);
@@ -220,6 +210,7 @@ function PortalContent() {
     }
     setAuthenticated(false);
     setStudents([]);
+    setAccessByStudent({});
     setSelectedStudentId("");
     setOverviewData(null);
     setResultsData([]);
@@ -266,50 +257,58 @@ function PortalContent() {
           aria-label="Student Portal Sections"
           className="flex overflow-x-auto rounded-xl bg-surface p-1 border border-line mb-6 gap-1 shadow-xs print:hidden"
         >
+          {tabs.includes("overview") && (
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === "overview"}
+            aria-selected={shownTab === "overview"}
             onClick={() => handleTabChange("overview")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "overview" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              shownTab === "overview" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Overview
           </button>
+          )}
+          {tabs.includes("results") && (
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === "results"}
+            aria-selected={shownTab === "results"}
             onClick={() => handleTabChange("results")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "results" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              shownTab === "results" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Academic Results
           </button>
+          )}
+          {tabs.includes("finance") && (
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === "finance"}
+            aria-selected={shownTab === "finance"}
             onClick={() => handleTabChange("finance")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "finance" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              shownTab === "finance" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Fees & Billing
           </button>
+          )}
+          {tabs.includes("lms") && (
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === "lms"}
+            aria-selected={shownTab === "lms"}
             onClick={() => handleTabChange("lms")}
             className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
-              activeTab === "lms" ? "bg-brand-strong text-brand-contrast shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+              shownTab === "lms" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
             }`}
           >
             Coursework (LMS)
           </button>
+          )}
         </div>
 
         {/* Tab Body */}
@@ -323,20 +322,29 @@ function PortalContent() {
           </div>
         ) : (
           <div>
-            {activeTab === "overview" && overviewData && (
-              <PortalOverviewTab overview={overviewData} onNavigateTab={(tab) => handleTabChange(tab)} />
+            {shownTab === "overview" && overviewData && (
+              <PortalOverviewTab overview={overviewData} onNavigateTab={(tab) => handleTabChange(tab)} tabs={tabs} />
             )}
-            {activeTab === "results" && (
+            {shownTab === "results" && (
               <PortalResultsTab
                 reportCards={resultsData}
                 student={currentStudent}
                 blockedByUnpaidFees={resultsBlocked}
                 outstandingBalance={resultsBalance}
-                onNavigateToBilling={() => handleTabChange("finance")}
+                onNavigateToBilling={tabs.includes("finance") ? () => handleTabChange("finance") : undefined}
               />
             )}
-            {activeTab === "finance" && <PortalFinanceTab invoices={financeData} student={currentStudent} />}
-            {activeTab === "lms" && <PortalLmsTab lms={lmsData} student={currentStudent} />}
+            {shownTab === "finance" && <PortalFinanceTab invoices={financeData} student={currentStudent} />}
+            {shownTab === "lms" && <PortalLmsTab
+                lms={lmsData}
+                student={currentStudent}
+                canSubmit={Boolean(currentAccess?.submitWork)}
+                canQuiz={Boolean(currentAccess?.takeQuizzes)}
+                onChanged={async () => {
+                  const res = await fetch(`/api/v1/portal/students/${selectedStudentId}/lms`);
+                  if (res.ok) setLmsData({ quizzes: [], ...(await res.json()).data });
+                }}
+              />}
           </div>
         )}
       </main>

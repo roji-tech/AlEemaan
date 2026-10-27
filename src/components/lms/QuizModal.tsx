@@ -143,14 +143,14 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
     <Dialog open={isOpen} onClose={onClose} title="Create Interactive Quiz / Test">
       <form onSubmit={handleSubmit} className="space-y-5 max-h-[75vh] overflow-y-auto px-1">
         {error && (
-          <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <div role="alert" className="p-3 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
             {error}
           </div>
         )}
 
         <div>
-          <label htmlFor={titleId} className="block text-sm font-medium text-foreground">
-            Quiz Title <span className="text-destructive">*</span>
+          <label htmlFor={titleId} className="block text-sm font-medium text-fg">
+            Quiz Title <span className="text-danger-fg">*</span>
           </label>
           <input
             id={titleId}
@@ -159,20 +159,20 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
             placeholder="e.g. Mid-term Assessment: Fiqh of Taharah"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor={subjectIdField} className="block text-sm font-medium text-foreground">
-              Subject <span className="text-destructive">*</span>
+            <label htmlFor={subjectIdField} className="block text-sm font-medium text-fg">
+              Subject <span className="text-danger-fg">*</span>
             </label>
             <select
               id={subjectIdField}
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -183,14 +183,14 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
           </div>
 
           <div>
-            <label htmlFor={classGroupIdField} className="block text-sm font-medium text-foreground">
+            <label htmlFor={classGroupIdField} className="block text-sm font-medium text-fg">
               Target Class (Optional)
             </label>
             <select
               id={classGroupIdField}
               value={classGroupId}
               onChange={(e) => setClassGroupId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">All Classes in Subject</option>
               {classGroups.map((cg) => (
@@ -204,7 +204,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label htmlFor={timeLimitId} className="block text-sm font-medium text-foreground">
+            <label htmlFor={timeLimitId} className="block text-sm font-medium text-fg">
               Time Limit (Minutes)
             </label>
             <input
@@ -215,12 +215,12 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
               placeholder="30"
               value={timeLimitMinutes}
               onChange={(e) => setTimeLimitMinutes(e.target.value ? Number(e.target.value) : "")}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div>
-            <label htmlFor={passingScoreId} className="block text-sm font-medium text-foreground">
+            <label htmlFor={passingScoreId} className="block text-sm font-medium text-fg">
               Passing Score (%)
             </label>
             <input
@@ -231,19 +231,19 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
               placeholder="60"
               value={passingScore}
               onChange={(e) => setPassingScore(e.target.value ? Number(e.target.value) : "")}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div>
-            <label htmlFor={statusId} className="block text-sm font-medium text-foreground">
+            <label htmlFor={statusId} className="block text-sm font-medium text-fg">
               Status
             </label>
             <select
               id={statusId}
               value={status}
               onChange={(e) => setStatus(e.target.value as "DRAFT" | "PUBLISHED")}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="PUBLISHED">Published (Active)</option>
               <option value="DRAFT">Draft (Hidden)</option>
@@ -252,7 +252,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
         </div>
 
         <div>
-          <label htmlFor={instructionsId} className="block text-sm font-medium text-foreground">
+          <label htmlFor={instructionsId} className="block text-sm font-medium text-fg">
             Instructions
           </label>
           <textarea
@@ -261,25 +261,25 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
             placeholder="Instructions for students before beginning the quiz..."
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         {/* Questions Builder */}
-        <div className="pt-4 border-t border-border space-y-4">
+        <div className="pt-4 border-t border-line space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold text-foreground">Questions ({questions.length})</h4>
-            <button type="button" onClick={handleAddQuestion} className="text-xs font-semibold text-primary hover:underline">
+            <h4 className="text-sm font-bold text-fg">Questions ({questions.length})</h4>
+            <button type="button" onClick={handleAddQuestion} className="text-xs font-semibold text-brand-fg hover:underline">
               + Add Question
             </button>
           </div>
 
           {questions.map((q, idx) => (
-            <div key={idx} className="p-4 rounded-xl border border-border bg-card space-y-3">
+            <div key={idx} className="p-4 rounded-xl border border-line bg-surface space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted-foreground">Question #{idx + 1}</span>
+                <span className="text-xs font-bold text-fg-muted">Question #{idx + 1}</span>
                 {questions.length > 1 && (
-                  <button type="button" onClick={() => handleRemoveQuestion(idx)} className="text-xs text-destructive hover:underline">
+                  <button type="button" onClick={() => handleRemoveQuestion(idx)} className="text-xs text-danger-fg hover:underline">
                     Remove
                   </button>
                 )}
@@ -292,13 +292,13 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                   placeholder={`Question prompt (e.g. How many pillars of Islam are there?)`}
                   value={q.prompt}
                   onChange={(e) => updateQuestion(idx, { prompt: e.target.value })}
-                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="block text-muted-foreground mb-1">Question Type</label>
+                  <label className="block text-fg-muted mb-1">Question Type</label>
                   <select
                     value={q.questionType}
                     onChange={(e) => {
@@ -327,7 +327,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                         correctAnswer: correct,
                       });
                     }}
-                    className="w-full rounded-md border border-input bg-background px-2 py-1 shadow-sm"
+                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 shadow-sm"
                   >
                     <option value="MULTIPLE_CHOICE">Multiple Choice</option>
                     <option value="TRUE_FALSE">True / False</option>
@@ -336,13 +336,13 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                 </div>
 
                 <div>
-                  <label className="block text-muted-foreground mb-1">Points</label>
+                  <label className="block text-fg-muted mb-1">Points</label>
                   <input
                     type="number"
                     min={1}
                     value={q.points}
                     onChange={(e) => updateQuestion(idx, { points: Number(e.target.value) || 1 })}
-                    className="w-full rounded-md border border-input bg-background px-2 py-1 shadow-sm"
+                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 shadow-sm"
                   />
                 </div>
               </div>
@@ -350,7 +350,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
               {/* Options for MULTIPLE_CHOICE */}
               {q.questionType === "MULTIPLE_CHOICE" && (
                 <div className="space-y-2 pt-2">
-                  <span className="text-xs font-medium text-foreground block">Options & Correct Answer:</span>
+                  <span className="text-xs font-medium text-fg block">Options & Correct Answer:</span>
                   {q.options.map((opt, oIdx) => (
                     <div key={opt.id} className="flex items-center gap-2">
                       <input
@@ -359,7 +359,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                         checked={q.correctAnswer === opt.id}
                         onChange={() => updateQuestion(idx, { correctAnswer: opt.id })}
                         title="Mark as correct answer"
-                        className="text-primary focus:ring-primary h-4 w-4"
+                        className="text-brand-fg focus:ring-ring h-4 w-4"
                       />
                       <input
                         type="text"
@@ -370,7 +370,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                           newOpts[oIdx] = { ...opt, text: e.target.value };
                           updateQuestion(idx, { options: newOpts });
                         }}
-                        className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                        className="flex-1 rounded-md border border-line-strong bg-field px-2 py-1 text-xs"
                       />
                     </div>
                   ))}
@@ -382,7 +382,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                         options: [...q.options, { id: newId, text: "" }],
                       });
                     }}
-                    className="text-xs text-primary hover:underline font-medium"
+                    className="text-xs text-brand-fg hover:underline font-medium"
                   >
                     + Add Option
                   </button>
@@ -398,7 +398,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                       name={`tf-${idx}`}
                       checked={q.correctAnswer === "true"}
                       onChange={() => updateQuestion(idx, { correctAnswer: "true" })}
-                      className="text-primary focus:ring-primary"
+                      className="text-brand-fg focus:ring-ring"
                     />
                     <span>True</span>
                   </label>
@@ -408,7 +408,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                       name={`tf-${idx}`}
                       checked={q.correctAnswer === "false"}
                       onChange={() => updateQuestion(idx, { correctAnswer: "false" })}
-                      className="text-primary focus:ring-primary"
+                      className="text-brand-fg focus:ring-ring"
                     />
                     <span>False</span>
                   </label>
@@ -418,14 +418,14 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
               {/* Input for SHORT_ANSWER */}
               {q.questionType === "SHORT_ANSWER" && (
                 <div className="pt-1">
-                  <label className="block text-xs text-muted-foreground mb-1">Expected exact keyword or phrase</label>
+                  <label className="block text-xs text-fg-muted mb-1">Expected exact keyword or phrase</label>
                   <input
                     type="text"
                     required
                     placeholder="Correct keyword"
                     value={q.correctAnswer}
                     onChange={(e) => updateQuestion(idx, { correctAnswer: e.target.value })}
-                    className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 text-xs"
                   />
                 </div>
               )}
@@ -433,19 +433,19 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
           ))}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <div className="flex justify-end gap-3 pt-4 border-t border-line">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            className="rounded-lg border border-line-strong bg-field px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+            className="inline-flex justify-center rounded-lg bg-brand-strong px-4 py-2 text-sm font-medium text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Creating..." : "Save & Publish Quiz"}
           </button>

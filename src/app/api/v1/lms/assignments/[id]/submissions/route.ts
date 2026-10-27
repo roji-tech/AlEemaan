@@ -1,10 +1,12 @@
+import { resolveSubmitter } from "@/lib/lms/submitter";
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { submitAssignmentSchema } from "@/lib/lms/validation";
 import { submitAssignment, getAssignmentById, LmsError } from "@/lib/lms/service";
-import { prisma } from "@/lib/db";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -13,7 +15,8 @@ interface RouteParams {
 /**
  * GET /api/v1/lms/assignments/[id]/submissions?branchId=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "staff-read",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
@@ -39,11 +42,14 @@ export const GET = withAuth(
 /**
  * POST /api/v1/lms/assignments/[id]/submissions
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {
@@ -55,18 +61,9 @@ export const POST = withAuth(
         return fail(parsed.error.issues[0]?.message ?? "Invalid submission", 400, "VALIDATION");
       }
 
-      // Resolve student record ID from studentId in payload (admin/teacher testing) or auth.userId
-      let studentId = body.studentId;
-      if (!studentId) {
-        const studentRec = await prisma.studentRecord.findFirst({
-          where: { branchId, id: auth.userId },
-        });
-        studentId = studentRec?.id;
-      }
-
-      if (!studentId) {
-        return fail("studentId is required to submit work", 400, "VALIDATION");
-      }
+      const who = await resolveSubmitter(auth.userId, branchId, body.studentId);
+      if (!who.ok) return fail(who.message, who.status, who.status === 403 ? "FORBIDDEN" : "VALIDATION");
+      const studentId = who.studentId;
 
       const submission = await submitAssignment(branchId, id, studentId, parsed.data);
       return ok(submission, {}, 201);
@@ -77,5 +74,5 @@ export const POST = withAuth(
       return fail("Unable to submit assignment", 500, "INTERNAL");
     }
   },
-  { roles: [Role.STUDENT, Role.ADMIN, Role.TEACHING_STAFF] },
+  { roles: [Role.ADMIN, Role.TEACHING_STAFF] },
 );

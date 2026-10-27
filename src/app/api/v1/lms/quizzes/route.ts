@@ -1,15 +1,19 @@
 import { NextRequest } from "next/server";
 import { Role, QuizStatus } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createQuizSchema } from "@/lib/lms/validation";
+import { isBranchStaff, hideAnswerKey } from "@/lib/lms/audience";
 import { listQuizzes, createQuiz } from "@/lib/lms/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/lms/quizzes?branchId=...&subjectId=...&status=...
  */
-export const GET = withAuth(
-  async (req: NextRequest) => {
+export const GET = withAuthGated(
+  "read-any",
+  async (req: NextRequest, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
       const branchId = searchParams.get("branchId");
@@ -21,12 +25,13 @@ export const GET = withAuth(
       const subjectId = searchParams.get("subjectId") ?? undefined;
       const status = searchParams.get("status") as QuizStatus | undefined;
 
+      const staff = await isBranchStaff(auth.userId, branchId);
       const quizzes = await listQuizzes(branchId, {
         subjectId,
-        status: status && Object.values(QuizStatus).includes(status) ? status : undefined,
+        status: staff ? (status && Object.values(QuizStatus).includes(status) ? status : undefined) : QuizStatus.PUBLISHED,
       });
 
-      return ok(quizzes);
+      return ok(staff ? quizzes : quizzes.map(hideAnswerKey));
     } catch (error) {
       console.error("[LMS_QUIZZES_LIST_ERROR]", error);
       return fail("Unable to retrieve quizzes", 500, "INTERNAL");
@@ -38,10 +43,13 @@ export const GET = withAuth(
 /**
  * POST /api/v1/lms/quizzes
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createQuizSchema.safeParse(body);
 
       if (!parsed.success) {

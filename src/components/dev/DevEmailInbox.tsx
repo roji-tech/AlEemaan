@@ -296,7 +296,7 @@ export function DevEmailInbox() {
                   To {selected.to} · {time(selected.sentAt)}
                 </p>
                 <h3 className="mt-1 text-sm font-semibold text-fg">{selected.subject}</h3>
-                <pre className="mt-3 rounded-lg border border-line bg-surface-2 p-3 font-sans text-xs leading-relaxed break-words whitespace-pre-wrap text-fg-2">
+                <pre className="mt-3 rounded-lg border border-line bg-surface-2 p-3 font-sans text-xs leading-relaxed wrap-break-word whitespace-pre-wrap text-fg-2">
                   {selected.text}
                 </pre>
                 {linksIn(selected.text).length > 0 && (

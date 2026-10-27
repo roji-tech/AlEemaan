@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
+import { PortalAccessPanel } from "@/components/settings/PortalAccessPanel";
+import { ResultsApprovalPanel } from "@/components/settings/ResultsApprovalPanel";
 
 type SchoolSettingsState = {
   name: string;
@@ -42,10 +44,12 @@ type Props = {
   initialSettings: SchoolSettingsState;
   branches: { id: string; name: string }[];
   initialSessions: SessionItem[];
+  /// Whether the signed-in superadmin has two-step verification on (what the confirmation dialog asks for).
+  hasMfa: boolean;
 };
 
-export function SettingsView({ initialSettings, branches, initialSessions }: Props) {
-  const [activeTab, setActiveTab] = useState<"profile" | "academics">("profile");
+export function SettingsView({ initialSettings, branches, initialSessions, hasMfa }: Props) {
+  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval">("profile");
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
@@ -154,7 +158,31 @@ export function SettingsView({ initialSettings, branches, initialSessions }: Pro
         >
           Academic Sessions & Terms
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("portal")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
+            activeTab === "portal" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Portal access
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("approval")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
+            activeTab === "approval" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Results approval
+        </button>
       </div>
+
+      {/* Tab 3: what a pupil and a guardian may do in the portal */}
+      {activeTab === "portal" && <PortalAccessPanel branches={branches} />}
+
+      {/* Tab 4: who approves results, and where (task 0039) */}
+      {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}
 
       {/* Tab 1: Profile */}
       {activeTab === "profile" && (

@@ -2,10 +2,13 @@
 
 # AlEemaan — orientation for whoever (or whatever) picks this up next
 
-> ### 🚨 ACTIVE HANDOVER FOR NEXT AI SESSION (Updated 2026-10-18)
-> - **Primary Repository Handover:** [`docs/HANDOVER.md`](docs/HANDOVER.md) — Read this for current deployment status, database migrations, and landed milestones.
+> ### 🚨 ACTIVE HANDOVER FOR NEXT AI SESSION (Updated 2026-10-21)
+> - **Primary Repository Handover:** [`docs/HANDOVER.md`](docs/HANDOVER.md) — **start at section 6** (current state, rules learned, every decision the maintainer made on 2026-10-19). Hand-offs go in this file, in each repository.
+> - **State on 2026-10-21:** PR #79 is merged into `dev` as well (a NUL character in the query string or the JSON body is refused before the handler; task 0035; `dev` is `deb072f`); nothing is promoted to `master`/`prod`; two worktrees hold unfinished work (`../AlEemaan-slice2`, question-bank slice 2; `../AlEemaan-fix-promotion`, uncommitted promotion-screen edits): see `docs/HANDOVER.md` section 6.0. Octalve Edu has ADR 0018 (results approvers by scope, Proposed): this repository follows it after Octalve's slices land.
+> - **Taking over?** [`docs/HANDOVER.md`](docs/HANDOVER.md) section 6.0 (state, what waits on the maintainer, what to do next, in order) and section 7 (who may do what, the habits, how to run the tests on this shared machine, the clean-up checklist, where the private notes live).
+> - **State on 2026-10-20:** PRs #67 to #77 are merged into `dev` (#73 to #77 are task 0034: bounded body read, source hygiene, two test repairs, the names check); nothing is promoted to `master`/`prod`; only the unit project has been run on the merged `dev` (481 passed), the rest of the suite is still to run — see `HANDOVER.md` section 6.0 and [`docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md`](docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md).
 > - **Operations & Admissions Architecture Blueprint:** [`docs/tasks/0030-phase-4-operations-and-admissions-blueprint.md`](docs/tasks/0030-phase-4-operations-and-admissions-blueprint.md) — Specifications for Extended HR/Payroll, Library, Transport, Inventory, NEMIS, and Admissions CRM.
-> - **Master Cross-Project Handover:** [`/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md`](/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md) (Section 17).
+> - **Retired:** `/home/rojitech/Desktop/CODEC/out/HANDOFF-FOR-NEXT-AI.md` is history only (the maintainer retired it on 2026-10-19). Do not read it for state and do not add to it.
 > - **Tasks Register:** [`/home/rojitech/Desktop/CODEC/out/tasks.md`](/home/rojitech/Desktop/CODEC/out/tasks.md).
 
 This file exists so a fresh AI session with access to this repo (and its sibling, Octalve Edu) can
@@ -97,6 +100,7 @@ one-off pattern sources, referenced once for a specific technique and then done:
 ## Files that are stable reference — read once, trust, don't expect them to move
 
 - `docs/issues/README.md` — the **issues register** (known and suspected problems by severity and type, with an evidence level and a taxonomy of issue kinds). Add an issue the moment one is suspected, update it as it moves, link it from the task that fixes it; see its "How this register is used".
+- `docs/pages/`, `docs/components/`, `docs/functions/` — the **code catalogs**: every file under `src/` has exactly one row (pages: Route/File/Description; components and `lib/`: File/Description per folder; the API routes are catalogued inside `functions/`: Method/Route/File/Who/Description). Each folder's `index.md` says how it is laid out. A file added, renamed or deleted gets its row added, changed or removed in the same change.
 - `docs/adr/` — short ADRs (one per decision someone might reverse by mistake); read the index before changing RLS, locks, permissions, deactivation or migrations. Rules are in its README: never edit an accepted decision, supersede it.
 - `docs/legacy-feature-inventory.md` — a frozen factual snapshot of the 5 legacy repos as read on
   2026-09-28. Won't change unless the legacy system itself is re-audited.

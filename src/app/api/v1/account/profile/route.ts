@@ -6,6 +6,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
 import { auditPersonEvent } from "@/lib/auth/audit";
 import { checkName } from "@/lib/auth/profile-policy";
+import { readJsonBody } from "@/lib/api/validate";
 
 // PATCH /api/v1/account/profile  { name }                                              (plan §0.5.E)
 // A person edits their own display name. The name is shown to other people (headers, member lists), so it is
@@ -19,12 +20,9 @@ export const PATCH = withAuth(async (req, auth) => {
     return fail("Too many changes. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
   const parsed = schema.safeParse(body);
   if (!parsed.success) return fail("Enter your name.", 400, "VALIDATION");
   const checked = checkName(parsed.data.name);

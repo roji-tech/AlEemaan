@@ -5,6 +5,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { setCurrentPeriod, DomainError } from "@/lib/academics/sessions";
 import { z } from "zod";
+import { readJsonBody } from "@/lib/api/validate";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -19,12 +20,9 @@ const patchPeriodSchema = z.object({
  */
 export const PATCH = withAuth<Context>(
   async (req, admin, context) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return fail("Invalid JSON body", 400, "INVALID_BODY");
-    }
+    const read = await readJsonBody(req);
+    if (!read.ok) return read.response;
+    const body = read.json;
 
     const parsed = patchPeriodSchema.safeParse(body);
     if (!parsed.success) {

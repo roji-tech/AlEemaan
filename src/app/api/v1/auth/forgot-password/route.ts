@@ -7,6 +7,7 @@ import { reserveAttempt, getClientIp } from "@/lib/auth/rate-limit";
 import { createResetToken } from "@/lib/auth/password-reset";
 import { resetEmail } from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/auth/forgot-password  { email }   (domain-implementation-plan.md §0.5.C)
 //
@@ -33,12 +34,9 @@ async function handle(req: NextRequest) {
     return fail("Too many requests. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
-  }
+  const read = await readJsonBody(req);
+  if (!read.ok) return read.response;
+  const body = read.json;
   const parsed = schema.safeParse(body);
   if (!parsed.success) return ok(GENERIC); // nothing to do — and nothing to learn from the answer
   const { email } = parsed.data;

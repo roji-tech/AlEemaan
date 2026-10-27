@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateAssignmentSchema } from "@/lib/lms/validation";
+import { isBranchStaff, hideSubmissions } from "@/lib/lms/audience";
 import { getAssignmentById, updateAssignment, archiveAssignment, LmsError } from "@/lib/lms/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,8 +14,9 @@ interface RouteParams {
 /**
  * GET /api/v1/lms/assignments/[id]?branchId=...
  */
-export const GET = withAuth(
-  async (req: NextRequest, _auth, { params }: RouteParams) => {
+export const GET = withAuthGated(
+  "read-any",
+  async (req: NextRequest, auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
       const { searchParams } = new URL(req.url);
@@ -24,7 +27,9 @@ export const GET = withAuth(
       }
 
       const assignment = await getAssignmentById(branchId, id);
-      return ok(assignment);
+      if (await isBranchStaff(auth.userId, branchId)) return ok(assignment);
+      if (assignment.status !== "PUBLISHED") return fail("Assignment not found", 404, "NOT_FOUND");
+      return ok(hideSubmissions(assignment));
     } catch (error) {
       if (error instanceof LmsError) {
         return fail(error.message, error.statusCode, "NOT_FOUND");
@@ -38,11 +43,14 @@ export const GET = withAuth(
 /**
  * PATCH /api/v1/lms/assignments/[id]
  */
-export const PATCH = withAuth(
+export const PATCH = withAuthGated(
+  "staff-write",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {
@@ -69,7 +77,8 @@ export const PATCH = withAuth(
 /**
  * DELETE /api/v1/lms/assignments/[id]?branchId=...
  */
-export const DELETE = withAuth(
+export const DELETE = withAuthGated(
+  "staff-write",
   async (req: NextRequest, _auth, { params }: RouteParams) => {
     try {
       const { id } = await params;

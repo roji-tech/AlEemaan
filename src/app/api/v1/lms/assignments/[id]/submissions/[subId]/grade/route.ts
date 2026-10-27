@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { gradeSubmissionSchema } from "@/lib/lms/validation";
 import { gradeSubmission, LmsError } from "@/lib/lms/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string; subId: string }>;
@@ -12,11 +14,14 @@ interface RouteParams {
 /**
  * PATCH /api/v1/lms/assignments/[id]/submissions/[subId]/grade
  */
-export const PATCH = withAuth(
+export const PATCH = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext, { params }: RouteParams) => {
     try {
       const { id: assignmentId, subId } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {

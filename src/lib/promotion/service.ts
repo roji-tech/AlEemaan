@@ -6,9 +6,36 @@ import {
   resolveNextClassGroup,
   resolveTargetArm,
   validateSessionPromotionEligibility,
+  sessionPairProblem,
   DEFAULT_PASS_MARK,
 } from "./rules";
 import type { PromotionPreviewQuery, ExecutePromotionInput } from "./validation";
+
+/// A request that cannot be a rollover (a session of another branch, a target before the source, an override that names nobody in the class...). The routes answer it with
+/// `status` and the message, which says what to change; it is never a 500.
+export class PromotionError extends Error {
+  constructor(
+    message: string,
+    public readonly status: 400 | 404 | 409 = 400,
+  ) {
+    super(message);
+    this.name = "PromotionError";
+  }
+}
+
+/// Both sessions belong to the branch and the pair can be a rollover.
+async function checkSessions(branchId: string, sourceSessionId: string, targetSessionId: string) {
+  const sessions = await db.academicSession.findMany({
+    where: { branchId, id: { in: [sourceSessionId, targetSessionId] } },
+    select: { id: true, startDate: true },
+  });
+  const source = sessions.find((x) => x.id === sourceSessionId);
+  const target = sessions.find((x) => x.id === targetSessionId);
+  if (!source) throw new PromotionError("The source session was not found in this branch.", 404);
+  if (!target) throw new PromotionError("The target session was not found in this branch.", 404);
+  const problem = sessionPairProblem(source, target);
+  if (problem) throw new PromotionError(problem);
+}
 
 export interface StudentPreviewRow {
   studentId: string;
@@ -69,6 +96,8 @@ export interface PromotionPreviewResponse {
 export async function previewPromotion(query: PromotionPreviewQuery): Promise<PromotionPreviewResponse> {
   const { branchId, sourceSessionId, targetSessionId, sourceClassGroupId, passMark } = query;
 
+  await checkSessions(branchId, sourceSessionId, targetSessionId);
+
   // 1. Fetch source class and all classes in branch for progression resolution
   const allClasses = await db.classGroup.findMany({
     where: { branchId },
@@ -77,7 +106,7 @@ export async function previewPromotion(query: PromotionPreviewQuery): Promise<Pr
 
   const sourceClass = allClasses.find((c) => c.id === sourceClassGroupId);
   if (!sourceClass) {
-    throw new Error("Source class group not found in branch");
+    throw new PromotionError("The source class was not found in this branch.", 404);
   }
 
   const { nextClass, isTerminalClass } = resolveNextClassGroup(sourceClass, allClasses);
@@ -248,6 +277,49 @@ export async function previewPromotion(query: PromotionPreviewQuery): Promise<Pr
   };
 }
 
+/// What an override may ask for: only a pupil who is in the class for the source session, no "promoted" where there is no next class, and an arm that really belongs to the
+/// class the pupil goes to (the next class for a promotion, the same class for a repeat) and is still in use. Each refusal names the pupil and says what to change.
+async function checkOverrides(
+  branchId: string,
+  preview: PromotionPreviewResponse,
+  overrides: Map<string, { studentId: string; decision: PromotionDecision; targetClassArmId?: string | null }>,
+) {
+  const roster = new Map(preview.students.map((row) => [row.studentId, row]));
+  const armIds = [...new Set([...overrides.values()].map((o) => o.targetClassArmId).filter((id): id is string => Boolean(id)))];
+  const arms = armIds.length
+    ? await db.classArm.findMany({ where: { branchId, id: { in: armIds } }, select: { id: true, classGroupId: true, archivedAt: true } })
+    : [];
+  const armById = new Map(arms.map((a) => [a.id, a]));
+
+  for (const o of overrides.values()) {
+    const row = roster.get(o.studentId);
+    if (!row)
+      throw new PromotionError(
+        "An override names a pupil who is not in this class for the source session. Generate the preview again.",
+        409,
+      );
+    const name = `${row.firstName} ${row.lastName}`;
+    if (o.decision === PromotionDecision.PROMOTED && !preview.targetClassGroup) {
+      throw new PromotionError(
+        `${name} cannot be promoted: ${preview.sourceClassGroup.name} has no next class. Graduate or repeat them instead.`,
+      );
+    }
+    if (o.targetClassArmId) {
+      const goesTo =
+        o.decision === PromotionDecision.PROMOTED
+          ? preview.targetClassGroup
+          : o.decision === PromotionDecision.REPEATED
+            ? preview.sourceClassGroup
+            : null;
+      const arm = armById.get(o.targetClassArmId);
+      if (!goesTo) throw new PromotionError(`${name} is not moving to a class, so there is no arm to choose.`);
+      if (!arm || arm.archivedAt || arm.classGroupId !== goesTo.id) {
+        throw new PromotionError(`The arm chosen for ${name} is not an active arm of ${goesTo.name}.`);
+      }
+    }
+  }
+}
+
 /**
  * Commits a promotion batch, updating student enrollments atomically with idempotency guards.
  */
@@ -272,7 +344,13 @@ export async function executePromotion(input: ExecutePromotionInput, actorId: st
     passMark,
   });
 
+  // The class the pupils move to is whatever the branch's progression says NOW; a screen that was opened before a class was added or archived must be refreshed, not obeyed.
+  if (targetClassGroupId !== undefined && (targetClassGroupId ?? null) !== (preview.targetClassGroup?.id ?? null)) {
+    throw new PromotionError("The class these pupils move to has changed since the preview was made. Generate the preview again.", 409);
+  }
+
   const overrideMap = new Map(overrides.map((o) => [o.studentId, o]));
+  await checkOverrides(branchId, preview, overrideMap);
 
   return await db.$transaction(async (tx) => {
     // 1. Create PromotionBatch header
@@ -282,7 +360,7 @@ export async function executePromotion(input: ExecutePromotionInput, actorId: st
         sourceSessionId,
         targetSessionId,
         sourceClassGroupId,
-        targetClassGroupId: targetClassGroupId || preview.targetClassGroup?.id || null,
+        targetClassGroupId: preview.targetClassGroup?.id ?? null,
         status: PromotionBatchStatus.COMMITTED,
         passMark,
         totalEvaluated: preview.students.length,
@@ -315,29 +393,32 @@ export async function executePromotion(input: ExecutePromotionInput, actorId: st
         },
       });
 
-      if (!sourceEnrollment) {
+      // Already dealt with (by an earlier rollover of this class, or by hand): leave it alone, so running the same rollover twice changes nothing the second time.
+      if (!sourceEnrollment || sourceEnrollment.status !== EnrollmentStatus.ACTIVE) {
         continue;
       }
 
       // Map decision to source enrollment status update
-      let updatedSourceStatus: EnrollmentStatus = EnrollmentStatus.PROMOTED;
-      if (decision === PromotionDecision.PROMOTED) {
-        updatedSourceStatus = EnrollmentStatus.PROMOTED;
-        countPromoted++;
-      } else if (decision === PromotionDecision.GRADUATED) {
-        updatedSourceStatus = EnrollmentStatus.ALUMNI;
-        countGraduated++;
-      } else if (decision === PromotionDecision.WITHDRAWN) {
-        updatedSourceStatus = EnrollmentStatus.WITHDRAWN;
-      } else {
-        updatedSourceStatus = EnrollmentStatus.REPEATED;
-        countRepeated++;
-      }
+      const updatedSourceStatus: EnrollmentStatus =
+        decision === PromotionDecision.PROMOTED
+          ? EnrollmentStatus.PROMOTED
+          : decision === PromotionDecision.GRADUATED
+            ? EnrollmentStatus.ALUMNI
+            : decision === PromotionDecision.WITHDRAWN
+              ? EnrollmentStatus.WITHDRAWN
+              : EnrollmentStatus.REPEATED;
 
-      await tx.studentEnrollment.update({
-        where: { id: sourceEnrollment.id },
+      // A compare-and-set: only a still-ACTIVE enrolment is changed. Two rollovers of the same class that run at the same moment both see the pupils as active in their
+      // preview; the row lock makes the second one find it already dealt with here (count 0), so each pupil is processed once.
+      const moved = await tx.studentEnrollment.updateMany({
+        where: { id: sourceEnrollment.id, status: EnrollmentStatus.ACTIVE },
         data: { status: updatedSourceStatus },
       });
+      if (moved.count === 0) continue;
+
+      if (decision === PromotionDecision.PROMOTED) countPromoted++;
+      else if (decision === PromotionDecision.GRADUATED) countGraduated++;
+      else if (decision !== PromotionDecision.WITHDRAWN) countRepeated++;
 
       let targetEnrollmentId: string | null = null;
 
@@ -346,7 +427,10 @@ export async function executePromotion(input: ExecutePromotionInput, actorId: st
         const isPromoted = decision === PromotionDecision.PROMOTED;
         const targetClassGroup = isPromoted ? preview.targetClassGroup : preview.sourceClassGroup;
 
-        const effectiveArmId = override?.targetClassArmId || student.targetClassArmId;
+        // The arm follows the FINAL decision: the matching arm of the next class for a promotion, the pupil's own arm for a repeat. (The preview's arm belongs to the
+        // advised decision, which an override may have changed.) An arm the admin chose wins; checkOverrides has already shown it belongs to the right class.
+        const effectiveArmId =
+          override?.targetClassArmId || (isPromoted ? resolveTargetArm(student.currentArmName, preview.targetArms) : student.currentArmId);
 
         if (targetClassGroup) {
           const targetArm = effectiveArmId
@@ -470,5 +554,15 @@ export async function getPromotionBatch(branchId: string, batchId: string) {
     },
   });
 
-  return batch;
+  if (!batch) return null;
+  // A record keeps the decision that was TAKEN, not the advice. The advice is a pure function of the stored average, the batch's pass mark and whether the batch had a class to
+  // move to, so the history can show both without a second copy of it in the database.
+  const terminal = batch.targetClassGroupId === null;
+  return {
+    ...batch,
+    records: batch.records.map((record) => ({
+      ...record,
+      recommendedDecision: evaluatePromotionRecommendation(record.overallAverage, terminal, batch.passMark).decision,
+    })),
+  };
 }

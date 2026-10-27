@@ -91,12 +91,12 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
             </div>
             <div>
               {isPaid && (
-                <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400">
+                <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-ok-fg">
                   ✓ PAID IN FULL
                 </span>
               )}
               {isPartial && (
-                <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-xs font-bold text-amber-400">
+                <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-xs font-bold text-warn-fg">
                   PARTIALLY PAID
                 </span>
               )}
@@ -117,11 +117,11 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
             </div>
             <div className="rounded-xl border border-line bg-surface p-3">
               <span className="text-[11px] text-fg-muted block">Amount Paid</span>
-              <span className="text-base font-bold text-emerald-400 mt-1 block">{formatNaira(paid)}</span>
+              <span className="text-base font-bold text-ok-fg mt-1 block">{formatNaira(paid)}</span>
             </div>
             <div className="rounded-xl border border-line bg-surface p-3">
               <span className="text-[11px] text-fg-muted block">Balance Due</span>
-              <span className="text-base font-bold text-amber-400 mt-1 block">{formatNaira(balanceDue)}</span>
+              <span className="text-base font-bold text-warn-fg mt-1 block">{formatNaira(balanceDue)}</span>
             </div>
           </div>
 
@@ -144,7 +144,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
                     </tr>
                   ))}
                   {invoice.discounts.map((d) => (
-                    <tr key={d.id} className="bg-emerald-500/5 text-emerald-400 font-medium">
+                    <tr key={d.id} className="bg-emerald-500/5 text-ok-fg font-medium">
                       <td className="px-3 py-2">Discount: {d.reason}</td>
                       <td className="px-3 py-2 text-right">-{formatNaira(d.amount)}</td>
                     </tr>
@@ -176,7 +176,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
                         Ref: {p.providerRef} • {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : "Pending"}
                       </span>
                     </div>
-                    <span className="font-bold text-emerald-400 text-sm">{formatNaira(p.amount)}</span>
+                    <span className="font-bold text-ok-fg text-sm">{formatNaira(p.amount)}</span>
                   </div>
                 ))}
               </div>

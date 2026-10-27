@@ -9,8 +9,11 @@ import {
   signPortalSession,
   verifyPortalSession,
 } from "./auth";
-import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus } from "@prisma/client";
+import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus, QuizStatus } from "@prisma/client";
+import { submitAssignment, attemptQuiz } from "@/lib/lms/service";
 import { reportCardVisibleTo } from "@/lib/academics/report-card";
+import { accessFor, type Access, type Actor } from "./access";
+import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
 
 export interface PortalAuthResult {
   success: boolean;
@@ -18,6 +21,22 @@ export interface PortalAuthResult {
   sessionToken?: string;
   student?: Record<string, unknown>;
   siblingStudents?: Record<string, unknown>[];
+  /// Who signed in, and what each linked pupil's branch lets them do (task 0040).
+  actor?: Actor;
+  access?: Record<string, Access>;
+}
+
+/// What `actor` may do for each of these pupils, by the settings of the pupil's own branch.
+export async function portalAccessFor(students: readonly { id: string; branchId: string }[], actor: Actor): Promise<Record<string, Access>> {
+  const byBranch = await getPortalAccessByBranch(students.map((student) => student.branchId));
+  return Object.fromEntries(students.map((student) => [student.id, accessFor(byBranch.get(student.branchId)!, actor)]));
+}
+
+/// The pupils this sign-in reaches: the pupil alone, or every pupil sharing the guardian's contact when the branch's setting for this actor allows siblings. (A later
+/// change of the setting is also applied on every request: lib/portal/guard.ts.)
+async function linkedStudentIds(student: { id: string; branchId: string; guardianPhone: string | null; guardianEmail: string | null }, actor: Actor): Promise<string[]> {
+  const access = accessFor(await getPortalAccess(student.branchId), actor);
+  return access.siblings ? findSiblingStudentIds(student) : [student.id];
 }
 
 /**
@@ -62,7 +81,8 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
   }
 
   const primaryStudent = linkToken.student;
-  const siblingIds = await findSiblingStudentIds(primaryStudent);
+  const actor: Actor = "GUARDIAN"; // the link is sent to the guardian
+  const siblingIds = await linkedStudentIds(primaryStudent, actor);
 
   const siblingStudents = await prisma.studentRecord.findMany({
     where: {
@@ -81,6 +101,7 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
 
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
+    actor,
     primaryStudentId: primaryStudent.id,
     allowedStudentIds: siblingStudents.map((s) => s.id),
     guardianPhone: primaryStudent.guardianPhone,
@@ -96,25 +117,38 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
     sessionToken,
     student: primaryStudent,
     siblingStudents,
+    actor,
+    access: await portalAccessFor(siblingStudents, actor),
   };
 }
 
 /**
  * Authenticates a portal user using Admission Number + Verification Secret (Date of Birth or Guardian Phone).
  */
+/// The one answer to every failed admission-number sign-in: an unknown number, an archived pupil and a wrong secret all say this, so the wording (and, as far as one
+/// extra lookup allows, the timing) never reveals which admission numbers exist. Found by the bug hunt of 2026-10-19: "No active student found with this admission
+/// number" versus "Verification failed" confirmed every number to anyone who tried.
+export const PORTAL_SIGNIN_FAILED = "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
+
+/// Admission numbers compare case-insensitively and EXACTLY. Not Prisma's `{ equals, mode: "insensitive" }`: that is an ILIKE, so `%` and `_` were wildcards: the
+/// admission number "%" with one pupil's real guardian phone signed in as that pupil, without knowing any number, and "2026/00__" probed the numbering. A raw
+/// `lower() = lower()` has no pattern syntax. A case-sensitive unique index lets "abc/1" and "ABC/1" coexist, so every match is tried (at most 5), not an arbitrary first.
+async function activeStudentIdsByAdmissionNo(admissionNo: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "StudentRecord" WHERE lower("admissionNo") = lower(${admissionNo}) AND "archivedAt" IS NULL LIMIT 5`;
+  return rows.map((row) => row.id);
+}
+
 export async function authenticatePortalViaAdmission(admissionNo: string, secret: string): Promise<PortalAuthResult> {
   const cleanAdmission = admissionNo.trim();
   const cleanSecret = secret.trim();
 
   if (!cleanAdmission || !cleanSecret) {
-    return { success: false, error: "Admission number and verification secret are required" };
+    return { success: false, error: PORTAL_SIGNIN_FAILED };
   }
 
-  const student = await prisma.studentRecord.findFirst({
-    where: {
-      admissionNo: { equals: cleanAdmission, mode: "insensitive" },
-      archivedAt: null,
-    },
+  const students = await prisma.studentRecord.findMany({
+    where: { id: { in: await activeStudentIdsByAdmissionNo(cleanAdmission) } },
     include: {
       branch: true,
       enrollments: {
@@ -125,22 +159,20 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     },
   });
 
+  const student = students.find(
+    (candidate) =>
+      matchesDateOfBirth(cleanSecret, candidate.dateOfBirth) ||
+      matchesPhone(cleanSecret, candidate.guardianPhone) ||
+      (!!candidate.guardianEmail && candidate.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase()),
+  );
+
   if (!student) {
-    return { success: false, error: "No active student found with this admission number" };
+    return { success: false, error: PORTAL_SIGNIN_FAILED };
   }
 
-  const dobMatched = matchesDateOfBirth(cleanSecret, student.dateOfBirth);
-  const phoneMatched = matchesPhone(cleanSecret, student.guardianPhone);
-  const emailMatched = !!student.guardianEmail && student.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase();
-
-  if (!dobMatched && !phoneMatched && !emailMatched) {
-    return {
-      success: false,
-      error: "Verification failed. Please check the date of birth or guardian phone number.",
-    };
-  }
-
-  const siblingIds = await findSiblingStudentIds(student);
+  // The date of birth is the pupil's own; a phone number or an e-mail address is the guardian's.
+  const actor: Actor = matchesDateOfBirth(cleanSecret, student.dateOfBirth) ? "PUPIL" : "GUARDIAN";
+  const siblingIds = await linkedStudentIds(student, actor);
 
   const siblingStudents = await prisma.studentRecord.findMany({
     where: {
@@ -159,6 +191,7 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
 
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
+    actor,
     primaryStudentId: student.id,
     allowedStudentIds: siblingStudents.map((s) => s.id),
     guardianPhone: student.guardianPhone,
@@ -174,6 +207,8 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     sessionToken,
     student,
     siblingStudents,
+    actor,
+    access: await portalAccessFor(siblingStudents, actor),
   };
 }
 
@@ -213,7 +248,8 @@ export async function resolvePortalSessionData(cookieToken: string | undefined |
 /**
  * Retrieves the comprehensive overview for a verified student.
  */
-export async function getStudentPortalOverview(studentId: string, allowedStudentIds: string[]) {
+/// `showFees`: whether this actor may see money (the branch's `invoices` setting for them). When not, the answer carries no fee total at all, not a hidden one (task 0040).
+export async function getStudentPortalOverview(studentId: string, allowedStudentIds: string[], showFees: boolean) {
   if (!allowedStudentIds.includes(studentId)) {
     throw new Error("UNAUTHORIZED_STUDENT_ACCESS");
   }
@@ -301,12 +337,16 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
       percentage: attendancePercentage,
       recent: attendanceRecords.slice(0, 10),
     },
-    finance: {
-      totalInvoiced,
-      totalPaid,
-      outstandingBalance,
-      hasOutstanding: outstandingBalance > 0,
-    },
+    ...(showFees
+      ? {
+          finance: {
+            totalInvoiced,
+            totalPaid,
+            outstandingBalance,
+            hasOutstanding: outstandingBalance > 0,
+          },
+        }
+      : {}),
     announcements,
   };
 }
@@ -314,13 +354,21 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
 /**
  * Retrieves published academic results and report cards for a student.
  */
-export async function getStudentPortalResults(studentId: string, allowedStudentIds: string[]) {
+/// `showFees` as for the overview: an actor who may not see money is told the report card is not available yet, in words that name no amount, and the answer carries none.
+export async function getStudentPortalResults(studentId: string, allowedStudentIds: string[], showFees: boolean) {
   if (!allowedStudentIds.includes(studentId)) {
     throw new Error("UNAUTHORIZED_STUDENT_ACCESS");
   }
 
   const canView = await reportCardVisibleTo(studentId, { kind: "portal" });
   if (!canView) {
+    if (!showFees) {
+      return {
+        reportCards: [],
+        blockedByUnpaidFees: true,
+        message: "Your report card is not available yet. Please ask your guardian or the school office.",
+      };
+    }
     const invoices = await prisma.invoice.findMany({
       where: { studentId, status: { not: InvoiceStatus.CANCELLED } },
       select: { totalAmount: true, amountPaid: true },
@@ -471,7 +519,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
   });
 
   if (!enrollment || !enrollment.classArmId) {
-    return { assignments: [], materials: [] };
+    return { assignments: [], materials: [], quizzes: [] };
   }
 
   const branchId = enrollment.branchId;
@@ -484,7 +532,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       branchId,
       status: AssignmentStatus.PUBLISHED,
       archivedAt: null,
-      OR: [{ classArmId }, { classArmId: null }],
+      OR: [{ classArmId }, { classArmId: null, classGroupId: classGroupId }, { classArmId: null, classGroupId: null }],
     },
     include: {
       subject: true,
@@ -509,15 +557,45 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
     orderBy: { createdAt: "desc" },
   });
 
+  // Quizzes: published, for the whole branch or this class group. The answer key never leaves the server; the last attempt's result does.
+  const quizzes = await prisma.quiz.findMany({
+    where: {
+      branchId,
+      status: QuizStatus.PUBLISHED,
+      archivedAt: null,
+      OR: [...(classGroupId ? [{ classGroupId }] : []), { classGroupId: null }],
+    },
+    include: {
+      subject: true,
+      questions: { orderBy: { sortOrder: "asc" } },
+      attempts: { where: { studentId }, orderBy: { completedAt: "desc" }, take: 1 },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const now = Date.now();
   return {
     assignments: assignments.map((a) => ({
       id: a.id,
       title: a.title,
       description: a.description,
+      instructions: a.instructions,
       subjectName: a.subject.name,
       dueDate: a.dueDate,
       totalPoints: a.totalPoints,
+      // Past the deadline with late work not allowed: the pupil sees it, but the form is closed (the server refuses it too).
+      closed: Boolean(a.dueDate && a.dueDate.getTime() < now && !a.allowLate),
       submission: a.submissions[0] || null,
+    })),
+    quizzes: quizzes.map((q) => ({
+      id: q.id,
+      title: q.title,
+      instructions: q.instructions,
+      subjectName: q.subject.name,
+      timeLimitMinutes: q.timeLimitMinutes,
+      passingScore: q.passingScore,
+      questions: q.questions.map((x) => ({ id: x.id, prompt: x.prompt, questionType: x.questionType, options: x.options, points: x.points })),
+      lastAttempt: q.attempts[0] ? { score: q.attempts[0].score, isPassed: q.attempts[0].isPassed, completedAt: q.attempts[0].completedAt } : null,
     })),
     materials: materials.map((m) => ({
       id: m.id,
@@ -529,4 +607,71 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       createdAt: m.createdAt,
     })),
   };
+}
+
+/**
+ * What a verified pupil may hand in: their active enrolment fixes the branch and the class, so a pupil can only reach coursework meant for them.
+ */
+async function pupilScope(studentId: string, allowedStudentIds: string[]) {
+  if (!allowedStudentIds.includes(studentId)) throw new PortalLmsError("You are not authorized to act for this student", 403);
+  const enrollment = await prisma.studentEnrollment.findFirst({
+    where: { studentId, status: "ACTIVE" },
+    include: { classArm: true },
+    orderBy: { enrolledAt: "desc" },
+  });
+  if (!enrollment || !enrollment.classArmId) throw new PortalLmsError("This pupil is not in a class yet", 400);
+  return { branchId: enrollment.branchId, classArmId: enrollment.classArmId, classGroupId: enrollment.classArm?.classGroupId ?? null };
+}
+
+export class PortalLmsError extends Error {
+  constructor(
+    message: string,
+    public readonly status: 400 | 403 | 404,
+  ) {
+    super(message);
+  }
+}
+
+export async function submitPortalAssignment(
+  studentId: string,
+  allowedStudentIds: string[],
+  assignmentId: string,
+  params: { content?: string | null; attachments: { title: string; url: string }[] },
+) {
+  const scope = await pupilScope(studentId, allowedStudentIds);
+  const assignment = await prisma.assignment.findFirst({
+    where: {
+      id: assignmentId,
+      branchId: scope.branchId,
+      status: AssignmentStatus.PUBLISHED,
+      archivedAt: null,
+      OR: [{ classArmId: scope.classArmId }, { classArmId: null, classGroupId: scope.classGroupId }, { classArmId: null, classGroupId: null }],
+    },
+    select: { id: true },
+  });
+  if (!assignment) throw new PortalLmsError("That assignment is not available to this pupil", 404);
+
+  const earlier = await prisma.assignmentSubmission.findFirst({ where: { branchId: scope.branchId, assignmentId, studentId }, select: { status: true } });
+  if (earlier?.status === "GRADED") throw new PortalLmsError("This work has already been marked, so it can no longer be changed", 400);
+
+  return submitAssignment(scope.branchId, assignmentId, studentId, params);
+}
+
+export async function attemptPortalQuiz(studentId: string, allowedStudentIds: string[], quizId: string, answers: { questionId: string; answer: string }[]) {
+  const scope = await pupilScope(studentId, allowedStudentIds);
+  const quiz = await prisma.quiz.findFirst({
+    where: {
+      id: quizId,
+      branchId: scope.branchId,
+      status: QuizStatus.PUBLISHED,
+      archivedAt: null,
+      OR: [...(scope.classGroupId ? [{ classGroupId: scope.classGroupId }] : []), { classGroupId: null }],
+    },
+    select: { id: true },
+  });
+  if (!quiz) throw new PortalLmsError("That quiz is not available to this pupil", 404);
+
+  const attempt = await attemptQuiz(scope.branchId, quizId, studentId, answers);
+  const totalPoints = (await prisma.quizQuestion.aggregate({ where: { branchId: scope.branchId, quizId }, _sum: { points: true } }))._sum.points ?? 0;
+  return { score: attempt.score, isPassed: attempt.isPassed, totalPoints };
 }

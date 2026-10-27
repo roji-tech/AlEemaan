@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { AssignmentModal } from "./AssignmentModal";
 import { SpeedGraderModal } from "./SpeedGraderModal";
-import { StudentSubmissionModal } from "./StudentSubmissionModal";
+import Link from "next/link";
 
 interface AssignmentItem {
   id: string;
@@ -40,7 +40,6 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedForGrading, setSelectedForGrading] = useState<AssignmentItem | null>(null);
-  const [selectedForSubmission, setSelectedForSubmission] = useState<AssignmentItem | null>(null);
 
   const subjectFilterId = useId();
   const statusFilterId = useId();
@@ -103,9 +102,9 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
 
   const getStatusBadge = (status: AssignmentItem["status"]) => {
     const styles = {
-      DRAFT: "bg-muted text-foreground border-border",
-      PUBLISHED: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-      CLOSED: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      DRAFT: "bg-surface-2 text-fg border-line",
+      PUBLISHED: "bg-ok-bg text-ok-fg border-ok-line",
+      CLOSED: "bg-warn-bg text-warn-fg border-warn-line",
       ARCHIVED: "bg-slate-500/10 text-slate-500 border-slate-500/20",
     };
     return (
@@ -115,21 +114,21 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
     );
   };
 
-  const canManage = ["ADMIN", "DIRECTOR", "PRINCIPAL", "VICE_PRINCIPAL", "TEACHER"].includes(userRole);
+  const canManage = ["ADMIN", "TEACHING_STAFF"].includes(userRole);
 
   return (
     <div className="space-y-6">
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Coursework Assignments</h2>
-          <p className="text-sm text-muted-foreground">Manage student assignments, grading rubrics, deadlines, and submissions.</p>
+          <h2 className="text-xl font-bold tracking-tight text-fg">Coursework Assignments</h2>
+          <p className="text-sm text-fg-muted">Manage student assignments, grading rubrics, deadlines, and submissions.</p>
         </div>
         {canManage && (
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-brand-strong px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
           >
             + Create Assignment
           </button>
@@ -137,9 +136,9 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
       </div>
 
       {/* Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-card border border-border rounded-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-surface border border-line rounded-xl">
         <div>
-          <label htmlFor={searchFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={searchFilterId} className="block text-xs font-medium text-fg mb-1">
             Search
           </label>
           <input
@@ -148,19 +147,19 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
             placeholder="Search by title or class..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor={subjectFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={subjectFilterId} className="block text-xs font-medium text-fg mb-1">
             Subject
           </label>
           <select
             id={subjectFilterId}
             value={subjectFilter}
             onChange={(e) => setSubjectFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">All Subjects</option>
             {subjects.map((sub) => (
@@ -172,14 +171,14 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
         </div>
 
         <div>
-          <label htmlFor={statusFilterId} className="block text-xs font-medium text-foreground mb-1">
+          <label htmlFor={statusFilterId} className="block text-xs font-medium text-fg mb-1">
             Status
           </label>
           <select
             id={statusFilterId}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-line-strong bg-field px-3 py-1.5 text-sm shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">All Statuses</option>
             <option value="DRAFT">Draft</option>
@@ -192,17 +191,17 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
 
       {/* Error / Loading / Content State */}
       {error && (
-        <div role="alert" className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+        <div role="alert" className="p-4 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading coursework assignments...</div>
+        <div className="py-12 text-center text-sm text-fg-muted animate-pulse">Loading coursework assignments...</div>
       ) : filteredAssignments.length === 0 ? (
-        <div className="py-16 text-center border-2 border-dashed border-border rounded-xl">
-          <p className="text-sm font-medium text-foreground">No assignments found</p>
-          <p className="text-xs text-muted-foreground mt-1">
+        <div className="py-16 text-center border-2 border-dashed border-line rounded-xl">
+          <p className="text-sm font-medium text-fg">No assignments found</p>
+          <p className="text-xs text-fg-muted mt-1">
             {canManage ? "Create your first assignment using the button above." : "No coursework has been assigned for this branch yet."}
           </p>
         </div>
@@ -211,29 +210,29 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
           {filteredAssignments.map((assignment) => (
             <div
               key={assignment.id}
-              className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm hover:shadow transition-shadow"
+              className="flex flex-col justify-between rounded-xl border border-line bg-surface p-5 shadow-sm hover:shadow transition-shadow"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">{assignment.subject.name}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-brand-fg">{assignment.subject.name}</span>
                   {getStatusBadge(assignment.status)}
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-foreground text-base line-clamp-1">{assignment.title}</h3>
-                  {assignment.classGroup && <p className="text-xs text-muted-foreground mt-0.5">Class: {assignment.classGroup.name}</p>}
+                  <h3 className="font-semibold text-fg text-base line-clamp-1">{assignment.title}</h3>
+                  {assignment.classGroup && <p className="text-xs text-fg-muted mt-0.5">Class: {assignment.classGroup.name}</p>}
                 </div>
 
-                {assignment.description && <p className="text-xs text-muted-foreground line-clamp-2">{assignment.description}</p>}
+                {assignment.description && <p className="text-xs text-fg-muted line-clamp-2">{assignment.description}</p>}
 
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line text-xs">
                   <div>
-                    <span className="text-muted-foreground block">Max Points:</span>
-                    <span className="font-medium text-foreground">{assignment.totalPoints} pts</span>
+                    <span className="text-fg-muted block">Max Points:</span>
+                    <span className="font-medium text-fg">{assignment.totalPoints} pts</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Due Date:</span>
-                    <span className="font-medium text-foreground">
+                    <span className="text-fg-muted block">Due Date:</span>
+                    <span className="font-medium text-fg">
                       {assignment.dueDate
                         ? new Date(assignment.dueDate).toLocaleDateString(undefined, {
                             month: "short",
@@ -248,14 +247,14 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedForSubmission(assignment)}
-                  className="text-xs font-medium text-primary hover:underline focus:outline-none"
-                >
-                  Submit
-                </button>
+              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2">
+                {userRole === "STUDENT" || userRole === "PARENT" ? (
+                  <Link href="/portal" className="text-xs font-medium text-brand-fg hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    Hand in on the portal
+                  </Link>
+                ) : (
+                  <span />
+                )}
 
                 <div className="flex items-center gap-2">
                   {canManage && (
@@ -263,14 +262,14 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
                       <button
                         type="button"
                         onClick={() => setSelectedForGrading(assignment)}
-                        className="inline-flex items-center px-2.5 py-1 rounded bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                        className="inline-flex items-center px-2.5 py-1 rounded bg-surface-2 text-fg text-xs font-medium hover:bg-line focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
                       >
                         Speed Grader
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(assignment.id, assignment.title)}
-                        className="p-1 rounded text-destructive hover:bg-destructive/10 text-xs font-medium focus:outline-none"
+                        className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
                         aria-label={`Delete assignment ${assignment.title}`}
                       >
                         Delete
@@ -309,21 +308,6 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
           assignmentId={selectedForGrading.id}
           assignmentTitle={selectedForGrading.title}
           totalPoints={selectedForGrading.totalPoints}
-        />
-      )}
-
-      {/* Student Submission Modal */}
-      {selectedForSubmission && (
-        <StudentSubmissionModal
-          isOpen={Boolean(selectedForSubmission)}
-          onClose={() => setSelectedForSubmission(null)}
-          onSuccess={() => {
-            setSelectedForSubmission(null);
-            void fetchAssignments();
-          }}
-          branchId={branchId}
-          assignmentId={selectedForSubmission.id}
-          assignmentTitle={selectedForSubmission.title}
         />
       )}
     </div>

@@ -7,11 +7,12 @@ import { CardsPanel } from "@/components/results/CardsPanel";
 import type { BranchChoice } from "@/components/academics/common";
 
 // The Results page's sections behind one tab list (Slice P2d), the same ARIA tabs pattern as Academics: Left/Right/Home/End move between tabs, only the active
-// section is mounted. Review is for administrators; a teacher sees Enter marks and Report cards. Presentation only - the results APIs decide who may do what.
+// section is mounted. Review is for administrators and for approvers (task 0039); a teacher sees Enter marks and Report cards. Presentation only - the results APIs decide
+// who may do what.
 export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[]; isAdmin: boolean }) {
   const sections = [
     { id: "enter", label: "Enter marks" },
-    ...(isAdmin ? [{ id: "review", label: "Review" }] : []),
+    ...(isAdmin || branches.some((b) => b.canApprove) ? [{ id: "review", label: "Review" }] : []),
     { id: "cards", label: "Report cards" },
   ];
   const [active, setActive] = useState(sections[0].id);

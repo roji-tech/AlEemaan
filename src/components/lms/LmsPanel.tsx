@@ -7,18 +7,21 @@ import { QuizConsole } from "./QuizConsole";
 
 export interface LmsPanelProps {
   branches: { id: string; name: string }[];
-  userRole?: string;
+  /** The caller's role in each branch: `ADMIN`, `TEACHING_STAFF`, `NON_TEACHING_STAFF`, `STUDENT` or `PARENT`. */
+  rolesByBranch: Record<string, string>;
   userBranchId?: string | null;
 }
 
 type TabType = "assignments" | "materials" | "quizzes";
 
-export function LmsPanel({ branches, userRole = "ADMIN", userBranchId }: LmsPanelProps) {
+export function LmsPanel({ branches, rolesByBranch, userBranchId }: LmsPanelProps) {
   const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
   const [activeTab, setActiveTab] = useState<TabType>("assignments");
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
   const [classGroups, setClassGroups] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const userRole = rolesByBranch[selectedBranchId] ?? "STUDENT";
 
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -85,15 +88,15 @@ export function LmsPanel({ branches, userRole = "ADMIN", userBranchId }: LmsPane
     <div className="space-y-6">
       {/* Top Bar: Branch Selector */}
       {branches.length > 1 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl">
-          <label htmlFor="lms-branch-select" className="text-sm font-semibold text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface border border-line rounded-xl">
+          <label htmlFor="lms-branch-select" className="text-sm font-semibold text-fg">
             Current Branch:
           </label>
           <select
             id="lms-branch-select"
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -105,7 +108,7 @@ export function LmsPanel({ branches, userRole = "ADMIN", userBranchId }: LmsPane
       )}
 
       {/* Accessible Tab Navigation */}
-      <div className="border-b border-border">
+      <div className="border-b border-line">
         <div role="tablist" aria-label="Coursework sections" className="flex space-x-4 overflow-x-auto">
           {tabs.map((tab, idx) => {
             const isSelected = activeTab === tab.id;
@@ -123,10 +126,10 @@ export function LmsPanel({ branches, userRole = "ADMIN", userBranchId }: LmsPane
                 tabIndex={isSelected ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 onKeyDown={(e) => handleKeyDown(e, idx)}
-                className={`py-3 px-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-t-md ${
+                className={`py-3 px-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-t-md ${
                   isSelected
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    ? "border-brand-fg text-brand-fg"
+                    : "border-transparent text-fg-muted hover:text-fg hover:border-line"
                 }`}
               >
                 {tab.label}
@@ -138,7 +141,7 @@ export function LmsPanel({ branches, userRole = "ADMIN", userBranchId }: LmsPane
 
       {/* Tab Panels */}
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">Loading coursework data...</div>
+        <div className="py-12 text-center text-sm text-fg-muted animate-pulse">Loading coursework data...</div>
       ) : (
         <div>
           <div

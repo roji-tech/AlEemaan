@@ -5,6 +5,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateFeeStructureSchema } from "@/lib/finance/validation";
 import { updateFeeStructure, deleteFeeStructure, FinanceError } from "@/lib/finance/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,7 +29,9 @@ export const PATCH = withAuth(
         return fail("Forbidden: You do not have permission to manage finance for this branch", 403, "FORBIDDEN");
       }
 
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = updateFeeStructureSchema.safeParse(body);
 
       if (!parsed.success) {

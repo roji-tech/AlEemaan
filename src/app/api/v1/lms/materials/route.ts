@@ -1,14 +1,17 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createMaterialSchema } from "@/lib/lms/validation";
 import { listMaterials, createMaterial } from "@/lib/lms/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/lms/materials?branchId=...&subjectId=...&classGroupId=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "read-any",
   async (req: NextRequest) => {
     try {
       const { searchParams } = new URL(req.url);
@@ -34,10 +37,13 @@ export const GET = withAuth(
 /**
  * POST /api/v1/lms/materials
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createMaterialSchema.safeParse(body);
 
       if (!parsed.success) {

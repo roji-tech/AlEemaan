@@ -165,3 +165,41 @@ export function validateSessionPromotionEligibility(periods: { ordinal: number; 
     finalPeriodOrdinal: maxOrdinal,
   };
 }
+
+export interface SessionChoice {
+  id: string;
+  startDate: string | Date;
+  status?: string;
+}
+
+const startOf = (s: SessionChoice) => new Date(s.startDate).getTime();
+
+/** The id of the session that begins right after the given one, or "" when there is none (the next session has to be created first). */
+export function sessionAfter(sessions: SessionChoice[], id: string): string {
+  const byStart = [...sessions].sort((a, b) => startOf(a) - startOf(b));
+  const at = byStart.findIndex((s) => s.id === id);
+  return at >= 0 ? (byStart[at + 1]?.id ?? "") : "";
+}
+
+/**
+ * The two sessions to preselect for a rollover. The list arrives newest first, so taking its first two entries would evaluate the NEWER session and enrol into the OLDER one.
+ * The source is the session being evaluated: the ACTIVE one (the latest, if several), otherwise the second newest (the newest is then the one being moved into), or the only
+ * one there is. The target is the session that begins right after the source, or "" when there is none yet.
+ */
+export function defaultPromotionSessions(sessions: SessionChoice[]): { sourceId: string; targetId: string } {
+  const byStart = [...sessions].sort((a, b) => startOf(a) - startOf(b));
+  if (byStart.length === 0) return { sourceId: "", targetId: "" };
+  const active = byStart.filter((s) => s.status === "ACTIVE");
+  const source = active.length > 0 ? active[active.length - 1] : byStart.length >= 2 ? byStart[byStart.length - 2] : byStart[0];
+  return { sourceId: source.id, targetId: sessionAfter(byStart, source.id) };
+}
+
+/** A session pair that cannot be a rollover: the same session twice, or a target that does not begin after the source does. `null` when the pair is fine. */
+export function sessionPairProblem(
+  source: { id: string; startDate: Date | string },
+  target: { id: string; startDate: Date | string },
+): string | null {
+  if (source.id === target.id) return "The target session must be different from the source session.";
+  if (startOf(target) <= startOf(source)) return "The target session must begin after the source session.";
+  return null;
+}

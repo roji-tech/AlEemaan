@@ -103,6 +103,7 @@ export const POST = withAuth(
       const scheme = await tx.assessmentScheme.create({
         data: {
           branchId: hostBranchId,
+          hosted: true,
           name: body.name,
           totalMax: 100,
           examMax: body.examMax,

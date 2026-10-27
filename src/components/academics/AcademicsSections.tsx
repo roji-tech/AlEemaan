@@ -3,6 +3,7 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ClassesPanel } from "@/components/academics/ClassesPanel";
 import { GradingPanel } from "@/components/academics/GradingPanel";
+import { SchemeLevelsPanel } from "@/components/academics/SchemeLevelsPanel";
 import { StaffPanel } from "@/components/academics/StaffPanel";
 import { PromotionConsole } from "@/components/academics/promotion/PromotionConsole";
 import type { BranchChoice } from "@/components/academics/common";
@@ -17,7 +18,7 @@ const SECTIONS = [
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
-export function AcademicsSections({ branches }: { branches: BranchChoice[] }) {
+export function AcademicsSections({ branches, isSuperAdmin = false }: { branches: BranchChoice[]; isSuperAdmin?: boolean }) {
   const [active, setActive] = useState<SectionId>("classes");
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -70,7 +71,12 @@ export function AcademicsSections({ branches }: { branches: BranchChoice[] }) {
       </div>
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
         {active === "classes" && <ClassesPanel branches={branches} />}
-        {active === "grading" && <GradingPanel branches={branches} />}
+        {active === "grading" && (
+          <div className="space-y-10">
+            <GradingPanel branches={branches} />
+            <SchemeLevelsPanel branches={branches} isSuperAdmin={isSuperAdmin} />
+          </div>
+        )}
         {active === "staff" && <StaffPanel branches={branches} />}
         {active === "promotion" && <PromotionConsole branches={branches} />}
       </div>

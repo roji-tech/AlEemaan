@@ -42,6 +42,8 @@
 | 0030 | Release Staging | Release v0.7.1 Staging: Promote `dev` ➔ `master` | Completed | 2026-10-18 06:32:00 UTC | 2026-10-18 06:32:10 UTC | [PR #61](https://github.com/roji-tech/AlEemaan/pull/61) |
 | 0031 | Release Production | Release v0.7.1 Production: Promote `master` ➔ `prod` (Tagged `v0.7.1`) | Completed | 2026-10-18 06:32:40 UTC | 2026-10-18 06:32:55 UTC | [PR #62](https://github.com/roji-tech/AlEemaan/pull/62) |
 
+> **Note (2026-10-21):** this table stops at 0031, and its 0030 and 0031 are the two release rows of 2026-10-18, not the task files with those numbers. The task files 0030 to 0035 (the blueprint, Slice UI1, the Forms and question bank, the walkthrough audit, the bounded body read, the NUL scan) are in the sections below and in `docs/tasks/`.
+
 ---
 
 
@@ -197,4 +199,73 @@
 - [x] Prettified database migration tooling and verified live Prisma Cloud PostgreSQL schema alignment (25/25 migrations active).
 - [x] 100% green test suites across 585 tests.
 
+---
 
+### TASK-0031: Slice UI1 - screens and security found by the browser run
+- **Status:** Completed (merged into `dev` as [PR #67](https://github.com/roji-tech/AlEemaan/pull/67) on 2026-10-19 21:11 +01:00; the migration `20261019090000_hosted_schemes` must run on a live database before the code goes live, see `docs/HANDOVER.md` section 6). See `docs/tasks/0031-ui1-screens-and-security.md`.
+- [x] Students, Approvals, Scheme levels, timetable batch, portal hand-in and quiz screens.
+- [x] Cross-branch data exposure closed in finance, coursework, announcements, timetable, communication, promotion, sessions.
+- [x] Final full-suite run: 1538 passed, 2 failed (read; one fixed, one load-sensitive and passing alone), 18 skipped.
+- [x] PR into `dev` (base verified) and merged; the migration ordering note is in `docs/HANDOVER.md` section 6.
+
+---
+
+### TASK-0032: Forms module and Question Bank
+- **Status:** In progress. Slice 1 (foundation: schema, settings, reviewers, audit, screens) merged into `dev` as [PR #69](https://github.com/roji-tech/AlEemaan/pull/69) on 2026-10-20; slices 3 to 10 are not on `dev`. Slice 2 is complete and merged: 2.0 (the pure parts and the migration, PR #92), 2.1 (service and API, #94), 2.2 (images, #95) and 2.3 (screens, #96), with the fix #97 (a reviewer for every branch saw an empty queue); see `docs/tasks/0032-forms-and-question-bank.md` section 4b. See `docs/tasks/0032-forms-and-question-bank.md` (section 4a) and `docs/development-history/forms-and-question-bank-design.md`.
+
+---
+
+### TASK-0034: Bounded body read, source hygiene, two test repairs and the names check
+- **Status:** Completed: merged into `dev` as PRs #73 to #77 on 2026-10-20 (20:00:17 to 20:01:16 UTC), in order, each after its Vercel check passed and with `base.ref` checked to be `dev` (merge commits `414b116`, `a380ab6`, `00e43ca`, `5866bb2`, `8db6101`). See `docs/tasks/0034-bounded-body-read-hygiene-test-repairs-and-names.md`.
+- [x] #73 `claude/bounded-body-read` (two commits): `validate()` and the branch gate read a request body through `readBoundedText`
+- [x] #74 `claude/chore-source-hygiene`: no invisible or direction-changing characters in the source, with a guard test
+- [x] #75 `claude/test-outbox-strict`, #76 `claude/test-startup-secrets-hermetic`: two test repairs
+- [x] #77 `claude/fix-names-need-a-visible-character`: a name needs a visible character
+- [x] The whole unit project on the merged `dev`: 481 passed
+- [ ] NOT run: the API, integration, e2e and https projects on the merged `dev` (no full suite was started)
+
+---
+
+### TASK-0035: A NUL character in a request is refused before the handler
+- **Status:** Completed: merged into `dev` as [PR #79](https://github.com/roji-tech/AlEemaan/pull/79) on 2026-10-21 (01:41:01 UTC; merge commit `deb072f`, branch `claude/fix-nul-in-input`), after its Vercel check passed and with `base.ref` checked to be `dev`. See `docs/tasks/0035-a-nul-character-in-a-request-is-refused-before-the-handler.md`.
+- [x] `withAuth` refuses a NUL character in the query string (400, naming "query") and in a JSON body of a state-changing request (400, naming "body", read from a copy of the request), after the checks that say who may be here and before the handler; `validate()` refuses one in the body it parses
+- [x] `src/lib/api/no-nul.ts` (`holdsNul`, `NUL_MESSAGE`), the same file as in Octalve Edu (its task 0019)
+- [x] Failing first: 19 of 75 tests failed on a build without the wiring, 56 passed; on the branch 75 passed; the whole setup, unit, integration and api projects 1318 passed, 2 failed (the two tests that expected the old messages, updated; re-run alone: 2 passed)
+- [ ] NOT run: the e2e and https projects on the branch; a full suite of every project on the merged `dev`
+- [x] The shared reader: task 0038 (below). [ ] Open: a central 400 in `withAuth` (not done on purpose)
+
+---
+
+### TASK-0036: Only an API path with a percent sign comes through the proxy
+- **Status:** Completed: merged into `dev` as PR #83 (branch `claude/fix-proxy-api-matcher`). See `docs/tasks/0036-proxy-api-matcher-narrowed.md`.
+- [x] The matcher entry is `/api/(.*%.*)`; a request body that never ends gets the route's own 413 again (the twin of Octalve Edu's task 0021, module A).
+- [x] Failing first: the new stall spec failed on `dev` (no answer within 20 s), its three controls passed.
+- [x] Every 413 carries `Connection: close` (found by the whole-suite run: the request after a refused oversize body could be reset); failing first, then the stall spec, the `fail()` unit test and the gate spec repeated 6 times pass.
+- [ ] The result of the broader run, in the PR.
+
+---
+
+### TASK-0033: Walkthrough videos and PDFs that double as a flow audit
+- **Status:** Pending, deferred: runs last, after all other tasks (maintainer, 2026-10-19). Specified and refined (2026-10-23: phases P0 to P4, recon versus final runs, one timeline as the source of captions and ticks, negative rows per role, the actors and observers rule), nothing built, 0 of 9 items done. Waits for Task 0032 slices 2 to 10, Octalve's question-bank parity and a green full suite on each `dev`. See `docs/tasks/0033-walkthrough-flow-audit.md`.
+
+### TASK-0037: The promotion screens send the fields the server reads, start on the right sessions, and the server refuses a rollover that cannot be right
+- **Status:** Completed: merged into `dev` as PR #84 (branch `claude/fix-promotion-screens`); the final-term decision is open. See `docs/tasks/0037-promotion-screens-and-checks.md`.
+- [x] The console and the history view use the server's field names; the console starts on the active session and the one after it; the server checks the sessions, the next class and every override before it writes, and each pupil is processed once.
+- [x] Failing first on a build of unmodified `dev` (20 failed, 22 passed, with the reader specs); on the branch the three promotion specs: 36 passed, 0 failed. Not run: e2e-mobile, https, the whole other projects.
+- [ ] Open, the maintainer's decision: enforce the final-term `eligibility` flag on the server?
+
+### TASK-0038: One shared reader for a request body
+- **Status:** Completed on the branch (verified; PR open): branch `claude/shared-body-reader`. See `docs/tasks/0038-shared-request-body-reader.md`.
+- [x] `readJsonBody` and `readJsonObject` in `src/lib/api/validate.ts`; the 51 route files that read their own body use them (37 + 12 + the 2 optional-body routes through `readBoundedText`); `validate()` calls the same reader
+- [x] `tests/unit/route-body-guard.spec.ts` (a route that reads a body any other way fails) and `tests/api/own-body-routes.spec.ts` (a sweep of every such route)
+- [x] Failing first on a build of unmodified `dev`; on the branch the guard and the sweep 153 passed. Not run: e2e, https, the whole other projects, a full suite on the merged `dev`
+
+### TASK-0039: Results approvers by scope (the port of Octalve Edu's task 0020 and ADR 0018)
+- **Status:** All four slices merged into `dev` (slice 1 earlier; 2a, 2b and 3 as PRs #98, #99 and #100 on 2026-10-26). The hosted migrations and the Phase 2 mutation pass remain. The maintainer accepted all four decisions as recommended. See `docs/tasks/0039-approvers-by-scope-port.md` (what differs from Octalve, the design, seven slices, four decisions with a recommendation each).
+- [x] Slice 1 (permission read, tables, scope rules, workflow, queue)
+- [x] Slice 2a (the setting), slice 2b (the API), slice 3 (the screen)
+- [x] The maintainer's decisions (2026-10-25): the permission makes an approver; the superadmin assigns; publish and lock need the scope; a fresh password or two-step code for these routes
+
+### TASK-0040: The portal tells a pupil from a guardian, and what each may do is an admin setting
+- **Status:** Step 1 merged 2026-10-26 (PR #93, branch `claude/portal-actor-and-access`); the maintainer answered yes to the three questions and asked for the access to be an admin setting. Step 2 (real separate credentials) is not started. See `docs/tasks/0040-portal-pupil-guardian-separation.md`.
+- [x] Step 1: the session records the actor; a guard on every portal route; the per-branch `portal_access` setting with its audited admin screen. Separate credentials (step 2) stay an open item.
