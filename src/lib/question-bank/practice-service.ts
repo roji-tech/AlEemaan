@@ -133,14 +133,12 @@ export async function getPracticeOptions(params: {
     ],
   };
 
-  if (classKey) {
-    (where.AND as Prisma.QuestionBankItemWhereInput[]).push({
-      OR: [
-        { classTags: { none: {} } },
-        { classTags: { some: { labelKey: classKey } } },
-      ],
-    });
-  }
+  // A pupil the school has not placed in a class is shown only the questions that name no class, never every class's.
+  (where.AND as Prisma.QuestionBankItemWhereInput[]).push(
+    classKey
+      ? { OR: [{ classTags: { none: {} } }, { classTags: { some: { labelKey: classKey } } }] }
+      : { classTags: { none: {} } },
+  );
 
   const items = await prisma.questionBankItem.findMany({
     where,
@@ -245,14 +243,12 @@ export async function startPracticeSession(params: {
     ],
   };
 
-  if (classKey) {
-    (where.AND as Prisma.QuestionBankItemWhereInput[]).push({
-      OR: [
-        { classTags: { none: {} } },
-        { classTags: { some: { labelKey: classKey } } },
-      ],
-    });
-  }
+  // A pupil the school has not placed in a class is shown only the questions that name no class, never every class's.
+  (where.AND as Prisma.QuestionBankItemWhereInput[]).push(
+    classKey
+      ? { OR: [{ classTags: { none: {} } }, { classTags: { some: { labelKey: classKey } } }] }
+      : { classTags: { none: {} } },
+  );
   if (params.subjectLabel) {
     where.subjectKey = normalizeLabel(params.subjectLabel);
   }
@@ -379,13 +375,6 @@ export async function submitPracticeAnswer(params: {
     throw new PracticeError("Question is not part of this practice session.", 400, "INVALID_QUESTION");
   }
 
-  const existing = await prisma.practiceAttempt.findFirst({
-    where: { sessionId: session.id, bankItemId: params.bankItemId },
-  });
-  if (existing) {
-    throw new PracticeError("You have already answered this question in this session.", 400, "ALREADY_ANSWERED");
-  }
-
   const item = await prisma.questionBankItem.findUnique({
     where: { id: params.bankItemId },
     select: {
@@ -403,16 +392,24 @@ export async function submitPracticeAnswer(params: {
 
   const evaluation = evaluatePracticeAnswer(item, params.answer);
 
-  await prisma.practiceAttempt.create({
-    data: {
-      sessionId: session.id,
-      branchId: params.branchId,
-      studentId: params.studentId,
-      bankItemId: item.id,
-      version: item.version,
-      answer: (params.answer ?? null) as Prisma.InputJsonValue,
-      correct: evaluation.correct,
-    },
+  // One answer per question: the check and the write are made together under a lock for this session, so two answers sent at the same moment cannot both be written.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`practice-answer:${session.id}`}::text))`;
+    const existing = await tx.practiceAttempt.findFirst({ where: { sessionId: session.id, bankItemId: params.bankItemId } });
+    if (existing) {
+      throw new PracticeError("You have already answered this question in this session.", 400, "ALREADY_ANSWERED");
+    }
+    await tx.practiceAttempt.create({
+      data: {
+        sessionId: session.id,
+        branchId: params.branchId,
+        studentId: params.studentId,
+        bankItemId: item.id,
+        version: item.version,
+        answer: (params.answer ?? null) as Prisma.InputJsonValue,
+        correct: evaluation.correct,
+      },
+    });
   });
 
   if (session.feedbackMode === PracticeFeedbackMode.EACH) {
@@ -522,7 +519,8 @@ export async function getPracticeHistory(params: {
     throw new PracticeError("Your sign-in does not include this.", 403, "PORTAL_ACCESS");
   }
 
-  if (params.actor === "GUARDIAN" && access.practice === "SUMMARY") {
+  // A summary level is a summary for whoever it is set for, the pupil included.
+  if (access.practice === "SUMMARY") {
     const sessionsCount = await prisma.practiceSession.count({
       where: { branchId: params.branchId, studentId: params.studentId },
     });

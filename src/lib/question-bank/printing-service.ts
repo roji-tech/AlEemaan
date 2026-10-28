@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { loadViewer } from "@/lib/question-bank/viewer";
 import { staffMaySee } from "@/lib/question-bank/rules";
+import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
 import {
   PrintTargetKind,
   Role,
@@ -62,22 +63,9 @@ export async function isUserExamApprover(userId: string, branchId: string): Prom
  * Loads the effective near-exam days configuration for a branch (default 7).
  */
 export async function getNearExamDays(branchId: string): Promise<number> {
-  const setting = await prisma.settingValue.findFirst({
-    where: {
-      key: "bank.print.nearExamDays",
-      OR: [{ branchId }, { scope: "GLOBAL" }],
-    },
-    orderBy: { scope: "desc" }, // branch-specific overrides global
-  });
-
-  if (setting && typeof setting.value === "number" && setting.value >= 0) {
-    return setting.value;
-  }
-  if (setting && typeof setting.value === "string") {
-    const parsed = parseInt(setting.value, 10);
-    if (!isNaN(parsed) && parsed >= 0) return parsed;
-  }
-  return 7;
+  // The effective value: the school's, lowered or raised only the way "a branch may only narrow" allows, with an invalid stored value ignored.
+  const settings = await getEffectiveBankSettings(branchId);
+  return settings["bank.print.nearExamDays"];
 }
 
 /**
