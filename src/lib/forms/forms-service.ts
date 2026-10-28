@@ -5,14 +5,19 @@ import {
   FormStatus,
   FormAudienceKind,
   FormResponseStatus,
+  FormMarkingMethod,
+  FormMarkingStatus,
 } from "@prisma/client";
 import {
   isFormOpen,
   scrubFormQuestionsForPupil,
-  evaluateFormSubmission,
   isPupilAudienceEligible,
   validatePracticeSetInput,
 } from "./practice-sets";
+import {
+  resolveMarkingMethod,
+  evaluateSubmissionWithMarking,
+} from "./manual-marking";
 
 export class FormsServiceError extends Error {
   constructor(
@@ -124,6 +129,7 @@ export async function createPracticeSet(params: {
       correctAnswer: correctAnswer ?? null,
       explanation: explanation ?? null,
       points: Math.max(0, points),
+      markingMethod: resolveMarkingMethod(questionType, (q as { markingMethod?: FormMarkingMethod }).markingMethod),
       sortOrder: q.sortOrder ?? index,
     };
   });
@@ -577,8 +583,8 @@ export async function submitPracticeSetForPupil(params: {
     throw new FormsServiceError("This practice set has already been completed.", 400, "ALREADY_COMPLETED");
   }
 
-  // Evaluate answers
-  const evaluation = evaluateFormSubmission(questions, params.answers);
+  // Evaluate answers taking manual marking into account
+  const evaluation = evaluateSubmissionWithMarking(questions, params.answers);
 
   const completedAt = new Date();
 
@@ -592,6 +598,7 @@ export async function submitPracticeSetForPupil(params: {
         value: ea.value as never,
         isCorrect: ea.isCorrect,
         score: ea.score,
+        markingStatus: ea.markingStatus,
         createdAt: completedAt,
       })),
     });
@@ -603,6 +610,7 @@ export async function submitPracticeSetForPupil(params: {
         status: FormResponseStatus.COMPLETED,
         score: evaluation.totalScore,
         maxScore: evaluation.maxScore,
+        markingStatus: evaluation.markingStatus,
         submittedAt: completedAt,
       },
     });
@@ -612,6 +620,8 @@ export async function submitPracticeSetForPupil(params: {
     ok: true,
     responseId: response.id,
     status: FormResponseStatus.COMPLETED,
+    markingStatus: evaluation.markingStatus,
+    isPendingReview: evaluation.markingStatus === FormMarkingStatus.PENDING,
     totalScore: evaluation.totalScore,
     maxScore: evaluation.maxScore,
     accuracyPercentage: evaluation.accuracyPercentage,

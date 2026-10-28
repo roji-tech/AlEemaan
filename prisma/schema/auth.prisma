@@ -74,6 +74,9 @@ model User {
   formsClosed           Form[]                   @relation("FormsClosed")
   formTurnInsMarked     FormTurnIn[]             @relation("TurnInsMarked")
   turnInAudits          FormTurnInAudit[]        @relation("TurnInAuditActor")
+  formResponsesMarked   FormResponse[]           @relation("ResponsesMarked")
+  formAnswersMarked     FormAnswer[]             @relation("AnswersMarked")
+  markingAudits         FormMarkingAudit[]       @relation("MarkingAuditActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

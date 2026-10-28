@@ -25,7 +25,7 @@ Teachers reuse reviewed questions from a bank; pupils practise from the portal; 
 - [x] 6 Practice sets (ungraded forms)
 - [x] 7 Questionnaires: members, public, anonymous, summaries
 - [x] 8 Paper work: roll call, close, maximum duration, pupil request
-- [ ] 9 Manual marking
+- [x] 9 Manual marking
 - [ ] 10 Printing: server PDFs, windows, watermark, logs
 - [ ] Mutation passes (deferred to the end of Phase 2)
 
@@ -395,7 +395,44 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/api/paper-work.spec.ts`: 5 comprehensive API integration tests passed (roster provisioning, deadline tracking, audits, pupil portal discovery and request marking, closed form refusal, ADR 0014 cross-branch isolation).
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
+## 4j. Slice 9 as built (2026-10-28)
+
+**What is built:**
+- **Schema & Migration:** `20261029030000_manual_marking`:
+  - Added enums: `FormMarkingMethod` (`AUTO`, `MANUAL`), `FormMarkingStatus` (`NOT_REQUIRED`, `PENDING`, `PARTIALLY_MARKED`, `MARKED`).
+  - Updated `FormQuestion`: added `markingMethod` (`AUTO` default; `SHORT` questions default to `MANUAL` in domain logic per §8.8).
+  - Updated `FormResponse`: added `markingStatus`, `markedById`, `markedAt`, and relation to `User` (`ResponsesMarked`).
+  - Updated `FormAnswer`: added `markingStatus`, `markedById`, `markedAt`, `feedback`, and relation to `User` (`AnswersMarked`).
+  - Added model `FormMarkingAudit` with ADR 0015 composite keys `(branchId, id)` and append-only trigger `question_bank_append_only`:
+    - Immutably records every score awarded, feedback note, answer marking, and attempt finalization with teacher actor identification.
+- **Pure Domain Logic:** `src/lib/forms/manual-marking.ts`:
+  - `resolveMarkingMethod`: defaults `SHORT` question type to `MANUAL` per §8.8; defaults choice questions to `AUTO`; respects explicit overrides.
+  - `validateAnswerScore`: validates awarded scores within `[0, maxPoints]`.
+  - `validateTeacherFeedback`: enforces bounds on teacher feedback strings (max 2000 chars).
+  - `evaluateSubmissionWithMarking`: evaluates auto questions immediately; flags manual questions in `PENDING` status with score 0 and answer keys/explanations scrubbed.
+  - `computeAttemptMarkingSummary`: tracks status transitions across `PENDING`, `PARTIALLY_MARKED`, and `MARKED`, computing total score, max points, and accuracy percentage.
+  - `canMarkResponse`: prevents teacher grading on `IN_PROGRESS` or `ABANDONED` attempts.
+  - `sanitizeResponseForPupil`: withholds scores, explanations, and answer keys on pending manual questions while revealing teacher feedback and awarded scores for marked questions.
+- **Service & Routes:**
+  - `src/lib/forms/manual-marking-service.ts`:
+    - Staff: `listPendingMarkingResponses` (lists responses needing manual grading with pending count), `getResponseForMarking` (fetches questions, student answers, current scores, and audit history), `markFormAnswer` (grades individual answer with score recalculation and audit), `markFormAttempt` (batch grades multiple answers or entire attempt with audit).
+    - Pupil Portal: `getPupilResponseWithMarking` (retrieves pupil's submission with manual marking visibility rules applied).
+  - Staff Routes:
+    - `GET /api/v1/forms/[id]/marking-queue`: returns pending responses for a specific form.
+    - `GET /api/v1/forms/marking-queue`: returns pending responses across all forms for a branch.
+    - `GET /api/v1/forms/[id]/responses/[responseId]/marking`: loads detailed response for teacher grading.
+    - `PATCH /api/v1/forms/[id]/responses/[responseId]/marking`: grades single answer or batch attempt with audit trail.
+  - Pupil Portal Routes:
+    - `GET /api/v1/portal/students/[studentId]/forms/practice-sets/[id]/responses/[responseId]`: returns student submission result with pending manual masking or finalized teacher marks and feedback.
+  - Registered all new route handlers in `tests/unit/route-role-guard.spec.ts`.
+- **Tests & Verification:**
+  - `tests/unit/manual-marking.spec.ts`: 10 pure domain rule unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
+  - `tests/api/manual-marking.spec.ts`: 5 comprehensive API integration tests passed (mixed auto/manual evaluation, marking queue inspection, single answer grading, batch attempt grading, score bounds, ADR 0014 branch isolation, append-only trigger protection).
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
+
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.
+
 
 
