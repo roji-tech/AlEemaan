@@ -464,6 +464,11 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/api/printing.spec.ts`: 8 comprehensive API integration tests passed (near-exam window teacher blocking, exam approver watermarking and audit logging, non-exam printing, recipient student handout watermarking, pupil in-progress completion enforcement, pupil masked review, ADR 0014 branch isolation, append-only trigger protection).
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
+## 4c. Review fixes after slices 3 to 10 (2026-10-28)
+A read of the code merged by slices 3 to 10 found gaps that the slices' own tests did not cover. Each is fixed in its own PR with a test that failed before the change. Kept short here because the repository is public.
+- **Practice finish and archive were not pupil-only (this PR).** The finish route (`practice/sessions/[id]/finish`) and the archive route (`practice/history/[id]`) checked that the sign-in could reach the child but not WHO was signed in, so a guardian's sign-in could use them although a guardian's practice level is a summary. `finishPracticeSession` and `archivePracticeAttempt` now take the actor and refuse anyone but the pupil (`PORTAL_ACCESS`, 403), in the service as well as the route. `tests/api/portal-practice-actor.spec.ts` (4 tests; the two guardian tests failed on `dev` before the change, the pupil and signed-out controls passed). With `tests/api/pupil-practice.spec.ts` and `tests/api/portal-access.spec.ts`: 29 passed.
+- Still to do from the same read, each as its own PR: printing follows the same visibility rules as reading, and the answer key is for teaching staff and administrators; the daily practice cap holds across sessions and is rechecked on each answer; then the medium items (questionnaire anonymity, the small-summary threshold, the near-exam setting, duplicate answers, manual-marking authority, the pupil's own summary level, class scoping).
+
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.
 

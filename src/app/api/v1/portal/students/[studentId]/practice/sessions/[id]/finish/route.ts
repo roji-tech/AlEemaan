@@ -21,6 +21,7 @@ export async function POST(
     const result = await finishPracticeSession({
       studentId,
       branchId: gate.branchId,
+      actor: gate.session.actor,
       sessionId,
     });
     return noStore(ok(result));

@@ -30,6 +30,7 @@ export async function PATCH(
     const result = await archivePracticeAttempt({
       studentId,
       branchId: gate.branchId,
+      actor: gate.session.actor,
       attemptId,
       archived: parsed.data.archived,
     });
