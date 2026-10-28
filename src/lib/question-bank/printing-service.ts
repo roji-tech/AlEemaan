@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { reachForm } from "@/lib/forms/access";
 import { loadViewer } from "@/lib/question-bank/viewer";
 import { staffMaySee } from "@/lib/question-bank/rules";
 import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
@@ -243,6 +244,10 @@ export async function printTarget(params: PrintTargetParams): Promise<{
     }
 
     case PrintTargetKind.FORM: {
+      // a blank copy is for anyone who may view the form (the door of the route says who may print at all); a copy with the answer key is the managers'
+      if (!(await reachForm({ branchId: params.branchId, userId: params.userId, formId: params.targetId, access: params.includeAnswerKey ? "manage" : "view" }))) {
+        throw new PrintingServiceError("Form not found in this branch.", 404, "NOT_FOUND");
+      }
       const form = await prisma.form.findFirst({
         where: { id: params.targetId, branchId: params.branchId },
         include: {

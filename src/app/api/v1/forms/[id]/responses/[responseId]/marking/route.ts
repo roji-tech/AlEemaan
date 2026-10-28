@@ -11,7 +11,7 @@ import {
   markAnswerSchema,
   markAttemptSchema,
 } from "@/lib/forms/validation";
-import { BANK_STAFF_ROLES, badId } from "@/lib/question-bank/items-http";
+import { BANK_STAFF_ROLES, badId, FORM_STAFF_ROLES } from "@/lib/question-bank/items-http";
 
 /**
  * GET /api/v1/forms/[id]/responses/[responseId]/marking?branchId=...
@@ -19,7 +19,7 @@ import { BANK_STAFF_ROLES, badId } from "@/lib/question-bank/items-http";
  */
 export const GET = withAuthGated(
   "staff-read",
-  async (req, _auth, context: { params: Promise<{ id: string; responseId: string }> }) => {
+  async (req, auth, context: { params: Promise<{ id: string; responseId: string }> }) => {
     const { id: formId, responseId } = await context.params;
     const badForm = badId(formId);
     if (badForm) return badForm;
@@ -35,6 +35,7 @@ export const GET = withAuthGated(
         branchId,
         formId,
         responseId,
+        actorUserId: auth.userId,
       });
       return ok(data);
     } catch (err) {
@@ -117,5 +118,5 @@ export const PATCH = withAuthGated(
       return fail("Failed to mark response", 500);
     }
   },
-  { roles: BANK_STAFF_ROLES },
+  { roles: FORM_STAFF_ROLES },
 );

@@ -13,7 +13,7 @@ import { FormMarkingStatus } from "@prisma/client";
  */
 export const GET = withAuthGated(
   "staff-read",
-  async (req, _auth, context: { params: Promise<{ id: string }> }) => {
+  async (req, auth, context: { params: Promise<{ id: string }> }) => {
     const { id } = await context.params;
     const bad = badId(id);
     if (bad) return bad;
@@ -32,6 +32,7 @@ export const GET = withAuthGated(
         branchId,
         formId: id,
         markingStatus,
+        actorUserId: auth.userId,
       });
       return ok({ responses: data });
     } catch (err) {

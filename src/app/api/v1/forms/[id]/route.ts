@@ -7,7 +7,7 @@ import {
   FormsServiceError,
 } from "@/lib/forms/forms-service";
 import { updatePracticeSetSchema } from "@/lib/forms/validation";
-import { BANK_STAFF_ROLES, badId } from "@/lib/question-bank/items-http";
+import { BANK_STAFF_ROLES, badId, FORM_STAFF_ROLES } from "@/lib/question-bank/items-http";
 
 /**
  * GET /api/v1/forms/[id]
@@ -28,6 +28,7 @@ export const GET = withAuthGated(
       const form = await getPracticeSetForStaff({
         formId: id,
         branchId,
+        actorUserId: auth.userId,
       });
       return ok({ form });
     } catch (err) {
@@ -86,5 +87,5 @@ export const PATCH = withAuthGated(
       return fail("Failed to update form", 500);
     }
   },
-  { roles: BANK_STAFF_ROLES },
+  { roles: FORM_STAFF_ROLES },
 );

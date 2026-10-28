@@ -173,6 +173,11 @@ export function evaluateSubmissionWithMarking(
   };
 }
 
+/// An answer counts as CORRECT only for full marks: part marks are part marks (a question worth nothing has no full marks to give).
+export function isFullMarks(score: number, points: number): boolean {
+  return points > 0 && score >= points;
+}
+
 /**
  * Computes marking summary and effective overall status for an attempt.
  */

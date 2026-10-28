@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { reachForm } from "./access";
 import crypto from "node:crypto";
 import {
   Prisma,
@@ -203,7 +204,11 @@ export async function listQuestionnairesForStaff(params: {
 export async function getQuestionnaireForStaff(params: {
   formId: string;
   branchId: string;
+  actorUserId: string;
 }) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.actorUserId, formId: params.formId, access: "view", kind: FormKind.QUESTIONNAIRE }))) {
+    throw new FormsServiceError("Questionnaire not found.", 404, "NOT_FOUND");
+  }
   const form = await prisma.form.findFirst({
     where: { id: params.formId, branchId: params.branchId, kind: FormKind.QUESTIONNAIRE },
     include: {
@@ -255,6 +260,9 @@ export async function updateQuestionnaire(params: {
   opensAt?: string | null;
   closesAt?: string | null;
 }) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.userId, formId: params.formId, access: "manage", kind: FormKind.QUESTIONNAIRE }))) {
+    throw new FormsServiceError("Questionnaire not found.", 404, "NOT_FOUND");
+  }
   const form = await prisma.form.findFirst({
     where: { id: params.formId, branchId: params.branchId, kind: FormKind.QUESTIONNAIRE },
   });
@@ -361,7 +369,11 @@ export async function closeQuestionnaire(params: {
 export async function getQuestionnaireAnalytics(params: {
   formId: string;
   branchId: string;
+  actorUserId: string;
 }) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.actorUserId, formId: params.formId, access: "read", kind: FormKind.QUESTIONNAIRE }))) {
+    throw new FormsServiceError("Questionnaire not found.", 404, "NOT_FOUND");
+  }
   const form = await prisma.form.findFirst({
     where: { id: params.formId, branchId: params.branchId, kind: FormKind.QUESTIONNAIRE },
     include: {

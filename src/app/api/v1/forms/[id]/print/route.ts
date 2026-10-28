@@ -1,7 +1,7 @@
 import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { readJsonBody } from "@/lib/api/validate";
-import { BANK_STAFF_ROLES } from "@/lib/question-bank/items-http";
+import { FORM_STAFF_ROLES } from "@/lib/question-bank/items-http";
 import {
   printTarget,
   PrintingServiceError,
@@ -76,5 +76,5 @@ export const POST = withAuthGated(
       return fail("Failed to print form", 500);
     }
   },
-  { roles: BANK_STAFF_ROLES },
+  { roles: FORM_STAFF_ROLES },
 );

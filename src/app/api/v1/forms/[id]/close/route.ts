@@ -1,7 +1,7 @@
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuthGated } from "@/lib/auth/branch-gate";
 import { closePracticeSet, FormsServiceError } from "@/lib/forms/forms-service";
-import { BANK_STAFF_ROLES, badId } from "@/lib/question-bank/items-http";
+import { badId, FORM_STAFF_ROLES } from "@/lib/question-bank/items-http";
 
 /**
  * POST /api/v1/forms/[id]/close
@@ -33,5 +33,5 @@ export const POST = withAuthGated(
       return fail("Failed to close form", 500);
     }
   },
-  { roles: BANK_STAFF_ROLES },
+  { roles: FORM_STAFF_ROLES },
 );

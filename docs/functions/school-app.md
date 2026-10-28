@@ -373,6 +373,14 @@ Rules for the question bank's reviewers and switches (slice 1). The routes decid
 | `viewer.ts` | `loadViewer(userId, db?)`: everything `rules.ts` needs to know about the person asking, read fresh in one round trip (superadmin while they hold an active membership, their ACTIVE memberships, their reviewer rows, the subjects they teach folded like `subjectKey`). Takes a transaction client, so a decision re-reads the person inside the transaction. |
 | `validation.ts` | `idSchema` (zod: the shape of an id, from `ID_PATTERN` in `lib/api/ids.ts`) and `hasForbiddenCharacters` (true for any control, format, zero-width, bidi, private-use, unassigned or lone-surrogate character, `\p{C}`). |
 
+## `src/lib/forms/`
+
+Forms (practice sets, questionnaires, paper work) and their marking. Only the file added by the manual marking and form authority work is catalogued here so far; the others are among the rows the catalog still lacks.
+
+| File | Description |
+| --- | --- |
+| `access.ts` | The forms module's one question "may this person reach this form by its id?" (task 0032, section 4l): `mayAccessForm(viewer, "view" \| "read" \| "manage")` is the pure rule (view: any member of staff of the branch; read and manage: the form's creator while they teach in the branch, an administrator of the branch, a superadmin); `reachForm({ branchId, userId, formId, access, kind? })` loads the role (`resolveBranchRole`), whether the person administers the branch (`canAdminister`) and the form, and answers with the form's facts or `null` (missing and not allowed look the same, so the caller's 404 never confirms an id); `formViewerIn(branchId, userId)` loads the person once for a list. |
+
 ## `src/lib/storage/`
 
 Where uploaded images are kept (question bank slice 2). One small interface, `ImageStore` (`put`, `get`, `remove`, `check`), several backends chosen by the environment, and deliberately NO method that returns a URL: every read goes through our own route, which checks who may see the thing first.

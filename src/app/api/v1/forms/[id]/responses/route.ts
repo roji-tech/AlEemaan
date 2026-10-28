@@ -22,6 +22,7 @@ export const GET = withAuthGated(
       const responses = await getPracticeSetResponsesForStaff({
         formId: id,
         branchId,
+        actorUserId: auth.userId,
       });
       return ok({ responses });
     } catch (err) {
