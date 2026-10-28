@@ -413,8 +413,14 @@ export async function submitPracticeAnswer(params: {
 export async function finishPracticeSession(params: {
   studentId: string;
   branchId: string;
+  actor: Actor;
   sessionId: string;
 }) {
+  // The summary carries the questions, the pupil's answers, the answer key and the explanations: only the pupil, whatever a guardian's practice level is.
+  if (params.actor !== "PUPIL") {
+    throw new PracticeError("Your sign-in does not include this.", 403, "PORTAL_ACCESS");
+  }
+
   const session = await prisma.practiceSession.findUnique({
     where: { branchId_id: { branchId: params.branchId, id: params.sessionId } },
     include: { attempts: true },
@@ -569,9 +575,15 @@ export async function getPracticeHistory(params: {
 export async function archivePracticeAttempt(params: {
   studentId: string;
   branchId: string;
+  actor: Actor;
   attemptId: string;
   archived: boolean;
 }) {
+  // Archiving changes what the guardian's summary counts, so it is the pupil's own choice.
+  if (params.actor !== "PUPIL") {
+    throw new PracticeError("Your sign-in does not include this.", 403, "PORTAL_ACCESS");
+  }
+
   const attempt = await prisma.practiceAttempt.findUnique({
     where: { branchId_id: { branchId: params.branchId, id: params.attemptId } },
   });
