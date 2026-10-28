@@ -94,22 +94,35 @@ model FormAudience {
   @@index([branchId, formId])
 }
 
+enum FormMarkingMethod {
+  AUTO
+  MANUAL
+}
+
+enum FormMarkingStatus {
+  NOT_REQUIRED
+  PENDING
+  PARTIALLY_MARKED
+  MARKED
+}
+
 /// A question inside a form. Copies bank item provenance or holds ad-hoc prompts.
 model FormQuestion {
-  id            String           @id @default(cuid())
+  id            String            @id @default(cuid())
   branchId      String
   formId        String
   sourceItemId  String?
   sourceVersion Int?
   prompt        String
-  questionType  BankQuestionType @default(SINGLE)
-  options       Json             @default("[]")
+  questionType  BankQuestionType  @default(SINGLE)
+  options       Json              @default("[]")
   correctAnswer String?
   explanation   String?
-  points        Int              @default(1)
-  sortOrder     Int              @default(0)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @default(now()) @updatedAt
+  points        Int               @default(1)
+  markingMethod FormMarkingMethod @default(AUTO)
+  sortOrder     Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
 
   branch     Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
   form       Form              @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
@@ -123,47 +136,87 @@ model FormQuestion {
 
 /// A response or completion of a form by a member or public respondent.
 model FormResponse {
-  id           String             @id @default(cuid())
-  branchId     String
-  formId       String
-  respondentId String?
-  studentId    String?
-  status       FormResponseStatus @default(IN_PROGRESS)
-  score        Float?             @default(0)
-  maxScore     Float?             @default(0)
-  startedAt    DateTime           @default(now())
-  submittedAt  DateTime?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @default(now()) @updatedAt
+  id            String             @id @default(cuid())
+  branchId      String
+  formId        String
+  respondentId  String?
+  studentId     String?
+  status        FormResponseStatus @default(IN_PROGRESS)
+  score         Float?             @default(0)
+  maxScore      Float?             @default(0)
+  markingStatus FormMarkingStatus  @default(NOT_REQUIRED)
+  markedById    String?
+  markedAt      DateTime?
+  startedAt     DateTime           @default(now())
+  submittedAt   DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @default(now()) @updatedAt
 
-  branch  Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  form    Form           @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
-  student StudentRecord? @relation("StudentFormResponses", fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
-  answers FormAnswer[]
+  branch   Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  form     Form               @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
+  student  StudentRecord?     @relation("StudentFormResponses", fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  markedBy User?              @relation("ResponsesMarked", fields: [markedById], references: [id], onDelete: SetNull)
+  answers  FormAnswer[]
+  audits   FormMarkingAudit[]
 
   @@unique([branchId, id])
   @@index([branchId, formId, status])
+  @@index([branchId, formId, markingStatus])
   @@index([branchId, studentId])
 }
 
 /// An individual question answer within a form response.
 model FormAnswer {
-  id             String   @id @default(cuid())
+  id             String            @id @default(cuid())
   branchId       String
   responseId     String
   formQuestionId String
   value          Json
   isCorrect      Boolean?
-  score          Float?   @default(0)
-  createdAt      DateTime @default(now())
+  score          Float?            @default(0)
+  markingStatus  FormMarkingStatus @default(NOT_REQUIRED)
+  markedById     String?
+  markedAt       DateTime?
+  feedback       String?
+  createdAt      DateTime          @default(now())
 
-  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  response     FormResponse @relation(fields: [branchId, responseId], references: [branchId, id], onDelete: Cascade)
-  formQuestion FormQuestion @relation(fields: [branchId, formQuestionId], references: [branchId, id], onDelete: Cascade)
+  branch       Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  response     FormResponse       @relation(fields: [branchId, responseId], references: [branchId, id], onDelete: Cascade)
+  formQuestion FormQuestion       @relation(fields: [branchId, formQuestionId], references: [branchId, id], onDelete: Cascade)
+  markedBy     User?              @relation("AnswersMarked", fields: [markedById], references: [id], onDelete: SetNull)
+  audits       FormMarkingAudit[]
 
   @@unique([branchId, id])
   @@index([branchId, responseId])
   @@index([branchId, formQuestionId])
+  @@index([branchId, markingStatus])
+}
+
+/// Audit log for manual marking actions on form responses and answers.
+model FormMarkingAudit {
+  id           String   @id @default(cuid())
+  branchId     String
+  responseId   String
+  answerId     String?
+  formId       String
+  studentId    String?
+  scoreAwarded Float
+  maxScore     Float
+  feedback     String?
+  action       String
+  actorUserId  String
+  createdAt    DateTime @default(now())
+
+  branch   Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  response FormResponse @relation(fields: [branchId, responseId], references: [branchId, id], onDelete: Cascade)
+  answer   FormAnswer?  @relation(fields: [branchId, answerId], references: [branchId, id], onDelete: Cascade)
+  actor    User         @relation("MarkingAuditActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([branchId, id])
+  @@index([branchId, responseId])
+  @@index([branchId, answerId])
+  @@index([branchId, formId])
+  @@index([branchId, createdAt])
 }
 
 enum TurnInStatus {

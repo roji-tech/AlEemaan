@@ -11,6 +11,7 @@ export const formQuestionInputSchema = z.object({
   correctAnswer: z.string().max(2000).optional().nullable(),
   explanation: z.string().max(2000).optional().nullable(),
   points: z.number().int().min(0).max(100).default(1),
+  markingMethod: z.enum(["AUTO", "MANUAL"]).optional(),
   sortOrder: z.number().int().min(0).default(0),
 });
 
@@ -122,5 +123,21 @@ export const batchUpdateTurnInsSchema = z.object({
     }),
   ).min(1, "At least one turn-in update is required."),
 });
+
+export const markAnswerSchema = z.object({
+  score: z.number().min(0),
+  feedback: z.string().max(2000).optional().nullable(),
+});
+
+export const markAttemptSchema = z.object({
+  answers: z.array(
+    z.object({
+      answerId: idSchema,
+      score: z.number().min(0),
+      feedback: z.string().max(2000).optional().nullable(),
+    }),
+  ).min(1, "At least one answer must be marked."),
+});
+
 
 
