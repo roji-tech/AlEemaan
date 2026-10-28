@@ -48,6 +48,8 @@ model StudentRecord {
   questionReports       QuestionReport[]    @relation("ReportPupil")
   formResponses         FormResponse[]      @relation("StudentFormResponses")
   formTurnIns           FormTurnIn[]        @relation("StudentTurnIns")
+  printLogs             QuestionBankPrintLog[] @relation("PrintLogStudent")
+  receivedPrintLogs     QuestionBankPrintLog[] @relation("PrintLogRecipient")
 
   @@unique([branchId, id])
   @@index([branchId])

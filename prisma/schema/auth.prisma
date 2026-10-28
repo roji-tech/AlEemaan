@@ -77,6 +77,7 @@ model User {
   formResponsesMarked   FormResponse[]           @relation("ResponsesMarked")
   formAnswersMarked     FormAnswer[]             @relation("AnswersMarked")
   markingAudits         FormMarkingAudit[]       @relation("MarkingAuditActor")
+  printLogs             QuestionBankPrintLog[]   @relation("PrintLogActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
