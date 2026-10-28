@@ -71,6 +71,7 @@ model Branch {
   formTurnIns           FormTurnIn[]
   formTurnInAudits      FormTurnInAudit[]
   formMarkingAudits     FormMarkingAudit[]
+  questionBankPrintLogs QuestionBankPrintLog[]
 
   createdAt DateTime @default(now())
 }

@@ -101,6 +101,10 @@ const ALLOWED: Record<string, string> = {
     "portal paper work: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/forms/paper-work/[id]/request-marking/route.ts":
     "portal paper work: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "GET v1/portal/students/[studentId]/question-bank/practice/[sessionId]/print/route.ts":
+    "portal practice print: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "GET v1/portal/students/[studentId]/forms/practice-sets/[id]/responses/[responseId]/print/route.ts":
+    "portal form response print: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
 };
 
 /// A handler declares who may call it with `roles:` or `superAdmin: true`.
@@ -259,6 +263,12 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/forms/[id]/responses/[responseId]/marking/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/question-bank/print/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/print-logs/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query must be the caller's",
+  "POST v1/forms/[id]/print/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
 };
 
 /// Third assertion (ADR 0015): a handler that names a branch is wrapped by `withBranch` - the structure that makes the branch check impossible to forget -
@@ -304,6 +314,10 @@ const NOT_WRAPPED: Record<string, string> = {
     "portal paper work: no staff login; branch resolved via student record and portal session limits which pupils",
   "POST v1/portal/students/[studentId]/forms/paper-work/[id]/request-marking/route.ts":
     "portal paper work: no staff login; branch resolved via student record and portal session limits which pupils",
+  "GET v1/portal/students/[studentId]/question-bank/practice/[sessionId]/print/route.ts":
+    "portal practice print: no staff login; branch resolved via student record and portal session limits which pupils",
+  "GET v1/portal/students/[studentId]/forms/practice-sets/[id]/responses/[responseId]/print/route.ts":
+    "portal form response print: no staff login; branch resolved via student record and portal session limits which pupils",
   "GET v1/academics/sessions/route.ts": "a list narrowed to the caller's own branches (branchIdsFor); acts on no single branch",
   "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
   "GET v1/students/route.ts": "a list narrowed to the caller's visible branches (branchIdsFor); acts on no single branch",
@@ -473,6 +487,12 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/forms/[id]/responses/[responseId]/marking/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/question-bank/print/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/question-bank/print-logs/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query must be the caller's",
+  "POST v1/forms/[id]/print/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
 };
 
 function routeFiles(dir: string): string[] {

@@ -338,3 +338,44 @@ model QuestionReport {
   @@index([reporterStudentId])
 }
 
+// --- Printing: Server PDFs, Windows, Watermark, Logs (Task 0032 slice 10; design note §7.7, §8.9, §11, §13.10) ---
+
+enum PrintTargetKind {
+  QUESTION_BANK_ITEM
+  FORM
+  QUIZ
+  PRACTICE_SESSION
+  FORM_RESPONSE
+}
+
+/// Audit log for server-generated PDF prints with watermarks.
+/// Append-only: database trigger prevents updates or deletions.
+model QuestionBankPrintLog {
+  id                 String          @id @default(cuid())
+  branchId           String
+  userId             String?
+  studentId          String?
+  targetKind         PrintTargetKind
+  targetId           String
+  title              String
+  watermark          String
+  pageCount          Int             @default(1)
+  reason             String?
+  recipientStudentId String?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime        @default(now())
+
+  branch           Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user             User?          @relation("PrintLogActor", fields: [userId], references: [id], onDelete: SetNull)
+  student          StudentRecord? @relation("PrintLogStudent", fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  recipientStudent StudentRecord? @relation("PrintLogRecipient", fields: [branchId, recipientStudentId], references: [branchId, id], onDelete: SetNull)
+
+  @@unique([branchId, id])
+  @@index([branchId, targetKind, targetId])
+  @@index([branchId, userId])
+  @@index([branchId, studentId])
+  @@index([branchId, recipientStudentId])
+  @@index([branchId, createdAt])
+}
+

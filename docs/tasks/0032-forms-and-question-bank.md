@@ -26,7 +26,7 @@ Teachers reuse reviewed questions from a bank; pupils practise from the portal; 
 - [x] 7 Questionnaires: members, public, anonymous, summaries
 - [x] 8 Paper work: roll call, close, maximum duration, pupil request
 - [x] 9 Manual marking
-- [ ] 10 Printing: server PDFs, windows, watermark, logs
+- [x] 10 Printing: server PDFs, windows, watermark, logs
 - [ ] Mutation passes (deferred to the end of Phase 2)
 
 ## 4. Slice 1 plan (drafted 2026-10-19; build only after the UI1 PR is merged; the two decisions in the design note section 16a were answered by the maintainer the same day)
@@ -429,6 +429,39 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/unit/manual-marking.spec.ts`: 10 pure domain rule unit tests passed.
   - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
   - `tests/api/manual-marking.spec.ts`: 5 comprehensive API integration tests passed (mixed auto/manual evaluation, marking queue inspection, single answer grading, batch attempt grading, score bounds, ADR 0014 branch isolation, append-only trigger protection).
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
+
+
+## 4k. Slice 10 as built (2026-10-28)
+
+**What is built:**
+- **Schema & Migration:** `20261029050000_printing_and_audit_logs`:
+  - Added enum: `PrintTargetKind` (`QUESTION_BANK_ITEM`, `FORM`, `QUIZ`, `PRACTICE_SESSION`, `FORM_RESPONSE`).
+  - Added model `QuestionBankPrintLog` with ADR 0015 composite keys `(branchId, id)`, `targetKind`, `targetId`, `title`, `watermark`, `pageCount`, `reason`, `recipientStudentId`, `ipAddress`, `userAgent`, and relations to `Branch`, `User` (`printedBy`), and `StudentRecord` (`recipientStudent`).
+  - Added append-only database trigger `QuestionBankPrintLog_append_only` preventing any UPDATE or DELETE operations on print logs.
+  - Added relations to `User` (`printLogs`), `Branch` (`questionBankPrintLogs`), and `StudentRecord` (`printLogs`, `receivedPrintLogs`).
+- **Pure Domain Rules & PDF-1.4 Binary Generator:** `src/lib/question-bank/printing.ts`:
+  - `isNearExamWindow`: checks whether current timestamp falls within `bank.print.nearExamDays` (default 7 days) prior to exam start through exam window end.
+  - `canPrintTarget`: blocks normal teachers during near-exam/exam window (403); allows exam approvers, branch admins, and superadmins (audited and watermarked); allows normal teachers outside window or for non-exam targets.
+  - `canPupilPrintAttempt`: blocks in-progress attempts (`finishedAt === null` or status not `COMPLETED`); permits finished work after submission.
+  - `generateWatermarkText`: formats tamper-evident watermark containing actor name, identifier, target title, timestamp UTC, branch name, and optional recipient pupil details for paper handouts (§7.7).
+  - `generateExamPdf`: pure TypeScript PDF-1.4 binary generator (ISO 32000-1) creating valid `%PDF-1.4` documents with standard Type 1 fonts, A4 margins, pagination, running headers/footers, diagonal faint center watermark, and question formatting with zero external binary dependencies.
+- **Service & Routes:**
+  - `src/lib/question-bank/printing-service.ts`:
+    - Staff: `printTarget` (target resolution, exam window check, watermark formatting, PDF generation, and append-only audit logging), `listPrintLogs` (paginated audit trail with staff and recipient student details), `isUserExamApprover`, `getNearExamDays`.
+    - Pupil Portal: `printPupilPracticeSession`, `printPupilFormResponse` (masks un-marked manual questions per Slice 9).
+  - Staff Routes:
+    - `POST /api/v1/question-bank/print`: staff endpoint for printing bank items and quizzes.
+    - `GET /api/v1/question-bank/print-logs`: staff audit log viewer endpoint.
+    - `POST /api/v1/forms/[id]/print`: staff endpoint for printing forms (practice sets, questionnaires, paper work).
+  - Pupil Portal Routes:
+    - `GET /api/v1/portal/students/[studentId]/question-bank/practice/[sessionId]/print`: pupil endpoint for printing completed practice sessions.
+    - `GET /api/v1/portal/students/[studentId]/forms/practice-sets/[id]/responses/[responseId]/print`: pupil endpoint for printing completed form responses.
+  - Registered all new route handlers in `tests/unit/route-role-guard.spec.ts`.
+- **Tests & Verification:**
+  - `tests/unit/printing.spec.ts`: 22 pure domain and PDF generator unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
+  - `tests/api/printing.spec.ts`: 8 comprehensive API integration tests passed (near-exam window teacher blocking, exam approver watermarking and audit logging, non-exam printing, recipient student handout watermarking, pupil in-progress completion enforcement, pupil masked review, ADR 0014 branch isolation, append-only trigger protection).
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
 ## 5. Definition of done (every slice)
