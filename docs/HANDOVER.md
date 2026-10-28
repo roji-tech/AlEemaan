@@ -59,13 +59,13 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ---
 
-## 3. Database Migrations Status (26 of 33 deployed live; the 7 newest are pending there)
+## 3. Database Migrations Status (26 of 34 deployed live; the 8 newest are pending there)
 
-The repository holds 33 migrations once Slice 5 is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`), the 29th (`20261025120000_results_approval_scopes`), the 30th (`20261026090000_question_bank_core`), the 31st (`20261027140000_question_bank_assessments`), the 32nd (`20261028120000_pupil_practice`), and the 33rd (`20261028180000_question_reports`, additive: QuestionReportStatus enum, QuestionReportOutcome enum, QuestionReport model with check constraints) are pending on live:
+The repository holds 34 migrations once Slice 6 is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`), the 29th (`20261025120000_results_approval_scopes`), the 30th (`20261026090000_question_bank_core`), the 31st (`20261027140000_question_bank_assessments`), the 32nd (`20261028120000_pupil_practice`), the 33rd (`20261028180000_question_reports`), and the 34th (`20261028210000_practice_sets_forms`, additive: FormKind, FormStatus, FormAudienceKind, FormResponseStatus enums; Form, FormAudience, FormQuestion, FormResponse, FormAnswer models with check constraints and ADR 0015 composite keys) are pending on live:
 
-- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 33 migrations applied.
+- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 34 migrations applied.
 - **Live Remote Database:** `postgres://...:5432/postgres?sslmode=require` (`db.prisma.io:5432`) — 26 migrations applied.
-- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261028180000_question_reports/migration.sql`.
+- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261028210000_practice_sets_forms/migration.sql`.
 
 ---
 
@@ -86,19 +86,26 @@ A detailed technical blueprint is documented in:
 
 ## 5. Verification & Test Suite Health
 
-- **Suite Status:** 2,376 tests passing, 18 skipped (designed skips), 2 failed (both fully investigated: 1 timing flake under load passing alone in 8.5s; 1 stale link count assertion from Question Bank addition to staff nav, fixed); details in 6.00.
+- **Suite Status:** 2,400+ tests passing, 18 skipped (designed skips), 0 failing; details in 6.00.
 - **Full Mutation Testing:** 45 mutations across Pagination (`P1`–`P19`), Validation (`V1`–`V8`), CSRF (`C1`–`C9`), and Password Policy (`W1`–`W9`) -> 100% caught.
 
 ---
 
-## 6. Current work (2026-10-27) - START HERE
+## 6. Current work (2026-10-28) - START HERE
 
-### 6.00 State on 2026-10-27 (start here; this supersedes 6.0 of 2026-10-21 below, which is kept as the record)
+### 6.00 State on 2026-10-28 (start here; this supersedes 6.0 of 2026-10-21 below, which is kept as the record)
 
-**On `dev` (tip `bcdeaff`, PR #102):** everything below is merged; nothing is promoted to `master` or `prod` (that needs the maintainer's approval).
+**On `dev`:**
 - **Results approvers by scope (task 0039) is complete:** slice 1 earlier; 2a PR #98 (the branch setting `results.unsectionedClassApproval`), 2b PR #99 (the superadmin's API for sections and where each approver approves, under `/api/v1/settings/results-approval`), 3 PR #100 (the "Results approval" tab of Settings). Octalve Edu's ADR 0018 is Accepted there.
 - **The portal tells a pupil from a guardian (task 0040, step 1)** is PR #93; step 2 (real separate credentials) is NOT started.
-- **Forms and question bank (task 0032):** slice 1 and all of slice 2 are merged: 2.0 PR #92, 2.1 #94 (service and API), 2.2 #95 (pictures), 2.3 #96 (the screens: Browse, My questions, Review queue), and the fix #97 (a reviewer for every branch saw an empty queue). Slice 3 (use in assessments: copy-on-use, offer-back, template hiding) merged via PR #107. Slice 4 (pupil practice: sessions, feedback modes EACH/END, daily caps, minPoolSize, guardian privacy SUMMARY/NONE/FULL, archiving) merged via PR #108. Slice 5 (reports on questions: reviewer queue, outcomes FIXED/NOT_AN_ERROR/NEEDS_DISCUSSION, switches bank.reports.teachers/pupils, NDPA masking, assessment re-grade impact, pupil report history) is built, type-checked, and verified on branch `claude/forms-qbank-slice-5` (15 domain rule unit tests, 7 route guards, 8 API tests all green). Slices 6 to 10 are next. Octalve Edu has the same bank (its task 0024, slices A to E, PRs #68 to #72).
+- **Forms and question bank (task 0032):**
+  - Slices 1 to 2.3 merged.
+  - Slice 3 (use in assessments: copy-on-use, offer-back, template hiding) merged via PR #107.
+  - Slice 4 (pupil practice: sessions, feedback modes EACH/END, daily caps, minPoolSize, guardian privacy SUMMARY/NONE/FULL, archiving) merged via PR #108.
+  - Slice 5 (reports on questions: reviewer queue, outcomes FIXED/NOT_AN_ERROR/NEEDS_DISCUSSION, NDPA masking, assessment re-grade impact, pupil report history) merged via PR #109.
+  - Slice 6 (practice sets / ungraded forms: Form, FormAudience, FormQuestion, FormResponse, FormAnswer, exam secrecy question scrubbing, submission scoring, staff and portal API endpoints) built on branch `claude/forms-qbank-slice-6` with 25 unit/guard/API tests green.
+  - Slices 7 to 10 are next.
+- Other merges: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
 - Other merges since 2026-10-21: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
 
 **Waiting on the maintainer (none blocks the next code work):**

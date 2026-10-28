@@ -271,5 +271,53 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/api/question-reports.spec.ts`: 8 comprehensive API integration tests passed.
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
+## 4g. Slice 6 as built (2026-10-28)
+
+**What is built:**
+- **Schema & Migration:** `20261028210000_practice_sets_forms`:
+  - Added enums:
+    - `FormKind` (`PRACTICE_SET`, `QUESTIONNAIRE`, `PAPER_WORK`).
+    - `FormStatus` (`DRAFT`, `PUBLISHED`, `CLOSED`, `ARCHIVED`).
+    - `FormAudienceKind` (`MEMBERS`, `PUBLIC`).
+    - `FormResponseStatus` (`IN_PROGRESS`, `COMPLETED`, `ABANDONED`).
+  - Added models with ADR 0015 composite keys `(branchId, id)`:
+    - `Form`: branchId, kind, title, instructions, status, opensAt, closesAt, maxDurationMinutes, createdById, closedById, closedAt.
+    - `FormAudience`: branchId, formId, kind, roles, classGroupIds.
+    - `FormQuestion`: branchId, formId, sourceItemId, sourceVersion, prompt, questionType, options, correctAnswer, explanation, points, sortOrder.
+    - `FormResponse`: branchId, formId, studentId, respondentId, status, score, maxScore, startedAt, submittedAt.
+    - `FormAnswer`: branchId, responseId, formQuestionId, value, isCorrect, score, createdAt.
+  - Check constraints in migration: title length (1–200), prompt length (1–20000), points >= 0, score >= 0.
+  - Added relation fields to `User`, `Branch`, `StudentRecord`, and `QuestionBankItem`.
+- **Pure Domain Logic:** `src/lib/forms/practice-sets.ts`:
+  - `isFormOpen`: checks publishing status and opensAt/closesAt scheduling window.
+  - `scrubFormQuestionForPupil` / `scrubFormQuestionsForPupil`: strips `correctAnswer` and `explanation` to strictly enforce exam secrecy before pupil submission.
+  - `evaluateFormAnswer`: scores answers for `SINGLE`, `MULTI`, `TRUE_FALSE`, and `SHORT` question types with normalization.
+  - `evaluateFormSubmission`: aggregates total scores, accuracy percentage, and attaches full explanations for post-completion review.
+  - `isPupilAudienceEligible`: checks membership and class group scoping.
+  - `validatePracticeSetInput`: validates titles, dates, duration limits.
+- **Service & Routes:**
+  - `src/lib/forms/forms-service.ts`:
+    - Staff: `createPracticeSet`, `listPracticeSetsForStaff`, `getPracticeSetForStaff`, `updatePracticeSet`, `closePracticeSet`, `getPracticeSetResponsesForStaff`.
+    - Pupil Portal: `listAvailablePracticeSetsForPupil`, `getPracticeSetForPupil`, `startPracticeSetForPupil`, `submitPracticeSetForPupil`.
+  - Staff Routes:
+    - `GET /api/v1/forms`: lists practice sets in caller's branch.
+    - `POST /api/v1/forms`: creates practice set copying bank items or ad-hoc questions.
+    - `GET /api/v1/forms/[id]`: staff gets practice set details with full answer keys.
+    - `PATCH /api/v1/forms/[id]`: updates title, schedule, or publishes practice set.
+    - `POST /api/v1/forms/[id]/close`: closes practice set immediately refusing new pupil attempts.
+    - `GET /api/v1/forms/[id]/responses`: staff overview of pupil completions and scores.
+  - Pupil Portal Routes:
+    - `GET /api/v1/portal/students/[studentId]/forms/practice-sets`: lists open practice sets for pupil's class.
+    - `GET /api/v1/portal/students/[studentId]/forms/practice-sets/[id]`: fetches scrubbed questions without answer keys.
+    - `POST /api/v1/portal/students/[studentId]/forms/practice-sets/[id]/start`: starts/resumes response session.
+    - `POST /api/v1/portal/students/[studentId]/forms/practice-sets/[id]/submit`: submits answers, evaluates accuracy, returns total score and full explanations.
+  - Registered all new handlers in `tests/unit/route-role-guard.spec.ts` under `ALLOWED`, `NOT_WRAPPED`, and `BRANCH_CHECKED_ELSEWHERE`.
+- **Tests & Verification:**
+  - `tests/unit/practice-sets.spec.ts`: 14 pure domain logic unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
+  - `tests/api/practice-sets.spec.ts`: 4 comprehensive API integration tests passed.
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
+
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.
+

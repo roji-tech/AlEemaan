@@ -46,6 +46,7 @@ model StudentRecord {
   practiceSessions      PracticeSession[]
   practiceAttempts      PracticeAttempt[]
   questionReports       QuestionReport[]    @relation("ReportPupil")
+  formResponses         FormResponse[]      @relation("StudentFormResponses")
 
   @@unique([branchId, id])
   @@index([branchId])
