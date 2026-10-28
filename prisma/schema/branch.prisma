@@ -67,6 +67,7 @@ model Branch {
   formQuestions         FormQuestion[]
   formResponses         FormResponse[]
   formAnswers           FormAnswer[]
+  formParticipations    FormParticipation[]
 
   createdAt DateTime @default(now())
 }

@@ -1,18 +1,25 @@
 import { ok, fail } from "@/lib/api/envelope";
 import { readJsonBody } from "@/lib/api/validate";
 import { withAuthGated } from "@/lib/auth/branch-gate";
-import { FormStatus } from "@prisma/client";
+import { FormAudienceKind, FormKind, FormStatus } from "@prisma/client";
 import {
   createPracticeSet,
   listPracticeSetsForStaff,
   FormsServiceError,
 } from "@/lib/forms/forms-service";
-import { createPracticeSetSchema } from "@/lib/forms/validation";
+import {
+  createQuestionnaire,
+  listQuestionnairesForStaff,
+} from "@/lib/forms/questionnaires-service";
+import {
+  createPracticeSetSchema,
+  createQuestionnaireSchema,
+} from "@/lib/forms/validation";
 import { BANK_STAFF_ROLES } from "@/lib/question-bank/items-http";
 
 /**
  * GET /api/v1/forms
- * Lists practice sets and forms in caller's branch.
+ * Lists practice sets or questionnaires in caller's branch.
  */
 export const GET = withAuthGated(
   "staff-read",
@@ -21,6 +28,7 @@ export const GET = withAuthGated(
     const branchId = url.searchParams.get("branchId");
     if (!branchId) return fail("Branch ID is required", 400, "VALIDATION");
     const statusParam = url.searchParams.get("status");
+    const kindParam = url.searchParams.get("kind");
 
     let status: FormStatus | "ALL" | undefined = undefined;
     if (statusParam === "ALL") {
@@ -30,6 +38,14 @@ export const GET = withAuthGated(
     }
 
     try {
+      if (kindParam === FormKind.QUESTIONNAIRE) {
+        const questionnaires = await listQuestionnairesForStaff({
+          branchId,
+          status,
+        });
+        return ok({ forms: questionnaires });
+      }
+
       const forms = await listPracticeSetsForStaff({
         branchId,
         status,
@@ -48,7 +64,7 @@ export const GET = withAuthGated(
 
 /**
  * POST /api/v1/forms
- * Creates a new practice set (ungraded form).
+ * Creates a new form (practice set or questionnaire).
  */
 export const POST = withAuthGated(
   "staff-write",
@@ -56,12 +72,36 @@ export const POST = withAuthGated(
     const read = await readJsonBody(req);
     if (!read.ok) return read.response;
 
-    const parsed = createPracticeSetSchema.safeParse(read.json);
-    if (!parsed.success) {
-      return fail(parsed.error.issues[0]?.message ?? "Invalid form payload", 400, "VALIDATION");
-    }
+    const raw = (read.json && typeof read.json === "object" ? read.json : {}) as Record<string, unknown>;
 
     try {
+      if (raw.kind === FormKind.QUESTIONNAIRE) {
+        const parsed = createQuestionnaireSchema.safeParse(raw);
+        if (!parsed.success) {
+          return fail(parsed.error.issues[0]?.message ?? "Invalid questionnaire payload", 400, "VALIDATION");
+        }
+
+        const result = await createQuestionnaire({
+          branchId: parsed.data.branchId,
+          userId: auth.userId,
+          title: parsed.data.title,
+          instructions: parsed.data.instructions,
+          isAnonymous: parsed.data.isAnonymous,
+          audienceKind: parsed.data.audienceKind as FormAudienceKind,
+          roles: parsed.data.roles,
+          classGroupIds: parsed.data.classGroupIds,
+          opensAt: parsed.data.opensAt,
+          closesAt: parsed.data.closesAt,
+          questions: parsed.data.questions,
+        });
+        return ok(result, {}, 201);
+      }
+
+      const parsed = createPracticeSetSchema.safeParse(raw);
+      if (!parsed.success) {
+        return fail(parsed.error.issues[0]?.message ?? "Invalid form payload", 400, "VALIDATION");
+      }
+
       const result = await createPracticeSet({
         branchId: parsed.data.branchId,
         userId: auth.userId,
@@ -84,3 +124,4 @@ export const POST = withAuthGated(
   },
   { roles: BANK_STAFF_ROLES },
 );
+
