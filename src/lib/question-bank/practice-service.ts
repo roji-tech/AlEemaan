@@ -68,17 +68,25 @@ async function getStudentClassGroup(studentId: string) {
 }
 
 /**
- * Counts questions attempted by student today in UTC.
+ * Counts the questions a pupil has taken on today (UTC): the ones answered, plus the ones in sessions started today that are still open and not yet answered. The
+ * cap is about what a pupil sets out to do, so a session that is started and not answered has used its questions; finishing it gives the unanswered ones back.
  */
-async function countTodayAttempts(branchId: string, studentId: string, now = new Date()): Promise<number> {
+async function countTodayAttempts(
+  branchId: string,
+  studentId: string,
+  now = new Date(),
+  db: Pick<typeof prisma, "practiceAttempt" | "practiceSession"> = prisma,
+): Promise<number> {
   const todayUtc = getStartOfTodayUtc(now);
-  return prisma.practiceAttempt.count({
-    where: {
-      branchId,
-      studentId,
-      answeredAt: { gte: todayUtc },
-    },
-  });
+  const [answered, open] = await Promise.all([
+    db.practiceAttempt.count({ where: { branchId, studentId, answeredAt: { gte: todayUtc } } }),
+    db.practiceSession.findMany({
+      where: { branchId, studentId, finishedAt: null, startedAt: { gte: todayUtc } },
+      select: { size: true, _count: { select: { attempts: true } } },
+    }),
+  ]);
+  const reserved = open.reduce((sum, session) => sum + Math.max(0, session.size - session._count.attempts), 0);
+  return answered + reserved;
 }
 
 /**
@@ -292,21 +300,29 @@ export async function startPracticeSession(params: {
     throw new PracticeError("Cannot start session with 0 questions.", 400, "INVALID_SIZE");
   }
 
-  const shuffled = shuffle(items).slice(0, sessionSize);
-  const selectedIds = shuffled.map((i) => i.id);
-
-  const session = await prisma.practiceSession.create({
-    data: {
-      branchId: params.branchId,
-      studentId: params.studentId,
-      classGroupId,
-      subjectLabel: params.subjectLabel?.trim() ?? null,
-      subjectKey: params.subjectLabel ? normalizeLabel(params.subjectLabel) : null,
-      topic: params.topic?.trim() ?? null,
-      size: sessionSize,
-      feedbackMode: params.feedbackMode ?? PracticeFeedbackMode.EACH,
-      itemIds: selectedIds,
-    },
+  // The cap is checked again inside a transaction that holds a lock for this pupil, so several sessions started at the same moment cannot each see room.
+  const { session, shuffled } = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`practice:${params.studentId}`}::text))`;
+    const remaining = computeDailyCapRemaining(await countTodayAttempts(params.branchId, params.studentId, now, tx), dailyCap);
+    if (remaining <= 0) {
+      throw new PracticeError("Daily practice limit reached. Try again tomorrow.", 429, "DAILY_CAP_REACHED");
+    }
+    const size = Math.min(sessionSize, remaining);
+    const picked = shuffle(items).slice(0, size);
+    const created = await tx.practiceSession.create({
+      data: {
+        branchId: params.branchId,
+        studentId: params.studentId,
+        classGroupId,
+        subjectLabel: params.subjectLabel?.trim() ?? null,
+        subjectKey: params.subjectLabel ? normalizeLabel(params.subjectLabel) : null,
+        topic: params.topic?.trim() ?? null,
+        size,
+        feedbackMode: params.feedbackMode ?? PracticeFeedbackMode.EACH,
+        itemIds: picked.map((i) => i.id),
+      },
+    });
+    return { session: created, shuffled: picked };
   });
 
   return {
@@ -335,6 +351,15 @@ export async function submitPracticeAnswer(params: {
 }) {
   if (params.actor !== "PUPIL") {
     throw new PracticeError("Your sign-in does not include this.", 403, "PORTAL_ACCESS");
+  }
+
+  // Practice may be closed, or the pupil's level lowered, after the session started: each answer is checked again, as starting a session is.
+  const [settings, portalAccess] = await Promise.all([getEffectiveBankSettings(params.branchId), getPortalAccess(params.branchId)]);
+  if (!settings["bank.access.pupils"]) {
+    throw new PracticeError("Practice is currently closed.", 403, "PRACTICE_CLOSED");
+  }
+  if (accessFor(portalAccess, params.actor).practice !== "FULL") {
+    throw new PracticeError("Practice access is not permitted.", 403, "PORTAL_ACCESS");
   }
 
   const session = await prisma.practiceSession.findUnique({
