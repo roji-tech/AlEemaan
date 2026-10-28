@@ -107,7 +107,7 @@ A detailed technical blueprint is documented in:
   - Slice 7 (questionnaires: general surveys & feedback forms, anonymous deduplication via FormParticipation, public shareToken links, live analytics aggregation, staff/pupil/public routes) merged via PR #111.
   - Slice 8 (paper work: physical roll call, automatic roster provisioning, deadline tracking, single/batch status updates, append-only audits, pupil portal discovery and marking requests, ADR 0014 cross-branch isolation) merged via PR #112.
   - Slice 9 (manual marking: per-question and per-attempt marking, FormMarkingMethod/FormMarkingStatus enums, FormMarkingAudit append-only trigger, teacher grading queue & endpoints, pupil portal masked pending view, ADR 0014 branch isolation) merged via PR #113.
-  - Slice 10 (printing: server PDFs, windows, watermark, logs: PrintTargetKind enum, QuestionBankPrintLog model with append-only database trigger, pure PDF-1.4 binary engine, staff & pupil print endpoints, exam approver/near-exam window access rules, recipient student handout watermarking) built on branch `claude/forms-qbank-slice-10` with 37 unit/guard/API tests green (22 domain/PDF rules, 7 route guards, 8 API integration tests).
+  - Slice 10 (printing: server PDFs, windows, watermark, logs: PrintTargetKind enum, QuestionBankPrintLog model with append-only database trigger, pure PDF-1.4 binary engine, staff & pupil print endpoints, exam approver/near-exam window access rules, recipient student handout watermarking) merged via PR #114.
 - Other merges: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
 
 **Waiting on the maintainer (none blocks the next code work):**
