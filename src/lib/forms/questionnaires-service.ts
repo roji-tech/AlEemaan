@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import crypto from "node:crypto";
 import {
+  Prisma,
   BankQuestionType,
   FormKind,
   FormStatus,
@@ -8,6 +9,8 @@ import {
   FormResponseStatus,
 } from "@prisma/client";
 import { FormsServiceError } from "./forms-service";
+import { deriveKey, MfaUnavailableError } from "@/lib/auth/mfa/secret-box";
+import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
 import {
   validateQuestionnaireInput,
   isQuestionnaireOpen,
@@ -15,7 +18,40 @@ import {
   formatQuestionnaireQuestionsForRespondent,
   validateAndNormalizeAnswers,
   aggregateQuestionnaireAnalytics,
+  dayOnly,
+  withholdSmallSample,
 } from "./questionnaires";
+
+/// The code kept in FormParticipation.respondentId for an ANONYMOUS questionnaire: a keyed hash (HMAC-SHA256, under a key derived from MFA_ENCRYPTION_KEY) of the
+/// questionnaire and the person. The same person on the same questionnaire always gets the same code, so answering twice is still refused; a different questionnaire gives
+/// a different code, and without the key nobody can turn a code back into a person or check a guess. A questionnaire that names its respondents keeps the plain id.
+/// Returns null when the key is not configured.
+function participationCode(form: { id: string; isAnonymous: boolean }, memberId: string): string | null {
+  if (!form.isAnonymous) return memberId;
+  try {
+    return crypto.createHmac("sha256", deriveKey("questionnaire-participation/v1")).update(`${form.id}\u0000${memberId}`).digest("hex");
+  } catch (err) {
+    if (err instanceof MfaUnavailableError) return null;
+    throw err;
+  }
+}
+
+/// Every value that may stand for this person on this questionnaire: the code, and the plain id that an earlier version of the code stored for anonymous ones.
+function participationIds(form: { id: string; isAnonymous: boolean }, memberId: string): string[] {
+  const code = participationCode(form, memberId);
+  return code && code !== memberId ? [code, memberId] : [memberId];
+}
+
+/// The questionnaires, of these, that the person has already answered.
+async function submittedFormIds(branchId: string, forms: Array<{ id: string; isAnonymous: boolean }>, memberId: string): Promise<Set<string>> {
+  if (forms.length === 0) return new Set();
+  const wanted = new Map(forms.map((f) => [f.id, new Set(participationIds(f, memberId))]));
+  const rows = await prisma.formParticipation.findMany({
+    where: { branchId, formId: { in: forms.map((f) => f.id) }, respondentId: { in: [...new Set([...wanted.values()].flatMap((s) => [...s]))] } },
+    select: { formId: true, respondentId: true },
+  });
+  return new Set(rows.filter((r) => wanted.get(r.formId)?.has(r.respondentId)).map((r) => r.formId));
+}
 
 /**
  * Creates a new questionnaire form.
@@ -352,7 +388,8 @@ export async function getQuestionnaireAnalytics(params: {
     answers: allAnswers,
   });
 
-  return analytics;
+  const settings = await getEffectiveBankSettings(params.branchId);
+  return withholdSmallSample(analytics, settings["bank.smallSummary.min"]);
 }
 
 /**
@@ -373,13 +410,10 @@ export async function listAvailableQuestionnairesForStaff(params: {
     include: {
       audiences: true,
       _count: { select: { questions: true } },
-      participations: {
-        where: { respondentId: params.userId },
-        select: { id: true, createdAt: true },
-      },
     },
   });
 
+  const submitted = await submittedFormIds(params.branchId, forms, params.userId);
   const now = new Date();
   return forms
     .filter((f) => {
@@ -397,7 +431,7 @@ export async function listAvailableQuestionnairesForStaff(params: {
       questionCount: f._count.questions,
       opensAt: f.opensAt,
       closesAt: f.closesAt,
-      hasSubmitted: f.participations.length > 0,
+      hasSubmitted: submitted.has(f.id),
     }));
 }
 
@@ -426,13 +460,10 @@ export async function listAvailableQuestionnairesForPupil(params: {
     include: {
       audiences: true,
       _count: { select: { questions: true } },
-      participations: {
-        where: { respondentId: params.studentId },
-        select: { id: true, createdAt: true },
-      },
     },
   });
 
+  const submitted = await submittedFormIds(params.branchId, forms, params.studentId);
   const now = new Date();
   return forms
     .filter((f) => {
@@ -450,7 +481,7 @@ export async function listAvailableQuestionnairesForPupil(params: {
       questionCount: f._count.questions,
       opensAt: f.opensAt,
       closesAt: f.closesAt,
-      hasSubmitted: f.participations.length > 0,
+      hasSubmitted: submitted.has(f.id),
     }));
 }
 
@@ -473,10 +504,6 @@ export async function getQuestionnaireForMember(params: {
     include: {
       audiences: true,
       questions: { orderBy: { sortOrder: "asc" } },
-      participations: {
-        where: { respondentId: params.memberId },
-        select: { id: true, createdAt: true },
-      },
     },
   });
 
@@ -515,7 +542,7 @@ export async function getQuestionnaireForMember(params: {
     title: form.title,
     instructions: form.instructions,
     isAnonymous: form.isAnonymous,
-    hasSubmitted: form.participations.length > 0,
+    hasSubmitted: (await submittedFormIds(params.branchId, [form], params.memberId)).has(form.id),
     questions: formatQuestionnaireQuestionsForRespondent(form.questions),
   };
 }
@@ -565,11 +592,15 @@ export async function submitQuestionnaireForMember(params: {
   }
 
   // Deduplication check: verify member has not already submitted
+  const code = participationCode(form, params.memberId);
+  if (!code) {
+    throw new FormsServiceError("Anonymous questionnaires are unavailable right now.", 503, "UNAVAILABLE");
+  }
   const alreadyParticipated = await prisma.formParticipation.findFirst({
     where: {
       branchId: params.branchId,
       formId: form.id,
-      respondentId: params.memberId,
+      respondentId: { in: participationIds(form, params.memberId) },
     },
   });
 
@@ -589,46 +620,56 @@ export async function submitQuestionnaireForMember(params: {
   }
 
   const submittedAt = new Date();
+  // An anonymous questionnaire keeps the day on which someone answered and not the time, in every row it writes, so the participation cannot be matched to the answers.
+  const recordedAt = form.isAnonymous ? dayOnly(submittedAt) : submittedAt;
 
   // Anonymity: if form.isAnonymous is true, response respondentId & studentId are null
   const respondentId = form.isAnonymous ? null : params.memberId;
   const studentId = form.isAnonymous ? null : params.isStudent ? params.memberId : null;
 
-  await prisma.$transaction(async (tx) => {
-    // 1. Record participation for deduplication
-    await tx.formParticipation.create({
-      data: {
-        branchId: params.branchId,
-        formId: form.id,
-        respondentId: params.memberId,
-        createdAt: submittedAt,
-      },
-    });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Record participation for deduplication (the code for an anonymous questionnaire, the plain id otherwise)
+      await tx.formParticipation.create({
+        data: {
+          branchId: params.branchId,
+          formId: form.id,
+          respondentId: code,
+          createdAt: recordedAt,
+        },
+      });
 
-    // 2. Record response session
-    const response = await tx.formResponse.create({
-      data: {
-        branchId: params.branchId,
-        formId: form.id,
-        respondentId,
-        studentId,
-        status: FormResponseStatus.COMPLETED,
-        startedAt: submittedAt,
-        submittedAt,
-      },
-    });
+      // 2. Record response session
+      const response = await tx.formResponse.create({
+        data: {
+          branchId: params.branchId,
+          formId: form.id,
+          respondentId,
+          studentId,
+          status: FormResponseStatus.COMPLETED,
+          startedAt: recordedAt,
+          submittedAt: recordedAt,
+        },
+      });
 
-    // 3. Record answers
-    await tx.formAnswer.createMany({
-      data: normalizedAnswers.map((na) => ({
-        branchId: params.branchId,
-        responseId: response.id,
-        formQuestionId: na.formQuestionId,
-        value: na.value as never,
-        createdAt: submittedAt,
-      })),
+      // 3. Record answers
+      await tx.formAnswer.createMany({
+        data: normalizedAnswers.map((na) => ({
+          branchId: params.branchId,
+          responseId: response.id,
+          formQuestionId: na.formQuestionId,
+          value: na.value as never,
+          createdAt: recordedAt,
+        })),
+      });
     });
-  });
+  } catch (err) {
+    // Two answers sent at the same moment: the unique key refuses the second, which is the same answer as "already submitted", not a server error.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new FormsServiceError("You have already submitted this questionnaire.", 400, "ALREADY_SUBMITTED");
+    }
+    throw err;
+  }
 
   return {
     ok: true,

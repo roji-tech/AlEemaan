@@ -219,11 +219,10 @@ test("teacher creates anonymous staff questionnaire and submits response with de
   expect(dbResponse?.respondentId).toBeNull();
   expect(dbResponse?.studentId).toBeNull();
 
-  // Verify deduplication tracking: FormParticipation records that teacher1 submitted
-  const dbParticipation = await db.formParticipation.findFirst({
-    where: { formId, respondentId: teacher1.id },
-  });
-  expect(dbParticipation).toBeDefined();
+  // Verify deduplication tracking: one FormParticipation records that someone submitted, under a code and not under teacher1's id (the code is covered in
+  // questionnaire-anonymity.spec.ts)
+  expect(await db.formParticipation.findFirst({ where: { formId, respondentId: teacher1.id } })).toBeNull();
+  expect(await db.formParticipation.count({ where: { formId } })).toBe(1);
 
   // 5. Duplicate submission is rejected
   const dupRes = await api(`/api/v1/forms/${formId}/submit`, {
@@ -251,15 +250,12 @@ test("teacher creates anonymous staff questionnaire and submits response with de
   const analytics = analyticsRes.json.data.analytics;
   expect(analytics.totalResponses).toBe(1);
   expect(analytics.isAnonymous).toBe(true);
-  expect(analytics.questions[0].optionCounts[0]).toEqual({
-    optionId: "A",
-    label: "Very Satisfied",
-    count: 1,
-    percentage: 100,
-  });
-  expect(analytics.questions[1].textResponses).toEqual([
-    "Need better coffee in the lounge.",
-  ]);
+  // One answer to an anonymous questionnaire is below the small-sample threshold (5): the count is shown, the breakdown and the written answer are not. The breakdown
+  // with enough answers is covered in questionnaire-anonymity.spec.ts.
+  expect(analytics.suppressed).toBe(true);
+  expect(analytics.questions[0].optionCounts).toBeUndefined();
+  expect(analytics.questions[1].textResponses).toBeUndefined();
+  expect(JSON.stringify(analytics)).not.toContain("Need better coffee");
 });
 
 test("pupil discovers and completes student-scoped questionnaire", async () => {

@@ -57,6 +57,31 @@ export interface QuestionnaireAnalytics {
   isAnonymous: boolean;
   status: FormStatus;
   questions: QuestionAnalyticsItem[];
+  /// True when the breakdown was held back because too few people answered an anonymous questionnaire (see `withholdSmallSample`).
+  suppressed?: boolean;
+  /// With `suppressed`: how many answers it takes before a breakdown is shown.
+  minimumResponses?: number;
+}
+
+/// The start of the UTC day. An anonymous questionnaire keeps only the day on which someone answered, never the time, so the record that says who has answered cannot be
+/// matched to the answers by the moment they were written.
+export const dayOnly = (when: Date): Date => new Date(Date.UTC(when.getUTCFullYear(), when.getUTCMonth(), when.getUTCDate()));
+
+/// An anonymous questionnaire with fewer answers than `minimum` shows the count and the questions, and nothing that could pick one person out: no option counts, no
+/// written answers. A questionnaire that names its respondents is not held back, because their answers are theirs to be seen by the staff who asked.
+export function withholdSmallSample(analytics: QuestionnaireAnalytics, minimum: number): QuestionnaireAnalytics {
+  if (!analytics.isAnonymous || analytics.totalResponses >= minimum) return analytics;
+  return {
+    ...analytics,
+    suppressed: true,
+    minimumResponses: minimum,
+    questions: analytics.questions.map((q) => ({
+      formQuestionId: q.formQuestionId,
+      prompt: q.prompt,
+      questionType: q.questionType,
+      totalAnswers: 0,
+    })),
+  };
 }
 
 /**
