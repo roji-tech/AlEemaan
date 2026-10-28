@@ -44,3 +44,46 @@ export const submitFormAnswersSchema = z.object({
     }),
   ),
 });
+
+export const createQuestionnaireSchema = z.object({
+  branchId: idSchema,
+  title: z.string().min(1).max(200),
+  instructions: z.string().max(5000).optional().nullable(),
+  isAnonymous: z.boolean().default(false),
+  audienceKind: z.enum(["MEMBERS", "PUBLIC"]).default("MEMBERS"),
+  roles: z.array(z.string().min(1).max(50)).optional().default([]),
+  classGroupIds: z.array(idSchema).optional().default([]),
+  opensAt: z.string().optional().nullable(),
+  closesAt: z.string().optional().nullable(),
+  questions: z.array(
+    z.object({
+      prompt: z.string().min(1).max(20000),
+      questionType: z.nativeEnum(BankQuestionType).optional(),
+      options: z.any().optional(),
+      sortOrder: z.number().int().min(0).default(0),
+    }),
+  ).min(1, "Questionnaire must contain at least one question."),
+});
+
+export const updateQuestionnaireSchema = z.object({
+  branchId: idSchema.optional(),
+  title: z.string().min(1).max(200).optional(),
+  instructions: z.string().max(5000).optional().nullable(),
+  status: z.nativeEnum(FormStatus).optional(),
+  isAnonymous: z.boolean().optional(),
+  audienceKind: z.enum(["MEMBERS", "PUBLIC"]).optional(),
+  roles: z.array(z.string().min(1).max(50)).optional(),
+  classGroupIds: z.array(idSchema).optional(),
+  opensAt: z.string().optional().nullable(),
+  closesAt: z.string().optional().nullable(),
+});
+
+export const submitQuestionnaireSchema = z.object({
+  answers: z.array(
+    z.object({
+      formQuestionId: idSchema,
+      value: z.any(),
+    }),
+  ).min(1, "You must provide at least one answer."),
+});
+

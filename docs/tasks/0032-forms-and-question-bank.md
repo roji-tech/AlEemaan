@@ -318,6 +318,48 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/api/practice-sets.spec.ts`: 4 comprehensive API integration tests passed.
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
+## 4h. Slice 7 as built (2026-10-28)
+
+**What is built:**
+- **Schema & Migration:** `20261028230000_questionnaires_and_surveys`:
+  - Added fields to `Form`:
+    - `isAnonymous` (Boolean, default false): when true, respondent identity (`respondentId`, `studentId`) is detached on `FormResponse`.
+    - `shareToken` (String, unique, optional): cryptographically generated token for public, unauthenticated survey access.
+  - Added model `FormParticipation` with ADR 0015 composite keys `(branchId, id)` and unique constraint `@@unique([branchId, formId, respondentId])`:
+    - Tracks who participated in anonymous forms to strictly prevent double submissions without linking the respondent to their responses.
+- **Pure Domain Logic:** `src/lib/forms/questionnaires.ts`:
+  - `validateQuestionnaireInput`: validates questionnaire titles, prompt lengths, and single/multi-choice option integrity.
+  - `isQuestionnaireOpen`: checks published status and active opensAt/closesAt scheduling window.
+  - `isMemberEligibleForQuestionnaire`: evaluates public access, target role membership (e.g. TEACHER, PARENT, STUDENT), and class group scoping.
+  - `formatQuestionnaireQuestionsForRespondent`: formats questionnaire items for respondent viewing.
+  - `validateAndNormalizeAnswers`: validates answers against question types (SINGLE, MULTI, TRUE_FALSE, SHORT) and required status.
+  - `aggregateQuestionnaireAnalytics`: compiles live metrics: total responses, completion rate, per-option response counts and percentages for choice questions, and qualitative free-text response summaries.
+- **Service & Routes:**
+  - `src/lib/forms/questionnaires-service.ts`:
+    - Staff: `createQuestionnaire`, `listQuestionnairesForStaff`, `getQuestionnaireForStaff`, `updateQuestionnaire`, `closeQuestionnaire`, `getQuestionnaireAnalytics`, `listAvailableQuestionnairesForStaff`, `submitQuestionnaireForMember`.
+    - Pupil Portal: `listAvailableQuestionnairesForPupil`, `getQuestionnaireForMember` (with automatic class group resolution), `submitQuestionnaireForMember`.
+    - Public: `getPublicQuestionnaireByToken`, `submitPublicQuestionnaire`.
+  - Staff Routes:
+    - `POST /api/v1/forms`: updated to support `kind: QUESTIONNAIRE`, optional `isAnonymous`, and auto-generation of `shareToken` for public audiences.
+    - `GET /api/v1/forms`: updated to support filtering by `kind=QUESTIONNAIRE`.
+    - `GET /api/v1/forms/available`: lists questionnaires open to the current authenticated staff member.
+    - `GET /api/v1/forms/[id]/analytics`: computes aggregate response metrics and option breakdowns.
+    - `POST /api/v1/forms/[id]/submit`: authenticated staff questionnaire submission with deduplication.
+  - Pupil Portal Routes:
+    - `GET /api/v1/portal/students/[studentId]/forms/questionnaires`: lists open questionnaires targeting students.
+    - `GET /api/v1/portal/students/[studentId]/forms/questionnaires/[id]`: fetches questionnaire questions for student.
+    - `POST /api/v1/portal/students/[studentId]/forms/questionnaires/[id]/submit`: submits pupil answers with double-submission protection.
+  - Public Routes:
+    - `GET /api/v1/forms/public/[token]`: unauthenticated public survey access.
+    - `POST /api/v1/forms/public/[token]/submit`: unauthenticated public survey response submission.
+  - Registered all new route handlers in `tests/unit/route-role-guard.spec.ts`.
+- **Tests & Verification:**
+  - `tests/unit/questionnaires.spec.ts`: 5 pure domain rule unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
+  - `tests/api/questionnaires.spec.ts`: 4 comprehensive API integration tests passed.
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
+
 ## 5. Definition of done (every slice)
 tsc, lint, build, then tests (in that order); tests for secrecy, permissions and cross-branch per the design note; axe in both themes at desktop and phone; docs (this file, HANDOVER, open-items) updated in the same change.
+
 

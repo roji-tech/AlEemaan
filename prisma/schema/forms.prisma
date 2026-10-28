@@ -35,6 +35,8 @@ model Form {
   title              String
   instructions       String?
   status             FormStatus @default(DRAFT)
+  isAnonymous        Boolean    @default(false)
+  shareToken         String?    @unique
   opensAt            DateTime?
   closesAt           DateTime?
   maxDurationMinutes Int?
@@ -44,16 +46,34 @@ model Form {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @default(now()) @updatedAt
 
-  branch    Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  createdBy User           @relation("FormsCreated", fields: [createdById], references: [id], onDelete: NoAction)
-  closedBy  User?          @relation("FormsClosed", fields: [closedById], references: [id], onDelete: SetNull)
-  audiences FormAudience[]
-  questions FormQuestion[]
-  responses FormResponse[]
+  branch         Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdBy      User                @relation("FormsCreated", fields: [createdById], references: [id], onDelete: NoAction)
+  closedBy       User?               @relation("FormsClosed", fields: [closedById], references: [id], onDelete: SetNull)
+  audiences      FormAudience[]
+  questions      FormQuestion[]
+  responses      FormResponse[]
+  participations FormParticipation[]
 
   @@unique([branchId, id])
   @@index([branchId, kind, status])
   @@index([branchId, createdAt])
+}
+
+/// Participation record for members on forms to prevent double-answering on anonymous questionnaires.
+model FormParticipation {
+  id           String   @id @default(cuid())
+  branchId     String
+  formId       String
+  respondentId String
+  createdAt    DateTime @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  form   Form   @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@unique([branchId, formId, respondentId])
+  @@index([branchId, formId])
+  @@index([branchId, respondentId])
 }
 
 /// Target audience for a form: members by roles and class groups, or public.

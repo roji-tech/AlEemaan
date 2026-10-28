@@ -59,13 +59,13 @@ AlEemaan is a dedicated, single-tenant school management system built on Next.js
 
 ---
 
-## 3. Database Migrations Status (26 of 34 deployed live; the 8 newest are pending there)
+## 3. Database Migrations Status (26 of 35 deployed live; the 9 newest are pending there)
 
-The repository holds 34 migrations once Slice 6 is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`), the 29th (`20261025120000_results_approval_scopes`), the 30th (`20261026090000_question_bank_core`), the 31st (`20261027140000_question_bank_assessments`), the 32nd (`20261028120000_pupil_practice`), the 33rd (`20261028180000_question_reports`), and the 34th (`20261028210000_practice_sets_forms`, additive: FormKind, FormStatus, FormAudienceKind, FormResponseStatus enums; Form, FormAudience, FormQuestion, FormResponse, FormAnswer models with check constraints and ADR 0015 composite keys) are pending on live:
+The repository holds 35 migrations once Slice 7 is merged. The first 26 have been run against both the local Docker database and the live remote database; the 27th (`20261019090000_hosted_schemes`), the 28th (`20261019210000_question_bank_foundation`), the 29th (`20261025120000_results_approval_scopes`), the 30th (`20261026090000_question_bank_core`), the 31st (`20261027140000_question_bank_assessments`), the 32nd (`20261028120000_pupil_practice`), the 33rd (`20261028180000_question_reports`), the 34th (`20261028210000_practice_sets_forms`), and the 35th (`20261028230000_questionnaires_and_surveys`, additive: `isAnonymous` Boolean, `shareToken` String unique on `Form`, and `FormParticipation` model with ADR 0015 composite keys) are pending on live:
 
-- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 34 migrations applied.
+- **Local Docker Database:** `postgresql://aleemaan:aleemaan@localhost:5434/aleemaan` — 35 migrations applied.
 - **Live Remote Database:** `postgres://...:5432/postgres?sslmode=require` (`db.prisma.io:5432`) — 26 migrations applied.
-- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261028210000_practice_sets_forms/migration.sql`.
+- **Latest Migration Applied on the live database:** `20261018150000_staff_extended_fields/migration.sql`. **Latest in the repository:** `20261028230000_questionnaires_and_surveys/migration.sql`.
 
 ---
 
@@ -103,25 +103,25 @@ A detailed technical blueprint is documented in:
   - Slice 3 (use in assessments: copy-on-use, offer-back, template hiding) merged via PR #107.
   - Slice 4 (pupil practice: sessions, feedback modes EACH/END, daily caps, minPoolSize, guardian privacy SUMMARY/NONE/FULL, archiving) merged via PR #108.
   - Slice 5 (reports on questions: reviewer queue, outcomes FIXED/NOT_AN_ERROR/NEEDS_DISCUSSION, NDPA masking, assessment re-grade impact, pupil report history) merged via PR #109.
-  - Slice 6 (practice sets / ungraded forms: Form, FormAudience, FormQuestion, FormResponse, FormAnswer, exam secrecy question scrubbing, submission scoring, staff and portal API endpoints) built on branch `claude/forms-qbank-slice-6` with 25 unit/guard/API tests green.
-  - Slices 7 to 10 are next.
+  - Slice 6 (practice sets / ungraded forms: Form, FormAudience, FormQuestion, FormResponse, FormAnswer, exam secrecy question scrubbing, submission scoring, staff and portal API endpoints) merged via PR #110.
+  - Slice 7 (questionnaires: general surveys & feedback forms, anonymous deduplication via FormParticipation, public shareToken links, live analytics aggregation, staff/pupil/public routes) built on branch `claude/forms-qbank-slice-7` with 16 unit/guard/API tests green (5 domain rules, 7 route guards, 4 API integration tests).
+  - Slices 8 to 10 are next (Slice 8: Paper Work / Physical Hand-in).
 - Other merges: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
 - Other merges since 2026-10-21: the proxy matcher (#83), the promotion screens (#84, with #87), the shared body reader (#85), the docs PRs (#101, #102).
 
 **Waiting on the maintainer (none blocks the next code work):**
-1. The hosted database, in this order, each BEFORE the code that needs it is deployed there: `20261019090000_hosted_schemes`, `20261019210000_question_bank_foundation`, `20261025120000_results_approval_scopes`, `20261026090000_question_bank_core`, `20261027140000_question_bank_assessments`, `20261028120000_pupil_practice`, `20261028180000_question_reports`. The AI never runs a migration on the hosted database.
+1. The hosted database, in this order, each BEFORE the code that needs it is deployed there: `20261019090000_hosted_schemes`, `20261019210000_question_bank_foundation`, `20261025120000_results_approval_scopes`, `20261026090000_question_bank_core`, `20261027140000_question_bank_assessments`, `20261028120000_pupil_practice`, `20261028180000_question_reports`, `20261028210000_practice_sets_forms`, `20261028230000_questionnaires_and_surveys`. The AI never runs a migration on the hosted database.
 2. `IMAGE_STORE` and its credentials for pictures on a hosted deployment (without one the picture routes answer 503 and the rest of the bank works); rotating the exposed credentials (the docs PR #81 that was once held is merged since 2026-10-21); `pnpm admins:list` against the live database; the older list in `docs/open-items.md`.
 3. **Step 2 of task 0040 needs NEW decisions** (the earlier three questions were answered yes and step 1 was built on them): what replaces the guardian's phone as the sign-in secret (recommended: a one-time code per pupil or guardian that the school hands out); whether siblings come from explicit guardian-to-pupil links (recommended: a link table, not a shared phone number); whether portal sessions can be revoked (recommended: a session table).
 4. **A proposal to confirm or overrule:** Octalve's question-bank setting `bank.parents.view` (`NONE`, `SUMMARY`, `FULL`) has its equivalent here already, `portal_access.guardian.practice`, so no second key was added; the two differences (the guardian default is `SUMMARY` here, `NONE` there; no school-wide ceiling here) are in task 0040 section 3.
 5. **Clean-up (done locally on 2026-10-27, at the maintainer's request):** the worktrees `../AlEemaan-approvers` and `../AlEemaan-portal` (both clean, both merged) were removed, and 60 local branches whose tip is in `dev` were deleted. Kept: `../AlEemaan-slice2` (the one used for the test runs; reused for every slice from 2.2 on) and the main checkout, which is on `claude/style-canonical-classes-dev-portal` (merged) and holds an UNTRACKED older draft of `docs/tasks/0040-portal-pupil-guardian-separation.md` (the committed file on `dev` is the current one; it stops a switch to `dev` until the draft is moved or deleted, so it was left for the maintainer). Local branches not merged into `dev`, left alone: `claude/fix-invoice-numbers`, `claude/staff-extended-fields`, `claude/task-0027-review-history-dialog`, `docs/handover-and-operations-blueprint`. The REMOTE branches (about 83 merged ones) were not deleted: deleting a published branch is outward-facing, so say if they should go. The old text below about "kept on purpose" worktrees is the record of 2026-10-21.
 6. **Promotion:** a `dev` to `master` PR (#105) was opened on 2026-10-27 at the maintainer's request and merged into `master` on the maintainer's approval.
 
-**Verification as of this entry:** per slice, on `aleemaan_test`: 0039 slice 2a 29 tests and 3 of 3 mutations caught; 2b 34 tests and 7 of 7 mutations caught (10 of 10 with the slice 3 side); slice 3 five end-to-end tests on desktop and five on a phone; slice 4 13 pure unit tests, 7 route guards, and 7 API integration tests; slice 5 15 pure unit tests, 7 route guards, and 8 API integration tests all green.
+**Verification as of this entry:** per slice, on `aleemaan_test`: 0039 slice 2a 29 tests and 3 of 3 mutations caught; 2b 34 tests and 7 of 7 mutations caught (10 of 10 with the slice 3 side); slice 3 five end-to-end tests on desktop and five on a phone; slice 4 13 pure unit tests, 7 route guards, and 7 API integration tests; slice 5 15 pure unit tests, 7 route guards, and 8 API integration tests; slice 6 14 pure unit tests, 7 route guards, and 4 API integration tests; slice 7 5 pure unit tests, 7 route guards, and 4 API integration tests all green.
 
 **Next, in order:**
 1. Octalve full run on its merged `dev` (its own HANDOVER).
-2. Forms and question bank slice 6 (practice sets: ungraded forms).
-3. Task 0040 step 2, when the maintainer has answered item 3 above.
+2. Forms and question bank slice 8 (paper work: physical hand-in).
 4. The `/video-guide` pages and a responsiveness audit. **The walkthrough audit (task 0033) runs LAST.**
 
 **Rules learned since 2026-10-21 (they apply to new code):** `OR: [{ ... }, {}]` in a Prisma `where` is NOT "match everything" (found by the Octalve port: leave the condition out); `contains` treats `%` and `_` as wildcards, so escape the text; a nested `<dialog>` closing fires `close` on the parent, so `Dialog` ignores a close whose target is not itself; keep zod out of client components (the CSP reports an `eval`); a multipart or raw body is read only through `readBoundedForm` / `readBoundedBytes` (`src/lib/api/read-body.ts`); the test servers run `IMAGE_STORE=memory` (the dev-tools server has none, for the 503 case); this repository has no formatter and long lines, so do not run a default prettier over existing files.
