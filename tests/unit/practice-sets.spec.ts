@@ -8,6 +8,8 @@ import {
   evaluateFormAnswer,
   evaluateFormSubmission,
   isPupilAudienceEligible,
+  isWithinTimeLimit,
+  TIME_LIMIT_GRACE_MS,
   validatePracticeSetInput,
 } from "../../src/lib/forms/practice-sets";
 
@@ -186,6 +188,28 @@ test.describe("Practice Sets & Forms Domain Logic (Task 0032 Slice 6)", () => {
           maxDurationMinutes: 0,
         }),
       ).toEqual({ ok: false, message: "maxDurationMinutes must be between 1 and 1440." });
+    });
+  });
+
+  test.describe("isWithinTimeLimit", () => {
+    const startedAt = new Date("2026-10-29T10:00:00Z");
+    const at = (ms: number) => new Date(startedAt.getTime() + ms);
+    const MINUTE = 60_000;
+
+    test("a set with no time limit is never over", () => {
+      expect(isWithinTimeLimit(startedAt, null, at(30 * 24 * 60 * MINUTE))).toBe(true);
+      expect(isWithinTimeLimit(startedAt, undefined, at(30 * 24 * 60 * MINUTE))).toBe(true);
+    });
+
+    test("inside the limit, at the limit and inside the allowance for the network are in time", () => {
+      expect(isWithinTimeLimit(startedAt, 10, at(1))).toBe(true);
+      expect(isWithinTimeLimit(startedAt, 10, at(10 * MINUTE))).toBe(true);
+      expect(isWithinTimeLimit(startedAt, 10, at(10 * MINUTE + TIME_LIMIT_GRACE_MS))).toBe(true);
+    });
+
+    test("past the limit and the allowance is out of time", () => {
+      expect(isWithinTimeLimit(startedAt, 10, at(10 * MINUTE + TIME_LIMIT_GRACE_MS + 1))).toBe(false);
+      expect(isWithinTimeLimit(startedAt, 1, at(3 * MINUTE))).toBe(false);
     });
   });
 });
