@@ -22,9 +22,9 @@ Teachers reuse reviewed questions from a bank; pupils practise from the portal; 
 - [x] 3 Use in assessments: copy on use, offer-back, template hiding
 - [x] 4 Pupil practice: sessions, feedback timing, size and caps, history, archive
 - [x] 5 Reports on questions: queue, outcomes, switches, re-grade offer
-- [ ] 6 Practice sets (ungraded forms)
-- [ ] 7 Questionnaires: members, public, anonymous, summaries
-- [ ] 8 Paper work: roll call, close, maximum duration, pupil request
+- [x] 6 Practice sets (ungraded forms)
+- [x] 7 Questionnaires: members, public, anonymous, summaries
+- [x] 8 Paper work: roll call, close, maximum duration, pupil request
 - [ ] 9 Manual marking
 - [ ] 10 Printing: server PDFs, windows, watermark, logs
 - [ ] Mutation passes (deferred to the end of Phase 2)
@@ -357,6 +357,42 @@ Bridge approved Question Bank items into assessments (Quizzes and Tests) with st
   - `tests/unit/questionnaires.spec.ts`: 5 pure domain rule unit tests passed.
   - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
   - `tests/api/questionnaires.spec.ts`: 4 comprehensive API integration tests passed.
+  - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
+
+## 4i. Slice 8 as built (2026-10-28)
+
+**What is built:**
+- **Schema & Migration:** `20261029010000_paper_work_roll_call`:
+  - Added enum: `TurnInStatus` (`PENDING`, `HANDED_IN`, `LATE`).
+  - Added model `FormTurnIn` with ADR 0015 composite keys `(branchId, id)`, `@@unique([branchId, formId, studentId])`, and relations to `Form`, `StudentRecord`, `User`, `Branch`:
+    - Tracks roll call status, teacher marking (`markedById`, `markedAt`), pupil marking request (`requestedAt`), and optional staff note.
+  - Added model `FormTurnInAudit` with append-only database trigger `question_bank_append_only`:
+    - Immutably records every roll-call change, status update, note, and pupil marking request with actor identification.
+- **Pure Domain Logic:** `src/lib/forms/paper-work.ts`:
+  - `validatePaperWorkInput`: validates title length (1–200), instructions, duration bounds (1–1440 min), required class group targeting, and open/close scheduling window.
+  - `isPaperWorkOpen`: evaluates publishing status, manual close (`closedAt`), and active time window.
+  - `determineTurnInStatus`: evaluates submission time against `form.closesAt` deadline, automatically classifying submissions recorded after deadline as `LATE`.
+  - `canPupilRequestMarking`: checks that paper work is published and not closed, and that the pupil is in `PENDING` status.
+  - `computeRollCallSummary`: compiles roster size, count of handed in, late, pending, pupils requesting marking, and overall completion rate percentage.
+- **Service & Routes:**
+  - `src/lib/forms/paper-work-service.ts`:
+    - Staff: `createPaperWork` (with atomic roster auto-provisioning for active students in target class groups and audit trail), `listPaperWorkForStaff` (with roll call summary counters), `getPaperWorkForStaff` (with full roll call roster), `updateTurnIn`, `batchUpdateTurnIns`, `syncRosterForPaperWork` (for pupils enrolled after form creation), and `closePaperWork`.
+    - Pupil Portal: `listAvailablePaperWorkForPupil`, `getPaperWorkForPupil`, and `requestMarkingForPupil`.
+  - Staff Routes:
+    - `POST /api/v1/forms`: updated to support `kind: PAPER_WORK` with automatic student enrollment roster provisioning.
+    - `GET /api/v1/forms`: updated to list paper work forms with roll call completion summaries.
+    - `GET /api/v1/forms/[id]/turn-ins`: returns complete student roster, submission statuses, notes, and metrics.
+    - `PATCH /api/v1/forms/[id]/turn-ins`: updates single or batch student turn-in status with audit logging.
+    - `POST /api/v1/forms/[id]/turn-ins/sync`: synchronizes newly enrolled pupils into existing paper work rosters.
+  - Pupil Portal Routes:
+    - `GET /api/v1/portal/students/[studentId]/forms/paper-work`: lists assigned paper work for pupil's active class group.
+    - `GET /api/v1/portal/students/[studentId]/forms/paper-work/[id]`: returns paper work details and pupil's submission status.
+    - `POST /api/v1/portal/students/[studentId]/forms/paper-work/[id]/request-marking`: allows pupil to flag paper work for teacher marking.
+  - Registered all new route handlers in `tests/unit/route-role-guard.spec.ts`.
+- **Tests & Verification:**
+  - `tests/unit/paper-work.spec.ts`: 5 pure domain rule unit tests passed.
+  - `tests/unit/route-role-guard.spec.ts`: 7 route role guard tests passed.
+  - `tests/api/paper-work.spec.ts`: 5 comprehensive API integration tests passed (roster provisioning, deadline tracking, audits, pupil portal discovery and request marking, closed form refusal, ADR 0014 cross-branch isolation).
   - `pnpm exec tsc --noEmit`, `pnpm build`, `pnpm lint`: passed with 0 errors.
 
 ## 5. Definition of done (every slice)

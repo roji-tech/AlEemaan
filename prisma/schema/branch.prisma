@@ -68,6 +68,8 @@ model Branch {
   formResponses         FormResponse[]
   formAnswers           FormAnswer[]
   formParticipations    FormParticipation[]
+  formTurnIns           FormTurnIn[]
+  formTurnInAudits      FormTurnInAudit[]
 
   createdAt DateTime @default(now())
 }

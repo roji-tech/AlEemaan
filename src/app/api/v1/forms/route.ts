@@ -12,6 +12,12 @@ import {
   listQuestionnairesForStaff,
 } from "@/lib/forms/questionnaires-service";
 import {
+  createPaperWork,
+  listPaperWorkForStaff,
+  PaperWorkError,
+} from "@/lib/forms/paper-work-service";
+import {
+  createPaperWorkSchema,
   createPracticeSetSchema,
   createQuestionnaireSchema,
 } from "@/lib/forms/validation";
@@ -19,7 +25,7 @@ import { BANK_STAFF_ROLES } from "@/lib/question-bank/items-http";
 
 /**
  * GET /api/v1/forms
- * Lists practice sets or questionnaires in caller's branch.
+ * Lists practice sets, questionnaires, or paper work in caller's branch.
  */
 export const GET = withAuthGated(
   "staff-read",
@@ -29,6 +35,7 @@ export const GET = withAuthGated(
     if (!branchId) return fail("Branch ID is required", 400, "VALIDATION");
     const statusParam = url.searchParams.get("status");
     const kindParam = url.searchParams.get("kind");
+    const classGroupId = url.searchParams.get("classGroupId") || undefined;
 
     let status: FormStatus | "ALL" | undefined = undefined;
     if (statusParam === "ALL") {
@@ -46,6 +53,14 @@ export const GET = withAuthGated(
         return ok({ forms: questionnaires });
       }
 
+      if (kindParam === FormKind.PAPER_WORK) {
+        const paperWorks = await listPaperWorkForStaff(branchId, {
+          classGroupId,
+          status: status === "ALL" ? undefined : status,
+        });
+        return ok({ forms: paperWorks });
+      }
+
       const forms = await listPracticeSetsForStaff({
         branchId,
         status,
@@ -54,6 +69,9 @@ export const GET = withAuthGated(
     } catch (err) {
       if (err instanceof FormsServiceError) {
         return fail(err.message, err.statusCode, err.code);
+      }
+      if (err instanceof PaperWorkError) {
+        return fail(err.message, err.statusCode);
       }
       console.error("List forms error:", err);
       return fail("Failed to list forms", 500);
@@ -64,7 +82,7 @@ export const GET = withAuthGated(
 
 /**
  * POST /api/v1/forms
- * Creates a new form (practice set or questionnaire).
+ * Creates a new form (practice set, questionnaire, or paper work).
  */
 export const POST = withAuthGated(
   "staff-write",
@@ -97,6 +115,16 @@ export const POST = withAuthGated(
         return ok(result, {}, 201);
       }
 
+      if (raw.kind === FormKind.PAPER_WORK) {
+        const parsed = createPaperWorkSchema.safeParse(raw);
+        if (!parsed.success) {
+          return fail(parsed.error.issues[0]?.message ?? "Invalid paper work payload", 400, "VALIDATION");
+        }
+
+        const result = await createPaperWork(parsed.data.branchId, auth.userId, parsed.data);
+        return ok(result, {}, 201);
+      }
+
       const parsed = createPracticeSetSchema.safeParse(raw);
       if (!parsed.success) {
         return fail(parsed.error.issues[0]?.message ?? "Invalid form payload", 400, "VALIDATION");
@@ -118,10 +146,14 @@ export const POST = withAuthGated(
       if (err instanceof FormsServiceError) {
         return fail(err.message, err.statusCode, err.code);
       }
+      if (err instanceof PaperWorkError) {
+        return fail(err.message, err.statusCode);
+      }
       console.error("Create form error:", err);
       return fail("Failed to create form", 500);
     }
   },
   { roles: BANK_STAFF_ROLES },
 );
+
 

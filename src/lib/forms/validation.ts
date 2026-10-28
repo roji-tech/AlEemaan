@@ -87,3 +87,40 @@ export const submitQuestionnaireSchema = z.object({
   ).min(1, "You must provide at least one answer."),
 });
 
+export const createPaperWorkSchema = z.object({
+  branchId: idSchema,
+  title: z.string().min(1).max(200),
+  instructions: z.string().max(5000).optional().nullable(),
+  classGroupIds: z.array(idSchema).min(1, "Paper work requires at least one target class group."),
+  opensAt: z.string().optional().nullable(),
+  closesAt: z.string().optional().nullable(),
+  maxDurationMinutes: z.number().int().min(1).max(1440).optional().nullable(),
+});
+
+export const updatePaperWorkSchema = z.object({
+  branchId: idSchema.optional(),
+  title: z.string().min(1).max(200).optional(),
+  instructions: z.string().max(5000).optional().nullable(),
+  status: z.nativeEnum(FormStatus).optional(),
+  classGroupIds: z.array(idSchema).optional(),
+  opensAt: z.string().optional().nullable(),
+  closesAt: z.string().optional().nullable(),
+  maxDurationMinutes: z.number().int().min(1).max(1440).optional().nullable(),
+});
+
+export const updateTurnInSchema = z.object({
+  status: z.enum(["PENDING", "HANDED_IN", "LATE"]),
+  note: z.string().max(500).optional().nullable(),
+});
+
+export const batchUpdateTurnInsSchema = z.object({
+  updates: z.array(
+    z.object({
+      studentId: idSchema,
+      status: z.enum(["PENDING", "HANDED_IN", "LATE"]),
+      note: z.string().max(500).optional().nullable(),
+    }),
+  ).min(1, "At least one turn-in update is required."),
+});
+
+
