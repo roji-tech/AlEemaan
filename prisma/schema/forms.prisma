@@ -1,0 +1,146 @@
+// --- Forms Module & Practice Sets (Task 0032 slice 6; design note docs/development-history/forms-and-question-bank-design.md §5, §8.6, §8.7) ---
+//
+// Container for practice sets (ungraded forms), questionnaires, and paper work.
+// Composite keys (branchId, id) enforce strict branch scoping (ADR 0015).
+
+enum FormKind {
+  PRACTICE_SET
+  QUESTIONNAIRE
+  PAPER_WORK
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum FormAudienceKind {
+  MEMBERS
+  PUBLIC
+}
+
+enum FormResponseStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+/// A published form (practice set, questionnaire, or paper work).
+model Form {
+  id                 String     @id @default(cuid())
+  branchId           String
+  kind               FormKind   @default(PRACTICE_SET)
+  title              String
+  instructions       String?
+  status             FormStatus @default(DRAFT)
+  opensAt            DateTime?
+  closesAt           DateTime?
+  maxDurationMinutes Int?
+  createdById        String
+  closedById         String?
+  closedAt           DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @default(now()) @updatedAt
+
+  branch    Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdBy User           @relation("FormsCreated", fields: [createdById], references: [id], onDelete: NoAction)
+  closedBy  User?          @relation("FormsClosed", fields: [closedById], references: [id], onDelete: SetNull)
+  audiences FormAudience[]
+  questions FormQuestion[]
+  responses FormResponse[]
+
+  @@unique([branchId, id])
+  @@index([branchId, kind, status])
+  @@index([branchId, createdAt])
+}
+
+/// Target audience for a form: members by roles and class groups, or public.
+model FormAudience {
+  id            String           @id @default(cuid())
+  branchId      String
+  formId        String
+  kind          FormAudienceKind @default(MEMBERS)
+  roles         Json             @default("[]")
+  classGroupIds Json             @default("[]")
+  createdAt     DateTime         @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  form   Form   @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, formId])
+}
+
+/// A question inside a form. Copies bank item provenance or holds ad-hoc prompts.
+model FormQuestion {
+  id            String           @id @default(cuid())
+  branchId      String
+  formId        String
+  sourceItemId  String?
+  sourceVersion Int?
+  prompt        String
+  questionType  BankQuestionType @default(SINGLE)
+  options       Json             @default("[]")
+  correctAnswer String?
+  explanation   String?
+  points        Int              @default(1)
+  sortOrder     Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  branch     Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  form       Form              @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
+  sourceItem QuestionBankItem? @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  answers    FormAnswer[]
+
+  @@unique([branchId, id])
+  @@index([branchId, formId])
+  @@index([sourceItemId])
+}
+
+/// A response or completion of a form by a member or public respondent.
+model FormResponse {
+  id           String             @id @default(cuid())
+  branchId     String
+  formId       String
+  respondentId String?
+  studentId    String?
+  status       FormResponseStatus @default(IN_PROGRESS)
+  score        Float?             @default(0)
+  maxScore     Float?             @default(0)
+  startedAt    DateTime           @default(now())
+  submittedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @default(now()) @updatedAt
+
+  branch  Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  form    Form           @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
+  student StudentRecord? @relation("StudentFormResponses", fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  answers FormAnswer[]
+
+  @@unique([branchId, id])
+  @@index([branchId, formId, status])
+  @@index([branchId, studentId])
+}
+
+/// An individual question answer within a form response.
+model FormAnswer {
+  id             String   @id @default(cuid())
+  branchId       String
+  responseId     String
+  formQuestionId String
+  value          Json
+  isCorrect      Boolean?
+  score          Float?   @default(0)
+  createdAt      DateTime @default(now())
+
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  response     FormResponse @relation(fields: [branchId, responseId], references: [branchId, id], onDelete: Cascade)
+  formQuestion FormQuestion @relation(fields: [branchId, formQuestionId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, responseId])
+  @@index([branchId, formQuestionId])
+}
