@@ -21,6 +21,8 @@ first-run set-up wizard, the landing and offline pages), then the files of `src/
 | --- | --- | --- |
 | `/` | `page.tsx` | A pure router that never renders UI (`force-dynamic`). Anyone may open it. A visitor with a session (`getSession()`) is redirected to `/dashboard`; otherwise, if `isSetupComplete()` is `false` (first-run setup not finished), to `/setup`; otherwise to `/login`. When the setup check cannot reach the database it returns `null`, and the visitor goes to `/login`. |
 | `/offline` | `offline/page.tsx` | A plain "You are currently offline" card with a "Try Reconnecting" link to `/`; no data and no session check. Anyone may open it; the service worker (`public/sw.js`) lists it for precaching and answers a failed page navigation with it. Its text points to the Quick Tools dock, which this page does not render: `QuickToolsTrigger` is mounted only by `AppShell`. |
+| `/video-guide` | `video-guide/page.tsx` | In-app video guide and product walkthrough player: HTML5 video player with WebVTT subtitles, interactive chapter seeking sidebar, and downloads for full video and captioned PDF. |
+
 
 ## App-level files (`src/app/`)
 
