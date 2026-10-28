@@ -21,7 +21,7 @@ import {
   createPracticeSetSchema,
   createQuestionnaireSchema,
 } from "@/lib/forms/validation";
-import { BANK_STAFF_ROLES } from "@/lib/question-bank/items-http";
+import { BANK_STAFF_ROLES, FORM_STAFF_ROLES } from "@/lib/question-bank/items-http";
 
 /**
  * GET /api/v1/forms
@@ -153,7 +153,7 @@ export const POST = withAuthGated(
       return fail("Failed to create form", 500);
     }
   },
-  { roles: BANK_STAFF_ROLES },
+  { roles: FORM_STAFF_ROLES },
 );
 
 

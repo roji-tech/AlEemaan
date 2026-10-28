@@ -13,7 +13,9 @@ import {
   scrubFormQuestionsForPupil,
   isPupilAudienceEligible,
   validatePracticeSetInput,
+  withoutAnswerKey,
 } from "./practice-sets";
+import { reachForm } from "./access";
 import {
   resolveMarkingMethod,
   evaluateSubmissionWithMarking,
@@ -234,7 +236,14 @@ export async function listPracticeSetsForStaff(params: {
 export async function getPracticeSetForStaff(params: {
   formId: string;
   branchId: string;
+  actorUserId: string;
 }) {
+  const reach = { branchId: params.branchId, userId: params.actorUserId, formId: params.formId };
+  if (!(await reachForm({ ...reach, access: "view" }))) {
+    throw new FormsServiceError("Practice set not found.", 404, "NOT_FOUND");
+  }
+  // the answer key is for those who manage the form; everyone else who may view it sees the questions without it
+  const mayKey = (await reachForm({ ...reach, access: "manage" })) !== null;
   const form = await prisma.form.findFirst({
     where: { id: params.formId, branchId: params.branchId },
     include: {
@@ -259,7 +268,7 @@ export async function getPracticeSetForStaff(params: {
     closesAt: form.closesAt,
     maxDurationMinutes: form.maxDurationMinutes,
     audiences: form.audiences,
-    questions: form.questions,
+    questions: mayKey ? form.questions : form.questions.map(withoutAnswerKey),
     responseCount: form._count.responses,
     createdBy: form.createdBy,
     createdAt: form.createdAt,
@@ -282,6 +291,9 @@ export async function updatePracticeSet(params: {
   maxDurationMinutes?: number | null;
   classGroupIds?: string[];
 }) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.userId, formId: params.formId, access: "manage" }))) {
+    throw new FormsServiceError("Practice set not found.", 404, "NOT_FOUND");
+  }
   const form = await prisma.form.findFirst({
     where: { id: params.formId, branchId: params.branchId },
   });
@@ -635,7 +647,11 @@ export async function submitPracticeSetForPupil(params: {
 export async function getPracticeSetResponsesForStaff(params: {
   formId: string;
   branchId: string;
+  actorUserId: string;
 }) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.actorUserId, formId: params.formId, access: "read" }))) {
+    throw new FormsServiceError("Practice set not found.", 404, "NOT_FOUND");
+  }
   const form = await prisma.form.findFirst({
     where: { id: params.formId, branchId: params.branchId },
   });

@@ -11,7 +11,7 @@ import {
   updateTurnInSchema,
   batchUpdateTurnInsSchema,
 } from "@/lib/forms/validation";
-import { BANK_STAFF_ROLES, badId } from "@/lib/question-bank/items-http";
+import { BANK_STAFF_ROLES, badId, FORM_STAFF_ROLES } from "@/lib/question-bank/items-http";
 import { TurnInStatus } from "@prisma/client";
 
 /**
@@ -20,7 +20,7 @@ import { TurnInStatus } from "@prisma/client";
  */
 export const GET = withAuthGated(
   "staff-read",
-  async (req, _auth, context: { params: Promise<{ id: string }> }) => {
+  async (req, auth, context: { params: Promise<{ id: string }> }) => {
     const { id } = await context.params;
     const bad = badId(id);
     if (bad) return bad;
@@ -30,7 +30,7 @@ export const GET = withAuthGated(
     if (!branchId) return fail("Branch ID is required", 400, "VALIDATION");
 
     try {
-      const data = await getPaperWorkForStaff(branchId, id);
+      const data = await getPaperWorkForStaff(branchId, id, auth.userId);
       return ok(data);
     } catch (err) {
       if (err instanceof PaperWorkError) {
@@ -109,5 +109,5 @@ export const PATCH = withAuthGated(
       return fail("Failed to update roll call", 500);
     }
   },
-  { roles: BANK_STAFF_ROLES },
+  { roles: FORM_STAFF_ROLES },
 );

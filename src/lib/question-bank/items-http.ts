@@ -9,6 +9,10 @@ import type { Fail } from "@/lib/question-bank/items-common";
 /// staff, so all three staff roles come in. Pupils and parents never do.
 export const BANK_STAFF_ROLES = [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF];
 
+/// The roles that build, close, mark and print forms and record turn-ins (manual marking and form authority): administrators and teaching staff. Non-teaching staff keep the question
+/// bank, the list of forms and the reports. Who among them may reach a particular form is decided inside, by `forms/access.ts`.
+export const FORM_STAFF_ROLES = [Role.ADMIN, Role.TEACHING_STAFF];
+
 /// A failure as a response. A validation failure carries its field problems.
 export function failure(result: Fail | (Fail & { details?: { path: string; message: string }[] })) {
   const details = "details" in result ? result.details : undefined;

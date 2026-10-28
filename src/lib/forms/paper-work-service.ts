@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { reachForm } from "./access";
 import {
   FormAudienceKind,
   FormKind,
@@ -21,6 +22,13 @@ export class PaperWorkError extends Error {
   ) {
     super(message);
     this.name = "PaperWorkError";
+  }
+}
+
+/// Paper work the person may not reach is answered as paper work that does not exist (manual marking and form authority): turn-ins are the results of paper work.
+async function requirePaperWork(branchId: string, userId: string, formId: string, access: "view" | "read" | "manage") {
+  if (!(await reachForm({ branchId, userId, formId, access, kind: FormKind.PAPER_WORK }))) {
+    throw new PaperWorkError("Paper work not found.", 404);
   }
 }
 
@@ -175,7 +183,8 @@ export async function listPaperWorkForStaff(
 /**
  * Retrieves full paper work details and student roll call roster for a teacher.
  */
-export async function getPaperWorkForStaff(branchId: string, formId: string) {
+export async function getPaperWorkForStaff(branchId: string, formId: string, actorUserId: string) {
+  await requirePaperWork(branchId, actorUserId, formId, "read");
   const form = await prisma.form.findFirst({
     where: {
       branchId,
@@ -241,6 +250,7 @@ export async function updateTurnIn(
     note?: string | null;
   }
 ) {
+  await requirePaperWork(branchId, staffUserId, formId, "manage");
   const form = await prisma.form.findFirst({
     where: { branchId, id: formId, kind: FormKind.PAPER_WORK },
     select: { id: true, closesAt: true },
@@ -319,6 +329,7 @@ export async function batchUpdateTurnIns(
     note?: string | null;
   }>
 ) {
+  await requirePaperWork(branchId, staffUserId, formId, "manage");
   const form = await prisma.form.findFirst({
     where: { branchId, id: formId, kind: FormKind.PAPER_WORK },
     select: { id: true, closesAt: true },
@@ -378,7 +389,8 @@ export async function batchUpdateTurnIns(
 /**
  * Synchronizes newly enrolled pupils into the paper work roll call roster.
  */
-export async function syncRosterForPaperWork(branchId: string, formId: string) {
+export async function syncRosterForPaperWork(branchId: string, formId: string, actorUserId: string) {
+  await requirePaperWork(branchId, actorUserId, formId, "manage");
   const form = await prisma.form.findFirst({
     where: { branchId, id: formId, kind: FormKind.PAPER_WORK },
     include: { audiences: true },
@@ -442,6 +454,7 @@ export async function closePaperWork(
   staffUserId: string,
   formId: string
 ) {
+  await requirePaperWork(branchId, staffUserId, formId, "manage");
   const form = await prisma.form.findFirst({
     where: { branchId, id: formId, kind: FormKind.PAPER_WORK },
   });

@@ -13,7 +13,7 @@ import { FormMarkingStatus } from "@prisma/client";
  */
 export const GET = withAuthGated(
   "staff-read",
-  async (req) => {
+  async (req, auth) => {
     const url = new URL(req.url);
     const branchId = url.searchParams.get("branchId");
     if (!branchId) return fail("Branch ID is required", 400, "VALIDATION");
@@ -27,6 +27,7 @@ export const GET = withAuthGated(
       const data = await listPendingMarkingResponses({
         branchId,
         markingStatus,
+        actorUserId: auth.userId,
       });
       return ok({ responses: data });
     } catch (err) {

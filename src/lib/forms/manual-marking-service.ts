@@ -1,15 +1,19 @@
 import { prisma } from "@/lib/db";
 import {
+  FormMarkingMethod,
   FormMarkingStatus,
   FormResponseStatus,
+  type Prisma,
 } from "@prisma/client";
 import {
   validateAnswerScore,
   validateTeacherFeedback,
   computeAttemptMarkingSummary,
   canMarkResponse,
+  isFullMarks,
   sanitizeResponseForPupil,
 } from "./manual-marking";
+import { formViewerIn, mayAccessForm, reachForm } from "./access";
 
 export class ManualMarkingError extends Error {
   constructor(
@@ -30,7 +34,13 @@ export async function listPendingMarkingResponses(params: {
   branchId: string;
   formId?: string;
   markingStatus?: FormMarkingStatus;
+  actorUserId: string;
 }) {
+  // The queue is made of the answers of forms the person may READ; asking for one form they may not read is the same 404 as a form that does not exist.
+  if (params.formId && !(await reachForm({ branchId: params.branchId, userId: params.actorUserId, formId: params.formId, access: "read" }))) {
+    throw new ManualMarkingError("Form not found.", 404, "NOT_FOUND");
+  }
+  const viewer = await formViewerIn(params.branchId, params.actorUserId);
   const where: Record<string, unknown> = {
     branchId: params.branchId,
     status: FormResponseStatus.COMPLETED,
@@ -58,6 +68,7 @@ export async function listPendingMarkingResponses(params: {
           id: true,
           title: true,
           kind: true,
+          createdById: true,
         },
       },
       student: {
@@ -91,7 +102,9 @@ export async function listPendingMarkingResponses(params: {
     },
   });
 
-  return responses.map((r) => {
+  return responses
+    .filter((r) => mayAccessForm({ userId: params.actorUserId, ...viewer, createdById: r.form.createdById }, "read"))
+    .map((r) => {
     const totalQuestions = r.answers.length;
     const pendingQuestions = r.answers.filter(
       (a) => a.markingStatus === FormMarkingStatus.PENDING,
@@ -133,6 +146,7 @@ export async function getResponseForMarking(params: {
   branchId: string;
   formId: string;
   responseId: string;
+  actorUserId: string;
 }) {
   const response = await prisma.formResponse.findFirst({
     where: {
@@ -206,6 +220,12 @@ export async function getResponseForMarking(params: {
   if (!response) {
     throw new ManualMarkingError("Form response not found for marking.", 404, "NOT_FOUND");
   }
+  const reach = { branchId: params.branchId, userId: params.actorUserId, formId: response.formId };
+  if (!(await reachForm({ ...reach, access: "read" }))) {
+    throw new ManualMarkingError("Form response not found for marking.", 404, "NOT_FOUND");
+  }
+  // the answer key is for those who manage the form; whoever else may read the answers reads them without it
+  const mayKey = (await reachForm({ ...reach, access: "manage" })) !== null;
 
   const markCheck = canMarkResponse(response);
   if (!markCheck.canMark) {
@@ -239,8 +259,7 @@ export async function getResponseForMarking(params: {
       prompt: a.formQuestion.prompt,
       questionType: a.formQuestion.questionType,
       options: a.formQuestion.options,
-      correctAnswer: a.formQuestion.correctAnswer,
-      explanation: a.formQuestion.explanation,
+      ...(mayKey ? { correctAnswer: a.formQuestion.correctAnswer, explanation: a.formQuestion.explanation } : {}),
       points: a.formQuestion.points,
       markingMethod: a.formQuestion.markingMethod,
       submittedValue: a.value,
@@ -264,8 +283,17 @@ export async function getResponseForMarking(params: {
   };
 }
 
+/// Serialises everyone marking the same attempt. The total of an attempt is the sum of its answers AS THEY ARE when a mark is written, so two marks of one attempt must not be
+/// written from the same stale picture: the lock is held until the transaction ends, and the answers are read after it is taken.
+async function lockAttempt(tx: Prisma.TransactionClient, responseId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`mark:${responseId}`}::text))`;
+}
+
+const NOT_MANUAL = "Only a question set for hand marking can be marked by hand.";
+
 /**
- * Marks a single answer on a form response.
+ * Marks a single answer on a form response. Only the form's creator and the administrators mark; only a question set for hand marking is marked by hand; the answer counts as
+ * correct only for full marks; the total is worked out from the answers as they are under the attempt's lock.
  */
 export async function markFormAnswer(params: {
   branchId: string;
@@ -276,52 +304,47 @@ export async function markFormAnswer(params: {
   feedback?: string | null;
   actorUserId: string;
 }) {
-  const response = await prisma.formResponse.findFirst({
-    where: {
-      id: params.responseId,
-      formId: params.formId,
-      branchId: params.branchId,
-    },
-    include: {
-      answers: {
-        include: {
-          formQuestion: {
-            select: { points: true, id: true },
-          },
-        },
-      },
-    },
-  });
-
-  if (!response) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.actorUserId, formId: params.formId, access: "manage" }))) {
     throw new ManualMarkingError("Form response not found.", 404, "NOT_FOUND");
   }
-
-  const markCheck = canMarkResponse(response);
-  if (!markCheck.canMark) {
-    throw new ManualMarkingError(markCheck.reason || "Response cannot be marked.", 400, "INVALID_STATE");
-  }
-
-  const targetAnswer = response.answers.find((a) => a.id === params.answerId);
-  if (!targetAnswer) {
-    throw new ManualMarkingError("Target answer not found in response.", 404, "ANSWER_NOT_FOUND");
-  }
-
-  const maxPoints = targetAnswer.formQuestion.points;
-  const scoreVal = validateAnswerScore(params.score, maxPoints);
-  if (!scoreVal.valid) {
-    throw new ManualMarkingError(scoreVal.reason || "Invalid score.", 400, "INVALID_SCORE");
-  }
-
-  const feedbackVal = validateTeacherFeedback(params.feedback);
-  if (!feedbackVal.valid) {
-    throw new ManualMarkingError(feedbackVal.reason || "Invalid feedback.", 400, "INVALID_FEEDBACK");
-  }
-
-  const isCorrect = params.score === maxPoints ? true : params.score > 0 ? true : false;
   const markedAt = new Date();
 
   return await prisma.$transaction(async (tx) => {
+    await lockAttempt(tx, params.responseId);
+    const response = await tx.formResponse.findFirst({
+      where: { id: params.responseId, formId: params.formId, branchId: params.branchId },
+      include: { answers: { include: { formQuestion: { select: { points: true, id: true, markingMethod: true } } } } },
+    });
+    if (!response) {
+      throw new ManualMarkingError("Form response not found.", 404, "NOT_FOUND");
+    }
+
+    const markCheck = canMarkResponse(response);
+    if (!markCheck.canMark) {
+      throw new ManualMarkingError(markCheck.reason || "Response cannot be marked.", 400, "INVALID_STATE");
+    }
+
+    const targetAnswer = response.answers.find((a) => a.id === params.answerId);
+    if (!targetAnswer) {
+      throw new ManualMarkingError("Target answer not found in response.", 404, "ANSWER_NOT_FOUND");
+    }
+    if (targetAnswer.formQuestion.markingMethod !== FormMarkingMethod.MANUAL) {
+      throw new ManualMarkingError(NOT_MANUAL, 400, "NOT_MANUAL");
+    }
+
+    const maxPoints = targetAnswer.formQuestion.points;
+    const scoreVal = validateAnswerScore(params.score, maxPoints);
+    if (!scoreVal.valid) {
+      throw new ManualMarkingError(scoreVal.reason || "Invalid score.", 400, "INVALID_SCORE");
+    }
+
+    const feedbackVal = validateTeacherFeedback(params.feedback);
+    if (!feedbackVal.valid) {
+      throw new ManualMarkingError(feedbackVal.reason || "Invalid feedback.", 400, "INVALID_FEEDBACK");
+    }
+
+    const isCorrect = isFullMarks(params.score, maxPoints);
+
     // 1. Update the answer
     await tx.formAnswer.update({
       where: { id: targetAnswer.id },
@@ -335,7 +358,7 @@ export async function markFormAnswer(params: {
       },
     });
 
-    // 2. Recompute overall summary
+    // 2. Recompute overall summary from the answers as they are now
     const updatedAnswers = response.answers.map((a) => {
       if (a.id === targetAnswer.id) {
         return {
@@ -397,7 +420,8 @@ export async function markFormAnswer(params: {
 }
 
 /**
- * Marks multiple answers or full attempt for a response in a batch.
+ * Marks multiple answers or full attempt for a response in a batch. The same rules as a single mark, for every answer named; a batch names each answer once, and it is all
+ * or nothing.
  */
 export async function markFormAttempt(params: {
   branchId: string;
@@ -411,62 +435,60 @@ export async function markFormAttempt(params: {
   overallFeedback?: string | null;
   actorUserId: string;
 }) {
-  const response = await prisma.formResponse.findFirst({
-    where: {
-      id: params.responseId,
-      formId: params.formId,
-      branchId: params.branchId,
-    },
-    include: {
-      answers: {
-        include: {
-          formQuestion: {
-            select: { points: true, id: true },
-          },
-        },
-      },
-    },
-  });
-
-  if (!response) {
+  if (!(await reachForm({ branchId: params.branchId, userId: params.actorUserId, formId: params.formId, access: "manage" }))) {
     throw new ManualMarkingError("Form response not found.", 404, "NOT_FOUND");
-  }
-
-  const markCheck = canMarkResponse(response);
-  if (!markCheck.canMark) {
-    throw new ManualMarkingError(markCheck.reason || "Response cannot be marked.", 400, "INVALID_STATE");
   }
 
   if (!params.answers || params.answers.length === 0) {
     throw new ManualMarkingError("At least one answer must be marked.", 400, "EMPTY_BATCH");
   }
-
-  const answerMap = new Map(response.answers.map((a) => [a.id, a]));
-
-  // Validate all scores and feedback before transaction
-  for (const item of params.answers) {
-    const existing = answerMap.get(item.answerId);
-    if (!existing) {
-      throw new ManualMarkingError(`Answer with ID '${item.answerId}' not found.`, 404, "ANSWER_NOT_FOUND");
-    }
-    const scoreVal = validateAnswerScore(item.score, existing.formQuestion.points);
-    if (!scoreVal.valid) {
-      throw new ManualMarkingError(scoreVal.reason || "Invalid score.", 400, "INVALID_SCORE");
-    }
-    const feedbackVal = validateTeacherFeedback(item.feedback);
-    if (!feedbackVal.valid) {
-      throw new ManualMarkingError(feedbackVal.reason || "Invalid feedback.", 400, "INVALID_FEEDBACK");
-    }
+  if (new Set(params.answers.map((a) => a.answerId)).size !== params.answers.length) {
+    throw new ManualMarkingError("A batch names each answer once.", 400, "DUPLICATE_ANSWER");
   }
 
   const markedAt = new Date();
   const inputAnswerMap = new Map(params.answers.map((a) => [a.answerId, a]));
 
   return await prisma.$transaction(async (tx) => {
+    await lockAttempt(tx, params.responseId);
+    const response = await tx.formResponse.findFirst({
+      where: { id: params.responseId, formId: params.formId, branchId: params.branchId },
+      include: { answers: { include: { formQuestion: { select: { points: true, id: true, markingMethod: true } } } } },
+    });
+    if (!response) {
+      throw new ManualMarkingError("Form response not found.", 404, "NOT_FOUND");
+    }
+
+    const markCheck = canMarkResponse(response);
+    if (!markCheck.canMark) {
+      throw new ManualMarkingError(markCheck.reason || "Response cannot be marked.", 400, "INVALID_STATE");
+    }
+
+    const answerMap = new Map(response.answers.map((a) => [a.id, a]));
+
+    // Validate every score and feedback before anything is written
+    for (const item of params.answers) {
+      const existing = answerMap.get(item.answerId);
+      if (!existing) {
+        throw new ManualMarkingError(`Answer with ID '${item.answerId}' not found.`, 404, "ANSWER_NOT_FOUND");
+      }
+      if (existing.formQuestion.markingMethod !== FormMarkingMethod.MANUAL) {
+        throw new ManualMarkingError(NOT_MANUAL, 400, "NOT_MANUAL");
+      }
+      const scoreVal = validateAnswerScore(item.score, existing.formQuestion.points);
+      if (!scoreVal.valid) {
+        throw new ManualMarkingError(scoreVal.reason || "Invalid score.", 400, "INVALID_SCORE");
+      }
+      const feedbackVal = validateTeacherFeedback(item.feedback);
+      if (!feedbackVal.valid) {
+        throw new ManualMarkingError(feedbackVal.reason || "Invalid feedback.", 400, "INVALID_FEEDBACK");
+      }
+    }
+
     // 1. Update each specified answer
     for (const item of params.answers) {
       const existing = answerMap.get(item.answerId)!;
-      const isCorrect = item.score === existing.formQuestion.points ? true : item.score > 0 ? true : false;
+      const isCorrect = isFullMarks(item.score, existing.formQuestion.points);
 
       await tx.formAnswer.update({
         where: { id: item.answerId },
@@ -498,7 +520,7 @@ export async function markFormAttempt(params: {
       });
     }
 
-    // 2. Recompute overall summary
+    // 2. Recompute overall summary from the answers as they are now
     const updatedAnswers = response.answers.map((a) => {
       const updatedInput = inputAnswerMap.get(a.id);
       if (updatedInput) {
