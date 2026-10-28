@@ -128,6 +128,10 @@ A detailed technical blueprint is documented in:
 
 **Rules learned since 2026-10-21 (they apply to new code):** `OR: [{ ... }, {}]` in a Prisma `where` is NOT "match everything" (found by the Octalve port: leave the condition out); `contains` treats `%` and `_` as wildcards, so escape the text; a nested `<dialog>` closing fires `close` on the parent, so `Dialog` ignores a close whose target is not itself; keep zod out of client components (the CSP reports an `eval`); a multipart or raw body is read only through `readBoundedForm` / `readBoundedBytes` (`src/lib/api/read-body.ts`); the test servers run `IMAGE_STORE=memory` (the dev-tools server has none, for the 503 case); this repository has no formatter and long lines, so do not run a default prettier over existing files.
 
+### 6.00a Manual marking and form authority (2026-10-29) - on its own branch, see task 0032 section 4l
+
+Who may reach a form by its id, and how far (`src/lib/forms/access.ts`): view = any member of staff of the branch; read (results, answers, turn-ins, marking queues, analytics) and manage (edit, close, mark, record turn-ins, sync, the answer key, a printed copy with it) = the form's creator, an administrator of the branch, a superadmin. The answer key (`correctAnswer`, `explanation`) is returned only to those who manage the form; a blank printed copy needs only view. Hand marking only for MANUAL questions; correct = full marks; the total is recomputed under a per-attempt lock; a batch names each answer once. Octalve Edu has the same rule (its PR #79) plus a grant for non-teaching staff to READ results (`CAN_VIEW_FORM_RESULTS`); AlEemaan does NOT have the grant yet (needs a migration, the members API and the Users page; `withAuth` has no `permissions` option), so the default here is strict. **No migration in this PR.** Checked against Octalve: affected and fixed here; the campus-blind lookup of Octalve does not apply (every lookup here carries the branch, and the gate judges the branch).
+
 ### 6.0 State on 2026-10-21 (the record; see 6.00 above for now)
 
 

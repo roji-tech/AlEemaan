@@ -321,3 +321,8 @@ Record: `docs/tasks/0037-promotion-screens-and-checks.md`. The uncommitted edits
 - **History:** each record also carries `recommendedDecision`, so the screen shows the advice next to the decision.
 - **Decision left to the maintainer:** the final-term `eligibility` flag is still only shown, not enforced.
 - **Verification:** failing first on a build of unmodified `dev`; on the branch the three promotion specs 36 passed, 0 failed (setup, unit, api, e2e-desktop). NOT run: e2e-mobile, https, the whole other projects, a full suite on the merged `dev`.
+
+## Manual marking and form authority (2026-10-29) - written on `claude/manual-marking-authority`
+Record: `docs/tasks/0032-forms-and-question-bank.md` section 4l. One rule for who reaches a form by its id (view / read / manage: the creator, an administrator of the branch, a superadmin; a colleague and non-teaching staff view only), the answer key only for those who manage the form, a blank printed copy for anyone who may view, hand marking only for MANUAL questions, correct only for full marks, the total recomputed under a per-attempt lock, a batch names each answer once.
+- **Not here:** the grant for non-teaching staff to read results (Octalve has it; here it needs a migration, the members API and the Users page); practice-set start/submit checks; question-report dedupe.
+- **Verification:** failing first on a build of unmodified `dev` (20 failed, 5 passed of the new API specs; the unit spec fails by construction); on the branch 15 spec files all green. NOT run: the rest of the suite, e2e, https, a full run on the merged `dev`.
