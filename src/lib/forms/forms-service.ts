@@ -7,15 +7,18 @@ import {
   FormResponseStatus,
   FormMarkingMethod,
   FormMarkingStatus,
+  Prisma,
 } from "@prisma/client";
 import {
   isFormOpen,
+  isWithinTimeLimit,
   scrubFormQuestionsForPupil,
   isPupilAudienceEligible,
   validatePracticeSetInput,
   withoutAnswerKey,
 } from "./practice-sets";
 import { reachForm } from "./access";
+import { lockAttempt } from "./manual-marking-service";
 import {
   resolveMarkingMethod,
   evaluateSubmissionWithMarking,
@@ -384,6 +387,30 @@ export async function closePracticeSet(params: {
   });
 }
 
+/// The class group the pupil is in now, or null when they are not placed in one: what a set's audience is matched against.
+async function pupilClassGroupOf(branchId: string, studentId: string) {
+  const enrollment = await prisma.studentEnrollment.findFirst({
+    where: { studentId, branchId },
+    orderBy: { enrolledAt: "desc" },
+    include: { classArm: { select: { classGroupId: true } } },
+  });
+  return enrollment?.classArm?.classGroupId ?? null;
+}
+
+/// Serialises the starts of one pupil on one set, so two starts at the same moment find one open attempt, not none each.
+async function lockPupilStart(tx: Prisma.TransactionClient, formId: string, studentId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`practice-start:${formId}:${studentId}`}::text))`;
+}
+
+/// What a pupil is told when a set is not open (`reason` is what `isFormOpen` gave).
+function notOpenError(reason?: string) {
+  return new FormsServiceError(
+    reason === "NOT_YET_OPEN" ? "This practice set is not open yet." : "This practice set is closed.",
+    403,
+    reason,
+  );
+}
+
 /**
  * Lists available open practice sets for a pupil.
  */
@@ -391,13 +418,7 @@ export async function listAvailablePracticeSetsForPupil(params: {
   studentId: string;
   branchId: string;
 }) {
-  const enrollment = await prisma.studentEnrollment.findFirst({
-    where: { studentId: params.studentId, branchId: params.branchId },
-    orderBy: { enrolledAt: "desc" },
-    include: { classArm: { select: { classGroupId: true } } },
-  });
-
-  const pupilClassGroupId = enrollment?.classArm?.classGroupId ?? null;
+  const pupilClassGroupId = await pupilClassGroupOf(params.branchId, params.studentId);
 
   const forms = await prisma.form.findMany({
     where: {
@@ -451,13 +472,7 @@ export async function getPracticeSetForPupil(params: {
   studentId: string;
   branchId: string;
 }) {
-  const enrollment = await prisma.studentEnrollment.findFirst({
-    where: { studentId: params.studentId, branchId: params.branchId },
-    orderBy: { enrolledAt: "desc" },
-    include: { classArm: { select: { classGroupId: true } } },
-  });
-
-  const pupilClassGroupId = enrollment?.classArm?.classGroupId ?? null;
+  const pupilClassGroupId = await pupilClassGroupOf(params.branchId, params.studentId);
 
   const form = await prisma.form.findFirst({
     where: {
@@ -481,15 +496,7 @@ export async function getPracticeSetForPupil(params: {
   }
 
   const openCheck = isFormOpen(form);
-  if (!openCheck.isOpen) {
-    throw new FormsServiceError(
-      openCheck.reason === "NOT_YET_OPEN"
-        ? "This practice set is not open yet."
-        : "This practice set is closed.",
-      403,
-      openCheck.reason,
-    );
-  }
+  if (!openCheck.isOpen) throw notOpenError(openCheck.reason);
 
   const audience = form.audiences[0];
   if (audience && !isPupilAudienceEligible(audience, pupilClassGroupId)) {
@@ -510,64 +517,90 @@ export async function getPracticeSetForPupil(params: {
 }
 
 /**
- * Starts a new practice set response session for a pupil.
+ * Starts a response session (an attempt) on a practice set for a pupil, or resumes the one they have open. Only a pupil the set is for may start it. The check for an open
+ * attempt and the opening of a new one are made under a lock for this pupil and this set, so two starts at the same moment are one attempt. An attempt left open past the set's
+ * time limit can no longer be submitted, so it is closed off (ABANDONED) and a fresh one is opened instead of resuming a dead one.
  */
 export async function startPracticeSetForPupil(params: {
   formId: string;
   studentId: string;
   branchId: string;
 }) {
-  const form = await prisma.form.findFirst({
-    where: { id: params.formId, branchId: params.branchId, kind: FormKind.PRACTICE_SET },
-    include: { audiences: true },
-  });
+  const pupilClassGroupId = await pupilClassGroupOf(params.branchId, params.studentId);
 
-  if (!form) {
-    throw new FormsServiceError("Practice set not found.", 404, "NOT_FOUND");
-  }
+  return await prisma.$transaction(async (tx) => {
+    await lockPupilStart(tx, params.formId, params.studentId);
 
-  const openCheck = isFormOpen(form);
-  if (!openCheck.isOpen) {
-    throw new FormsServiceError("This practice set is not currently open.", 403, openCheck.reason);
-  }
+    const form = await tx.form.findFirst({
+      where: { id: params.formId, branchId: params.branchId, kind: FormKind.PRACTICE_SET },
+      include: { audiences: true },
+    });
 
-  // Check if an in-progress response already exists
-  const existing = await prisma.formResponse.findFirst({
-    where: {
-      formId: form.id,
-      studentId: params.studentId,
-      status: FormResponseStatus.IN_PROGRESS,
-    },
-  });
+    if (!form) {
+      throw new FormsServiceError("Practice set not found.", 404, "NOT_FOUND");
+    }
 
-  if (existing) {
+    const now = new Date();
+    const openCheck = isFormOpen(form, now);
+    if (!openCheck.isOpen) {
+      throw new FormsServiceError("This practice set is not currently open.", 403, openCheck.reason);
+    }
+
+    const audience = form.audiences[0];
+    if (audience && !isPupilAudienceEligible(audience, pupilClassGroupId)) {
+      throw new FormsServiceError("You are not eligible for this practice set.", 403, "FORBIDDEN");
+    }
+
+    const open = await tx.formResponse.findMany({
+      where: {
+        formId: form.id,
+        branchId: params.branchId,
+        studentId: params.studentId,
+        status: FormResponseStatus.IN_PROGRESS,
+      },
+      orderBy: { startedAt: "desc" },
+    });
+    const inTime = open.filter((r) => isWithinTimeLimit(r.startedAt, form.maxDurationMinutes, now));
+    const expired = open.filter((r) => !inTime.includes(r));
+
+    if (expired.length > 0) {
+      await tx.formResponse.updateMany({
+        where: { id: { in: expired.map((r) => r.id) } },
+        data: { status: FormResponseStatus.ABANDONED },
+      });
+    }
+
+    if (inTime[0]) {
+      return {
+        responseId: inTime[0].id,
+        startedAt: inTime[0].startedAt,
+        isResume: true,
+      };
+    }
+
+    const response = await tx.formResponse.create({
+      data: {
+        branchId: params.branchId,
+        formId: form.id,
+        studentId: params.studentId,
+        respondentId: params.studentId,
+        status: FormResponseStatus.IN_PROGRESS,
+        startedAt: now,
+      },
+    });
+
     return {
-      responseId: existing.id,
-      startedAt: existing.startedAt,
-      isResume: true,
+      responseId: response.id,
+      startedAt: response.startedAt,
+      isResume: false,
     };
-  }
-
-  const response = await prisma.formResponse.create({
-    data: {
-      branchId: params.branchId,
-      formId: form.id,
-      studentId: params.studentId,
-      respondentId: params.studentId,
-      status: FormResponseStatus.IN_PROGRESS,
-      startedAt: new Date(),
-    },
   });
-
-  return {
-    responseId: response.id,
-    startedAt: response.startedAt,
-    isResume: false,
-  };
 }
 
 /**
- * Submits pupil answers, evaluates accuracy, and reveals explanations.
+ * Submits pupil answers, evaluates accuracy, and reveals explanations. An attempt is submitted once: the attempt is read under its lock, inside the transaction, so two
+ * submissions at the same moment cannot both find it open. The set must be a practice set that is open now (published, inside its opening and closing times; a teacher who
+ * closes a set closes it for an attempt in flight too) and the attempt must be inside the set's time limit; a refusal writes nothing.
  */
 export async function submitPracticeSetForPupil(params: {
   formId: string;
@@ -576,31 +609,43 @@ export async function submitPracticeSetForPupil(params: {
   branchId: string;
   answers: Array<{ formQuestionId: string; value: unknown }>;
 }) {
-  const [form, response, questions] = await Promise.all([
-    prisma.form.findFirst({ where: { id: params.formId, branchId: params.branchId } }),
-    prisma.formResponse.findFirst({
-      where: { id: params.responseId, formId: params.formId, studentId: params.studentId },
-    }),
-    prisma.formQuestion.findMany({
+  return await prisma.$transaction(async (tx) => {
+    await lockAttempt(tx, params.responseId);
+
+    const [form, response] = await Promise.all([
+      tx.form.findFirst({
+        where: { id: params.formId, branchId: params.branchId, kind: FormKind.PRACTICE_SET },
+      }),
+      tx.formResponse.findFirst({
+        where: { id: params.responseId, formId: params.formId, branchId: params.branchId, studentId: params.studentId },
+      }),
+    ]);
+
+    if (!form || !response) {
+      throw new FormsServiceError("Active practice set response not found.", 404, "NOT_FOUND");
+    }
+
+    if (response.status !== FormResponseStatus.IN_PROGRESS) {
+      throw new FormsServiceError("This practice set has already been completed.", 400, "ALREADY_COMPLETED");
+    }
+
+    const completedAt = new Date();
+
+    const openCheck = isFormOpen(form, completedAt);
+    if (!openCheck.isOpen) throw notOpenError(openCheck.reason);
+
+    if (!isWithinTimeLimit(response.startedAt, form.maxDurationMinutes, completedAt)) {
+      throw new FormsServiceError("The time for this practice set is up.", 403, "TIME_UP");
+    }
+
+    const questions = await tx.formQuestion.findMany({
       where: { formId: params.formId, branchId: params.branchId },
       orderBy: { sortOrder: "asc" },
-    }),
-  ]);
+    });
 
-  if (!form || !response) {
-    throw new FormsServiceError("Active practice set response not found.", 404, "NOT_FOUND");
-  }
+    // Evaluate answers taking manual marking into account
+    const evaluation = evaluateSubmissionWithMarking(questions, params.answers);
 
-  if (response.status !== FormResponseStatus.IN_PROGRESS) {
-    throw new FormsServiceError("This practice set has already been completed.", 400, "ALREADY_COMPLETED");
-  }
-
-  // Evaluate answers taking manual marking into account
-  const evaluation = evaluateSubmissionWithMarking(questions, params.answers);
-
-  const completedAt = new Date();
-
-  await prisma.$transaction(async (tx) => {
     // Write answer records
     await tx.formAnswer.createMany({
       data: evaluation.evaluatedAnswers.map((ea) => ({
@@ -626,19 +671,19 @@ export async function submitPracticeSetForPupil(params: {
         submittedAt: completedAt,
       },
     });
-  });
 
-  return {
-    ok: true,
-    responseId: response.id,
-    status: FormResponseStatus.COMPLETED,
-    markingStatus: evaluation.markingStatus,
-    isPendingReview: evaluation.markingStatus === FormMarkingStatus.PENDING,
-    totalScore: evaluation.totalScore,
-    maxScore: evaluation.maxScore,
-    accuracyPercentage: evaluation.accuracyPercentage,
-    results: evaluation.evaluatedAnswers,
-  };
+    return {
+      ok: true,
+      responseId: response.id,
+      status: FormResponseStatus.COMPLETED,
+      markingStatus: evaluation.markingStatus,
+      isPendingReview: evaluation.markingStatus === FormMarkingStatus.PENDING,
+      totalScore: evaluation.totalScore,
+      maxScore: evaluation.maxScore,
+      accuracyPercentage: evaluation.accuracyPercentage,
+      results: evaluation.evaluatedAnswers,
+    };
+  });
 }
 
 /**

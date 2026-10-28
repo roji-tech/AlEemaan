@@ -283,9 +283,9 @@ export async function getResponseForMarking(params: {
   };
 }
 
-/// Serialises everyone marking the same attempt. The total of an attempt is the sum of its answers AS THEY ARE when a mark is written, so two marks of one attempt must not be
-/// written from the same stale picture: the lock is held until the transaction ends, and the answers are read after it is taken.
-async function lockAttempt(tx: Prisma.TransactionClient, responseId: string) {
+/// Serialises everyone who writes to the same attempt: the teachers marking it and the pupil submitting it. The total of an attempt is the sum of its answers AS THEY ARE when a mark is written, so two marks of one attempt must not be
+/// written from the same stale picture, and two submissions of one attempt must not both find it open: the lock is held until the transaction ends, and the attempt is read after it is taken.
+export async function lockAttempt(tx: Prisma.TransactionClient, responseId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`mark:${responseId}`}::text))`;
 }
 
