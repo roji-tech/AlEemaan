@@ -53,6 +53,7 @@ model Form {
   questions      FormQuestion[]
   responses      FormResponse[]
   participations FormParticipation[]
+  turnIns        FormTurnIn[]
 
   @@unique([branchId, id])
   @@index([branchId, kind, status])
@@ -164,3 +165,59 @@ model FormAnswer {
   @@index([branchId, responseId])
   @@index([branchId, formQuestionId])
 }
+
+enum TurnInStatus {
+  PENDING
+  HANDED_IN
+  LATE
+}
+
+/// Paper work roll call tracking physical submission per student.
+model FormTurnIn {
+  id          String       @id @default(cuid())
+  branchId    String
+  formId      String
+  studentId   String
+  status      TurnInStatus @default(PENDING)
+  markedById  String?
+  markedAt    DateTime?
+  requestedAt DateTime?
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+
+  branch   Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  form     Form              @relation(fields: [branchId, formId], references: [branchId, id], onDelete: Cascade)
+  student  StudentRecord     @relation("StudentTurnIns", fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  markedBy User?             @relation("TurnInsMarked", fields: [markedById], references: [id], onDelete: SetNull)
+  audits   FormTurnInAudit[]
+
+  @@unique([branchId, id])
+  @@unique([branchId, formId, studentId])
+  @@index([branchId, formId, status])
+  @@index([branchId, studentId])
+}
+
+/// Audit log for roll call status changes on paper work.
+model FormTurnInAudit {
+  id          String       @id @default(cuid())
+  branchId    String
+  turnInId    String
+  formId      String
+  studentId   String
+  status      TurnInStatus
+  action      String
+  actorUserId String?
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  branch  Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  turnIn  FormTurnIn @relation(fields: [branchId, turnInId], references: [branchId, id], onDelete: Cascade)
+  actor   User?      @relation("TurnInAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, id])
+  @@index([branchId, formId])
+  @@index([branchId, turnInId])
+  @@index([branchId, createdAt])
+}
+
