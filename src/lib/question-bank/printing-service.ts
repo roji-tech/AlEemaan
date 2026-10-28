@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { loadViewer } from "@/lib/question-bank/viewer";
+import { staffMaySee } from "@/lib/question-bank/rules";
 import {
   PrintTargetKind,
   Role,
@@ -173,8 +175,25 @@ export async function printTarget(params: PrintTargetParams): Promise<{
       if (!item) {
         throw new PrintingServiceError("Question bank item not found.", 404, "NOT_FOUND");
       }
-      if (item.branchId !== null && item.branchId !== params.branchId) {
-        throw new PrintingServiceError("Cross-branch item access denied.", 403, "FORBIDDEN");
+      // Printing follows the same rule as reading: a question the person may not see in the bank (a draft that is not theirs, a secret question of a subject they do
+      // not teach, another branch's) is "not found" to them, so a print is never a way round the bank's visibility.
+      const viewer = await loadViewer(params.userId);
+      const mayRead =
+        (item.branchId === null || item.branchId === params.branchId) &&
+        staffMaySee(
+          viewer,
+          {
+            branchId: item.branchId,
+            subjectKey: item.subjectKey,
+            status: item.status,
+            visibility: item.visibility,
+            visibleFrom: item.visibleFrom,
+            submittedById: item.submittedById,
+          },
+          now,
+        );
+      if (!mayRead) {
+        throw new PrintingServiceError("Question bank item not found.", 404, "NOT_FOUND");
       }
 
       // Check linked assessment if TEACHERS_ONLY_UNTIL
