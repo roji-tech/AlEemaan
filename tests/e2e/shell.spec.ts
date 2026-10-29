@@ -190,7 +190,9 @@ test.describe("someone who is not an administrator", () => {
     await signInThroughUi(page, teacher);
 
     await expect(page.getByRole("heading", { level: 1, name: "Welcome, Zainab" })).toBeVisible();
-    await expect(mainNav(page).getByRole("link")).toHaveCount(2); // Overview and Results (a teacher enters marks)
+    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, students, announcements, question bank); the phone's tab bar keeps only
+    // Overview and Results and the rest live in the More sheet.
+    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 2 : 8);
     await expect(mainNav(page).getByRole("link", { name: "Overview" })).toBeVisible();
     await expect(mainNav(page).getByRole("link", { name: "Results" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);

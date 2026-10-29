@@ -5,6 +5,7 @@ import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { batchTimetableSlotSchema } from "@/lib/timetable/validation";
 import { batchCreateTimetableSlots, TimetableClashError } from "@/lib/timetable/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * POST /api/v1/timetable/batch
@@ -13,7 +14,9 @@ import { batchCreateTimetableSlots, TimetableClashError } from "@/lib/timetable/
 export const POST = withAuth(
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = batchTimetableSlotSchema.safeParse(body);
 
       if (!parsed.success) {

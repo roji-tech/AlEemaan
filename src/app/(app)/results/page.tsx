@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
+import { approverBranchIds } from "@/lib/academics/approver-scope";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ResultsSections } from "@/components/results/ResultsSections";
 
@@ -14,6 +15,7 @@ export default async function ResultsPage() {
   const { session, isAdmin } = await requirePageSession();
   const visible = await branchIdsFor(session.userId);
   const scope = await adminScope(session.userId);
+  const approverIn = new Set(await approverBranchIds(session.userId)); // where they approve results as a member (task 0039), not as an administrator
   const branches = await prisma.branch.findMany({
     where: visible === "all" ? {} : { id: { in: visible } },
     orderBy: { name: "asc" },
@@ -38,7 +40,12 @@ export default async function ResultsPage() {
         </p>
       ) : (
         <ResultsSections
-          branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
+          branches={branches.map((b) => ({
+            id: b.id,
+            name: b.name,
+            canEdit: mayAdminister(scope, b.id),
+            canApprove: approverIn.has(b.id),
+          }))}
           isAdmin={isAdmin}
         />
       )}

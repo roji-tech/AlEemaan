@@ -1,20 +1,16 @@
 import "../support/env";
 import { test, expect } from "@playwright/test";
-import { Role, createUser, db, seedInstance } from "../support/db";
+import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 
 let home: { id: string };
-test.beforeAll(async () => {
-  home = await seedInstance();
+test.afterAll(async () => {
+  await resetDatabase();
 });
 
 test.beforeEach(async () => {
-  await db.timetableSlot.deleteMany();
-  await db.staffSubjectAssignment.deleteMany();
-  await db.classArm.deleteMany();
-  await db.classGroup.deleteMany();
-  await db.subject.deleteMany();
-  await db.staffRecord.deleteMany();
+  await resetDatabase();
+  home = await seedInstance();
 });
 
 const asRole = async (role: Role, branchId = home.id, superAdmin = false) => {

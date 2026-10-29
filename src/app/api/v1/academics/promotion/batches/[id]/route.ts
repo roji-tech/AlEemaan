@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { getPromotionBatch } from "@/lib/promotion/service";
 
@@ -8,7 +9,8 @@ import { getPromotionBatch } from "@/lib/promotion/service";
  * GET /api/v1/academics/promotion/batches/[id]
  * Retrieves details and records for a promotion batch.
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "administer",
   async (req: NextRequest, _auth: AuthContext, context?: { params?: Promise<{ id: string }> }) => {
     try {
       const params = await context?.params;

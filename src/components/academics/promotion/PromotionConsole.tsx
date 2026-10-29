@@ -8,10 +8,13 @@ import { PromotionPreviewTable, type StudentOverrideState } from "./PromotionPre
 import { PromotionConfirmModal } from "./PromotionConfirmModal";
 import { PromotionHistoryView } from "./PromotionHistoryView";
 import type { PromotionPreviewResponse } from "@/lib/promotion/service";
+import { defaultPromotionSessions, sessionAfter } from "@/lib/promotion/rules";
 
 interface AcademicSessionItem {
   id: string;
   label: string;
+  startDate: string;
+  status: string;
 }
 
 interface ClassGroupItem {
@@ -68,13 +71,10 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
         const sessJson = await sessRes.json();
         const sessList: AcademicSessionItem[] = sessJson.data?.sessions || [];
         setSessions(sessList);
-        if (sessList.length >= 2) {
-          setSourceSessionId(sessList[0].id);
-          setTargetSessionId(sessList[1].id);
-        } else if (sessList.length === 1) {
-          setSourceSessionId(sessList[0].id);
-          setTargetSessionId("");
-        }
+        // The list arrives newest first: the session to evaluate is the active one and the one to enrol into is the next to begin, not the first two entries.
+        const chosen = defaultPromotionSessions(sessList);
+        setSourceSessionId(chosen.sourceId);
+        setTargetSessionId(chosen.targetId);
       }
 
       if (classRes.ok) {
@@ -143,6 +143,12 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
     }
   };
 
+  // A preview belongs to the choices it was made with: changing any of them discards it (and the overrides made on it).
+  const discardPreview = () => {
+    setPreview(null);
+    setOverrides(new Map());
+  };
+
   // Override management
   const handleOverrideChange = (studentId: string, override: StudentOverrideState) => {
     setOverrides((prev) => {
@@ -174,8 +180,8 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
       const studentOverridesPayload = Array.from(overrides.entries()).map(([studentId, o]) => ({
         studentId,
         decision: o.decision,
-        targetArmId: o.targetArmId,
-        reason: o.reason,
+        targetClassArmId: o.targetArmId ?? null,
+        overrideReason: o.reason?.trim() ? o.reason.trim() : null,
       }));
 
       const res = await fetch("/api/v1/academics/promotion/execute", {
@@ -293,9 +299,8 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
                   onChange={(e) => {
                     const nextSource = e.target.value;
                     setSourceSessionId(nextSource);
-                    if (targetSessionId === nextSource) {
-                      setTargetSessionId("");
-                    }
+                    setTargetSessionId(sessionAfter(sessions, nextSource));
+                    discardPreview();
                   }}
                   disabled={loadingStructure || previewLoading}
                   className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-2 focus-visible:outline-ring"
@@ -316,13 +321,18 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
                 <select
                   id="target-session-select"
                   value={targetSessionId}
-                  onChange={(e) => setTargetSessionId(e.target.value)}
+                  onChange={(e) => {
+                    setTargetSessionId(e.target.value);
+                    discardPreview();
+                  }}
                   disabled={loadingStructure || previewLoading}
                   className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   <option value="">Select target session...</option>
                   {sessions
-                    .filter((s) => s.id !== sourceSessionId)
+                    .filter(
+                      (s) => s.id !== sourceSessionId && (!sourceSession || new Date(s.startDate) > new Date(sourceSession.startDate)),
+                    )
                     .map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.label}
@@ -338,7 +348,10 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
                 <select
                   id="source-class-select"
                   value={sourceClassGroupId}
-                  onChange={(e) => setSourceClassGroupId(e.target.value)}
+                  onChange={(e) => {
+                    setSourceClassGroupId(e.target.value);
+                    discardPreview();
+                  }}
                   disabled={loadingStructure || previewLoading}
                   className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-2 focus-visible:outline-ring"
                 >
@@ -361,7 +374,10 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
                   max="100"
                   step="0.5"
                   value={passMark}
-                  onChange={(e) => setPassMark(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    setPassMark(parseFloat(e.target.value) || 0);
+                    discardPreview();
+                  }}
                   disabled={loadingStructure || previewLoading}
                   className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-2 focus-visible:outline-ring"
                 />
@@ -379,6 +395,13 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
               </div>
             </form>
           </div>
+
+          {sourceSessionId && !targetSessionId && !loadingStructure && (
+            <Alert variant="info" announce={false}>
+              No academic session begins after {sourceSession?.label ?? "the source session"} yet. Create the next session first (Academics,
+              Sessions &amp; terms), then come back.
+            </Alert>
+          )}
 
           {previewError && <Alert variant="error">{previewError}</Alert>}
 
@@ -405,6 +428,13 @@ export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
                   </Button>
                 )}
               </div>
+
+              {!preview.eligibility.eligible && (
+                <Alert variant="warning" title="This session is not at its final term" announce={false}>
+                  {preview.eligibility.reason ?? "Promotion is normally done at the end of the final term."} Pupils are judged on the terms
+                  that have results so far.
+                </Alert>
+              )}
 
               <PromotionPreviewTable
                 preview={preview}

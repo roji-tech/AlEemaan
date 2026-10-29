@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope } from "@/lib/auth/branch-access";
+import { hasActiveMfa } from "@/lib/auth/mfa/service";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { UsersPanel } from "@/components/users/UsersPanel";
 
@@ -48,7 +49,12 @@ export default async function UsersPage() {
         title="Users"
         description="The people who can sign in to AlEemaan: invite someone, change a role or branch, or deactivate an account."
       />
-      <UsersPanel branches={branches} currentUserId={session.userId} isSuperAdmin={isSuperAdmin} />
+      <UsersPanel
+        branches={branches}
+        currentUserId={session.userId}
+        isSuperAdmin={isSuperAdmin}
+        hasMfa={isSuperAdmin && (await hasActiveMfa(session.userId))}
+      />
     </div>
   );
 }

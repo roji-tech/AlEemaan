@@ -394,7 +394,7 @@ function ScanStep({
       </ol>
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <div className="flex h-[208px] w-[208px] shrink-0 items-center justify-center rounded-xl border border-line bg-white">
+        <div className="flex h-52 w-52 shrink-0 items-center justify-center rounded-xl border border-line bg-white">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element -- a data: URL drawn in this browser
             <img src={qr} alt="QR code to add this account to your authenticator app" width={208} height={208} />

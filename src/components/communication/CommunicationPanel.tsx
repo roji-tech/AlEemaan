@@ -51,15 +51,15 @@ export function CommunicationPanel({ branches, userBranchId }: CommunicationPane
     <div className="space-y-6">
       {/* Top Bar: Branch Selector */}
       {branches.length > 1 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl">
-          <label htmlFor="comm-branch-select" className="text-sm font-semibold text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface border border-line rounded-xl">
+          <label htmlFor="comm-branch-select" className="text-sm font-semibold text-fg">
             Current Branch:
           </label>
           <select
             id="comm-branch-select"
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
@@ -71,7 +71,7 @@ export function CommunicationPanel({ branches, userBranchId }: CommunicationPane
       )}
 
       {/* Accessible Tab Navigation */}
-      <div className="border-b border-border">
+      <div className="border-b border-line">
         <div role="tablist" aria-label="Communication modules" className="flex space-x-4 overflow-x-auto">
           {tabs.map((tab, idx) => {
             const isActive = activeTab === tab.id;
@@ -88,10 +88,10 @@ export function CommunicationPanel({ branches, userBranchId }: CommunicationPane
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 onKeyDown={(e) => handleKeyDown(e, idx)}
-                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:rounded-t ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-t ${
                   isActive
-                    ? "border-primary text-primary font-semibold"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    ? "border-brand-fg text-brand-fg font-semibold"
+                    : "border-transparent text-fg-muted hover:text-fg hover:border-line"
                 }`}
               >
                 {tab.label}

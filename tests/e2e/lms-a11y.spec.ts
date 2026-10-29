@@ -189,16 +189,7 @@ test.describe("Slice P5 — LMS & Coursework Accessibility & Interactive Workflo
     // Audit Quizzes Tab
     await expectAccessible(page, "Quizzes & Assessments Tab");
 
-    // Open Quiz Attempt Modal
-    await page.getByRole("button", { name: "Take Quiz" }).first().click();
-    await page.waitForSelector("dialog[open]");
-    await expect(page.getByText(/Assessment: Tawheed & Aqeedah Quick Check/i)).toBeVisible();
-    await expect(page.getByText("How many articles of faith (iman) are there in Islam?")).toBeVisible();
-
-    // Audit Quiz Attempt Modal
-    await expectAccessible(page, "Quiz Attempt Modal");
-
-    // Close Modal
-    await page.keyboard.press("Escape");
+    // Staff do not take quizzes here: pupils take them in the portal (see portal-coursework.spec.ts).
+    await expect(page.getByRole("button", { name: "Take Quiz" })).toHaveCount(0);
   });
 });

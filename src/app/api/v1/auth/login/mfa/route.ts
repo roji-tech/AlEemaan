@@ -12,6 +12,7 @@ import { MfaUnavailableError, mfaConfigured } from "@/lib/auth/mfa/secret-box";
 import { unusedRecoveryCodeCount, verifySecondFactor } from "@/lib/auth/mfa/service";
 import { recoveryCodeUsedEmail } from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
+import { readJsonBody } from "@/lib/api/validate";
 
 // POST /api/v1/auth/login/mfa  { challenge, code }  or  { challenge, recoveryCode }      (plan §0.5.D)
 // Sign-in step 2: redeems the challenge step 1 handed out. Only here — after a correct second factor —
@@ -44,13 +45,12 @@ async function handleMfaLogin(req: NextRequest): Promise<NextResponse> {
   const ipKey = `mfa:ip:${getClientIp(req)}`;
   if (!(await reserveAttempt(ipKey, MFA_IP_LIMIT))) return fail(RATE_LIMITED_MESSAGE, 429, "RATE_LIMITED");
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
+  const read = await readJsonBody(req);
+  if (!read.ok) {
     await refundAttempt(ipKey);
-    return fail("Invalid JSON body", 400, "INVALID_BODY");
+    return read.response;
   }
+  const body = read.json;
   const parsed = schema.safeParse(body);
   const factor = parsed.success ? parseSecondFactor(parsed.data) : null;
   if (!parsed.success || !factor) {

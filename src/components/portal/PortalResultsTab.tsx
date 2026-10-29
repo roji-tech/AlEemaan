@@ -55,7 +55,7 @@ export function PortalResultsTab({
   if (blockedByUnpaidFees) {
     return (
       <div className="bg-surface border border-line rounded-2xl p-8 sm:p-12 text-center shadow-sm">
-        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center mb-4">
+        <div className="w-14 h-14 rounded-2xl bg-warn-bg text-warn-fg mx-auto flex items-center justify-center mb-4">
           <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path
               strokeLinecap="round"
@@ -66,15 +66,22 @@ export function PortalResultsTab({
         </div>
         <h3 className="text-lg font-bold text-fg">Report Card Access Restricted</h3>
         <p className="text-xs sm:text-sm text-fg-muted mt-2 max-w-md mx-auto">
-          Academic report cards for this student are temporarily unavailable online due to an outstanding fee balance of{" "}
-          <strong className="text-fg">₦{(outstandingBalance ?? 0).toLocaleString()}</strong>.
+          {outstandingBalance === undefined ? (
+            // This sign-in may not see fees (task 0040): no amount, and no way to the invoices.
+            <>This report card is not available yet. Please ask your guardian or the school office.</>
+          ) : (
+            <>
+              Academic report cards for this student are temporarily unavailable online due to an outstanding fee balance of{" "}
+              <strong className="text-fg">₦{outstandingBalance.toLocaleString()}</strong>.
+            </>
+          )}
         </p>
-        {onNavigateToBilling && (
+        {onNavigateToBilling && outstandingBalance !== undefined && (
           <div className="mt-6">
             <button
               type="button"
               onClick={onNavigateToBilling}
-              className="px-5 py-2.5 rounded-xl bg-brand-strong text-brand-contrast text-xs font-bold shadow-xs hover:bg-brand-strong/90 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
+              className="px-5 py-2.5 rounded-xl bg-brand-strong text-white text-xs font-bold shadow-xs hover:bg-brand-strong/90 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
             >
               View Invoices &amp; Pay Fees
             </button>
@@ -197,7 +204,7 @@ export function PortalResultsTab({
           <button
             type="button"
             onClick={() => window.print()}
-            className="px-4 py-2 rounded-xl bg-brand-strong text-brand-contrast text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
+            className="px-4 py-2 rounded-xl bg-brand-strong text-white text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path

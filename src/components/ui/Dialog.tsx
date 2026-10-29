@@ -47,7 +47,10 @@ export function Dialog({
       ref={ref}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
-      onClose={onClose}
+      // React passes a nested dialog's `close` up to this one, so a dialog opened inside another would close its parent too: only this dialog's own close counts.
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       className={`fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] ${wide ? "max-w-3xl" : "max-w-lg"} overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-fg shadow-menu backdrop:bg-black/60`}
     >
       {open && (

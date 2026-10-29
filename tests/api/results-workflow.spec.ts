@@ -214,7 +214,7 @@ test.describe("rules of the machine", () => {
     expect(await statusOf(ids[0])).toBe("DRAFT");
     expect((await api(`/api/v1/academics/results/${ids[0]}/history`, { cookie: foreign.cookie })).status).toBe(404);
     const teacher = await assigned(w);
-    expect((await api(`/api/v1/academics/results/${ids[0]}/history`, { cookie: teacher.cookie })).status).toBe(403); // administrators only: the role guard refuses a teacher at the door, like every admin route
+    expect((await api(`/api/v1/academics/results/${ids[0]}/history`, { cookie: teacher.cookie })).status).toBe(404); // administrators and approvers only (task 0039): a teacher with no approval permission gets the one not-found answer, like a result of another branch
   });
 
   test("validation: no ids, too many, an unknown action and extra fields are 400", async () => {
@@ -242,7 +242,7 @@ test.describe("rules of the machine", () => {
     expect(queue[0]).toMatchObject({ classArmId: w.arm.id, subjectId: w.subject.id, counts: { DRAFT: 1, SUBMITTED: 1 } });
     expect(
       (await api(`/api/v1/academics/results/queue?branchId=${home.id}&periodId=${w.period.id}`, { cookie: teacher.cookie })).status,
-    ).toBe(403);
+    ).toBe(404); // task 0039: someone who is not an approver of the branch is told nothing exists (an approver gets the queue of their scope)
     const foreign = await asRole(Role.ADMIN, other.id);
     expect(
       (await api(`/api/v1/academics/results/queue?branchId=${home.id}&periodId=${w.period.id}`, { cookie: foreign.cookie })).status,

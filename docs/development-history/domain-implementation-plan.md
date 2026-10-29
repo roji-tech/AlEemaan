@@ -1593,3 +1593,31 @@ A superadmin sets the global default; a branch admin may override it (creates a 
 4. **REST APIs:** `/api/v1/portal/session`, `/api/v1/portal/overview`, `/api/v1/portal/results`, `/api/v1/portal/invoices`, `/api/v1/portal/lms`.
 5. **WCAG 2.2 AA Accessibility:** 100% compliant across mobile and desktop viewports, 0 Axe violations, full keyboard navigation.
 
+
+## Build design — Slice UI1: close the screen gaps found by the 2026-10-19 browser run
+
+**Why.** A browser walk-through (report `out/test/REPORT.md`, git-ignored) found features that exist as APIs but cannot be used from the browser, plus a handful of defects. The maintainer asked to fix all of them in one go and chose to build a Students screen first-class.
+
+**Scope (one branch, staged commits, one PR; each stage passes the gate before the next).**
+
+1. **Students screen** (`/students`, nav item for staff; writes only for administrators of the branch, as the API already decides). List with search, branch filter and live/archived switch; add and edit (names, gender, date of birth, admission number or generated, class arm, guardian name/phone/email); archive and restore; the namesake-duplicate refusal (ADR 0011) shown as a confirm step ("Register anyway", audited by the API); CSV import (paste or choose a file, preview, run `students/import`, show the summary and per-row problems). Presentation only: no new API except what the screen cannot do with the present ones (a roster of class arms for the class picker comes from the existing class-groups API).
+2. **P2e screens** over the P2e APIs that have none today, as sections of existing pages: Settings gains **Report cards** (choose DEFAULT or LEGACY layout per branch, toggle logo / signature line / next-term date) and **Verification page** (the always-shown minimum listed read-only; superadmin toggles pupil name and its format, subject, marks, grade, for all branches or one) and **Approvals** (queue of PENDING requests for administrators of the branch and the superadmin with approve / reject and a required reason; a teacher sees their own requests) and **Self-approval** (superadmin only: grant or revoke per administrator, optionally naming the unseen reviewer, never shown to the administrator concerned). Academics > Assessment and grading gains the scheme levels: global default (superadmin), class-group schemes, and a teacher's own subject scheme with the reason and "request approval", drafts stay visible after a rejection.
+3. **Wording and small defects:**
+   - Results Enter marks and Attendance say "you are not assigned" even to administrators. For an administrator the empty state names the real cause (nothing offered yet in this branch) and points to Academics.
+   - Attendance shows "Try again" for "no active academic session"; that state gets its own message without a retry button.
+   - Attendance overflows by 3 px on desktop (a button ends past the viewport).
+   - Finance and Portal use `text-emerald-400 / 500/80` and `text-amber-400 / 500/80` on white in the light theme (contrast 1.7-2.1, AA needs 4.5): darker shades in the light theme only.
+   - The Academics forms create into whichever branch is selected without saying so; the form shows the branch it will write to.
+   - **Setup and other multi-step transactions fail on a slow database** (Prisma's 5 s default is exceeded at ~230 ms per query): set generous `transactionOptions` on the shared client.
+   - **Hydration error #418** on every full load of a signed-in page in the production build (not in dev): find the mismatch and fix it.
+   - **`/portal`** never reaches network idle for a staff user in the production build: find the repeating request and fix it.
+4. **Timetable "add several periods"** screen over `POST /timetable/batch` (small; last stage, cut first if it grows).
+
+**Tests (browser first, as the maintainer asked).** Playwright e2e in desktop and phone viewports with axe in dark and light for every new screen (the existing suite's pattern); API specs are not duplicated where the API is already covered; a unit test for the CSV parser. A browser walk-through from setup to the end on the local QA database, then the same on the online test database once it is reset.
+
+**Not changed.** No migration, no API contract change, no new role. The decisions of 2026-10-15 stay as built; the screens only expose them. Where a screen reveals that an API rule is wrong, it is reported, not silently changed.
+
+**Mutation testing:** unchanged (deferred to the end of Phase 2, ADR 0006); this slice adds no business rule, only presentation.
+
+### As built - Slice UI1 (2026-10-19)
+Delivered as planned in stages 1-7 (see `docs/tasks/0031-ui1-screens-and-security.md`). Differences from the design above: the slice grew a security stage (cross-branch exposure found while testing in the browser: `withAuthGated`, `lib/lms/audience.ts`, `lib/lms/submitter.ts`) and a portal stage (pupils hand in work and take quizzes through new portal routes, because a pupil record has no login). Migration `20261019090000_hosted_schemes` is part of the slice and must precede the code on any live database.

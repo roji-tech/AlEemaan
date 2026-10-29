@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateTimetableSlotSchema } from "@/lib/timetable/validation";
 import { getTimetableSlot, updateTimetableSlot, deleteTimetableSlot, TimetableClashError } from "@/lib/timetable/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -13,7 +15,8 @@ interface RouteParams {
 /**
  * GET /api/v1/timetable/[id]?branchId=...
  */
-export const GET = withAuth<RouteParams>(
+export const GET = withAuthGated<RouteParams>(
+  "read-any",
   async (req: NextRequest, _auth: AuthContext, { params }) => {
     try {
       const { id } = await params;
@@ -45,7 +48,9 @@ export const PATCH = withAuth<RouteParams>(
   async (req: NextRequest, auth: AuthContext, { params }) => {
     try {
       const { id } = await params;
-      const body = await req.json();
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json as { branchId?: string } & Record<string, unknown>;
       const branchId = body.branchId;
 
       if (!branchId) {

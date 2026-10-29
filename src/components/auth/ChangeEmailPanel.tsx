@@ -85,7 +85,7 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
       {view === "idle" && (
         <div className="space-y-4">
           <p className="text-sm text-fg-2">
-            Your email address is <strong className="font-semibold break-words text-fg">{email ?? "not set"}</strong>.
+            Your email address is <strong className="font-semibold wrap-break-word text-fg">{email ?? "not set"}</strong>.
           </p>
           <Button variant="secondary" onClick={() => go("form")} ref={startButton}>
             Change email address
@@ -152,8 +152,8 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
             <Heading focus={touched}>Check your inbox</Heading>
           </div>
           <p className="text-sm leading-relaxed text-fg-2">
-            If <strong className="font-semibold break-words text-fg">{sentTo}</strong> can be used, a confirmation link is on its way. It
-            works once and stops working after an hour. Your current address keeps working until you open it, and we&apos;ve let it know
+            If <strong className="font-semibold wrap-break-word text-fg">{sentTo}</strong> can be used, a confirmation link is on its way.
+            It works once and stops working after an hour. Your current address keeps working until you open it, and we&apos;ve let it know
             about the request.
           </p>
           <Button variant="secondary" onClick={() => go("idle")}>

@@ -55,9 +55,13 @@ export function ReviewPanel({
   selectedBranchId?: string;
   onSelectBranch?: (id: string) => void;
 }) {
-  const admin = branches.filter((b) => b.canEdit);
+  // The branches this person reviews in: the ones they administer and the ones where they are an approver (task 0039).
+  const admin = branches.filter((b) => b.canEdit || b.canApprove);
   const [internalBranchId, setInternalBranchId] = useState((admin[0] ?? branches[0]).id);
   const branchId = selectedBranchId ?? internalBranchId;
+  // Unlock is an administrator's alone: an approver is not shown it (the server refuses it too).
+  const mayUnlock = branches.find((b) => b.id === branchId)?.canEdit ?? false;
+  const actionsFor = (status: string) => (ACTIONS[status] ?? []).filter((a) => a.action !== "unlock" || mayUnlock);
   const setBranchId = (id: string) => {
     setInternalBranchId(id);
     onSelectBranch?.(id);
@@ -182,12 +186,12 @@ export function ReviewPanel({
                   ))}
                 </ul>
                 <div className="mt-3 space-y-2">
-                  {ORDER.filter((s) => g.counts[s] && ACTIONS[s]).map((s) => (
+                  {ORDER.filter((s) => g.counts[s] && actionsFor(s).length > 0).map((s) => (
                     <div key={s} className="flex flex-wrap items-center gap-2">
                       <span className="text-sm text-fg-muted">
                         {g.counts[s]} {LABEL[s].toLowerCase()}:
                       </span>
-                      {ACTIONS[s].map((a) => (
+                      {actionsFor(s).map((a) => (
                         <Button
                           key={a.action}
                           variant={a.variant}

@@ -163,16 +163,16 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
   return (
     <div className="space-y-6">
       {/* Top Filter and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border border-border p-4 rounded-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface border border-line p-4 rounded-xl">
         <div className="flex items-center gap-2">
-          <label htmlFor="tpl-channel-filter" className="text-sm font-semibold text-foreground">
+          <label htmlFor="tpl-channel-filter" className="text-sm font-semibold text-fg">
             Channel:
           </label>
           <select
             id="tpl-channel-filter"
             value={filterChannel}
             onChange={(e) => setFilterChannel(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium focus:border-primary focus:outline-none"
+            className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium focus:border-brand-fg focus:outline-none"
           >
             <option value="ALL">All Channels</option>
             <option value="SMS">SMS</option>
@@ -185,7 +185,7 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
         <button
           type="button"
           onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-brand-strong text-white hover:bg-brand-strong-hover transition-colors shadow-sm"
         >
           + New Template
         </button>
@@ -193,12 +193,12 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
 
       {/* Grid of Templates */}
       {loading ? (
-        <div className="p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+        <div className="p-12 text-center text-sm text-fg-muted flex items-center justify-center gap-2">
           <SpinnerIcon className="animate-spin h-5 w-5" />
           Loading templates...
         </div>
       ) : templates.length === 0 ? (
-        <div className="p-12 text-center text-sm text-muted-foreground bg-card border border-border rounded-xl">
+        <div className="p-12 text-center text-sm text-fg-muted bg-surface border border-line rounded-xl">
           No templates found for this filter.
         </div>
       ) : (
@@ -206,37 +206,37 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
           {templates.map((t) => (
             <div
               key={t.id}
-              className="bg-card border border-border rounded-xl p-5 flex flex-col justify-between hover:border-primary/50 transition-colors shadow-sm"
+              className="bg-surface border border-line rounded-xl p-5 flex flex-col justify-between hover:border-brand-fg transition-colors shadow-sm"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-semibold text-muted-foreground">{t.code}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground">{t.channel}</span>
+                  <span className="text-xs font-mono font-semibold text-fg-muted">{t.code}</span>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-2 text-fg">{t.channel}</span>
                 </div>
-                <h3 className="font-semibold text-foreground text-sm line-clamp-1">{t.name}</h3>
+                <h3 className="font-semibold text-fg text-sm line-clamp-1">{t.name}</h3>
                 {t.subjectTemplate && (
-                  <p className="text-xs text-muted-foreground line-clamp-1">
+                  <p className="text-xs text-fg-muted line-clamp-1">
                     <span className="font-medium">Subject:</span> {t.subjectTemplate}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground font-mono bg-muted/40 p-2.5 rounded-lg line-clamp-3">{t.bodyTemplate}</p>
+                <p className="text-xs text-fg-muted font-mono bg-surface-2 p-2.5 rounded-lg line-clamp-3">{t.bodyTemplate}</p>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-border mt-4 text-xs font-medium">
-                <span className="text-muted-foreground">{t.isSystem ? "System" : "Custom"}</span>
+              <div className="flex items-center justify-between pt-4 border-t border-line mt-4 text-xs font-medium">
+                <span className="text-fg-muted">{t.isSystem ? "System" : "Custom"}</span>
                 <div className="space-x-3">
-                  <button type="button" onClick={() => setPreviewTemplate(t)} className="text-primary hover:underline">
+                  <button type="button" onClick={() => setPreviewTemplate(t)} className="text-brand-fg hover:underline">
                     Preview
                   </button>
                   {!t.isSystem && (
                     <>
-                      <button type="button" onClick={() => handleOpenEdit(t)} className="text-muted-foreground hover:text-foreground">
+                      <button type="button" onClick={() => handleOpenEdit(t)} className="text-fg-muted hover:text-fg">
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDelete(t.id)}
-                        className="text-red-600 dark:text-red-400 hover:underline"
+                        className="text-danger-fg hover:underline"
                       >
                         Delete
                       </button>
@@ -252,45 +252,45 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
       {/* Preview Modal */}
       {previewTemplate && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-xl p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-semibold text-foreground">{previewTemplate.name}</h3>
+          <div className="w-full max-w-md bg-surface border border-line rounded-xl shadow-xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-semibold text-fg">{previewTemplate.name}</h3>
               <button
                 type="button"
                 onClick={() => setPreviewTemplate(null)}
-                className="text-muted-foreground hover:text-foreground text-sm font-bold"
+                className="text-fg-muted hover:text-fg text-sm font-bold"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-3 text-sm">
-              <div className="text-xs text-muted-foreground flex gap-4">
+              <div className="text-xs text-fg-muted flex gap-4">
                 <span>
-                  Code: <strong className="text-foreground">{previewTemplate.code}</strong>
+                  Code: <strong className="text-fg">{previewTemplate.code}</strong>
                 </span>
                 <span>
-                  Channel: <strong className="text-foreground">{previewTemplate.channel}</strong>
+                  Channel: <strong className="text-fg">{previewTemplate.channel}</strong>
                 </span>
               </div>
               {previewTemplate.subjectTemplate && (
                 <div>
-                  <span className="text-xs font-semibold text-muted-foreground">Subject Template:</span>
-                  <p className="font-medium text-foreground">{previewTemplate.subjectTemplate}</p>
+                  <span className="text-xs font-semibold text-fg-muted">Subject Template:</span>
+                  <p className="font-medium text-fg">{previewTemplate.subjectTemplate}</p>
                 </div>
               )}
               <div>
-                <span className="text-xs font-semibold text-muted-foreground">Body Template:</span>
-                <p className="mt-1 p-3 bg-muted rounded-lg font-mono text-xs text-foreground whitespace-pre-wrap">
+                <span className="text-xs font-semibold text-fg-muted">Body Template:</span>
+                <p className="mt-1 p-3 bg-surface-2 rounded-lg font-mono text-xs text-fg whitespace-pre-wrap">
                   {previewTemplate.bodyTemplate}
                 </p>
               </div>
               {previewTemplate.variables.length > 0 && (
                 <div>
-                  <span className="text-xs font-semibold text-muted-foreground">Expected Variables:</span>
+                  <span className="text-xs font-semibold text-fg-muted">Expected Variables:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {previewTemplate.variables.map((v) => (
-                      <span key={v} className="text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground font-mono">
+                      <span key={v} className="text-xs px-2 py-0.5 rounded bg-surface-2 text-fg font-mono">
                         {v}
                       </span>
                     ))}
@@ -299,11 +299,11 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
               )}
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-border">
+            <div className="flex justify-end pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={() => setPreviewTemplate(null)}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-surface-2 text-fg hover:bg-line"
               >
                 Close
               </button>
@@ -317,14 +317,14 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <form
             onSubmit={handleSave}
-            className="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-lg bg-surface border border-line rounded-xl shadow-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-semibold text-foreground">{editingTemplate ? "Edit Template" : "New Custom Template"}</h3>
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-semibold text-fg">{editingTemplate ? "Edit Template" : "New Custom Template"}</h3>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground text-sm font-bold"
+                className="text-fg-muted hover:text-fg text-sm font-bold"
               >
                 ✕
               </button>
@@ -333,7 +333,7 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
             {formError && (
               <div
                 role="alert"
-                className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200"
+                className="p-3 bg-danger-bg border border-danger-line rounded-lg text-xs text-danger-fg"
               >
                 {formError}
               </div>
@@ -341,7 +341,7 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
 
             <div className="space-y-3 text-sm">
               <div>
-                <label htmlFor="tpl-name" className="block text-xs font-semibold text-foreground mb-1">
+                <label htmlFor="tpl-name" className="block text-xs font-semibold text-fg mb-1">
                   Template Name
                 </label>
                 <input
@@ -351,14 +351,14 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Admission Acceptance Notification"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-lg border border-line-strong bg-field px-3 py-2 text-sm text-fg focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               {!editingTemplate && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="tpl-code" className="block text-xs font-semibold text-foreground mb-1">
+                    <label htmlFor="tpl-code" className="block text-xs font-semibold text-fg mb-1">
                       Template Code (UPPERCASE)
                     </label>
                     <input
@@ -368,18 +368,18 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
                       value={code}
                       onChange={(e) => setCode(e.target.value.toUpperCase())}
                       placeholder="e.g. ADMISSION_ACCEPT"
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-line-strong bg-field px-3 py-2 text-sm text-fg font-mono focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                   <div>
-                    <label htmlFor="tpl-channel" className="block text-xs font-semibold text-foreground mb-1">
+                    <label htmlFor="tpl-channel" className="block text-xs font-semibold text-fg mb-1">
                       Channel
                     </label>
                     <select
                       id="tpl-channel"
                       value={channel}
                       onChange={(e) => setChannel(e.target.value as NotificationChannel)}
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-line-strong bg-field px-3 py-2 text-sm text-fg focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="SMS">SMS</option>
                       <option value="EMAIL">Email</option>
@@ -392,7 +392,7 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
 
               {(channel === NotificationChannel.EMAIL || channel === NotificationChannel.IN_APP) && (
                 <div>
-                  <label htmlFor="tpl-subject" className="block text-xs font-semibold text-foreground mb-1">
+                  <label htmlFor="tpl-subject" className="block text-xs font-semibold text-fg mb-1">
                     Subject Template
                   </label>
                   <input
@@ -401,13 +401,13 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
                     value={subjectTemplate}
                     onChange={(e) => setSubjectTemplate(e.target.value)}
                     placeholder="e.g. Welcome {{student_name}} to {{school_name}}"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-lg border border-line-strong bg-field px-3 py-2 text-sm text-fg focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
               )}
 
               <div>
-                <label htmlFor="tpl-body" className="block text-xs font-semibold text-foreground mb-1">
+                <label htmlFor="tpl-body" className="block text-xs font-semibold text-fg mb-1">
                   Body Template
                 </label>
                 <textarea
@@ -417,12 +417,12 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
                   value={bodyTemplate}
                   onChange={(e) => setBodyTemplate(e.target.value)}
                   placeholder="Dear Guardian, {{student_name}} has been enrolled in {{class_arm}}."
-                  className="w-full rounded-lg border border-input bg-background p-3 text-sm text-foreground font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-lg border border-line-strong bg-field p-3 text-sm text-fg font-mono focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               <div>
-                <label htmlFor="tpl-vars" className="block text-xs font-semibold text-foreground mb-1">
+                <label htmlFor="tpl-vars" className="block text-xs font-semibold text-fg mb-1">
                   Expected Variables (comma-separated)
                 </label>
                 <input
@@ -431,23 +431,23 @@ export function TemplatesManager({ branchId }: TemplatesManagerProps) {
                   value={variablesInput}
                   onChange={(e) => setVariablesInput(e.target.value)}
                   placeholder="student_name, class_arm, school_name"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-lg border border-line-strong bg-field px-3 py-2 text-sm text-fg focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+            <div className="flex justify-end gap-3 pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-fg-muted hover:text-fg"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving || !name.trim() || !bodyTemplate.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-brand-strong text-white hover:bg-brand-strong-hover disabled:opacity-50"
               >
                 {saving && <SpinnerIcon className="animate-spin h-4 w-4" />}
                 {editingTemplate ? "Save Changes" : "Create Template"}

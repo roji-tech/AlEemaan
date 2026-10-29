@@ -106,7 +106,16 @@ export function PromotionConfirmModal({
             <li>
               New enrollments will be created in <strong>{targetSessionLabel}</strong> for active students.
             </li>
-            <li>This operation is idempotent and logged in the immutable promotion audit trail.</li>
+            {!preview.eligibility.eligible && (
+              <li>
+                <strong>Not at the final term:</strong>{" "}
+                {preview.eligibility.reason ?? "promotion is normally done at the end of the final term."}
+              </li>
+            )}
+            <li>
+              Running the same rollover again changes nothing: pupils already dealt with are skipped. It is logged in the promotion audit
+              history.
+            </li>
           </ul>
         </Alert>
 

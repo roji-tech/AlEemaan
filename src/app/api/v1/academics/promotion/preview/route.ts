@@ -1,14 +1,17 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withAuth } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
+import { PromotionError } from "@/lib/promotion/service";
 import { promotionPreviewQuerySchema } from "@/lib/promotion/validation";
 import { previewPromotion } from "@/lib/promotion/service";
+import { readJsonObject } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/academics/promotion/preview
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "administer",
   async (req: NextRequest) => {
     try {
       const url = new URL(req.url);
@@ -38,6 +41,7 @@ export const GET = withAuth(
       const preview = await previewPromotion(parsed.data);
       return ok(preview);
     } catch (error) {
+      if (error instanceof PromotionError) return fail(error.message, error.status, "PROMOTION_REFUSED");
       console.error("[PROMOTION_PREVIEW_GET_ERROR]", error);
       return fail("Unable to generate promotion preview", 500, "INTERNAL");
     }
@@ -48,15 +52,13 @@ export const GET = withAuth(
 /**
  * POST /api/v1/academics/promotion/preview
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "administer",
   async (req: NextRequest) => {
     try {
-      let body: Record<string, unknown>;
-      try {
-        body = await req.json();
-      } catch {
-        return fail("Invalid JSON payload", 400, "INVALID_BODY");
-      }
+      const read = await readJsonObject(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
 
       const branchId = body?.branchId;
       if (!branchId || typeof branchId !== "string") {
@@ -76,6 +78,7 @@ export const POST = withAuth(
       const preview = await previewPromotion(parsed.data);
       return ok(preview);
     } catch (error) {
+      if (error instanceof PromotionError) return fail(error.message, error.status, "PROMOTION_REFUSED");
       console.error("[PROMOTION_PREVIEW_POST_ERROR]", error);
       return fail("Unable to generate promotion preview", 500, "INTERNAL");
     }

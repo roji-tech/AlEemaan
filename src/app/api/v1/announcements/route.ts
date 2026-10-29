@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { Role, AnnouncementStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withAuthGated } from "@/lib/auth/branch-gate";
+import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createAnnouncementSchema } from "@/lib/announcements/validation";
 import { listAnnouncements, createAnnouncement, AnnouncementPermissionError } from "@/lib/announcements/service";
 import type { ViewerProfile } from "@/lib/announcements/rules";
+import { readJsonBody } from "@/lib/api/validate";
 
 async function resolveViewer(userId: string, requestedBranchId?: string | null): Promise<ViewerProfile> {
   const user = await prisma.user.findUnique({
@@ -33,7 +35,8 @@ async function resolveViewer(userId: string, requestedBranchId?: string | null):
 /**
  * GET /api/v1/announcements?branchId=...&status=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "read-any",
   async (req: NextRequest, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
@@ -57,10 +60,13 @@ export const GET = withAuth(
  * POST /api/v1/announcements
  * Publishes or drafts a targeted announcement.
  */
-export const POST = withAuth(
+export const POST = withAuthGated(
+  "staff-write",
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createAnnouncementSchema.safeParse(body);
 
       if (!parsed.success) {

@@ -8,7 +8,20 @@ export const metadata: Metadata = { title: "Communication & Multi-Channel Messag
 export const dynamic = "force-dynamic";
 
 export default async function CommunicationPage() {
-  const { memberships, isSuperAdmin } = await requirePageSession();
+  const { memberships, isSuperAdmin, isAdmin } = await requirePageSession();
+
+  // The navigation hides this page from non-administrators, but a link or a typed address still arrives here: say no instead of showing the broadcast screen
+  // (the communication APIs refuse them regardless).
+  if (!isAdmin) {
+    return (
+      <div>
+        <PageHeader title="Communication" />
+        <p role="alert" className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
+          Only administrators can open this page.
+        </p>
+      </div>
+    );
+  }
 
   const branches = isSuperAdmin
     ? await prisma.branch.findMany({
@@ -31,7 +44,7 @@ export default async function CommunicationPage() {
         description="Broadcast targeted multi-channel announcements via SMS, Email, and WhatsApp, monitor dispatch queues, and manage notification templates."
       />
       {branches.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">
           You don&apos;t have access to any school branch communications yet.
         </p>
       ) : (

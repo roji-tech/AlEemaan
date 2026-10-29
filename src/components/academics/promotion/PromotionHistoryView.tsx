@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { PromotionDecision, PromotionBatchStatus } from "@prisma/client";
 
+/// What `GET /academics/promotion/batches` sends for each batch (listPromotionBatches).
 interface BatchItem {
   id: string;
   sourceSession: { id: string; label: string };
@@ -19,18 +20,20 @@ interface BatchItem {
   totalGraduated: number;
   status: PromotionBatchStatus;
   createdAt: string;
-  initiatedByUser: { id: string; email: string };
+  executedBy: { id: string; name: string | null; email: string | null };
 }
 
+/// What `GET /academics/promotion/batches/[id]` sends for each record (getPromotionBatch): the decision TAKEN, how it was reached, the pupil's average, the enrolment they were
+/// moved to, and the decision the rule recommended at that batch's pass mark (worked out from the stored average, because a record keeps the decision taken, not the advice).
 interface BatchRecordDetail {
   id: string;
   student: { id: string; firstName: string; lastName: string; admissionNo: string };
-  sessionAverage: string | number | null;
+  overallAverage: number | null;
   recommendedDecision: PromotionDecision;
-  finalDecision: PromotionDecision;
-  decisionMode: "AUTOMATIC" | "MANUAL_OVERRIDE";
+  decision: PromotionDecision;
+  decisionMode: "AUTOMATIC" | "OVERRIDDEN";
   overrideReason: string | null;
-  targetClassArm: { id: string; name: string } | null;
+  targetEnrollment: { className: string; arm: string | null } | null;
 }
 
 interface BatchDetailResponse {
@@ -46,7 +49,7 @@ interface BatchDetailResponse {
   totalGraduated: number;
   status: PromotionBatchStatus;
   createdAt: string;
-  initiatedByUser: { id: string; email: string };
+  executedBy: { id: string; name: string | null; email: string | null };
   records: BatchRecordDetail[];
 }
 
@@ -58,6 +61,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [batchDetail, setBatchDetail] = useState<BatchDetailResponse | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const loadBatches = useCallback(async () => {
     if (!branchId) return;
@@ -85,6 +89,8 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
 
   const viewDetails = async (id: string) => {
     setSelectedBatchId(id);
+    setBatchDetail(null);
+    setDetailError(null);
     setLoadingDetail(true);
     try {
       const res = await fetch(`/api/v1/academics/promotion/batches/${encodeURIComponent(id)}?branchId=${encodeURIComponent(branchId)}`);
@@ -93,6 +99,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
       setBatchDetail(json.data);
     } catch (err) {
       console.error(err);
+      setDetailError("Unable to load this batch's records. Please try again.");
     } finally {
       setLoadingDetail(false);
     }
@@ -101,6 +108,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
   const closeDetails = () => {
     setSelectedBatchId(null);
     setBatchDetail(null);
+    setDetailError(null);
   };
 
   return (
@@ -124,9 +132,14 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
           No promotion batches have been executed for this branch yet.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
+        <div
+          role="region"
+          aria-label="Promotion history"
+          tabIndex={0}
+          className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
           <table className="w-full text-left text-sm text-fg" aria-label="Promotion history batches">
-            <thead className="border-b border-line bg-surface-muted text-xs font-semibold uppercase text-fg-muted">
+            <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
                 <th scope="col" className="px-4 py-3">
                   Date
@@ -156,7 +169,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
             </thead>
             <tbody className="divide-y divide-line">
               {batches.map((b) => (
-                <tr key={b.id} className="transition-colors hover:bg-surface-muted/50">
+                <tr key={b.id} className="transition-colors hover:bg-surface-2/50">
                   <td className="px-4 py-3 whitespace-nowrap text-xs text-fg-muted">
                     {new Date(b.createdAt).toLocaleDateString(undefined, {
                       year: "numeric",
@@ -176,16 +189,19 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                   </td>
                   <td className="px-4 py-3 text-center font-mono font-medium">{b.totalEvaluated}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-flex items-center rounded-full bg-ok-bg px-2 py-0.5 font-mono text-xs font-semibold text-ok-fg">
                       {b.totalPromoted}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 font-mono text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    <span className="inline-flex items-center rounded-full bg-danger-bg px-2 py-0.5 font-mono text-xs font-semibold text-danger-fg">
                       {b.totalRepeated}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-fg-muted">{b.initiatedByUser.email}</td>
+                  <td className="px-4 py-3 text-xs text-fg-muted">
+                    <div className="font-medium text-fg">{b.executedBy.name ?? b.executedBy.email}</div>
+                    {b.executedBy.name && b.executedBy.email ? <div>{b.executedBy.email}</div> : null}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" className="min-h-9 px-3 py-1.5 text-xs" onClick={() => viewDetails(b.id)}>
                       View Details
@@ -214,7 +230,17 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
         wide
       >
         <div className="space-y-4 pt-2">
-          {loadingDetail || !batchDetail ? (
+          {detailError ? (
+            <div className="space-y-3">
+              <Alert variant="error">{detailError}</Alert>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={closeDetails}>
+                  Close
+                </Button>
+                <Button onClick={() => selectedBatchId && viewDetails(selectedBatchId)}>Try again</Button>
+              </div>
+            </div>
+          ) : loadingDetail || !batchDetail ? (
             <div className="p-8 text-center text-sm text-fg-muted">Loading records...</div>
           ) : (
             <div className="space-y-4">
@@ -223,23 +249,29 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                   <span className="text-fg-muted">Total: </span>
                   <strong className="text-fg">{batchDetail.totalEvaluated}</strong>
                 </div>
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2 text-emerald-600 dark:text-emerald-400">
+                <div className="rounded-lg border border-ok-line bg-ok-bg p-2 text-ok-fg">
                   <span>Promoted: </span>
                   <strong>{batchDetail.totalPromoted}</strong>
                 </div>
-                <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-2 text-rose-600 dark:text-rose-400">
+                <div className="rounded-lg border border-danger-line bg-danger-bg p-2 text-danger-fg">
                   <span>Repeated: </span>
                   <strong>{batchDetail.totalRepeated}</strong>
                 </div>
-                <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-2 text-blue-600 dark:text-blue-400">
+                <div className="rounded-lg border border-info-line bg-info-bg p-2 text-info-fg">
                   <span>Graduated: </span>
                   <strong>{batchDetail.totalGraduated}</strong>
                 </div>
               </div>
 
-              <div className="max-h-96 overflow-y-auto rounded-xl border border-line">
+              {/* A region that scrolls must take keyboard focus, or a keyboard user cannot reach the rows past the edge. */}
+              <div
+                role="region"
+                aria-label="Records of this batch"
+                tabIndex={0}
+                className="max-h-96 overflow-auto rounded-xl border border-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
                 <table className="w-full text-left text-xs" aria-label="Batch student records">
-                  <thead className="sticky top-0 border-b border-line bg-surface-muted font-semibold uppercase text-fg-muted">
+                  <thead className="sticky top-0 border-b border-line bg-surface-2 font-semibold uppercase text-fg-muted">
                     <tr>
                       <th scope="col" className="px-3 py-2">
                         Student
@@ -254,7 +286,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                         Final Decision
                       </th>
                       <th scope="col" className="px-3 py-2">
-                        Target Arm
+                        Moved To
                       </th>
                       <th scope="col" className="px-3 py-2">
                         Override Notes
@@ -271,7 +303,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                           <div className="text-fg-muted">{r.student.admissionNo}</div>
                         </td>
                         <td className="px-3 py-2 text-right font-mono font-medium">
-                          {r.sessionAverage !== null ? `${Number(r.sessionAverage).toFixed(2)}%` : "N/A"}
+                          {r.overallAverage !== null ? `${Number(r.overallAverage).toFixed(2)}%` : "N/A"}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <span className="font-medium text-fg-muted">{r.recommendedDecision}</span>
@@ -279,20 +311,22 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                         <td className="px-3 py-2 text-center">
                           <span
                             className={`font-semibold ${
-                              r.finalDecision === PromotionDecision.PROMOTED
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : r.finalDecision === PromotionDecision.REPEATED
-                                  ? "text-rose-600 dark:text-rose-400"
-                                  : "text-blue-600 dark:text-blue-400"
+                              r.decision === PromotionDecision.PROMOTED
+                                ? "text-ok-fg"
+                                : r.decision === PromotionDecision.REPEATED
+                                  ? "text-danger-fg"
+                                  : "text-info-fg"
                             }`}
                           >
-                            {r.finalDecision}
+                            {r.decision}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-fg">{r.targetClassArm?.name || "—"}</td>
+                        <td className="px-3 py-2 text-fg">
+                          {r.targetEnrollment ? [r.targetEnrollment.className, r.targetEnrollment.arm].filter(Boolean).join(" ") : "—"}
+                        </td>
                         <td className="px-3 py-2 text-fg-muted">
-                          {r.decisionMode === "MANUAL_OVERRIDE" ? (
-                            <span className="text-amber-600 dark:text-amber-400">Override: {r.overrideReason || "Manual adjustment"}</span>
+                          {r.decisionMode === "OVERRIDDEN" ? (
+                            <span className="text-warn-fg">Override: {r.overrideReason || "Manual adjustment"}</span>
                           ) : (
                             <span className="text-fg-muted">Automatic</span>
                           )}

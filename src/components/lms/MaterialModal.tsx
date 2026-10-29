@@ -72,14 +72,14 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
     <Dialog open={isOpen} onClose={onClose} title="Add Learning Material">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <div role="alert" className="p-3 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
             {error}
           </div>
         )}
 
         <div>
-          <label htmlFor={titleId} className="block text-sm font-medium text-foreground">
-            Material Title <span className="text-destructive">*</span>
+          <label htmlFor={titleId} className="block text-sm font-medium text-fg">
+            Material Title <span className="text-danger-fg">*</span>
           </label>
           <input
             id={titleId}
@@ -88,20 +88,20 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
             placeholder="e.g. Chapter 4: Arabic Grammar Notes"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor={subjectFieldId} className="block text-sm font-medium text-foreground">
-              Subject <span className="text-destructive">*</span>
+            <label htmlFor={subjectFieldId} className="block text-sm font-medium text-fg">
+              Subject <span className="text-danger-fg">*</span>
             </label>
             <select
               id={subjectFieldId}
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -112,14 +112,14 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
           </div>
 
           <div>
-            <label htmlFor={classGroupFieldId} className="block text-sm font-medium text-foreground">
+            <label htmlFor={classGroupFieldId} className="block text-sm font-medium text-fg">
               Target Class (Optional)
             </label>
             <select
               id={classGroupFieldId}
               value={classGroupId}
               onChange={(e) => setClassGroupId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">All Classes in Subject</option>
               {classGroups.map((cg) => (
@@ -132,14 +132,14 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
         </div>
 
         <div>
-          <label htmlFor={materialTypeId} className="block text-sm font-medium text-foreground">
+          <label htmlFor={materialTypeId} className="block text-sm font-medium text-fg">
             Type of Resource
           </label>
           <select
             id={materialTypeId}
             value={materialType}
             onChange={(e) => setMaterialType(e.target.value as "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER")}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="DOCUMENT">Document / PDF</option>
             <option value="VIDEO_LINK">Video Link / Recording</option>
@@ -150,7 +150,7 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
         </div>
 
         <div>
-          <label htmlFor={urlId} className="block text-sm font-medium text-foreground">
+          <label htmlFor={urlId} className="block text-sm font-medium text-fg">
             Resource Link or Document URL
           </label>
           <input
@@ -159,12 +159,12 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
             placeholder="https://example.com/materials/reading.pdf"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor={descriptionId} className="block text-sm font-medium text-foreground">
+          <label htmlFor={descriptionId} className="block text-sm font-medium text-fg">
             Short Summary / Description
           </label>
           <textarea
@@ -173,12 +173,12 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
             placeholder="Brief overview of what students will learn from this resource."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor={contentId} className="block text-sm font-medium text-foreground">
+          <label htmlFor={contentId} className="block text-sm font-medium text-fg">
             Inline Content / Notes (Markdown supported)
           </label>
           <textarea
@@ -187,7 +187,7 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
             placeholder="Detailed notes, study guide, or key concepts..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-xs font-mono text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -197,26 +197,26 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
             type="checkbox"
             checked={published}
             onChange={(e) => setPublished(e.target.checked)}
-            className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+            className="h-4 w-4 rounded border-line-strong text-brand-fg focus:ring-ring"
           />
-          <label htmlFor={publishedId} className="text-sm font-medium text-foreground">
+          <label htmlFor={publishedId} className="text-sm font-medium text-fg">
             Publish immediately (visible to students)
           </label>
         </div>
 
-        <div className="flex justify-end gap-3 pt-3 border-t border-border">
+        <div className="flex justify-end gap-3 pt-3 border-t border-line">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            className="rounded-lg border border-line-strong bg-field px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+            className="inline-flex justify-center rounded-lg bg-brand-strong px-4 py-2 text-sm font-medium text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Publishing..." : "Publish Material"}
           </button>

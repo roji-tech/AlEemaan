@@ -52,3 +52,8 @@ export const NETWORK_ERROR = "Can't reach the server. Check your internet connec
 export const GENERIC_ERROR = "That didn't work. Please try again in a moment.";
 export const RATE_LIMITED = "Too many attempts. Please wait a few minutes and try again.";
 export const SESSION_ENDED = "Your session has ended. Please sign in again.";
+
+/// POST a multipart form (a picture and its description). The browser sets the Content-Type with its boundary; nothing else about the reply differs.
+export function sendForm(path: string, form: FormData): Promise<Reply> {
+  return request(path, { method: "POST", body: form });
+}

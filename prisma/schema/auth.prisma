@@ -61,6 +61,23 @@ model User {
   announcements         Announcement[]
   notificationDispatches NotificationDispatch[]
   executedPromotions    PromotionBatch[]         @relation("PromotionExecutor")
+  bankItemsSubmitted    QuestionBankItem[]       @relation("BankItemSubmitter")
+  bankItemsApproved     QuestionBankItem[]       @relation("BankItemApprover")
+  bankReviewsGiven      QuestionBankReview[]     @relation("BankReviewsGiven")
+  bankVersionsWritten   QuestionBankItemVersion[] @relation("BankVersionsWritten")
+  bankReviewerRows      QuestionBankReviewer[]   @relation("BankReviewerUser")
+  bankReviewersAssigned QuestionBankReviewer[]   @relation("BankReviewerAssigner")
+  bankAudits            QuestionBankAudit[]      @relation("BankAudits")
+  bankReportsFiled      QuestionReport[]         @relation("ReportTeacher")
+  bankReportsResolved   QuestionReport[]         @relation("ReportResolver")
+  formsCreated          Form[]                   @relation("FormsCreated")
+  formsClosed           Form[]                   @relation("FormsClosed")
+  formTurnInsMarked     FormTurnIn[]             @relation("TurnInsMarked")
+  turnInAudits          FormTurnInAudit[]        @relation("TurnInAuditActor")
+  formResponsesMarked   FormResponse[]           @relation("ResponsesMarked")
+  formAnswersMarked     FormAnswer[]             @relation("AnswersMarked")
+  markingAudits         FormMarkingAudit[]       @relation("MarkingAuditActor")
+  printLogs             QuestionBankPrintLog[]   @relation("PrintLogActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

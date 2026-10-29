@@ -1,15 +1,18 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
+import { withAuthGated } from "@/lib/auth/branch-gate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { canAdminister } from "@/lib/auth/branch-access";
 import { ok, fail } from "@/lib/api/envelope";
 import { createTimetableSlotSchema } from "@/lib/timetable/validation";
 import { listTimetableSlots, createTimetableSlot, TimetableClashError } from "@/lib/timetable/service";
+import { readJsonBody } from "@/lib/api/validate";
 
 /**
  * GET /api/v1/timetable?branchId=...&classArmId=...&staffRecordId=...&dayOfWeek=...
  */
-export const GET = withAuth(
+export const GET = withAuthGated(
+  "read-any",
   async (req: NextRequest) => {
     try {
       const { searchParams } = new URL(req.url);
@@ -47,7 +50,9 @@ export const GET = withAuth(
 export const POST = withAuth(
   async (req: NextRequest, auth: AuthContext) => {
     try {
-      const body = await req.json();
+      const read = await readJsonBody(req);
+      if (!read.ok) return read.response;
+      const body = read.json;
       const parsed = createTimetableSlotSchema.safeParse(body);
 
       if (!parsed.success) {

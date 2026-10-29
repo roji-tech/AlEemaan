@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
+import { hasActiveMfa } from "@/lib/auth/mfa/service";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { getSchoolSettings } from "@/lib/settings/school-settings";
 import { listSessions } from "@/lib/academics/sessions";
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { isSuperAdmin } = await requirePageSession();
+  const { session, isSuperAdmin } = await requirePageSession();
 
   if (!isSuperAdmin) {
     return (
@@ -51,6 +52,7 @@ export default async function SettingsPage() {
         website: settings.website || "",
       }}
       branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+      hasMfa={await hasActiveMfa(session.userId)}
       initialSessions={sessions.map((s) => ({
         id: s.id,
         branchId: s.branchId,

@@ -22,7 +22,9 @@ export default async function LmsPage() {
       });
 
   const userBranchId = memberships[0]?.branchId ?? null;
-  const primaryRole = memberships[0]?.role ?? "STUDENT";
+  // The role is per BRANCH (a teacher in one branch may be a parent in another), and a superadmin is an administrator everywhere.
+  const rolesByBranch: Record<string, string> = Object.fromEntries(branches.map((b) => [b.id, isSuperAdmin ? "ADMIN" : "STUDENT"]));
+  if (!isSuperAdmin) for (const m of memberships) rolesByBranch[m.branchId] = m.role;
 
   return (
     <div className="space-y-6">
@@ -31,11 +33,11 @@ export default async function LmsPage() {
         description="Deliver homework assignments, evaluate student submissions with SpeedGrader, distribute syllabus materials, and conduct interactive quizzes."
       />
       {branches.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">
           You don&apos;t have access to any school branch coursework yet.
         </p>
       ) : (
-        <LmsPanel branches={branches} userRole={primaryRole} userBranchId={userBranchId} />
+        <LmsPanel branches={branches} rolesByBranch={rolesByBranch} userBranchId={userBranchId} />
       )}
     </div>
   );
