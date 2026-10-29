@@ -58,6 +58,9 @@ export const quizQuestionSchema = z.object({
   correctAnswer: z.string().min(1, "Correct answer is required"),
   points: z.number().int().min(1).default(1),
   sortOrder: z.number().int().default(0),
+  sourceItemId: z.string().optional().nullable(),
+  sourceVersion: z.number().int().optional().nullable(),
+  exposedToPractice: z.boolean().optional().default(false),
 });
 
 export const createQuizSchema = z.object({
@@ -68,11 +71,22 @@ export const createQuizSchema = z.object({
   instructions: z.string().optional().nullable(),
   timeLimitMinutes: z.number().int().min(1).max(360).optional().nullable(),
   passingScore: z.number().min(0).max(100).optional().nullable(),
+  isExamTemplate: z.boolean().optional().default(false),
+  examWindowStart: z.string().datetime().optional().nullable(),
+  examWindowEnd: z.string().datetime().optional().nullable(),
   status: z.nativeEnum(QuizStatus).default(QuizStatus.DRAFT),
   questions: z.array(quizQuestionSchema).min(1, "At least one question is required"),
 });
 
 export const updateQuizSchema = createQuizSchema.partial().omit({ branchId: true });
+
+export const offerBackSchema = z.object({
+  quizId: z.string().min(1, "Quiz ID is required"),
+  quizQuestionId: z.string().min(1, "Question ID is required"),
+  subjectLabel: z.string().max(100).optional(),
+  topic: z.string().max(100).optional(),
+  difficulty: z.number().int().min(1).max(5).optional(),
+});
 
 export const quizAttemptAnswerSchema = z.object({
   questionId: z.string().min(1),

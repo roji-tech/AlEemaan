@@ -69,16 +69,18 @@ model QuestionBankItem {
   subjectKey    String?
   visibility    BankVisibility   @default(TEACHERS_ONLY)
   /// For TEACHERS_ONLY_UNTIL: the date from which pupils may see it (the "until an assessment closes" form arrives with slice 3).
-  visibleFrom   DateTime?
-  status        BankItemStatus   @default(DRAFT)
+  visibleFrom        DateTime?
+  /// For TEACHERS_ONLY_UNTIL: the assessment whose close unlocks the item for pupils.
+  visibleAfterQuizId String?
+  status             BankItemStatus   @default(DRAFT)
   /// A fix creates a new version; old versions are kept.
-  version       Int              @default(1)
-  submittedById String
-  approvedById  String?
-  approvedAt    DateTime?
-  retiredReason String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @default(now()) @updatedAt
+  version            Int              @default(1)
+  submittedById      String
+  approvedById       String?
+  approvedAt         DateTime?
+  retiredReason      String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @default(now()) @updatedAt
 
   branch      Branch?                @relation(fields: [branchId], references: [id], onDelete: Restrict)
   submittedBy User                   @relation("BankItemSubmitter", fields: [submittedById], references: [id], onDelete: NoAction)
@@ -89,10 +91,14 @@ model QuestionBankItem {
   versions    QuestionBankItemVersion[]
   flags       QuestionOverlapFlag[]  @relation("FlagItem")
   similarTo   QuestionOverlapFlag[]  @relation("FlagSimilarTo")
+  practiceAttempts    PracticeAttempt[]
+  reports             QuestionReport[]
+  copiedFormQuestions FormQuestion[]
 
   @@index([branchId, status])
   @@index([status, visibility])
   @@index([bank, subjectKey])
+  @@index([visibleAfterQuizId])
 }
 
 /// At most 4 per item (a trigger; the superadmin's setting, 3 or 4, is enforced by the service). Alt text is required unless the image is marked decorative (a check).
@@ -226,3 +232,150 @@ model QuestionBankAudit {
   @@index([itemId])
   @@index([createdAt])
 }
+
+// --- Pupil Practice (Task 0032 slice 4; design note docs/development-history/forms-and-question-bank-design.md §8.4) ---
+
+enum PracticeFeedbackMode {
+  EACH
+  END
+}
+
+/// A pupil's practice set. Draws random approved PRACTICE items for the pupil's class. Never graded; private to the pupil.
+model PracticeSession {
+  id           String               @id @default(cuid())
+  branchId     String
+  studentId    String
+  classGroupId String?
+  subjectLabel String?
+  subjectKey   String?
+  topic        String?
+  size         Int
+  feedbackMode PracticeFeedbackMode @default(EACH)
+  itemIds      Json                 @default("[]")
+  startedAt    DateTime             @default(now())
+  finishedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @default(now()) @updatedAt
+
+  branch   Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student  StudentRecord     @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  attempts PracticeAttempt[]
+
+  @@unique([branchId, id])
+  @@index([branchId, studentId])
+  @@index([branchId, studentId, startedAt])
+}
+
+/// An answer given in a practice session. Kept for history; a pupil can archive entries (hidden from pupil's view, still feeds class summaries).
+model PracticeAttempt {
+  id         String    @id @default(cuid())
+  sessionId  String
+  branchId   String
+  studentId  String
+  bankItemId String
+  version    Int
+  answer     Json
+  correct    Boolean
+  answeredAt DateTime  @default(now())
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  branch   Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session  PracticeSession  @relation(fields: [branchId, sessionId], references: [branchId, id], onDelete: Cascade)
+  student  StudentRecord    @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  bankItem QuestionBankItem @relation(fields: [bankItemId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@index([branchId, sessionId])
+  @@index([branchId, studentId])
+  @@index([branchId, studentId, archivedAt])
+  @@index([branchId, bankItemId])
+}
+
+// --- Question Reports (Task 0032 slice 5; design note §8.5) ---
+
+enum QuestionReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum QuestionReportOutcome {
+  FIXED
+  NOT_AN_ERROR
+  NEEDS_DISCUSSION
+}
+
+/// An issue reported on a question by a teacher or pupil ("report an issue", not a thread).
+/// Reviewers see role and section only (NDPA privacy protection: pupil identities never shown).
+model QuestionReport {
+  id                String                 @id @default(cuid())
+  branchId          String?
+  itemId            String
+  itemVersion       Int
+  reporterRole      String                 // "TEACHER" | "PUPIL"
+  reporterSection   String                 // e.g. "JSS", "SSS", or branch name
+  reporterUserId    String?
+  reporterStudentId String?
+  reason            String
+  status            QuestionReportStatus   @default(OPEN)
+  outcome           QuestionReportOutcome?
+  outcomeReason     String?
+  resolvedById      String?
+  resolvedAt        DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @default(now()) @updatedAt
+
+  branch          Branch?          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  item            QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  reporterUser    User?            @relation("ReportTeacher", fields: [reporterUserId], references: [id], onDelete: SetNull)
+  reporterStudent StudentRecord?   @relation("ReportPupil", fields: [reporterStudentId], references: [id], onDelete: SetNull)
+  resolvedBy      User?            @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([branchId, status])
+  @@index([itemId, status])
+  @@index([reporterUserId])
+  @@index([reporterStudentId])
+}
+
+// --- Printing: Server PDFs, Windows, Watermark, Logs (Task 0032 slice 10; design note §7.7, §8.9, §11, §13.10) ---
+
+enum PrintTargetKind {
+  QUESTION_BANK_ITEM
+  FORM
+  QUIZ
+  PRACTICE_SESSION
+  FORM_RESPONSE
+}
+
+/// Audit log for server-generated PDF prints with watermarks.
+/// Append-only: database trigger prevents updates or deletions.
+model QuestionBankPrintLog {
+  id                 String          @id @default(cuid())
+  branchId           String
+  userId             String?
+  studentId          String?
+  targetKind         PrintTargetKind
+  targetId           String
+  title              String
+  watermark          String
+  pageCount          Int             @default(1)
+  reason             String?
+  recipientStudentId String?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime        @default(now())
+
+  branch           Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user             User?          @relation("PrintLogActor", fields: [userId], references: [id], onDelete: SetNull)
+  student          StudentRecord? @relation("PrintLogStudent", fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  recipientStudent StudentRecord? @relation("PrintLogRecipient", fields: [branchId, recipientStudentId], references: [branchId, id], onDelete: SetNull)
+
+  @@unique([branchId, id])
+  @@index([branchId, targetKind, targetId])
+  @@index([branchId, userId])
+  @@index([branchId, studentId])
+  @@index([branchId, recipientStudentId])
+  @@index([branchId, createdAt])
+}
+

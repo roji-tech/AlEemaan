@@ -59,6 +59,19 @@ model Branch {
   bankItems             QuestionBankItem[]
   bankReviewers         QuestionBankReviewer[]
   bankAudits            QuestionBankAudit[]
+  practiceSessions      PracticeSession[]
+  practiceAttempts      PracticeAttempt[]
+  questionReports       QuestionReport[]
+  forms                 Form[]
+  formAudiences         FormAudience[]
+  formQuestions         FormQuestion[]
+  formResponses         FormResponse[]
+  formAnswers           FormAnswer[]
+  formParticipations    FormParticipation[]
+  formTurnIns           FormTurnIn[]
+  formTurnInAudits      FormTurnInAudit[]
+  formMarkingAudits     FormMarkingAudit[]
+  questionBankPrintLogs QuestionBankPrintLog[]
 
   createdAt DateTime @default(now())
 }

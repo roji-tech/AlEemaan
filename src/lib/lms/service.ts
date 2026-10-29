@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { AssignmentStatus, SubmissionStatus, QuizStatus, Prisma } from "@prisma/client";
 import { resolveSubmissionStatus, evaluateQuizAttempt, type QuizAnswerItem } from "./rules";
+import { isTemplateHidden, isExposedToPractice } from "@/lib/question-bank/assessments";
 
 export class LmsError extends Error {
   constructor(
@@ -335,6 +336,9 @@ export interface CreateQuizParams {
   instructions?: string | null;
   timeLimitMinutes?: number | null;
   passingScore?: number | null;
+  isExamTemplate?: boolean;
+  examWindowStart?: string | null;
+  examWindowEnd?: string | null;
   status?: QuizStatus;
   createdById?: string | null;
   questions: {
@@ -344,6 +348,9 @@ export interface CreateQuizParams {
     correctAnswer: string;
     points?: number;
     sortOrder?: number;
+    sourceItemId?: string | null;
+    sourceVersion?: number | null;
+    exposedToPractice?: boolean;
   }[];
 }
 
@@ -360,6 +367,17 @@ export async function createQuiz(params: CreateQuizParams) {
     staffId = staff?.id ?? null;
   }
 
+  // Pre-fetch any source items to populate sourceVersion and exposedToPractice
+  const sourceItemIds = params.questions.map((q) => q.sourceItemId).filter(Boolean) as string[];
+  const sourceItems =
+    sourceItemIds.length > 0
+      ? await prisma.questionBankItem.findMany({
+          where: { id: { in: sourceItemIds } },
+          select: { id: true, version: true, visibility: true, visibleFrom: true },
+        })
+      : [];
+  const sourceMap = new Map(sourceItems.map((item) => [item.id, item]));
+
   return prisma.quiz.create({
     data: {
       branchId: params.branchId,
@@ -369,17 +387,29 @@ export async function createQuiz(params: CreateQuizParams) {
       instructions: params.instructions,
       timeLimitMinutes: params.timeLimitMinutes,
       passingScore: params.passingScore,
+      isExamTemplate: params.isExamTemplate ?? false,
+      examWindowStart: params.examWindowStart ? new Date(params.examWindowStart) : null,
+      examWindowEnd: params.examWindowEnd ? new Date(params.examWindowEnd) : null,
       status: params.status ?? QuizStatus.DRAFT,
       createdById: staffId,
       questions: {
-        create: params.questions.map((q, idx) => ({
-          prompt: q.prompt,
-          questionType: q.questionType ?? "MULTIPLE_CHOICE",
-          options: q.options ? (q.options as unknown as Prisma.InputJsonValue) : [],
-          correctAnswer: q.correctAnswer,
-          points: q.points ?? 1,
-          sortOrder: q.sortOrder ?? idx,
-        })),
+        create: params.questions.map((q, idx) => {
+          const source = q.sourceItemId ? sourceMap.get(q.sourceItemId) : null;
+          const sourceVersion = q.sourceVersion ?? source?.version ?? null;
+          const exposedToPractice = q.exposedToPractice ?? (source ? isExposedToPractice(source) : false);
+
+          return {
+            prompt: q.prompt,
+            questionType: q.questionType ?? "MULTIPLE_CHOICE",
+            options: q.options ? (q.options as unknown as Prisma.InputJsonValue) : [],
+            correctAnswer: q.correctAnswer,
+            points: q.points ?? 1,
+            sortOrder: q.sortOrder ?? idx,
+            sourceItemId: q.sourceItemId ?? null,
+            sourceVersion,
+            exposedToPractice,
+          };
+        }),
       },
     },
     include: {
@@ -390,8 +420,12 @@ export async function createQuiz(params: CreateQuizParams) {
   });
 }
 
-export async function listQuizzes(branchId: string, filter?: { subjectId?: string; status?: QuizStatus }) {
-  return prisma.quiz.findMany({
+export async function listQuizzes(
+  branchId: string,
+  filter?: { subjectId?: string; status?: QuizStatus },
+  viewer?: { userId: string; isSuperAdmin: boolean },
+) {
+  const quizzes = await prisma.quiz.findMany({
     where: {
       branchId,
       archivedAt: null,
@@ -402,19 +436,39 @@ export async function listQuizzes(branchId: string, filter?: { subjectId?: strin
       questions: { orderBy: { sortOrder: "asc" } },
       subject: { select: { id: true, name: true, code: true } },
       classGroup: { select: { id: true, name: true } },
+      creator: { select: { userId: true } },
       _count: { select: { questions: true, attempts: true } },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  if (!viewer) return quizzes;
+
+  return quizzes.filter((quiz) => {
+    return !isTemplateHidden(
+      {
+        isExamTemplate: quiz.isExamTemplate,
+        examWindowStart: quiz.examWindowStart,
+        examWindowEnd: quiz.examWindowEnd,
+        createdById: quiz.creator?.userId ?? null,
+      },
+      viewer,
+    );
+  });
 }
 
-export async function getQuizById(branchId: string, id: string) {
+export async function getQuizById(
+  branchId: string,
+  id: string,
+  viewer?: { userId: string; isSuperAdmin: boolean },
+) {
   const quiz = await prisma.quiz.findFirst({
     where: { id, branchId, archivedAt: null },
     include: {
       questions: { orderBy: { sortOrder: "asc" } },
       subject: { select: { id: true, name: true, code: true } },
       classGroup: { select: { id: true, name: true } },
+      creator: { select: { userId: true } },
       attempts: {
         include: {
           student: { select: { id: true, firstName: true, lastName: true, admissionNo: true } },
@@ -427,7 +481,94 @@ export async function getQuizById(branchId: string, id: string) {
   if (!quiz) {
     throw new LmsError("Quiz not found", 404);
   }
+
+  if (viewer) {
+    const hidden = isTemplateHidden(
+      {
+        isExamTemplate: quiz.isExamTemplate,
+        examWindowStart: quiz.examWindowStart,
+        examWindowEnd: quiz.examWindowEnd,
+        createdById: quiz.creator?.userId ?? null,
+      },
+      viewer,
+    );
+    if (hidden) {
+      throw new LmsError("Quiz not found", 404);
+    }
+  }
+
   return quiz;
+}
+
+export async function updateQuiz(
+  branchId: string,
+  id: string,
+  data: Partial<CreateQuizParams>,
+  viewer?: { userId: string; isSuperAdmin: boolean },
+) {
+  await getQuizById(branchId, id, viewer);
+
+  return prisma.$transaction(async (tx) => {
+    if (data.questions) {
+      const sourceItemIds = data.questions.map((q) => q.sourceItemId).filter(Boolean) as string[];
+      const sourceItems =
+        sourceItemIds.length > 0
+          ? await tx.questionBankItem.findMany({
+              where: { id: { in: sourceItemIds } },
+              select: { id: true, version: true, visibility: true, visibleFrom: true },
+            })
+          : [];
+      const sourceMap = new Map(sourceItems.map((item) => [item.id, item]));
+
+      await tx.quizQuestion.deleteMany({ where: { branchId, quizId: id } });
+      await tx.quizQuestion.createMany({
+        data: data.questions.map((q, idx) => {
+          const source = q.sourceItemId ? sourceMap.get(q.sourceItemId) : null;
+          const sourceVersion = q.sourceVersion ?? source?.version ?? null;
+          const exposedToPractice = q.exposedToPractice ?? (source ? isExposedToPractice(source) : false);
+
+          return {
+            branchId,
+            quizId: id,
+            prompt: q.prompt,
+            questionType: q.questionType ?? "MULTIPLE_CHOICE",
+            options: q.options ? (q.options as unknown as Prisma.InputJsonValue) : [],
+            correctAnswer: q.correctAnswer,
+            points: q.points ?? 1,
+            sortOrder: q.sortOrder ?? idx,
+            sourceItemId: q.sourceItemId ?? null,
+            sourceVersion,
+            exposedToPractice,
+          };
+        }),
+      });
+    }
+
+    return tx.quiz.update({
+      where: { branchId_id: { branchId, id } },
+      data: {
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.instructions !== undefined ? { instructions: data.instructions } : {}),
+        ...(data.timeLimitMinutes !== undefined ? { timeLimitMinutes: data.timeLimitMinutes } : {}),
+        ...(data.passingScore !== undefined ? { passingScore: data.passingScore } : {}),
+        ...(data.isExamTemplate !== undefined ? { isExamTemplate: data.isExamTemplate } : {}),
+        ...(data.examWindowStart !== undefined
+          ? { examWindowStart: data.examWindowStart ? new Date(data.examWindowStart) : null }
+          : {}),
+        ...(data.examWindowEnd !== undefined
+          ? { examWindowEnd: data.examWindowEnd ? new Date(data.examWindowEnd) : null }
+          : {}),
+        ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.classGroupId !== undefined ? { classGroupId: data.classGroupId } : {}),
+        ...(data.subjectId !== undefined ? { subjectId: data.subjectId } : {}),
+      },
+      include: {
+        questions: { orderBy: { sortOrder: "asc" } },
+        subject: { select: { id: true, name: true, code: true } },
+        classGroup: { select: { id: true, name: true } },
+      },
+    });
+  });
 }
 
 export async function archiveQuiz(branchId: string, id: string) {
