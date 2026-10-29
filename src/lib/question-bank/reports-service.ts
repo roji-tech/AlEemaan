@@ -5,6 +5,7 @@ import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
 import { loadViewer } from "@/lib/question-bank/viewer";
 import { staffMaySee, reviewPower } from "@/lib/question-bank/rules";
 import { copyFromBankItem, type BankItemToCopy } from "./assessments";
+import { startOfSchoolDay } from "./school-day";
 import { MAX_REGRADE_ATTEMPTS, groupChanges, planAttemptRegrade, type AttemptChange } from "./regrade";
 import {
   sanitizeReportReason,
@@ -12,7 +13,6 @@ import {
   pupilCellsAtMinimum,
   reportCell,
   reportLimitReached,
-  startOfUtcDay,
   computeRegradeImpact,
   validateReportOutcome,
   type RegradeImpactSummary,
@@ -41,7 +41,7 @@ async function lockReporter(tx: Prisma.TransactionClient, reporter: string) {
 async function enforceReportLimits(tx: Prisma.TransactionClient, role: "PUPIL" | "TEACHER", who: Prisma.QuestionReportWhereInput) {
   const [openCount, todayCount] = await Promise.all([
     tx.questionReport.count({ where: { ...who, status: QuestionReportStatus.OPEN } }),
-    tx.questionReport.count({ where: { ...who, createdAt: { gte: startOfUtcDay() } } }),
+    tx.questionReport.count({ where: { ...who, createdAt: { gte: startOfSchoolDay() } } }),
   ]);
   const reached = reportLimitReached(role, openCount, todayCount);
   if (reached === "OPEN") {

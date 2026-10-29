@@ -7,10 +7,17 @@ export const isBranchStaff = async (userId: string, branchId: string): Promise<b
 
 type WithQuestions = { questions?: { correctAnswer?: string }[]; attempts?: unknown };
 
+/// A copy of a question with its answer key taken off.
+const withoutAnswer = <Q extends { correctAnswer?: string }>(question: Q): Q => {
+  const copy = { ...question };
+  delete copy.correctAnswer;
+  return copy;
+};
+
 export function hideAnswerKey<T extends WithQuestions>(quiz: T): T {
   return {
     ...quiz,
-    ...(quiz.questions ? { questions: quiz.questions.map(({ correctAnswer: _answer, ...q }) => q) } : {}),
+    ...(quiz.questions ? { questions: quiz.questions.map((q) => withoutAnswer(q)) } : {}),
     ...("attempts" in quiz ? { attempts: [] } : {}),
   };
 }

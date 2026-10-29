@@ -8,6 +8,7 @@ import {
 } from "@/lib/question-bank/printing-service";
 import { PrintTargetKind } from "@prisma/client";
 import { z } from "zod";
+import { auditClientInfo } from "@/lib/auth/rate-limit";
 
 const printRequestSchema = z.object({
   branchId: z.string().min(1, "branchId is required"),
@@ -37,8 +38,7 @@ export const POST = withAuthGated(
     }
 
     try {
-      const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined;
-      const userAgent = req.headers.get("user-agent") || undefined;
+      const { ipAddress, userAgent } = auditClientInfo(req);
 
       const result = await printTarget({
         branchId: parsed.data.branchId,
