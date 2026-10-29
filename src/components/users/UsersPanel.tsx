@@ -323,6 +323,11 @@ export function UsersPanel({
                           Approves results
                         </span>
                       )}
+                      {member.canViewFormResults && (
+                        <span className="ml-2 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold text-brand-fg">
+                          Reads form results
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-fg-2">
                       <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Branch: </span>
