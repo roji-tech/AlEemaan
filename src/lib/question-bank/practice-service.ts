@@ -1,6 +1,7 @@
 import { Prisma, PracticeFeedbackMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { normalizeLabel } from "@/lib/question-bank/labels";
+import { startOfSchoolDay } from "@/lib/question-bank/school-day";
 import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
 import { getPortalAccess } from "@/lib/portal/access-service";
 import { accessFor, type Actor } from "@/lib/portal/access";
@@ -22,13 +23,6 @@ export class PracticeError extends Error {
     super(message);
     this.name = "PracticeError";
   }
-}
-
-/**
- * Returns beginning of today in UTC.
- */
-function getStartOfTodayUtc(now = new Date()): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
 }
 
 /**
@@ -68,7 +62,7 @@ async function getStudentClassGroup(studentId: string) {
 }
 
 /**
- * Counts the questions a pupil has taken on today (UTC): the ones answered, plus the ones in sessions started today that are still open and not yet answered. The
+ * Counts the questions a pupil has taken on today (the school's day, see school-day.ts): the ones answered, plus the ones in sessions started today that are still open and not yet answered. The
  * cap is about what a pupil sets out to do, so a session that is started and not answered has used its questions; finishing it gives the unanswered ones back.
  */
 async function countTodayAttempts(
@@ -77,11 +71,11 @@ async function countTodayAttempts(
   now = new Date(),
   db: Pick<typeof prisma, "practiceAttempt" | "practiceSession"> = prisma,
 ): Promise<number> {
-  const todayUtc = getStartOfTodayUtc(now);
+  const dayStart = startOfSchoolDay(now);
   const [answered, open] = await Promise.all([
-    db.practiceAttempt.count({ where: { branchId, studentId, answeredAt: { gte: todayUtc } } }),
+    db.practiceAttempt.count({ where: { branchId, studentId, answeredAt: { gte: dayStart } } }),
     db.practiceSession.findMany({
-      where: { branchId, studentId, finishedAt: null, startedAt: { gte: todayUtc } },
+      where: { branchId, studentId, finishedAt: null, startedAt: { gte: dayStart } },
       select: { size: true, _count: { select: { attempts: true } } },
     }),
   ]);
@@ -526,10 +520,10 @@ export async function getPracticeHistory(params: {
     });
 
     const attempts = await prisma.practiceAttempt.findMany({
+      // Every attempt counts, archived or not: archiving tidies the pupil's own list, it does not take an answer out of what is reported.
       where: {
         branchId: params.branchId,
         studentId: params.studentId,
-        archivedAt: null,
       },
       include: {
         bankItem: { select: { subjectLabel: true, topic: true } },
@@ -602,7 +596,7 @@ export async function archivePracticeAttempt(params: {
   attemptId: string;
   archived: boolean;
 }) {
-  // Archiving changes what the guardian's summary counts, so it is the pupil's own choice.
+  // Archiving only changes the pupil's own list (the summary counts archived attempts too), but it is still the pupil's own choice to tidy it.
   if (params.actor !== "PUPIL") {
     throw new PracticeError("Your sign-in does not include this.", 403, "PORTAL_ACCESS");
   }

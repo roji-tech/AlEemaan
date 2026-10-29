@@ -5,6 +5,7 @@ import {
   printPupilPracticeSession,
   PrintingServiceError,
 } from "@/lib/question-bank/printing-service";
+import { auditClientInfo } from "@/lib/auth/rate-limit";
 
 /**
  * GET /api/v1/portal/students/[studentId]/question-bank/practice/[sessionId]/print
@@ -27,8 +28,7 @@ export async function GET(
   const format = searchParams.get("format") || "pdf";
 
   try {
-    const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined;
-    const userAgent = req.headers.get("user-agent") || undefined;
+    const { ipAddress, userAgent } = auditClientInfo(req);
 
     const result = await printPupilPracticeSession({
       branchId: gate.branchId,

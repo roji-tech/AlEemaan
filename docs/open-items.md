@@ -135,3 +135,6 @@ Octalve Edu lets the school's administrator give a member of non-teaching staff 
 
 ## Question reports: the re-grade and the limits (2026-10-29) - resolved
 What "apply the correction and re-grade" means, and a limit on reports per person, were open here and are built (task 0032, section 4o): `applyRegrade` corrects the copies in the report's branch and scores their attempts again, narrowly and with an audit trail; a person is limited to 10 (pupil) or 20 (teacher) reports waiting and 20 or 50 a day. Still open on that side: the limits are constants, not switches; and an attempt submitted while a correction runs may keep the earlier key's score.
+
+## The lows of the review (2026-10-29) - resolved
+Three were built (the print audit address, the guardian's summary counting archived attempts, the school's day via `SCHOOL_TIME_ZONE`) and the lint warning removed; two were read and are not defects (the in-memory limiter is right for one process; a general question has no branch, so its keys are not composite). Task 0032, section 4p. Still open on that side: `SCHOOL_TIME_ZONE` is read from the environment, not a setting a head teacher can change in the app.

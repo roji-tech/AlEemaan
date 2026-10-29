@@ -105,6 +105,7 @@ export function serverEnv(appUrl: string): Record<string, string> {
     APP_URL: appUrl,
     CLIENT_IP_HEADER: "x-real-ip",
     TRUSTED_PROXY_HOPS: "1",
+    SCHOOL_TIME_ZONE: "UTC", // the daily limits count the UTC day, whatever the developer's .env says
     SETUP_TOKEN: "",
     EMAIL_TRANSPORT: "file",
     EMAIL_FILE,
