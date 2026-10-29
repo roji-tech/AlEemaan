@@ -4,6 +4,8 @@ import { QuestionReportOutcome, QuestionReportStatus } from "@prisma/client";
 import {
   sanitizeReportReason,
   maskReporterForReviewer,
+  pupilCellsAtMinimum,
+  reportCell,
   computeRegradeImpact,
   validateReportOutcome,
 } from "@/lib/question-bank/reports";
@@ -143,6 +145,42 @@ test.describe("Question reports pure domain logic", () => {
     test("rejects invalid outcome and short reasons", () => {
       expect(validateReportOutcome("INVALID", "Valid explanation").ok).toBe(false);
       expect(validateReportOutcome(QuestionReportOutcome.FIXED, "ab").ok).toBe(false);
+    });
+  });
+
+  test.describe("pupil report groups (the small-summary threshold)", () => {
+    const report = (itemId: string, reporterSection: string, reporterStudentId: string | null) => ({ itemId, reporterSection, reporterStudentId });
+
+    test("a question and section reach the minimum with that many DIFFERENT pupils", () => {
+      const reports = ["a", "b", "c"].map((pupil) => report("q1", "JSS", pupil));
+      expect(pupilCellsAtMinimum(reports, 3).has(reportCell("q1", "JSS"))).toBe(true);
+      expect(pupilCellsAtMinimum(reports, 4).has(reportCell("q1", "JSS"))).toBe(false);
+    });
+
+    test("one pupil reporting twice counts once", () => {
+      const reports = [report("q1", "JSS", "a"), report("q1", "JSS", "a"), report("q1", "JSS", "b")];
+      expect(pupilCellsAtMinimum(reports, 3).size).toBe(0);
+      expect(pupilCellsAtMinimum(reports, 2).has(reportCell("q1", "JSS"))).toBe(true);
+    });
+
+    test("another section, or another question, is another group", () => {
+      const reports = [report("q1", "JSS", "a"), report("q1", "JSS", "b"), report("q1", "SSS", "c"), report("q2", "JSS", "d")];
+      const cells = pupilCellsAtMinimum(reports, 2);
+      expect(cells.has(reportCell("q1", "JSS"))).toBe(true);
+      expect(cells.has(reportCell("q1", "SSS"))).toBe(false);
+      expect(cells.has(reportCell("q2", "JSS"))).toBe(false);
+    });
+
+    test("reports whose pupil is gone count as one person, not several", () => {
+      const reports = [report("q1", "JSS", null), report("q1", "JSS", null), report("q1", "JSS", "a")];
+      expect(pupilCellsAtMinimum(reports, 3).size).toBe(0);
+      expect(pupilCellsAtMinimum(reports, 2).has(reportCell("q1", "JSS"))).toBe(true);
+    });
+
+    test("a pupil's report names no section when asked not to", () => {
+      expect(maskReporterForReviewer({ reporterRole: "PUPIL", reporterSection: "JSS", showSection: false })).toBe("Pupil");
+      expect(maskReporterForReviewer({ reporterRole: "PUPIL", reporterSection: "JSS", showSection: true })).toBe("Pupil in JSS");
+      expect(maskReporterForReviewer({ reporterRole: "TEACHER", branchName: "Secondary School", showSection: false })).toBe("Teacher");
     });
   });
 });

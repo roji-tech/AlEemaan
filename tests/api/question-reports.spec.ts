@@ -410,7 +410,8 @@ test.describe("Slice 5: Question Reports (Task 0032)", () => {
 
     const pupilReport = reports.find((r: { itemId: string }) => r.itemId === approvedItem.id);
     expect(pupilReport).toBeDefined();
-    expect(pupilReport.reporter).toBe("Pupil in Junior Secondary");
+    // One pupil of the section has reported: below bank.smallSummary.min (5) the reviewer is told the role only, not the section (tests/api/question-report-guards.spec.ts).
+    expect(pupilReport.reporter).toBe("Pupil");
 
     // Re-grade impact computation on quiz question
     expect(pupilReport.regradeImpact).not.toBeNull();
