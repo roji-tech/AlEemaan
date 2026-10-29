@@ -1,4 +1,4 @@
-import { FormKind, Role } from "@prisma/client";
+import { FormKind, Permission, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { canAdminister, resolveBranchRole } from "@/lib/auth/branch-access";
 
@@ -8,7 +8,9 @@ import { canAdminister, resolveBranchRole } from "@/lib/auth/branch-access";
 //   read    results, answers, turn-ins, marking queues, analytics;
 //   manage  edit, close, mark, record turn-ins, sync the roll; the answer key itself and a printed copy with it:
 // read and manage belong to the form's own creator while they still teach in the branch, to an administrator of the branch and to a superadmin. A colleague of the same branch, and
-// non-teaching staff, view the form and no more. A form of another branch, or one that does not exist, is "not found" to the caller, never a refusal that confirms it.
+// non-teaching staff, view the form and no more. The one way to READ without managing is the grant an administrator gives (`CAN_VIEW_FORM_RESULTS`), held by a member of staff
+// of this branch: it never writes, and it never shows the answer key. A form of another branch, or one that does not exist, is "not found" to the caller, never a refusal that
+// confirms it.
 
 export type FormAccess = "view" | "read" | "manage";
 
@@ -18,6 +20,8 @@ export type FormViewer = {
   role: Role | null;
   /// A superadmin, or an ADMIN of this very branch.
   administers: boolean;
+  /// Holds CAN_VIEW_FORM_RESULTS in THIS branch (the grant belongs to one membership; the rule also needs a staff role).
+  canViewResults: boolean;
   createdById: string;
 };
 
@@ -26,15 +30,23 @@ export function mayAccessForm(viewer: FormViewer, access: FormAccess): boolean {
   if (viewer.role === null && !viewer.administers) return false;
   if (access === "view") return true;
   if (viewer.administers) return true;
-  return viewer.createdById === viewer.userId && (viewer.role === Role.TEACHING_STAFF || viewer.role === Role.ADMIN);
+  if (viewer.createdById === viewer.userId && (viewer.role === Role.TEACHING_STAFF || viewer.role === Role.ADMIN)) return true;
+  return access === "read" && viewer.canViewResults && (viewer.role === Role.TEACHING_STAFF || viewer.role === Role.NON_TEACHING_STAFF);
 }
 
 export type ReachedForm = { id: string; kind: FormKind; branchId: string; createdById: string };
 
 /// What the person is in this branch, loaded once for a request that judges several forms.
-export async function formViewerIn(branchId: string, userId: string): Promise<{ role: Role | null; administers: boolean }> {
-  const [role, administers] = await Promise.all([resolveBranchRole(userId, branchId), canAdminister(userId, branchId)]);
-  return { role, administers };
+export async function formViewerIn(
+  branchId: string,
+  userId: string,
+): Promise<{ role: Role | null; administers: boolean; canViewResults: boolean }> {
+  const [role, administers, membership] = await Promise.all([
+    resolveBranchRole(userId, branchId),
+    canAdminister(userId, branchId),
+    prisma.membership.findFirst({ where: { userId, branchId, deactivatedAt: null }, select: { permissions: true } }),
+  ]);
+  return { role, administers, canViewResults: membership?.permissions.includes(Permission.CAN_VIEW_FORM_RESULTS) ?? false };
 }
 
 /// The form `formId` of the branch when `userId` may reach it as `access` says; null when it does not exist OR the person may not, and the caller answers both the same way
