@@ -11,6 +11,7 @@ import {
   parseBankSetting,
   settingProblems,
   type BankSettingKey,
+  type BankSettingMeta,
   type BankSettingValues,
 } from "@/lib/question-bank/settings";
 
@@ -51,7 +52,8 @@ export type BankSettingRow = {
   key: BankSettingKey;
   label: string;
   help: string;
-  kind: "flag" | "whole" | "presets" | "images";
+  kind: "flag" | "whole" | "presets" | "images" | "choice";
+  choices: BankSettingMeta["choices"] | null;
   min: number | null;
   max: number | null;
   unit: string | null;
@@ -79,6 +81,7 @@ export async function bankSettingsView(branchId: string | null): Promise<BankSet
       label: meta.label,
       help: meta.help,
       kind: meta.kind,
+      choices: meta.choices ?? null,
       min: meta.min ?? null,
       max: meta.max ?? null,
       unit: meta.unit ?? null,

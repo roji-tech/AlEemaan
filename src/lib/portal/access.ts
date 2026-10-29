@@ -67,6 +67,16 @@ export function resolvePortalAccess(raw: unknown): PortalAccess {
   };
 }
 
+/// The lower of two practice levels (NONE < SUMMARY < FULL).
+export const lowerLevel = (a: PracticeLevel, b: PracticeLevel): PracticeLevel => (PRACTICE_LEVELS.indexOf(a) <= PRACTICE_LEVELS.indexOf(b) ? a : b);
+
+/// The access with a guardian's practice level held to a school-wide ceiling (`bank.parents.view`): the lower of the branch's own level and the ceiling. The pupil's level is
+/// not touched: the ceiling is about what a guardian sees of a child, not about the child's own practice.
+export const capGuardianPractice = (access: PortalAccess, ceiling: PracticeLevel): PortalAccess => ({
+  pupil: access.pupil,
+  guardian: { ...access.guardian, practice: lowerLevel(access.guardian.practice, ceiling) },
+});
+
 export const accessFor = (access: PortalAccess, actor: Actor): Access => (actor === "PUPIL" ? access.pupil : access.guardian);
 
 /// The tabs, in the order the portal shows them, with the capability each needs. The first one an actor may open is where the portal lands.

@@ -8,7 +8,8 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { notFound, structureCall } from "@/lib/academics/structure-http";
 import { DEFAULT_PORTAL_ACCESS, PORTAL_ACCESS_KEY } from "@/lib/portal/access";
 import { portalAccessInput } from "@/lib/portal/access-input";
-import { getPortalAccess, setPortalAccess } from "@/lib/portal/access-service";
+import { getStoredPortalAccess, setPortalAccess } from "@/lib/portal/access-service";
+import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
 
 // What a pupil and a guardian may do in the portal, per branch (task 0040). Superadmin only, like the rest of the school settings: it decides what a family sees of fees and
 // results. Every change is written to SettingAudit in the same transaction; a change that gives somebody more than before is marked CHANGED_WIDENING.
@@ -39,13 +40,20 @@ async function history(branchId: string) {
   }));
 }
 
-// GET /api/v1/settings/portal-access?branchId=   The branch's value (the default when none is stored), the defaults, and the last changes.
+// GET /api/v1/settings/portal-access?branchId=   The branch's STORED value (the default when none is stored), the defaults, the last changes, and the question bank's ceiling on a guardian's practice level.
 export const GET = withAuth(
   validate({ query: getQuery }, async (_req, _admin, _ctx, { query }: GetQuery) =>
     structureCall("SETTINGS_PORTAL_ACCESS_GET", async () => {
       const branch = await prisma.branch.findUnique({ where: { id: query.branchId }, select: { id: true } });
       if (!branch) return notFound("Branch");
-      return ok({ branchId: branch.id, access: await getPortalAccess(branch.id), defaults: DEFAULT_PORTAL_ACCESS, history: await history(branch.id) });
+      return ok({
+        branchId: branch.id,
+        access: await getStoredPortalAccess(branch.id),
+        defaults: DEFAULT_PORTAL_ACCESS,
+        history: await history(branch.id),
+        // The most a guardian may see of a child's practice here, from the question bank's school-wide ceiling (`bank.parents.view`): the lower of it and the value below applies.
+        guardianPracticeCeiling: (await getEffectiveBankSettings(branch.id))["bank.parents.view"],
+      });
     }),
   ),
   { superAdmin: true },

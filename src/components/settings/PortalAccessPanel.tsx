@@ -33,7 +33,8 @@ const PRACTICE_OPTIONS: { value: PracticeLevel; label: string }[] = [
 
 type Branch = { id: string; name: string };
 type HistoryRow = { id: string; at: string; by: string; widening: boolean };
-type Loaded = { access: PortalAccess; history: HistoryRow[] };
+type Loaded = { access: PortalAccess; history: HistoryRow[]; ceiling?: PracticeLevel };
+const RANK: PracticeLevel[] = ["NONE", "SUMMARY", "FULL"];
 
 const clone = (value: PortalAccess): PortalAccess => JSON.parse(JSON.stringify(value));
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
@@ -43,6 +44,7 @@ export function PortalAccessPanel({ branches }: { branches: Branch[] }) {
   const [saved, setSaved] = useState<PortalAccess | null>(null);
   const [draft, setDraft] = useState<PortalAccess | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [ceiling, setCeiling] = useState<PracticeLevel>("FULL");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -53,6 +55,7 @@ export function PortalAccessPanel({ branches }: { branches: Branch[] }) {
     setSaved(loaded.access);
     setDraft(clone(loaded.access));
     setHistory(loaded.history);
+    if (loaded.ceiling) setCeiling(loaded.ceiling);
   };
 
   const load = useCallback(async (id: string) => {
@@ -65,7 +68,11 @@ export function PortalAccessPanel({ branches }: { branches: Branch[] }) {
       setLoadError(reply.message || "We couldn't load this branch's portal access.");
       return;
     }
-    apply({ access: reply.data.access as PortalAccess, history: reply.data.history as HistoryRow[] });
+    apply({
+      access: reply.data.access as PortalAccess,
+      history: reply.data.history as HistoryRow[],
+      ceiling: reply.data.guardianPracticeCeiling as PracticeLevel | undefined,
+    });
   }, []);
 
   useEffect(() => {
@@ -182,7 +189,7 @@ export function PortalAccessPanel({ branches }: { branches: Branch[] }) {
                   <tr className="align-middle">
                     <th scope="row" className="py-2 pr-3 font-medium text-fg">
                       Question practice
-                      <span className="block text-xs font-normal text-fg-muted">Stored now; it takes effect when practice arrives with the question bank.</span>
+                      <span className="block text-xs font-normal text-fg-muted">What a guardian gets is the lower of this and the school-wide ceiling set in the question bank settings (now: {PRACTICE_OPTIONS.find((o) => o.value === ceiling)?.label.toLowerCase()}).</span>
                     </th>
                     {ACTORS.map((actor) => (
                       <td key={actor.key} className="px-3 py-2">
@@ -193,6 +200,9 @@ export function PortalAccessPanel({ branches }: { branches: Branch[] }) {
                           onChange={(e) => set(actor.key, { practice: e.target.value as PracticeLevel })}
                           options={PRACTICE_OPTIONS}
                         />
+                        {actor.key === "guardian" && RANK.indexOf(draft.guardian.practice) > RANK.indexOf(ceiling) && (
+                          <p className="mt-1 text-xs text-fg-muted">The school-wide ceiling lowers this: guardians here get {PRACTICE_OPTIONS.find((o) => o.value === ceiling)?.label.toLowerCase()}.</p>
+                        )}
                       </td>
                     ))}
                   </tr>
