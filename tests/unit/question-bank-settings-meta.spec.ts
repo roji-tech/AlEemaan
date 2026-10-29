@@ -22,6 +22,20 @@ test.describe("the screen's metadata agrees with the validators", () => {
       if (meta.kind === "flag") {
         expect(parseBankSetting(key, true).ok && parseBankSetting(key, false).ok, key).toBe(true);
         expect(typeof BANK_DEFAULTS[key], key).toBe("boolean");
+      } else if (meta.kind === "choice") {
+        // every offered choice is accepted and they are in order, least first; anything else is not
+        expect(meta.choices!.length, key).toBeGreaterThan(1);
+        for (const choice of meta.choices!) expect(parseBankSetting(key, choice.value).ok, `${key} ${choice.value}`).toBe(true);
+        expect(
+          meta.choices!.map((c) => c.value),
+          key,
+        ).toEqual(["NONE", "SUMMARY", "FULL"]);
+        expect(parseBankSetting(key, "EVERYTHING").ok, key).toBe(false);
+        expect(parseBankSetting(key, null).ok, key).toBe(false);
+        expect(
+          meta.choices!.map((c) => c.value),
+          `${key} default`,
+        ).toContain(BANK_DEFAULTS[key]);
       } else if (meta.kind === "whole" || meta.kind === "images") {
         expect(parseBankSetting(key, meta.min!).ok, `${key} at min`).toBe(true);
         expect(parseBankSetting(key, meta.max!).ok, `${key} at max`).toBe(true);
