@@ -29,6 +29,7 @@ let home: { id: string };
 let authorId: string;
 let group1: { id: string };
 let group2: { id: string };
+let arm2Id: string;
 let pupil1: { id: string; cookie: string };
 let pupil2: { id: string; cookie: string };
 
@@ -48,6 +49,7 @@ test.beforeEach(async () => {
   const arm1 = await db.classArm.create({ data: { branchId: home.id, classGroupId: group1.id, name: "Gold" } });
   group2 = await db.classGroup.create({ data: { branchId: home.id, name: "JSS 2" } });
   const arm2 = await db.classArm.create({ data: { branchId: home.id, classGroupId: group2.id, name: "Silver" } });
+  arm2Id = arm2.id;
 
   const enrol = async (name: string, admissionNo: string, dob: string, className: string, arm: string, classArmId: string) => {
     const s = await db.studentRecord.create({
@@ -229,6 +231,28 @@ test.describe("submitting an attempt", () => {
     await db.form.update({ where: { id: set.formId }, data: { closesAt: minutesAgo(1) } });
 
     expect((await submit(pupil1, set, responseId)).status).toBe(403);
+    expect(await answersOf(set.formId)).toBe(0);
+  });
+
+  test("a pupil who is no longer in the set's audience cannot submit an attempt they began", async () => {
+    const set = await makeSet();
+    const { responseId } = (await start(pupil1, set.formId)).json.data;
+    // the teacher narrows the audience to another class after the pupil has started
+    await db.formAudience.updateMany({ where: { formId: set.formId }, data: { classGroupIds: [group2.id] } });
+
+    const res = await submit(pupil1, set, responseId);
+    expect(res.status, res.text.slice(0, 160)).toBe(403);
+    expect((await db.formResponse.findUniqueOrThrow({ where: { id: responseId } })).status).toBe("IN_PROGRESS");
+    expect(await answersOf(set.formId)).toBe(0);
+  });
+
+  test("nor can a pupil who has been moved to another class", async () => {
+    const set = await makeSet();
+    const { responseId } = (await start(pupil1, set.formId)).json.data;
+    await db.studentEnrollment.updateMany({ where: { studentId: pupil1.id }, data: { classArmId: arm2Id } });
+
+    const res = await submit(pupil1, set, responseId);
+    expect(res.status, res.text.slice(0, 160)).toBe(403);
     expect(await answersOf(set.formId)).toBe(0);
   });
 
