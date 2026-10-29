@@ -26,7 +26,10 @@
     "test:https": "playwright test --project=https",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "tasks:check": "node scripts/tasks-check.mjs"
+    "tasks:check": "node scripts/tasks-check.mjs",
+    "walkthrough:run": "node scripts/walkthrough-run/run.mjs",
+    "walkthrough:report": "node scripts/walkthrough-run/report.mjs",
+    "walkthrough:test": "playwright test --config=playwright.walkthrough.config.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
