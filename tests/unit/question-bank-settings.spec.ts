@@ -388,7 +388,7 @@ test.describe("bank.parents.view: a ceiling on what a guardian sees of a child's
 
   test("a change is checked before it is written: a wrong value is a sentence an administrator can act on", () => {
     expect(settingProblems({ [view]: "NONE" })).toEqual([]);
-    const problems = settingProblems({ [view]: "lots" });
+    const problems = settingProblems({ [view]: "lots" as never });
     expect(problems).toHaveLength(1);
     expect(problems[0]).toMatch(/guardian/i);
   });
