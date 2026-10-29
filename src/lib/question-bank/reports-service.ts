@@ -4,11 +4,15 @@ import { writeBankAudit } from "@/lib/question-bank/audit";
 import { getEffectiveBankSettings } from "@/lib/question-bank/settings-service";
 import { loadViewer } from "@/lib/question-bank/viewer";
 import { staffMaySee, reviewPower } from "@/lib/question-bank/rules";
+import { copyFromBankItem, type BankItemToCopy } from "./assessments";
+import { MAX_REGRADE_ATTEMPTS, groupChanges, planAttemptRegrade, type AttemptChange } from "./regrade";
 import {
   sanitizeReportReason,
   maskReporterForReviewer,
   pupilCellsAtMinimum,
   reportCell,
+  reportLimitReached,
+  startOfUtcDay,
   computeRegradeImpact,
   validateReportOutcome,
   type RegradeImpactSummary,
@@ -27,14 +31,30 @@ export class ReportServiceError extends Error {
 
 const ALREADY_REPORTED = "You have already reported this question; your report is waiting for a reviewer.";
 
-/// Serialises the reports of one person on one question, so two sent at the same moment are one: the check for an open report and the filing of a new one are made together, inside the
-/// transaction, with this lock held until it ends.
-async function lockReporter(tx: Prisma.TransactionClient, reporter: string, itemId: string) {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`report:${reporter}:${itemId}`}::text))`;
+/// Serialises the reports of one person, so two sent at the same moment are one and cannot slip past the limits: the checks (one open report per question, how many in all) and the filing
+/// of a new report are made together, inside the transaction, with this lock held until it ends.
+async function lockReporter(tx: Prisma.TransactionClient, reporter: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`report:${reporter}`}::text))`;
+}
+
+/// Refuses a report from a person who has too many waiting or has made too many today (429 `REPORT_LIMIT`). `who` is the filter that picks out their reports.
+async function enforceReportLimits(tx: Prisma.TransactionClient, role: "PUPIL" | "TEACHER", who: Prisma.QuestionReportWhereInput) {
+  const [openCount, todayCount] = await Promise.all([
+    tx.questionReport.count({ where: { ...who, status: QuestionReportStatus.OPEN } }),
+    tx.questionReport.count({ where: { ...who, createdAt: { gte: startOfUtcDay() } } }),
+  ]);
+  const reached = reportLimitReached(role, openCount, todayCount);
+  if (reached === "OPEN") {
+    throw new ReportServiceError("You have too many reports waiting for a reviewer. Wait until some are answered.", 429, "REPORT_LIMIT");
+  }
+  if (reached === "DAY") {
+    throw new ReportServiceError("You have made the most reports allowed in a day. Try again tomorrow.", 429, "REPORT_LIMIT");
+  }
 }
 
 /**
- * Submits a question issue report as a teacher. A person has one open report on a question: another is refused (`ALREADY_REPORTED`) until a reviewer has resolved the first.
+ * Submits a question issue report as a teacher. A person has one open report on a question: another is refused (`ALREADY_REPORTED`) until a reviewer has resolved the first. A teacher may have
+ * 20 reports waiting and make 50 a day (`REPORT_LIMIT`, 429).
  */
 export async function reportQuestionAsTeacher(params: {
   userId: string;
@@ -84,12 +104,13 @@ export async function reportQuestionAsTeacher(params: {
   const sectionName = branch?.name ?? "Main Branch";
 
   const report = await prisma.$transaction(async (tx) => {
-    await lockReporter(tx, `user:${params.userId}`, item.id);
+    await lockReporter(tx, `user:${params.userId}`);
     const open = await tx.questionReport.findFirst({
       where: { itemId: item.id, reporterUserId: params.userId, status: QuestionReportStatus.OPEN },
       select: { id: true },
     });
     if (open) throw new ReportServiceError(ALREADY_REPORTED, 400, "ALREADY_REPORTED");
+    await enforceReportLimits(tx, "TEACHER", { reporterUserId: params.userId, reporterRole: "TEACHER" });
 
     const created = await tx.questionReport.create({
       data: {
@@ -125,7 +146,7 @@ export async function reportQuestionAsTeacher(params: {
 }
 
 /**
- * Submits a question issue report as a pupil from practice. One open report on a question per pupil (`ALREADY_REPORTED`); the version recorded is the one the pupil last practised.
+ * Submits a question issue report as a pupil from practice. One open report on a question per pupil (`ALREADY_REPORTED`); at most 10 waiting and 20 a day (`REPORT_LIMIT`, 429); the version recorded is the one the pupil last practised.
  * The section a reviewer may later see is the section of the pupil's class, or the branch's name when the class has none: never the class itself.
  */
 export async function reportQuestionAsPupil(params: {
@@ -188,12 +209,13 @@ export async function reportQuestionAsPupil(params: {
   const sectionName = enrollment?.classArm?.classGroup?.section?.name ?? student?.branch?.name ?? "General";
 
   const report = await prisma.$transaction(async (tx) => {
-    await lockReporter(tx, `pupil:${params.studentId}`, item.id);
+    await lockReporter(tx, `pupil:${params.studentId}`);
     const open = await tx.questionReport.findFirst({
       where: { itemId: item.id, reporterStudentId: params.studentId, status: QuestionReportStatus.OPEN },
       select: { id: true },
     });
     if (open) throw new ReportServiceError(ALREADY_REPORTED, 400, "ALREADY_REPORTED");
+    await enforceReportLimits(tx, "PUPIL", { reporterStudentId: params.studentId });
 
     const created = await tx.questionReport.create({
       data: {
@@ -353,9 +375,126 @@ export async function listReportsForReviewer(params: {
   }));
 }
 
+export interface CorrectionSummary {
+  copiesCorrected: number;
+  attemptsChecked: number;
+  attemptsChanged: number;
+  attemptsUnreadable: number;
+  skippedArchived: number;
+}
+
+/// How many changed attempts the audit row lists one by one (the counts always cover all of them).
+const AUDITED_CHANGES = 200;
+
 /**
- * Resolves a question report with an outcome, reason, and optional assessment re-grade offer. A report is resolved once: the report is claimed with a conditional update inside the
- * transaction (it must still be open), so reviewers resolving it at the same moment cannot each succeed, write an audit row and apply a re-grade.
+ * Puts the corrected question into the assessments that copied it, and scores the attempts already made again. An exception to "past papers are immutable", so it is narrow:
+ *   - only the copies in the BRANCH the report came from (a general question may be copied in other branches; their teachers are not changed under them);
+ *   - only copies that are behind the question's version, and not in archived quizzes (past papers), which are counted and left as they were;
+ *   - a copy takes the corrected prompt, type, options and key; its points are the quiz's own and stay, and so does its place in the quiz;
+ *   - the finished attempts of the affected quizzes are scored again with the rule a quiz is graded by (`planAttemptRegrade`); attempts whose stored answers cannot be read are left alone;
+ *   - more than `MAX_REGRADE_ATTEMPTS` attempts are refused before anything is written (`TOO_MANY_ATTEMPTS`): the correction is all or nothing, and runs in the report's transaction;
+ *   - what was done is written to the audit trail with the scores before and after.
+ */
+async function applyCorrection(
+  tx: Prisma.TransactionClient,
+  p: { reportId: string; branchId: string | null; itemId: string; actorUserId: string },
+): Promise<CorrectionSummary> {
+  const none: CorrectionSummary = { copiesCorrected: 0, attemptsChecked: 0, attemptsChanged: 0, attemptsUnreadable: 0, skippedArchived: 0 };
+  const item = await tx.questionBankItem.findUniqueOrThrow({ where: { id: p.itemId } });
+  const branchId = p.branchId;
+  if (!branchId) return none;
+
+  const behind = { sourceItemId: item.id, branchId, OR: [{ sourceVersion: null }, { sourceVersion: { lt: item.version } }] };
+  const [skippedArchived, copies] = await Promise.all([
+    tx.quizQuestion.count({ where: { ...behind, quiz: { archivedAt: { not: null } } } }),
+    tx.quizQuestion.findMany({ where: { ...behind, quiz: { archivedAt: null } }, select: { id: true, quizId: true } }),
+  ]);
+  if (copies.length === 0) {
+    await auditCorrection(tx, p, item.version, { ...none, skippedArchived }, []);
+    return { ...none, skippedArchived };
+  }
+
+  const quizIds = [...new Set(copies.map((c) => c.quizId))];
+  const finished = { branchId, quizId: { in: quizIds }, completedAt: { not: null } };
+  const attemptCount = await tx.quizAttempt.count({ where: finished });
+  if (attemptCount > MAX_REGRADE_ATTEMPTS) {
+    throw new ReportServiceError(
+      `This correction would score ${attemptCount} attempts again; the most one correction does is ${MAX_REGRADE_ATTEMPTS}. Nothing was changed.`,
+      400,
+      "TOO_MANY_ATTEMPTS",
+    );
+  }
+
+  const corrected = copyFromBankItem(item as unknown as BankItemToCopy);
+  await tx.quizQuestion.updateMany({
+    where: { id: { in: copies.map((c) => c.id) } },
+    data: {
+      prompt: corrected.prompt,
+      questionType: corrected.questionType,
+      options: corrected.options,
+      correctAnswer: corrected.correctAnswer,
+      sourceVersion: corrected.sourceVersion,
+    },
+  });
+
+  // The quizzes are read after the copies are corrected, so the attempts are scored against the questions as they now are.
+  const [quizzes, attempts] = await Promise.all([
+    tx.quiz.findMany({
+      where: { branchId, id: { in: quizIds } },
+      select: { id: true, passingScore: true, questions: { select: { id: true, correctAnswer: true, points: true } } },
+    }),
+    tx.quizAttempt.findMany({ where: finished, select: { id: true, quizId: true, answers: true, score: true, isPassed: true } }),
+  ]);
+  const changes: AttemptChange[] = [];
+  let unreadable = 0;
+  for (const quiz of quizzes) {
+    const plan = planAttemptRegrade(quiz.questions, quiz.passingScore, attempts.filter((a) => a.quizId === quiz.id));
+    changes.push(...plan.changes);
+    unreadable += plan.unreadable;
+  }
+  for (const group of groupChanges(changes)) {
+    await tx.quizAttempt.updateMany({ where: { branchId, id: { in: group.attemptIds } }, data: { score: group.score, isPassed: group.isPassed } });
+  }
+
+  const summary: CorrectionSummary = {
+    copiesCorrected: copies.length,
+    attemptsChecked: attempts.length,
+    attemptsChanged: changes.length,
+    attemptsUnreadable: unreadable,
+    skippedArchived,
+  };
+  await auditCorrection(tx, p, item.version, summary, changes);
+  return summary;
+}
+
+async function auditCorrection(
+  tx: Prisma.TransactionClient,
+  p: { reportId: string; branchId: string | null; itemId: string; actorUserId: string },
+  itemVersion: number,
+  summary: CorrectionSummary,
+  changes: AttemptChange[],
+) {
+  await writeBankAudit(tx, {
+    entity: "ITEM",
+    action: "REGRADE_APPLIED",
+    branchId: p.branchId,
+    itemId: p.itemId,
+    ref: p.reportId,
+    actorUserId: p.actorUserId,
+    newValue: {
+      itemVersion,
+      ...summary,
+      changes: changes.slice(0, AUDITED_CHANGES),
+      changesTruncated: changes.length > AUDITED_CHANGES,
+    } as unknown as Prisma.InputJsonValue,
+  });
+}
+
+/**
+ * Resolves a question report with an outcome, reason, and optional correction of the assessments that copied the question. A report is resolved once: the report is claimed with a
+ * conditional update inside the transaction (it must still be open), so reviewers resolving it at the same moment cannot each succeed, write an audit row and apply a re-grade.
+ *
+ * `applyRegrade` is the explicit exception to "past papers are immutable" (see `applyCorrection`): only for a report resolved as FIXED and a question that is APPROVED; all or nothing.
  */
 export async function resolveQuestionReport(params: {
   userId: string;
@@ -369,11 +508,15 @@ export async function resolveQuestionReport(params: {
     throw new ReportServiceError(validated.message, 400, "VALIDATION");
   }
 
+  if (params.applyRegrade && validated.outcome !== QuestionReportOutcome.FIXED) {
+    throw new ReportServiceError("A correction can only be applied to assessments when the report is resolved as fixed.", 400, "VALIDATION");
+  }
+
   const [viewer, report] = await Promise.all([
     loadViewer(params.userId),
     prisma.questionReport.findUnique({
       where: { id: params.reportId },
-      include: { item: { select: { id: true, branchId: true, subjectKey: true } } },
+      include: { item: { select: { id: true, branchId: true, subjectKey: true, status: true } } },
     }),
   ]);
 
@@ -390,7 +533,11 @@ export async function resolveQuestionReport(params: {
     throw new ReportServiceError("You are not authorized to resolve reports for this question.", 403, "FORBIDDEN");
   }
 
-  let regradeCount = 0;
+  if (params.applyRegrade && report.item.status !== "APPROVED") {
+    throw new ReportServiceError("Approve the corrected question before applying it to assessments.", 400, "ITEM_NOT_APPROVED");
+  }
+
+  let regrade: CorrectionSummary | null = null;
 
   const result = await prisma.$transaction(async (tx) => {
     const claimed = await tx.questionReport.updateMany({
@@ -407,13 +554,9 @@ export async function resolveQuestionReport(params: {
       throw new ReportServiceError("This report has already been resolved or dismissed.", 400, "ALREADY_RESOLVED");
     }
 
-    // If FIXED and applyRegrade requested, update linked quiz questions
-    if (params.applyRegrade && validated.outcome === QuestionReportOutcome.FIXED) {
-      const updatedQuestions = await tx.quizQuestion.updateMany({
-        where: { sourceItemId: report.itemId },
-        data: { exposedToPractice: true },
-      });
-      regradeCount = updatedQuestions.count;
+    // FIXED with the correction asked for: the copies are corrected and the attempts scored again, in this same transaction
+    if (params.applyRegrade) {
+      regrade = await applyCorrection(tx, { reportId: report.id, branchId: report.branchId, itemId: report.itemId, actorUserId: params.userId });
     }
 
     const updated = await tx.questionReport.findUniqueOrThrow({ where: { id: report.id } });
@@ -435,7 +578,7 @@ export async function resolveQuestionReport(params: {
     });
 
     return updated;
-  });
+  }, { timeout: 60_000, maxWait: 10_000 });
 
   return {
     ok: true,
@@ -443,7 +586,8 @@ export async function resolveQuestionReport(params: {
     status: result.status,
     outcome: result.outcome,
     outcomeReason: result.outcomeReason,
-    regradeCount,
+    regradeCount: (regrade as CorrectionSummary | null)?.copiesCorrected ?? 0,
+    regrade: regrade as CorrectionSummary | null,
   };
 }
 
