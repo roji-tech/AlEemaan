@@ -54,6 +54,7 @@ test.describe("GET /members", () => {
       "branchId",
       "branchName",
       "canApproveResults",
+      "canViewFormResults",
       "email",
       "id",
       "isSuperAdmin",
