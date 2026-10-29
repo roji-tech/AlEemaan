@@ -333,3 +333,101 @@ test.describe("resolving a report", () => {
     }
   });
 });
+
+// A person's reports are limited, so that one account cannot bury the queue: a pupil may have 10 reports waiting for a reviewer and 20 a day, a teacher 20 waiting and 50 a day. The day is
+// the UTC day, as for the daily practice cap.
+const newItem = (prompt: string) =>
+  db.questionBankItem.create({
+    data: {
+      branchId: home.id,
+      bank: "ASSESSMENT",
+      type: "SINGLE",
+      prompt,
+      points: 1,
+      subjectLabel: "Civics",
+      subjectKey: "civics",
+      options: [
+        { id: "A", text: "One" },
+        { id: "B", text: "Two" },
+      ],
+      correctAnswer: "B",
+      visibility: "PRACTICE",
+      status: "APPROVED",
+      submittedById: teacher.id,
+      approvedById: reviewer.id,
+      approvedAt: new Date(),
+    },
+  });
+
+test.describe("how many reports one person may make", () => {
+  test("a pupil may have 10 reports waiting; another is refused until a reviewer has answered one", async () => {
+    const items = [];
+    for (let i = 0; i < 11; i++) items.push(await newItem(`Pupil limit question ${i}`));
+    const p = await makePupil(
+      sectionArm,
+      items.map((x) => x.id),
+    );
+    const q = await makePupil(sectionArm, [items[10]!.id]);
+
+    for (let i = 0; i < 10; i++) expect((await pupilReports(p, items[i]!.id)).status, `report ${i + 1}`).toBe(201);
+    const over = await pupilReports(p, items[10]!.id);
+    expect(over.status, over.text.slice(0, 160)).toBe(429);
+    expect(over.json.error.code).toBe("REPORT_LIMIT");
+    expect(await db.questionReport.count({ where: { reporterStudentId: p.id } }), "nothing was written for the eleventh").toBe(10);
+    expect((await pupilReports(q, items[10]!.id)).status, "another pupil is not held back by this one's limit").toBe(201);
+
+    const first = await db.questionReport.findFirstOrThrow({ where: { reporterStudentId: p.id } });
+    expect((await resolve(cookies.reviewer, first.id)).status).toBe(200);
+    expect((await pupilReports(p, items[10]!.id)).status, "a slot is free once a reviewer has answered one").toBe(201);
+  });
+
+  test("a teacher may have 20 reports waiting; another is refused", async () => {
+    const items = [];
+    for (let i = 0; i < 21; i++) items.push(await newItem(`Teacher limit question ${i}`));
+    for (let i = 0; i < 20; i++) expect((await teacherReports(items[i]!.id)).status, `report ${i + 1}`).toBe(201);
+    const over = await teacherReports(items[20]!.id);
+    expect(over.status, over.text.slice(0, 160)).toBe(429);
+    expect(over.json.error.code).toBe("REPORT_LIMIT");
+    expect(await db.questionReport.count({ where: { reporterUserId: teacher.id } })).toBe(20);
+  });
+
+  test("a pupil may make 20 reports a day even when each is answered at once; yesterday's do not count", async () => {
+    const item = await newItem("Daily limit question");
+    const p = await makePupil(sectionArm, [item.id]);
+    for (let i = 0; i < 20; i++) {
+      expect((await pupilReports(p, item.id, `Report number ${i + 1} on this question.`)).status, `report ${i + 1}`).toBe(201);
+      await db.questionReport.updateMany({
+        where: { reporterStudentId: p.id, status: "OPEN" },
+        data: { status: "RESOLVED", resolvedAt: new Date() },
+      });
+    }
+    const over = await pupilReports(p, item.id, "One more, the twenty-first today.");
+    expect(over.status, over.text.slice(0, 160)).toBe(429);
+    expect(over.json.error.code).toBe("REPORT_LIMIT");
+
+    await db.questionReport.updateMany({ where: { reporterStudentId: p.id }, data: { createdAt: new Date(Date.now() - 2 * 86_400_000) } });
+    expect((await pupilReports(p, item.id, "A new day, a new report.")).status).toBe(201);
+  });
+
+  test("reports made at the same moment by one person cannot go over the limit", async () => {
+    const items = [];
+    for (let i = 0; i < 14; i++) items.push(await newItem(`Race limit question ${i}`));
+    const p = await makePupil(
+      sectionArm,
+      items.map((x) => x.id),
+    );
+    for (let round = 0; round < 3; round++) {
+      await db.questionReport.deleteMany({ where: { reporterStudentId: p.id } });
+      const results = await Promise.all(items.map((x) => pupilReports(p, x.id)));
+      expect(
+        results.filter((r) => r.status === 201),
+        `round ${round}: ten get in`,
+      ).toHaveLength(10);
+      expect(
+        results.filter((r) => r.status === 429),
+        `round ${round}: the rest are over the limit`,
+      ).toHaveLength(4);
+      expect(await db.questionReport.count({ where: { reporterStudentId: p.id } }), `round ${round}: ten rows`).toBe(10);
+    }
+  });
+});

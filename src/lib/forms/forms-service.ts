@@ -599,7 +599,7 @@ export async function startPracticeSetForPupil(params: {
 
 /**
  * Submits pupil answers, evaluates accuracy, and reveals explanations. An attempt is submitted once: the attempt is read under its lock, inside the transaction, so two
- * submissions at the same moment cannot both find it open. The set must be a practice set that is open now (published, inside its opening and closing times; a teacher who
+ * submissions at the same moment cannot both find it open. The pupil must still be one the set is for (its audience is checked again, not only at the start). The set must be a practice set that is open now (published, inside its opening and closing times; a teacher who
  * closes a set closes it for an attempt in flight too) and the attempt must be inside the set's time limit; a refusal writes nothing.
  */
 export async function submitPracticeSetForPupil(params: {
@@ -615,6 +615,7 @@ export async function submitPracticeSetForPupil(params: {
     const [form, response] = await Promise.all([
       tx.form.findFirst({
         where: { id: params.formId, branchId: params.branchId, kind: FormKind.PRACTICE_SET },
+        include: { audiences: true },
       }),
       tx.formResponse.findFirst({
         where: { id: params.responseId, formId: params.formId, branchId: params.branchId, studentId: params.studentId },
@@ -627,6 +628,13 @@ export async function submitPracticeSetForPupil(params: {
 
     if (response.status !== FormResponseStatus.IN_PROGRESS) {
       throw new FormsServiceError("This practice set has already been completed.", 400, "ALREADY_COMPLETED");
+    }
+
+    // The pupil must still be one the set is for: an audience narrowed, or a pupil moved to another class, after the attempt began ends it. (Asked first, so that someone who is not
+    // entitled learns nothing about the set's state.)
+    const audience = form.audiences[0];
+    if (audience && !isPupilAudienceEligible(audience, await pupilClassGroupOf(params.branchId, params.studentId))) {
+      throw new FormsServiceError("You are not eligible for this practice set.", 403, "FORBIDDEN");
     }
 
     const completedAt = new Date();
