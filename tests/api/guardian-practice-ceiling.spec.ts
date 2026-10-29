@@ -143,7 +143,11 @@ test.describe("what a guardian gets is the lower of the branch's level and the s
     const res = await history(guardian.cookie);
     expect(res.status).toBe(403);
     expect(res.json.error.code).toBe("PORTAL_ACCESS");
-    expect((await api(`/api/v1/portal/students/${student.id}/practice/options`, { cookie: guardian.cookie })).status).toBe(403);
+    // The options answer is "closed", not an error (as it already is when the branch itself gives nothing): no subjects, topics or pool sizes are listed to the guardian.
+    const options = await api(`/api/v1/portal/students/${student.id}/practice/options`, { cookie: guardian.cookie });
+    expect(options.status).toBe(200);
+    expect(options.json.data.available).toBe(false);
+    expect(JSON.stringify(options.json.data)).not.toContain("Biology");
   });
 
   test("a branch's own, lower value is held to as well", async () => {
@@ -217,7 +221,7 @@ test.describe("the ceiling is a question bank switch like the others", () => {
     expect((await put(superCookie, { scope: "GLOBAL", changes: { "bank.parents.view": "SUMMARY" } })).status).toBe(200);
     const raise = await put(branchCookie, { scope: "BRANCH", branchId: home.id, changes: { "bank.parents.view": "FULL" } });
     expect(raise.status).toBe(400);
-    expect(raise.json.error.message).toMatch(/stricter/i);
+    expect(raise.json.error.message).toMatch(/narrow/i);
     const lower = await put(branchCookie, { scope: "BRANCH", branchId: home.id, changes: { "bank.parents.view": "NONE" } });
     expect(lower.status).toBe(200);
     const row = await effective(branchCookie, `?branchId=${home.id}`);

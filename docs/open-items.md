@@ -138,3 +138,6 @@ What "apply the correction and re-grade" means, and a limit on reports per perso
 
 ## The lows of the review (2026-10-29) - resolved
 Three were built (the print audit address, the guardian's summary counting archived attempts, the school's day via `SCHOOL_TIME_ZONE`) and the lint warning removed; two were read and are not defects (the in-memory limiter is right for one process; a general question has no branch, so its keys are not composite). Task 0032, section 4p. Still open on that side: `SCHOOL_TIME_ZONE` is read from the environment, not a setting a head teacher can change in the app.
+
+## bank.parents.view (2026-10-29) - resolved
+The proposal (a second key beside `portal_access.guardian.practice`, or not) is decided: the key is added as a school-wide ceiling and a guardian gets the lower of the two; it starts at `SUMMARY`. Task 0040 section 3, HANDOVER 6.00f. Still open on that side: the ceiling is one value for the whole school with a per-branch lowering, not per actor (a pupil is never held by it); Octalve's default is `NONE`, AlEemaan's `SUMMARY`, on purpose.
