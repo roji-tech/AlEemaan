@@ -51,6 +51,21 @@ export function isFormOpen(
   return { isOpen: true };
 }
 
+/// How long past the time limit an attempt is still taken: the pupil's clock, the network and the request each take a moment, and a pupil who presses Submit as the time ends should not lose the work.
+export const TIME_LIMIT_GRACE_MS = 60_000;
+
+/**
+ * Whether an attempt started at `startedAt` is still inside the set's time limit (`maxDurationMinutes`, null when there is none).
+ */
+export function isWithinTimeLimit(
+  startedAt: Date,
+  maxDurationMinutes: number | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!maxDurationMinutes) return true;
+  return now.getTime() <= startedAt.getTime() + maxDurationMinutes * 60_000 + TIME_LIMIT_GRACE_MS;
+}
+
 /**
  * Scrubs correctAnswer and explanation from question before delivering to pupils.
  * Enforces §7 / §11 exam secrecy invariant: pupils never receive keys before completing.
