@@ -11,10 +11,17 @@ import { withoutAnswerKey } from "@/lib/forms/practice-sets";
 type Row = [string, Parameters<typeof mayAccessForm>[0], Record<FormAccess, boolean>];
 const creator = "creator";
 const form = { createdById: creator };
-const staff = (userId: string, role: Role | null, administers = false) => ({ userId, role, administers, ...form });
+const staff = (userId: string, role: Role | null, administers = false, canViewResults = false) => ({
+  userId,
+  role,
+  administers,
+  canViewResults,
+  ...form,
+});
 
 const yes = { view: true, read: true, manage: true };
 const viewOnly = { view: true, read: false, manage: false };
+const readsOnly = { view: true, read: true, manage: false };
 const no = { view: false, read: false, manage: false };
 
 const TABLE: Row[] = [
@@ -27,6 +34,12 @@ const TABLE: Row[] = [
   ["an ADMIN membership that is not an administrator of this branch", staff("admin-elsewhere", Role.ADMIN, false), viewOnly],
   ["a person with no staff role in the branch", staff("outsider", null), no],
   ["the creator, who no longer holds a staff role in the branch", staff(creator, null), no],
+  // the grant (CAN_VIEW_FORM_RESULTS): read, never manage, and only with a staff role of the branch
+  ["non-teaching staff with the grant", staff("clerk", Role.NON_TEACHING_STAFF, false, true), readsOnly],
+  ["a colleague teacher with the grant", staff("colleague", Role.TEACHING_STAFF, false, true), readsOnly],
+  ["the creator with the grant (nothing more than without it)", staff(creator, Role.TEACHING_STAFF, false, true), yes],
+  ["a person who holds the grant but no staff role in the branch (membership ended)", staff("ex", null, false, true), no],
+  ["an ADMIN membership of another branch that somehow holds the grant", staff("admin-elsewhere", Role.ADMIN, false, true), viewOnly],
 ];
 
 test.describe("mayAccessForm: view, read, manage", () => {
@@ -35,6 +48,13 @@ test.describe("mayAccessForm: view, read, manage", () => {
       for (const access of ["view", "read", "manage"] as const) expect(mayAccessForm(viewer, access), access).toBe(expected[access]);
     });
   }
+
+  test("the grant opens READ and nothing else: it is never enough to manage, to see the key, or to write", () => {
+    const holder = staff("clerk", Role.NON_TEACHING_STAFF, false, true);
+    expect(mayAccessForm(holder, "read")).toBe(true);
+    expect(mayAccessForm(holder, "manage")).toBe(false);
+    expect(mayAccessForm({ ...holder, canViewResults: false }, "read")).toBe(false);
+  });
 
   test("manage implies read, and read implies view, for every row of the table", () => {
     for (const [, viewer] of TABLE) {

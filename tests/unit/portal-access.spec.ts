@@ -6,6 +6,8 @@ import {
   PORTAL_TABS,
   accessFor,
   allowedTabs,
+  capGuardianPractice,
+  lowerLevel,
   portalAccessProblems,
   resolvePortalAccess,
   widens,
@@ -191,3 +193,39 @@ test.describe("a change that gives somebody more", () => {
     expect(widens(base, mixed)).toBe(true);
   });
 });
+
+// The question bank's school-wide ceiling (bank.parents.view) holds a GUARDIAN's practice level; the lower of the branch's own level and the ceiling applies; the pupil is not
+// touched; nothing else about the access changes.
+test.describe("capGuardianPractice", () => {
+  const levels = ["NONE", "SUMMARY", "FULL"] as const;
+
+  test("lowerLevel is the lower of two, in either order", () => {
+    for (const a of levels) {
+      for (const b of levels) expect(lowerLevel(a, b), `${a} ${b}`).toBe(levels[Math.min(levels.indexOf(a), levels.indexOf(b))]);
+    }
+  });
+
+  test("a guardian's level is the lower of the branch's level and the ceiling, for all nine pairs", () => {
+    for (const own of levels) {
+      for (const ceiling of levels) {
+        const access = clone(DEFAULT_PORTAL_ACCESS);
+        access.guardian.practice = own;
+        expect(capGuardianPractice(access, ceiling).guardian.practice, `${own} under ${ceiling}`).toBe(
+          levels[Math.min(levels.indexOf(own), levels.indexOf(ceiling))],
+        );
+      }
+    }
+  });
+
+  test("the pupil's level and every capability are left alone, and the input is not changed", () => {
+    const access = clone(DEFAULT_PORTAL_ACCESS);
+    access.pupil.practice = "FULL";
+    access.guardian.practice = "FULL";
+    const before = JSON.stringify(access);
+    const capped = capGuardianPractice(access, "NONE");
+    expect(capped.pupil).toEqual(access.pupil);
+    expect(capped.guardian).toEqual({ ...access.guardian, practice: "NONE" });
+    expect(JSON.stringify(access)).toBe(before);
+  });
+});
+

@@ -1,4 +1,5 @@
 import { ok, fail, noStore } from "@/lib/api/envelope";
+import { sanitizePathParams } from "@/lib/api/ids";
 import { getClientIp, reserveAttempt } from "@/lib/auth/rate-limit";
 import { readJsonBody } from "@/lib/api/validate";
 import { submitQuestionnaireSchema } from "@/lib/forms/validation";
@@ -16,7 +17,8 @@ export async function POST(req: Request, context: Context) {
     return noStore(fail("Too many submissions. Please wait a few minutes and try again.", 429, "RATE_LIMITED"));
   }
 
-  const { token } = await context.params;
+  // No sign-in, so no withAuth: see the GET route.
+  const { token } = sanitizePathParams(await context.params);
 
   const read = await readJsonBody(req);
   if (!read.ok) return noStore(read.response);
