@@ -146,6 +146,17 @@ test.describe.serial("the grant", () => {
     expect(await statuses(ck.creator)).toEqual({ responses: 200, queue: 200, marking: 200, analytics: 200, turnIns: 200 });
   });
 
+  test("a wrong proof gives nothing: the route checks the proof, not only that one was sent", async () => {
+    const wrong = await api(`/api/v1/members/${ids.membership}`, {
+      method: "PATCH",
+      cookie: ck.admin,
+      body: { canViewFormResults: true, stepUp: { type: "password", value: "not-the-password" } },
+    });
+    expect(wrong.status).toBe(403);
+    expect((await grantOf(clerk.id)).permissions).not.toContain(GRANT);
+    expect(await statuses(ck.clerk)).toEqual({ responses: 404, queue: 404, marking: 404, analytics: 404, turnIns: 404 });
+  });
+
   test("an administrator of the branch gives it with a fresh proof; it is audited and shown in the member", async () => {
     expect((await give(ck.admin, ids.membership, true, false)).status).toBe(400); // no proof, nothing changes
     expect((await grantOf(clerk.id)).permissions).not.toContain(GRANT);
@@ -232,6 +243,14 @@ test.describe.serial("the grant", () => {
   });
 
   test("taking it away stops the reading at once, and taking it away from someone who never had it changes nothing", async () => {
+    // a wrong proof cannot take it away either: the grant stays and the holder still reads
+    const wrong = await api(`/api/v1/members/${ids.membership}`, {
+      method: "PATCH",
+      cookie: ck.admin,
+      body: { canViewFormResults: false, stepUp: { type: "password", value: "not-the-password" } },
+    });
+    expect(wrong.status).toBe(403);
+    expect((await grantOf(clerk.id)).permissions).toContain(GRANT);
     expect((await give(ck.admin, ids.membership, false)).status).toBe(200);
     expect(await statuses(ck.clerk)).toEqual({ responses: 404, queue: 404, marking: 404, analytics: 404, turnIns: 404 });
     expect((await give(ck.admin, ids.membership, false)).json.data.changed).toBe(false);
