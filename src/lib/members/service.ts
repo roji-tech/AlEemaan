@@ -12,7 +12,7 @@ import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 type Tx = Prisma.TransactionClient;
 
 export type MemberStatus = "active" | "deactivated";
-export type MemberFilters = { role?: Role; branchId?: string; status: MemberStatus | "all"; q?: string };
+export type MemberFilters = { role?: Role; branchId?: string; status: MemberStatus | "all"; q?: string; readsFormResults?: boolean };
 
 export type PublicMember = {
   /// The membership's id — what every action addresses.
@@ -75,6 +75,7 @@ export async function listMembers(
   const where: Prisma.MembershipWhereInput = {
     ...(scope.superAdmin ? {} : { branchId: { in: [...scope.branchIds] } }),
     ...(filters.role ? { role: filters.role } : {}),
+    ...(filters.readsFormResults ? { permissions: { has: Permission.CAN_VIEW_FORM_RESULTS } } : {}),
     ...(filters.branchId ? { AND: { branchId: filters.branchId } } : {}),
     ...(filters.status === "active" ? { deactivatedAt: null } : filters.status === "deactivated" ? { deactivatedAt: { not: null } } : {}),
     ...(filters.q

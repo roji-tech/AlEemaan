@@ -1,5 +1,6 @@
 import { test, expect } from "../support/fixtures";
 import type { Page } from "@playwright/test";
+import { Permission } from "@prisma/client";
 import { BRANCH_NAMES, Role, createUser, db, resetDatabase, seedInstance, uniqueEmail, type TestUser } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { waitForMail, tokenFrom } from "../support/outbox";
@@ -104,6 +105,26 @@ test.describe("the page", () => {
     await expect(page.getByText("3 people")).toBeVisible();
     await expect(page.getByLabel("Role", { exact: true })).toHaveValue("");
     await expect(page.getByLabel("Branch", { exact: true })).toHaveValue("");
+  });
+
+  test("the Access filter lists only the people who read form results, each carrying the tag, and 'Clear filters' resets it", async ({
+    page,
+  }) => {
+    const clerk = await member(Role.NON_TEACHING_STAFF, "Chidi Clerk", 0);
+    await member(Role.TEACHING_STAFF, "Tola Teacher", 0);
+    await db.membership.update({ where: { id: clerk.membershipId }, data: { permissions: [Permission.CAN_VIEW_FORM_RESULTS] } });
+    await signedInAdmin(page);
+    await expect(page.getByText("3 people")).toBeVisible();
+    await page.getByLabel("Access", { exact: true }).selectOption("formResults");
+    await expect(page.getByText("1 person match")).toBeVisible();
+    await expect(row(page, "Chidi Clerk")).toContainText("Reads form results");
+    await expect(row(page, "Tola Teacher")).toHaveCount(0);
+    // "Clear filters" only appears when nothing matches, so narrow to no one first.
+    await page.getByLabel("Search").fill("tola");
+    await expect(page.getByText("No one matches these filters.")).toBeVisible();
+    await page.getByRole("button", { name: "Clear filters" }).click();
+    await expect(page.getByText("3 people")).toBeVisible();
+    await expect(page.getByLabel("Access", { exact: true })).toHaveValue("");
   });
 
   test("a long list is paged: Page 1 of 2, Next and Previous, no one repeated", async ({ page }) => {

@@ -51,6 +51,7 @@ export function UsersPanel({
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("active");
+  const [access, setAccess] = useState(""); // "" = anyone, "formResults" = only the people who may read form results
   const [branchId, setBranchId] = useState("");
   const [page, setPage] = useState(1);
 
@@ -87,6 +88,7 @@ export function UsersPanel({
       const params = new URLSearchParams({ status, page: String(page), limit: String(PAGE_SIZE) });
       if (role) params.set("role", role);
       if (branchId) params.set("branchId", branchId);
+      if (access === "formResults") params.set("readsFormResults", "true");
       if (q) params.set("q", q);
       const reply = await getJson(`/api/v1/members?${params}`, signal);
       if (signal?.aborted) return;
@@ -102,7 +104,7 @@ export function UsersPanel({
       if (flush) flushSync(apply);
       else apply();
     },
-    [status, role, branchId, q, page],
+    [status, role, branchId, access, q, page],
   );
   const loadInvitations = useCallback(async (signal?: AbortSignal, flush = false) => {
     const reply = await getJson(`/api/v1/invitations?limit=100`, signal);
@@ -176,12 +178,13 @@ export function UsersPanel({
     }
   }
 
-  const filtered = Boolean(q || role || branchId || status !== "active");
+  const filtered = Boolean(q || role || branchId || access || status !== "active");
   const clearFilters = () => {
     setSearchText("");
     setQ("");
     setRole("");
     setBranchId("");
+    setAccess("");
     setStatus("active");
     setPage(1);
   };
@@ -214,7 +217,7 @@ export function UsersPanel({
           </Button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <TextField
             label="Search"
             type="search"
@@ -235,6 +238,15 @@ export function UsersPanel({
             value={branchId}
             onChange={(e) => (setBranchId(e.target.value), setPage(1))}
             options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
+          />
+          <SelectField
+            label="Access"
+            value={access}
+            onChange={(e) => (setAccess(e.target.value), setPage(1))}
+            options={[
+              { value: "", label: "Anyone" },
+              { value: "formResults", label: "Reads form results" },
+            ]}
           />
           <SelectField
             label="Status"
