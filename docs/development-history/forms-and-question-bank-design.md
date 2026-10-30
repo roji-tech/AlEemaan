@@ -121,7 +121,7 @@ Rules: the uploader never sets visibility. A branch can never override a school-
 **Superadmin settings (school-wide, with a default; branch admins can only narrow):**
 `bank.access.pupils|staff|admins` (on/off, per branch override only to narrow) · `bank.practice.maxQuestions` (start 100) · `bank.practice.defaultQuestions` (20) · `bank.practice.presets` (10, 20, 30, 50, 100) · `bank.practice.dailyCap` (per pupil) · `bank.practice.minPoolSize` (below it, practice is simply not offered for that subject and class; no explanation about exams) · `bank.reports.teachers|pupils` (on/off) · `bank.images.max` (3, may be 4) and size limits · `bank.print.nearExamDays` and the exam window (teachers cannot print exam questions inside it) · `bank.smallSummary.min` (5).
 
-What a guardian sees of a child's practice is not a `bank.*` key here: it is `portal_access.guardian.practice` (`NONE`, `SUMMARY`, `FULL`, per branch; task 0040). Octalve Edu, which has separate parent accounts, names the same choice `bank.parents.view` (its decision D4); see `docs/tasks/0040-portal-pupil-guardian-separation.md` section 3 for the two deliberate differences.
+What a guardian sees of a child's practice is the LOWER of two things: the branch's `portal_access.guardian.practice` (`NONE`, `SUMMARY`, `FULL`, per branch; task 0040) and the school-wide ceiling `bank.parents.view` (the same three values, default `SUMMARY`, a branch may only lower it). Octalve Edu, which has separate parent accounts, has the same key (its decision D4) with the default `NONE`; see `docs/tasks/0040-portal-pupil-guardian-separation.md` section 3 for the decision and the one difference that remains.
 
 ## 7. Exam secrecy (the hard part)
 

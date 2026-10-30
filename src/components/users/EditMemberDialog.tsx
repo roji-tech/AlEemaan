@@ -74,6 +74,7 @@ function EditForm({
 }) {
   const [role, setRole] = useState<RoleName>(member.role);
   const [canApprove, setCanApprove] = useState(member.canApproveResults);
+  const [canView, setCanView] = useState(member.canViewFormResults);
   const [proof, setProof] = useState("");
   const [proofError, setProofError] = useState<string | null>(null);
   const [branchId, setBranchId] = useState(member.branchId);
@@ -91,15 +92,19 @@ function EditForm({
       role?: RoleName;
       branchId?: string;
       canApproveResults?: boolean;
+      canViewFormResults?: boolean;
       stepUp?: { type: "password" | "totp" | "recovery"; value: string };
     } = {};
     if (role !== member.role) body.role = role;
     if (branchId !== member.branchId) body.branchId = branchId;
     // Only a superadmin is offered the choice, and only for a role that can hold it; a role that cannot hold it takes the right away on the server by itself.
     const approvalChanged = isSuperAdmin && canBeApprover(role) && canApprove !== member.canApproveResults;
-    if (approvalChanged) {
+    // Any administrator of the branch is offered the form-results grant, for the same two roles; the server takes it away by itself from a role that cannot hold it.
+    const viewChanged = canBeApprover(role) && canView !== member.canViewFormResults;
+    if (approvalChanged || viewChanged) {
       if (!proof.trim()) return setProofError(hasMfa ? "Enter the code from your authenticator." : "Enter your password to confirm.");
-      body.canApproveResults = canApprove;
+      if (approvalChanged) body.canApproveResults = canApprove;
+      if (viewChanged) body.canViewFormResults = canView;
       body.stepUp = {
         type: hasMfa ? (/^\d{6}$/.test(proof.trim()) ? "totp" : "recovery") : "password",
         value: hasMfa ? proof.trim() : proof,
@@ -145,19 +150,33 @@ function EditForm({
         hint={role === "ADMIN" ? "Administers this branch. Superadmin is set separately, from the list." : undefined}
         disabled={pending}
       />
-      {isSuperAdmin && canBeApprover(role) && (
+      {canBeApprover(role) && (
         <div className="space-y-3">
+          {isSuperAdmin && (
+            <>
+              <CheckboxField
+                label="May approve results"
+                checked={canApprove}
+                onChange={(e) => setCanApprove(e.target.checked)}
+                disabled={pending}
+              />
+              <p className="-mt-1 text-xs text-fg-muted">
+                They review and approve the results of the classes you give them. Turning it on gives them the whole branch; narrow it
+                afterwards. Turning it off removes it.
+              </p>
+            </>
+          )}
           <CheckboxField
-            label="May approve results"
-            checked={canApprove}
-            onChange={(e) => setCanApprove(e.target.checked)}
+            label="May read form results"
+            checked={canView}
+            onChange={(e) => setCanView(e.target.checked)}
             disabled={pending}
           />
           <p className="-mt-1 text-xs text-fg-muted">
-            They review and approve the results of the classes you give them. Turning it on gives them the whole branch; narrow it
-            afterwards. Turning it off removes it.
+            They read the results, answers and hand-ins of this branch&apos;s forms, read only: never the answer key, and they cannot edit,
+            mark or print. A move to another branch takes it away.
           </p>
-          {canApprove !== member.canApproveResults &&
+          {(canApprove !== member.canApproveResults || canView !== member.canViewFormResults) &&
             (hasMfa ? (
               <TextField
                 label="Authenticator code"
@@ -176,7 +195,7 @@ function EditForm({
                 value={proof}
                 onChange={(e) => setProof(e.target.value)}
                 error={proofError}
-                hint="Confirm it is you before changing who approves results."
+                hint="Confirm it is you before changing who approves results or reads form results."
                 autoComplete="current-password"
                 disabled={pending}
               />

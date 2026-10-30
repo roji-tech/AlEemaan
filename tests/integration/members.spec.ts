@@ -44,6 +44,7 @@ test.describe("listMembers", () => {
       "branchId",
       "branchName",
       "canApproveResults",
+      "canViewFormResults",
       "email",
       "id",
       "isSuperAdmin",

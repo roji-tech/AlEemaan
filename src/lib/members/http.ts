@@ -55,6 +55,13 @@ export function memberFailure(reason: MemberFailure): Response {
         "NOT_APPROVER_ROLE",
         [{ path: "body.canApproveResults", message: "Only teaching and non-teaching staff can be given this." }],
       );
+    case "NOT_STAFF_ROLE":
+      return fail(
+        "Only teaching and non-teaching staff are given this. An administrator can read form results already.",
+        409,
+        "NOT_STAFF_ROLE",
+        [{ path: "body.canViewFormResults", message: "Only teaching and non-teaching staff can be given this." }],
+      );
   }
 }
 

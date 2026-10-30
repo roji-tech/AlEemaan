@@ -347,3 +347,49 @@ test.describe("fuzz: whatever is stored, the resolver never throws and always re
     expect(problems.slice(0, 10)).toEqual([]);
   });
 });
+
+// bank.parents.view: the most a guardian may see of a child's practice anywhere in the school (NONE < SUMMARY < FULL). A ceiling the branch can only lower; the branch's own
+// portal access level and this one are combined by taking the lower (lib/portal/access.ts, capGuardianPractice).
+test.describe("bank.parents.view: a ceiling on what a guardian sees of a child's practice", () => {
+  const view = "bank.parents.view" as const;
+
+  test("it is one of the bank's switches, valid only as none, a summary or everything, and starts at a summary", () => {
+    expect(BANK_SETTING_KEYS).toContain(view);
+    expect(BANK_DEFAULTS[view]).toBe("SUMMARY");
+    for (const ok of ["NONE", "SUMMARY", "FULL"]) expect(parseBankSetting(view, ok).ok, ok).toBe(true);
+    for (const bad of ["none", "Full", "ALL", "", " SUMMARY", null, undefined, 1, true, ["FULL"], { level: "FULL" }]) {
+      expect(parseBankSetting(view, bad).ok, JSON.stringify(bad)).toBe(false);
+    }
+  });
+
+  test("a branch can choose less than the school, the same, never more", () => {
+    const rank = ["NONE", "SUMMARY", "FULL"] as const;
+    for (const base of rank) {
+      for (const proposed of rank) {
+        expect(isNarrowing(view, base, proposed), `${base} -> ${proposed}`).toBe(rank.indexOf(proposed) <= rank.indexOf(base));
+      }
+    }
+  });
+
+  test("the effective value: the default, the school's, then the branch's where it is lower", () => {
+    expect(effectiveBankSettings({}, {})[view]).toBe("SUMMARY");
+    expect(effectiveBankSettings({ [view]: "FULL" }, {})[view]).toBe("FULL");
+    expect(effectiveBankSettings({ [view]: "NONE" }, {})[view]).toBe("NONE");
+    expect(effectiveBankSettings({ [view]: "FULL" }, { [view]: "SUMMARY" })[view]).toBe("SUMMARY");
+    expect(effectiveBankSettings({ [view]: "SUMMARY" }, { [view]: "FULL" })[view]).toBe("SUMMARY"); // a branch cannot raise it
+    expect(effectiveBankSettings({ [view]: "NONE" }, { [view]: "FULL" })[view]).toBe("NONE");
+  });
+
+  test("a stored value that is not valid is ignored: the default (or the school's value) applies", () => {
+    expect(effectiveBankSettings({ [view]: "everything" }, {})[view]).toBe("SUMMARY");
+    expect(effectiveBankSettings({ [view]: "NONE" }, { [view]: "everything" })[view]).toBe("NONE");
+    expect(effectiveBankSettings({ [view]: 3 }, { [view]: ["FULL"] })[view]).toBe("SUMMARY");
+  });
+
+  test("a change is checked before it is written: a wrong value is a sentence an administrator can act on", () => {
+    expect(settingProblems({ [view]: "NONE" })).toEqual([]);
+    const problems = settingProblems({ [view]: "lots" as never });
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/guardian/i);
+  });
+});

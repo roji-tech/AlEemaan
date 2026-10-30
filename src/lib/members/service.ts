@@ -12,7 +12,7 @@ import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 type Tx = Prisma.TransactionClient;
 
 export type MemberStatus = "active" | "deactivated";
-export type MemberFilters = { role?: Role; branchId?: string; status: MemberStatus | "all"; q?: string };
+export type MemberFilters = { role?: Role; branchId?: string; status: MemberStatus | "all"; q?: string; readsFormResults?: boolean };
 
 export type PublicMember = {
   /// The membership's id — what every action addresses.
@@ -27,6 +27,8 @@ export type PublicMember = {
   isSuperAdmin: boolean;
   /// Holds CAN_APPROVE_RESULTS in this branch (task 0039): may approve the results in their scope. Set only by a superadmin.
   canApproveResults: boolean;
+  /// Holds CAN_VIEW_FORM_RESULTS in this branch: reads the results, answers and turn-ins of the branch's forms (never the answer key, never writes). Given by an administrator of the branch.
+  canViewFormResults: boolean;
   status: MemberStatus;
   joinedAt: Date;
 };
@@ -55,6 +57,7 @@ const toPublic = (row: MemberRow): PublicMember => ({
   branchName: row.branch.name,
   isSuperAdmin: row.user.isSuperAdmin,
   canApproveResults: row.permissions.includes(Permission.CAN_APPROVE_RESULTS),
+  canViewFormResults: row.permissions.includes(Permission.CAN_VIEW_FORM_RESULTS),
   status: row.deactivatedAt ? "deactivated" : "active",
   joinedAt: row.createdAt,
 });
@@ -72,6 +75,7 @@ export async function listMembers(
   const where: Prisma.MembershipWhereInput = {
     ...(scope.superAdmin ? {} : { branchId: { in: [...scope.branchIds] } }),
     ...(filters.role ? { role: filters.role } : {}),
+    ...(filters.readsFormResults ? { permissions: { has: Permission.CAN_VIEW_FORM_RESULTS } } : {}),
     ...(filters.branchId ? { AND: { branchId: filters.branchId } } : {}),
     ...(filters.status === "active" ? { deactivatedAt: null } : filters.status === "deactivated" ? { deactivatedAt: { not: null } } : {}),
     ...(filters.q
@@ -118,7 +122,8 @@ export type MemberFailure =
   /// Only a superadmin says who may approve results (task 0039, decision 2).
   | "SUPERADMIN_ONLY"
   /// Only teaching and non-teaching staff are given the right to approve results; an administrator already can, and a pupil or a parent never.
-  | "NOT_APPROVER_ROLE";
+  | "NOT_APPROVER_ROLE"
+  | "NOT_STAFF_ROLE";
 
 /// `signedOut` (deactivation only): true when this was the person's last active membership, so their sessions were deleted.
 export type MemberResult = { ok: true; member: PublicMember; changed: boolean; signedOut?: boolean } | { ok: false; reason: MemberFailure };
@@ -148,7 +153,7 @@ function refuse(current: MemberRow, scope: AdminScope): MemberFailure | null {
 export async function changeMember(
   actorUserId: string,
   membershipId: string,
-  change: { role?: Role; branchId?: string; canApproveResults?: boolean },
+  change: { role?: Role; branchId?: string; canApproveResults?: boolean; canViewFormResults?: boolean },
   scope: AdminScope,
 ): Promise<MemberResult> {
   return prisma.$transaction(async (tx): Promise<MemberResult> => {
@@ -163,6 +168,7 @@ export async function changeMember(
     const newRole = change.role ?? current.role;
     const mayApprove = newRole === "TEACHING_STAFF" || newRole === "NON_TEACHING_STAFF";
     if (change.canApproveResults === true && !mayApprove) return { ok: false, reason: "NOT_APPROVER_ROLE" };
+    if (change.canViewFormResults === true && !mayApprove) return { ok: false, reason: "NOT_STAFF_ROLE" }; // the same two staff roles
 
     if (change.branchId) {
       const branch = await tx.branch.findUnique({ where: { id: change.branchId }, select: { id: true } });
@@ -184,7 +190,12 @@ export async function changeMember(
     const wantsNow = change.canApproveResults ?? holdsNow;
     const willHold = wantsNow && mayApprove;
     const permissionChanged = willHold !== holdsNow;
-    if (!roleChanged && !branchChanged && !permissionChanged) return { ok: true, member: toPublic(current), changed: false }; // a no-op writes nothing
+    // The form-results grant belongs to ONE staff membership of ONE branch: a role that cannot hold it, or a move to another branch, takes it away unless the same request gives it again.
+    const holdsViewNow = current.permissions.includes(Permission.CAN_VIEW_FORM_RESULTS);
+    const willHoldView = mayApprove && (change.canViewFormResults ?? (holdsViewNow && !branchChanged));
+    const viewChanged = willHoldView !== holdsViewNow;
+    if (!roleChanged && !branchChanged && !permissionChanged && !viewChanged)
+      return { ok: true, member: toPublic(current), changed: false }; // a no-op writes nothing
 
     const scopesBefore =
       holdsNow || branchChanged
@@ -205,11 +216,13 @@ export async function changeMember(
         data: {
           ...(roleChanged ? { role: change.role } : {}),
           ...(branchChanged ? { branchId: change.branchId } : {}),
-          ...(permissionChanged
+          ...(permissionChanged || viewChanged
             ? {
-                permissions: willHold
-                  ? [...current.permissions, Permission.CAN_APPROVE_RESULTS]
-                  : current.permissions.filter((p) => p !== Permission.CAN_APPROVE_RESULTS),
+                permissions: [
+                  ...current.permissions.filter((p) => p !== Permission.CAN_APPROVE_RESULTS && p !== Permission.CAN_VIEW_FORM_RESULTS),
+                  ...(willHold ? [Permission.CAN_APPROVE_RESULTS] : []),
+                  ...(willHoldView ? [Permission.CAN_VIEW_FORM_RESULTS] : []),
+                ],
               }
             : {}),
         },
@@ -260,6 +273,23 @@ export async function changeMember(
           data: { branchId: updated.branchId, userId: current.userId, kind: "GENERAL", createdById: actorUserId },
         });
       }
+    }
+    if (viewChanged) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "MEMBER_PERMISSIONS_CHANGED",
+          targetType: "Membership",
+          targetId: current.id,
+          beforeValue: { canViewFormResults: holdsViewNow },
+          afterValue: {
+            canViewFormResults: willHoldView,
+            ...(!willHoldView && change.canViewFormResults === undefined
+              ? { removedWith: branchChanged ? "branch change" : "role change" }
+              : {}),
+          },
+        },
+      });
     }
     const grantsGeneral = permissionChanged && willHold;
     if (clearScopes || grantsGeneral) {

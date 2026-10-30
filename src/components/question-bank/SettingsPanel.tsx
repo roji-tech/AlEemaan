@@ -12,12 +12,13 @@ import { say, type BranchChoice, type Notice } from "@/components/academics/comm
 // The question bank's switches. A superadmin sets the school-wide values; a branch administrator may only make a value STRICTER for their branch (the server refuses
 // anything looser and says why). Each row shows the built-in default, the school's value, the branch's own value and what actually applies. Presentation only.
 
-type Value = boolean | number | number[];
+type Value = boolean | number | number[] | string;
 type Row = {
   key: string;
   label: string;
   help: string;
-  kind: "flag" | "whole" | "presets" | "images";
+  kind: "flag" | "whole" | "presets" | "images" | "choice";
+  choices: { value: string; label: string }[] | null;
   min: number | null;
   max: number | null;
   unit: string | null;
@@ -31,8 +32,18 @@ type Draft = boolean | string;
 
 const SCHOOL = "__school__";
 
-const show = (value: Value, unit: string | null) =>
-  typeof value === "boolean" ? (value ? "On" : "Off") : Array.isArray(value) ? value.join(", ") : unit ? `${value} ${unit}` : String(value);
+const show = (value: Value, unit: string | null, row?: Row) =>
+  typeof value === "boolean"
+    ? value
+      ? "On"
+      : "Off"
+    : Array.isArray(value)
+      ? value.join(", ")
+      : row?.kind === "choice"
+        ? (row.choices?.find((c) => c.value === value)?.label ?? String(value))
+        : unit
+          ? `${value} ${unit}`
+          : String(value);
 
 const toDraft = (value: Value): Draft => (typeof value === "boolean" ? value : Array.isArray(value) ? value.join(", ") : String(value));
 
@@ -40,6 +51,8 @@ const toDraft = (value: Value): Draft => (typeof value === "boolean" ? value : A
 function toValue(row: Row, draft: Draft): { value: Value } | { why: string } {
   if (row.kind === "flag") return { value: draft === true };
   const text = String(draft).trim();
+  if (row.kind === "choice")
+    return row.choices?.some((c) => c.value === text) ? { value: text } : { why: "Choose one of the offered values." };
   if (row.kind === "presets") {
     const sizes = text
       .split(/[\s,]+/)
@@ -194,8 +207,8 @@ export function SettingsPanel({ branches, isSuperAdmin }: { branches: BranchChoi
                 setCleared({ ...cleared, [row.key]: false });
               };
               const note = isSchool
-                ? `Built-in default: ${show(row.default, row.unit)}.`
-                : `School: ${show(row.school, row.unit)}. Applies here: ${show(row.effective, row.unit)}.`;
+                ? `Built-in default: ${show(row.default, row.unit, row)}.`
+                : `School: ${show(row.school, row.unit, row)}. Applies here: ${show(row.effective, row.unit, row)}.`;
               const error = problems[row.key] ?? null;
               return (
                 <li key={row.key} className="space-y-2 rounded-2xl border border-line bg-surface p-4">
@@ -217,6 +230,15 @@ export function SettingsPanel({ branches, isSuperAdmin }: { branches: BranchChoi
                         { value: "3", label: "3" },
                         { value: "4", label: "4" },
                       ]}
+                    />
+                  ) : row.kind === "choice" ? (
+                    <SelectField
+                      label={row.label}
+                      value={String(draft)}
+                      disabled={!canEdit}
+                      onChange={(e) => setDraft(e.target.value)}
+                      error={error}
+                      options={(row.choices ?? []).map((c) => ({ value: c.value, label: c.label }))}
                     />
                   ) : (
                     <TextField

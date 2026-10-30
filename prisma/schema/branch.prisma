@@ -93,6 +93,7 @@ enum Permission {
   CAN_MANAGE_FINANCE
   CAN_PUBLISH_CONTENT
   CAN_MANAGE_USERS
+  CAN_VIEW_FORM_RESULTS
 }
 
 /// A person's standing in the school. Every membership is branch-scoped,

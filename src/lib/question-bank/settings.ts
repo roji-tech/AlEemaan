@@ -26,9 +26,16 @@ export const BANK_SETTING_KEYS = [
   "bank.images.maxLongSide",
   "bank.print.nearExamDays",
   "bank.smallSummary.min",
+  "bank.parents.view",
 ] as const;
 
 export type BankSettingKey = (typeof BANK_SETTING_KEYS)[number];
+
+/// The most a guardian may see of a child's practice anywhere in the school: nothing, a summary (how many sets and how it went, never a question's text), or the child's own
+/// practice in full. A CEILING: the branch's own `portal_access.guardian.practice` (task 0040) still decides for the branch, and the lower of the two applies (see
+/// `capPractice` in lib/portal/access.ts). Octalve Edu, which gives a parent a separate account, has the same key and the same three values (its decision D4).
+export const PARENTS_VIEW_LEVELS = ["NONE", "SUMMARY", "FULL"] as const;
+export type ParentsView = (typeof PARENTS_VIEW_LEVELS)[number];
 
 export type BankSettingValues = {
   "bank.access.pupils": boolean;
@@ -46,6 +53,7 @@ export type BankSettingValues = {
   "bank.images.maxLongSide": number;
   "bank.print.nearExamDays": number;
   "bank.smallSummary.min": number;
+  "bank.parents.view": ParentsView;
 };
 
 export const BANK_DEFAULTS: Readonly<BankSettingValues> = Object.freeze({
@@ -64,13 +72,16 @@ export const BANK_DEFAULTS: Readonly<BankSettingValues> = Object.freeze({
   "bank.images.maxLongSide": 1600,
   "bank.print.nearExamDays": 7, // placeholder
   "bank.smallSummary.min": 5,
+  // SUMMARY keeps the guardian default of the maintainer's table (2026-10-25) and stops a branch from giving a guardian the child's practice in full until the school-wide
+  // ceiling has been raised too: reading the child's questions and answers takes two deliberate steps.
+  "bank.parents.view": "SUMMARY",
 });
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; message: string };
 
 /// Which way "stricter" goes for a key. "and": off beats on. "lower": a smaller number is stricter. "higher": a larger number is stricter. "subset": fewer of the
-/// school's choices.
-type Narrow = "and" | "lower" | "higher" | "subset";
+/// school's choices. "level": a lower one of an ordered list of choices.
+type Narrow = "and" | "lower" | "higher" | "subset" | "level";
 
 const failure = (message: string): { ok: false; message: string } => ({ ok: false, message });
 
@@ -101,6 +112,11 @@ const parsePresets = (value: unknown): ParseResult<number[]> => {
 const parseImagesMax = (value: unknown): ParseResult<number> =>
   value === 3 || value === 4 ? { ok: true, value } : failure("Images per question must be 3 or 4.");
 
+const parseParentsView = (value: unknown): ParseResult<ParentsView> =>
+  typeof value === "string" && (PARENTS_VIEW_LEVELS as readonly string[]).includes(value)
+    ? { ok: true, value: value as ParentsView }
+    : failure("What a guardian can see must be none, a summary or everything.");
+
 const DEFINITIONS: Record<BankSettingKey, { narrow: Narrow; parse: (value: unknown) => ParseResult<unknown> }> = {
   "bank.access.pupils": { narrow: "and", parse: flag("Pupil access") },
   "bank.access.staff": { narrow: "and", parse: flag("Staff access") },
@@ -117,6 +133,7 @@ const DEFINITIONS: Record<BankSettingKey, { narrow: Narrow; parse: (value: unkno
   "bank.images.maxLongSide": { narrow: "lower", parse: whole("The longest image side in pixels", 400, 4000) },
   "bank.print.nearExamDays": { narrow: "higher", parse: whole("The near-exam days", 0, 60) },
   "bank.smallSummary.min": { narrow: "higher", parse: whole("The small-summary threshold", 3, 50) },
+  "bank.parents.view": { narrow: "level", parse: parseParentsView },
 };
 
 const isKey = (key: unknown): key is BankSettingKey => typeof key === "string" && Object.hasOwn(DEFINITIONS, key);
@@ -138,6 +155,8 @@ export function isNarrowing<K extends BankSettingKey>(key: K, base: BankSettingV
       return (proposed as number) >= (base as number);
     case "subset":
       return (proposed as number[]).every((size) => (base as number[]).includes(size));
+    case "level":
+      return PARENTS_VIEW_LEVELS.indexOf(proposed as ParentsView) <= PARENTS_VIEW_LEVELS.indexOf(base as ParentsView);
   }
 }
 
@@ -210,7 +229,9 @@ export type BankSettingMeta = {
   label: string;
   help: string;
   /// How the screen asks for it: an on/off switch, a whole number, a list of set sizes, or a choice between 3 and 4.
-  kind: "flag" | "whole" | "presets" | "images";
+  kind: "flag" | "whole" | "presets" | "images" | "choice";
+  /// For a "choice": the offered values, least first.
+  choices?: ReadonlyArray<{ value: string; label: string }>;
   min?: number;
   max?: number;
   unit?: string;
@@ -341,5 +362,16 @@ export const BANK_SETTING_META: Readonly<Record<BankSettingKey, BankSettingMeta>
     max: 50,
     unit: "responses",
     stricter: HIGHER_STRICTER,
+  },
+  "bank.parents.view": {
+    label: "The most a guardian can see of a child's practice",
+    help: "A school-wide ceiling. Each branch still sets what its guardians get (Settings, portal access); the lower of the two applies. A summary shows how many sets and how it went, never a question; everything shows the child's own practice with the questions and answers.",
+    kind: "choice",
+    choices: [
+      { value: "NONE", label: "Nothing" },
+      { value: "SUMMARY", label: "A summary of the child's practice" },
+      { value: "FULL", label: "The child's practice in full" },
+    ],
+    stricter: "Showing less is stricter: a branch can choose less than the school, never more.",
   },
 };
