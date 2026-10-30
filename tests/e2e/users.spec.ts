@@ -119,6 +119,9 @@ test.describe("the page", () => {
     await expect(page.getByText("1 person match")).toBeVisible();
     await expect(row(page, "Chidi Clerk")).toContainText("Reads form results");
     await expect(row(page, "Tola Teacher")).toHaveCount(0);
+    // "Clear filters" only appears when nothing matches, so narrow to no one first.
+    await page.getByLabel("Search").fill("tola");
+    await expect(page.getByText("No one matches these filters.")).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).click();
     await expect(page.getByText("3 people")).toBeVisible();
     await expect(page.getByLabel("Access", { exact: true })).toHaveValue("");
