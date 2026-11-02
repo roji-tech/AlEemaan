@@ -3475,5 +3475,86 @@
       "src/components/forms/PublicQuestionnaire.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "QBK-12",
+    "area": "Question bank",
+    "feature": "A teacher reports a problem with an approved question",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open an approved question someone else wrote: Report a problem; fewer than 5 characters is refused on the screen; a real reason is sent and the question says 'Your report went to the reviewers.'; reporting it again shows the API's 'already reported' sentence",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx",
+      "src/components/question-bank/ReportProblemDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-13",
+    "area": "Question bank",
+    "feature": "A reviewer reads the reports on questions, each reporter shown by role and section only",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Reports tab: each report with its question, reporter ('Teacher in Main Branch', 'Pupil'; never a name), reason, version reported and what the question was copied into; the filter Waiting, Resolved, Dismissed, All; the question opens from its report",
+    "source": [
+      "src/components/question-bank/ReportsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-14",
+    "area": "Question bank",
+    "feature": "A reviewer answers a report: Fixed, Not an error or Needs discussion, with a reason",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Answer this report: nothing chosen or a reason under 3 characters is refused on the screen; an answered report leaves Waiting and shows its outcome and reason under Dismissed or Resolved; a report someone else just answered gives the API's sentence and the list updates",
+    "source": [
+      "src/components/question-bank/AnswerReportDialog.tsx",
+      "src/components/question-bank/ReportsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-15",
+    "area": "Question bank",
+    "feature": "A fixed question is corrected in the assessments that copied it, and the attempts are scored again",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Answer a report as Fixed on an approved question that a quiz copied: the tick 'Correct the copies in this branch's assessments' appears with the past-papers warning (not for the other outcomes); ticked, the answer shows how many copies were corrected and attempts scored again",
+    "source": [
+      "src/components/question-bank/AnswerReportDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-16",
+    "area": "Question bank",
+    "feature": "A teacher who is not a reviewer has no Reports section, and a writer cannot report their own question",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher who reviews nothing sees Browse and My questions only; on a question they wrote there is no Report a problem",
+    "source": [
+      "src/components/question-bank/QuestionBankSections.tsx",
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
   }
 ]

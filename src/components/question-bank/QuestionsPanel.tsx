@@ -186,6 +186,7 @@ export function QuestionsPanel({ view, writeBranches }: { view: QuestionsView; w
 
       <QuestionDetail
         id={openId}
+        writeBranches={writeBranches}
         onClose={() => setOpenId(null)}
         onChanged={(message) => {
           if (message) setNotice({ variant: "success", text: message });

@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import { Gender } from "@prisma/client";
 import { test, expect } from "../support/fixtures";
-import { Role, createUser, db, resetDatabase, seedInstance, type TestUser } from "../support/db";
+import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { signInThroughUi } from "./helpers";
 
 // The question bank's reports in a real browser (Task 0041, slice F6a): a teacher reports a problem on a question, a reviewer reads the reports and answers them (and, for a fixed
