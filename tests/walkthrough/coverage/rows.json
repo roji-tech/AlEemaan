@@ -3556,5 +3556,70 @@
       "src/components/question-bank/QuestionDetail.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "QBK-17",
+    "area": "Question bank",
+    "feature": "Print a question as a watermarked PDF, with or without the answer key and with a reason",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open a question: Print; tick Include the answer key, give a reason, Download PDF saves a PDF and the question says the print is in the print log",
+    "source": [
+      "src/components/question-bank/PrintDialog.tsx",
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-18",
+    "area": "Question bank",
+    "feature": "A print of a secret exam question near the exam is refused in the API's words",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher prints a question kept for an exam inside the near-exam window: the dialog shows the API's sentence and no PDF is saved",
+    "source": [
+      "src/components/question-bank/PrintDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-19",
+    "area": "Question bank",
+    "feature": "The print log: who printed what, when, how many pages and why",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Print log tab (reviewers and administrators): each line with title, kind, pages, who, when and the reason; filter by what was printed; Show more; a branch choice when the person is staff in several",
+    "source": [
+      "src/components/question-bank/PrintLogPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-10",
+    "area": "Learning (LMS)",
+    "feature": "Offer a quiz question back to the question bank, and print a quiz",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Quizzes: Questions on a quiz card lists its questions; Offer to the question bank (subject, topic, difficulty) says it was offered and the copy is in My questions as waiting for review; Print this quiz saves a PDF",
+    "source": [
+      "src/components/lms/QuizQuestionsDialog.tsx",
+      "src/components/lms/QuizConsole.tsx"
+    ],
+    "status": "planned"
   }
 ]

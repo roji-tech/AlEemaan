@@ -19,6 +19,7 @@ import {
   type HistoryEntry,
 } from "@/components/question-bank/model";
 import { ApproveDialog, ReasonDialog } from "@/components/question-bank/DecisionDialogs";
+import { PrintDialog } from "@/components/question-bank/PrintDialog";
 import { ReportProblemDialog } from "@/components/question-bank/ReportProblemDialog";
 
 // One question, as staff see it: the words, the answer key (staff set the exam, so they see it), the pictures, what was decided and why, and only the buttons the server's `can`
@@ -57,6 +58,8 @@ function DetailBody({ id, writeBranches, onClose, onChanged, onEdit, onOpen }: {
   const [version, setVersion] = useState(0);
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [printed, setPrinted] = useState(false);
 
   useEffect(() => {
     let current = true;
@@ -112,6 +115,8 @@ function DetailBody({ id, writeBranches, onClose, onChanged, onEdit, onOpen }: {
   // general question from the person's first branch, whose switch for teachers' reports applies.
   const reportBranch = item.branchId ?? writeBranches[0]?.id ?? null;
   const mayReport = item.status === "APPROVED" && !item.mine && reportBranch !== null;
+  // Printing is offered for any question the person can open (display only: the API refuses, in words, a print it does not allow, such as a secret exam question near the exam).
+  const printBranch = reportBranch;
 
   return (
     <div className="space-y-5">
@@ -120,6 +125,11 @@ function DetailBody({ id, writeBranches, onClose, onChanged, onEdit, onOpen }: {
         {reported && (
           <Alert variant="success" announce={false}>
             Your report went to the reviewers.
+          </Alert>
+        )}
+        {printed && (
+          <Alert variant="success" announce={false}>
+            The PDF was downloaded and the print is in the print log.
           </Alert>
         )}
       </div>
@@ -264,6 +274,11 @@ function DetailBody({ id, writeBranches, onClose, onChanged, onEdit, onOpen }: {
         <Button variant="ghost" onClick={onClose}>
           Close
         </Button>
+        {printBranch && (
+          <Button variant="secondary" onClick={() => setPrinting(true)}>
+            Print
+          </Button>
+        )}
         {mayReport && (
           <Button variant="secondary" onClick={() => setReporting(true)}>
             Report a problem
@@ -292,6 +307,20 @@ function DetailBody({ id, writeBranches, onClose, onChanged, onEdit, onOpen }: {
         {item.can.approve && <Button onClick={() => setDeciding("approve")}>Approve</Button>}
       </div>
 
+      {printBranch && (
+        <PrintDialog
+          open={printing}
+          onClose={() => setPrinting(false)}
+          onPrinted={() => {
+            setPrinting(false);
+            setPrinted(true);
+          }}
+          branchId={printBranch}
+          targetKind="QUESTION_BANK_ITEM"
+          targetId={item.id}
+          noun="question"
+        />
+      )}
       {reportBranch && (
         <ReportProblemDialog
           item={item}
