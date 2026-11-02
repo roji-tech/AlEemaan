@@ -244,6 +244,8 @@ export function valueText(type: QuestionType, options: unknown, value: unknown):
   if (type === "MULTI") return (Array.isArray(value) ? value : [value]).map(named).join(", ");
   if (type === "TRUE_FALSE") return value === true || value === "true" ? "True" : "False";
   if (type === "RATING") return `${String(value)} out of 5`;
+  // A short-answer key can list several accepted answers.
+  if (type === "SHORT" && Array.isArray(value)) return value.map(String).join(" or ");
   return typeof value === "string" ? value : JSON.stringify(value);
 }
 
