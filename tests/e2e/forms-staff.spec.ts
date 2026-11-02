@@ -75,7 +75,7 @@ async function openForms(page: Page, isMobile: boolean) {
 }
 
 test.describe("who sees the page", () => {
-  test("a teacher finds Forms in the navigation with its four sections; a pupil is told it is for staff", async ({
+  test("a teacher finds Forms in the navigation with its five sections; a pupil is told it is for staff", async ({
     page,
     browser,
     baseURL,
@@ -84,7 +84,7 @@ test.describe("who sees the page", () => {
     const { teacher, pupil } = await people();
     await signInThroughUi(page, teacher);
     await openForms(page, isMobile);
-    for (const name of ["Practice sets", "Questionnaires", "Paper work", "For you"])
+    for (const name of ["Practice sets", "Questionnaires", "Paper work", "Marking", "For you"])
       await expect(page.getByRole("tab", { name })).toBeVisible();
     await checkBothThemes(page, "the Forms page (teacher)");
 
