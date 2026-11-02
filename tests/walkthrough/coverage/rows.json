@@ -3411,5 +3411,69 @@
       "src/components/portal/PortalPracticeTab.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "FRM-23",
+    "area": "Forms",
+    "feature": "Anyone with the public link answers a questionnaire without signing in",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open the link of a published public questionnaire in a fresh tab, signed out: the title, the instructions and 'Your answers are sent without your name.'; choose, rate and type; 'Send my answers' shows 'Thank you. Your answers were sent.'; no school name and no menu",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-24",
+    "area": "Forms",
+    "feature": "Sending a public questionnaire with no answer is refused on the screen",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Press 'Send my answers' with nothing answered: 'Answer at least one question.' and nothing is sent",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-25",
+    "area": "Forms",
+    "feature": "A public link that cannot be answered says why in a sentence",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Open the link of a closed or draft questionnaire ('This questionnaire is closed.'), one that opens later ('This questionnaire has not opened yet.'), a link that matches nothing ('This link doesn't match a questionnaire. Check that you copied all of it.') and a members-only one ('This questionnaire is not open to the public.'): a sentence, no form",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-26",
+    "area": "Forms",
+    "feature": "A public questionnaire that closes while someone answers keeps their answers on the screen",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Answer, then have the questionnaire closed, press 'Send my answers': 'This questionnaire is closed.' and the chosen option and the typed text are still there",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
   }
 ]
