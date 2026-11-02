@@ -474,6 +474,9 @@ export async function finishPracticeSession(params: {
       id: att.id,
       bankItemId: att.bankItemId,
       prompt: q?.prompt ?? "",
+      // The kind and the options of the question let a screen show the answer in the option's words; the pupil was shown both when the question was asked.
+      type: q?.type ?? null,
+      options: Array.isArray(q?.options) ? q.options : [],
       answer: att.answer,
       correct: att.correct,
       correctAnswer: q?.correctAnswer ?? null,
@@ -575,6 +578,8 @@ export async function getPracticeHistory(params: {
         id: a.id,
         bankItemId: a.bankItemId,
         prompt: a.bankItem.prompt,
+        type: a.bankItem.type,
+        options: Array.isArray(a.bankItem.options) ? a.bankItem.options : [],
         answer: a.answer,
         correct: a.correct,
         correctAnswer: a.bankItem.correctAnswer,

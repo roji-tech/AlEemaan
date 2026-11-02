@@ -9,6 +9,7 @@ import { PortalResultsTab } from "@/components/portal/PortalResultsTab";
 import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
 import { PortalLmsTab, type PortalLms } from "@/components/portal/PortalLmsTab";
 import { PortalFormsTab } from "@/components/portal/PortalFormsTab";
+import { PortalPracticeTab } from "@/components/portal/PortalPracticeTab";
 import { allowedTabs, type Access, type PortalTab } from "@/lib/portal/access";
 
 interface OverviewState {
@@ -86,8 +87,8 @@ interface InvoiceState {
   }>;
 }
 
-// the sections of the portal: those the sign-in's access gives, and Forms, which only a pupil has (the forms routes refuse a guardian)
-type PageTab = PortalTab | "forms";
+// the sections of the portal: those the sign-in's access gives, Forms, which only a pupil has (the forms routes refuse a guardian), and Practice, for whoever has a practice level
+type PageTab = PortalTab | "forms" | "practice";
 
 function PortalContent() {
   const searchParams = useSearchParams();
@@ -143,7 +144,8 @@ function PortalContent() {
   const currentAccess = accessByStudent[selectedStudentId];
   const tabs: PortalTab[] = currentAccess ? allowedTabs(currentAccess) : [];
   const mayForms = actor === "PUPIL" && Boolean(currentAccess?.overview);
-  const allTabs: PageTab[] = mayForms ? [...tabs, "forms"] : tabs;
+  const mayPractice = Boolean(currentAccess?.overview) && currentAccess!.practice !== "NONE";
+  const allTabs: PageTab[] = [...tabs, ...(mayForms ? (["forms"] as const) : []), ...(mayPractice ? (["practice"] as const) : [])];
   const shownTab: PageTab = allTabs.includes(activeTab) ? activeTab : (allTabs[0] ?? activeTab);
 
   // Fetch data for selected student and the section on screen
@@ -333,6 +335,19 @@ function PortalContent() {
             Forms
           </button>
           )}
+          {mayPractice && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={shownTab === "practice"}
+            onClick={() => handleTabChange("practice")}
+            className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
+              shownTab === "practice" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+            }`}
+          >
+            Practice
+          </button>
+          )}
         </div>
 
         {/* Tab Body */}
@@ -370,6 +385,9 @@ function PortalContent() {
                 }}
               />}
             {shownTab === "forms" && mayForms && <PortalFormsTab studentId={selectedStudentId} />}
+            {shownTab === "practice" && mayPractice && (
+              <PortalPracticeTab studentId={selectedStudentId} actor={actor} level={currentAccess!.practice === "FULL" ? "FULL" : "SUMMARY"} />
+            )}
           </div>
         )}
       </main>

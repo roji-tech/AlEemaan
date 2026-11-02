@@ -3220,5 +3220,196 @@
       "src/components/portal/PortalPaperWork.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "POR-21",
+    "area": "Portal",
+    "feature": "A pupil's Practice tab with Practise now, History and My reports",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Signed in with the admission number and date of birth, choose Practice; the sections Practise now, History and My reports are there",
+    "source": [
+      "src/components/portal/PortalPracticeTab.tsx",
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-22",
+    "area": "Portal",
+    "feature": "A guardian's Practice tab shows how practice is going and never a question",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Signed in with the guardian's phone, choose Practice: sessions, questions answered, how many were right, by subject and topic; no question text and no Start practice button",
+    "source": [
+      "src/components/portal/PracticeHistory.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-23",
+    "area": "Portal",
+    "feature": "A pupil whose school switched practice off has no Practice tab",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "With the pupil's practice level set to none in the portal access settings, sign in: there is no Practice tab",
+    "source": [
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-24",
+    "area": "Portal",
+    "feature": "Set up a practice session: subject, topic, number of questions, when the answer is shown, and what is left of today's allowance",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Practise now: 'You can answer N more questions today.'; choose the subject, the topic, the number and 'After each answer' or 'At the end'; Start practice",
+    "source": [
+      "src/components/portal/PracticeSetup.tsx",
+      "src/components/portal/PracticeNow.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-25",
+    "area": "Portal",
+    "feature": "Answer after each question: correct or not quite, the key and the explanation, then the result",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Choose an option, Check answer: 'Correct' or 'Not quite' with the correct answer and the explanation; Next question; See my result: 'You got 1 of 2 right (50%).' with every answer",
+    "source": [
+      "src/components/portal/PracticeSession.tsx",
+      "src/components/portal/PracticeFinished.tsx",
+      "src/components/portal/PracticeAnswers.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-26",
+    "area": "Portal",
+    "feature": "Answer with the answers at the end: nothing is revealed until the session is finished",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Start with 'At the end', Save answer: 'Answer saved.' and no key or explanation; See my result shows them all",
+    "source": [
+      "src/components/portal/PracticeSession.tsx",
+      "src/components/portal/PracticeFinished.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-27",
+    "area": "Portal",
+    "feature": "Finish now asks first and gives the unanswered questions back",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Answer one question, Finish now: the dialog says the questions not answered are given back; Finish now again shows the result of what was answered; Practise again shows the allowance went back up",
+    "source": [
+      "src/components/portal/PracticeSession.tsx",
+      "src/components/portal/PracticeNow.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-28",
+    "area": "Portal",
+    "feature": "A spent allowance, a closed practice and a pool too small each stop a start and say so",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Practise now with today's allowance used: 'You have used today's practice allowance. Come back tomorrow.' and Start practice is off; with practice closed: the school's sentence; with too few questions: 'No practice questions are ready for your class yet.'",
+    "source": [
+      "src/components/portal/PracticeSetup.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-29",
+    "area": "Portal",
+    "feature": "A refused answer keeps the pupil on the question with the sentence and the answer still chosen",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Choose an answer while the school has just closed practice, press Check answer: the sentence 'Practice is currently closed.' appears, the question and the chosen option stay, and nothing is saved",
+    "source": [
+      "src/components/portal/PracticeSession.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-30",
+    "area": "Portal",
+    "feature": "History: sessions newest first, answers in the options' words, archive and restore, finish one left open, PDF",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "History: each session with subject, topic, date and 'x of y right'; Show answers; Archive hides an answer and Show archived answers brings it back with Restore; a session 'Not finished' has Finish it; Download PDF saves a PDF",
+    "source": [
+      "src/components/portal/PracticeHistory.tsx",
+      "src/components/portal/PracticeAnswers.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-31",
+    "area": "Portal",
+    "feature": "Report a problem with a question just practised, and see the reviewer's answer under My reports",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "On an answer, Report a problem: fewer than 5 characters is refused on the screen; a real reason is sent; a second report on the same question is refused with the school's sentence; My reports lists it as 'Waiting for a reviewer' and later shows the outcome and the reason the reviewer gave",
+    "source": [
+      "src/components/portal/ReportQuestionDialog.tsx",
+      "src/components/portal/PracticeReports.tsx",
+      "src/components/portal/PracticeHistory.tsx",
+      "src/components/portal/PracticeFinished.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-32",
+    "area": "Portal",
+    "feature": "A guardian given the full history sees it and can change nothing",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a guardian whose school gave the full practice history: Show answers lists the answers; there is no Archive, Report a problem, Download PDF, Finish it or Start practice",
+    "source": [
+      "src/components/portal/PracticeHistory.tsx",
+      "src/components/portal/PortalPracticeTab.tsx"
+    ],
+    "status": "planned"
   }
 ]

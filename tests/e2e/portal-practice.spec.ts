@@ -52,7 +52,8 @@ test.beforeEach(async () => {
   await resetDatabase();
 });
 
-const setting = (key: string, value: unknown) => db.settingValue.create({ data: { scope: "GLOBAL", key, value: value as never, status: "APPROVED" } });
+const setting = (key: string, value: unknown) =>
+  db.settingValue.create({ data: { scope: "GLOBAL", key, value: value as never, status: "APPROVED" } });
 
 /// A branch with a class and a pupil in it (Amina, 2026/0001, whose guardian has a phone). A session is two questions at most and a pool of five is enough, so a session is short.
 async function school() {
@@ -254,7 +255,9 @@ test.describe("who has the tab", () => {
 });
 
 test.describe("practising", () => {
-  test("a session with the answer after each question: right and not quite, the key, the explanation, the result, a report and a PDF", async ({ page }) => {
+  test("a session with the answer after each question: right and not quite, the key, the explanation, the result, a report and a PDF", async ({
+    page,
+  }) => {
     const s = await school();
     await bank(s);
     await portalSignIn(page);
@@ -417,7 +420,9 @@ test.describe("practising", () => {
 });
 
 test.describe("history", () => {
-  test("sessions newest first, answers with the option's words, archive and restore, finishing one left open, and a PDF", async ({ page }) => {
+  test("sessions newest first, answers with the option's words, archive and restore, finishing one left open, and a PDF", async ({
+    page,
+  }) => {
     const s = await school();
     const items = await bank(s);
     await sessionOf(s, items.slice(0, 2), [true, false]);
@@ -471,7 +476,9 @@ test.describe("history", () => {
 });
 
 test.describe("reports", () => {
-  test("a report needs a few words, is refused a second time with the school's sentence, is listed, and shows the reviewer's answer", async ({ page }) => {
+  test("a report needs a few words, is refused a second time with the school's sentence, is listed, and shows the reviewer's answer", async ({
+    page,
+  }) => {
     const s = await school();
     const items = await bank(s);
     await sessionOf(s, items.slice(0, 2), [true, false]);
@@ -509,7 +516,12 @@ test.describe("reports", () => {
 
     await db.questionReport.updateMany({
       where: { reporterStudentId: s.pupil.id },
-      data: { status: "RESOLVED", outcome: "FIXED", outcomeReason: "The answer key was wrong. It has been corrected.", resolvedAt: new Date() },
+      data: {
+        status: "RESOLVED",
+        outcome: "FIXED",
+        outcomeReason: "The answer key was wrong. It has been corrected.",
+        resolvedAt: new Date(),
+      },
     });
     await page.getByRole("tab", { name: "History" }).click();
     await page.getByRole("tab", { name: "My reports" }).click();
