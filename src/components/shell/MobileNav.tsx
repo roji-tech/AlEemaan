@@ -85,7 +85,8 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
         }}
         className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-fg backdrop:bg-black/60 open:flex open:flex-col lg:hidden"
       >
-        <div className="mt-auto rounded-t-3xl border border-b-0 border-line bg-surface px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-menu">
+        {/* The sheet never grows past the screen: a strip of the dimmed page is always left above it (so a tap outside still closes it), and what does not fit scrolls. */}
+        <div className="mt-auto max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line bg-surface px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-menu">
           <div className="flex items-start gap-3">
             <span
               aria-hidden="true"

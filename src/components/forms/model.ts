@@ -1,0 +1,168 @@
+// What the staff Forms screens share (Task 0041, slice F1): the three kinds of form, the draft of a question as the builder holds it, how a draft becomes the body the API takes,
+// and the sentences for what is wrong with one. Pure, so the rules are unit-tested; the server checks everything again and says what is wrong, in words.
+
+export type FormKindKey = "PRACTICE_SET" | "QUESTIONNAIRE" | "PAPER_WORK";
+export type FormStatusKey = "DRAFT" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
+export type QuestionType = "SINGLE" | "MULTI" | "TRUE_FALSE" | "SHORT" | "RATING" | "TEXT";
+
+export const KIND_NOUN: Record<FormKindKey, string> = {
+  PRACTICE_SET: "practice set",
+  QUESTIONNAIRE: "questionnaire",
+  PAPER_WORK: "paper work",
+};
+
+/// A practice set is marked by the machine, so it only has the kinds of question that have a right answer to compare with.
+export const PRACTICE_TYPES: QuestionType[] = ["SINGLE", "MULTI", "TRUE_FALSE", "SHORT"];
+/// A questionnaire asks; it has no right answer.
+export const QUESTIONNAIRE_TYPES: QuestionType[] = ["SINGLE", "MULTI", "SHORT", "TEXT", "RATING"];
+
+export const TYPE_LABEL: Record<QuestionType, string> = {
+  SINGLE: "Single choice",
+  MULTI: "Multiple choice",
+  TRUE_FALSE: "True or false",
+  SHORT: "Short answer",
+  RATING: "Rating (1 to 5)",
+  TEXT: "Long answer",
+};
+
+export const MIN_OPTIONS = 2;
+export const MAX_OPTIONS = 6;
+export const MAX_POINTS = 100;
+
+/// "A", "B", ...: the id of the option at `index`, and what a pupil's answer to a single-choice question is compared with.
+export const optionId = (index: number) => String.fromCharCode(65 + index);
+
+export type DraftQuestion = {
+  type: QuestionType;
+  prompt: string;
+  options: string[];
+  /// The index of the correct option of a single-choice question.
+  single: number;
+  /// The indexes of the correct options of a multiple-choice question.
+  multi: number[];
+  /// The answer of a true/false question.
+  truth: boolean;
+  /// The text a short answer must match.
+  accepted: string;
+  points: string;
+  explanation: string;
+};
+
+export const blankQuestion = (type: QuestionType = "SINGLE"): DraftQuestion => ({
+  type,
+  prompt: "",
+  options: ["", ""],
+  single: 0,
+  multi: [],
+  truth: true,
+  accepted: "",
+  points: "1",
+  explanation: "",
+});
+
+const hasOptions = (type: QuestionType) => type === "SINGLE" || type === "MULTI";
+
+/// The first thing wrong with a question as written, in a sentence a teacher can act on, or null. `n` is the question's number on screen.
+export function questionProblem(q: DraftQuestion, n: number, kind: FormKindKey): string | null {
+  if (q.prompt.trim().length === 0) return `Write the question for question ${n}.`;
+  if (hasOptions(q.type)) {
+    const filled = q.options.filter((o) => o.trim().length > 0);
+    if (filled.length < MIN_OPTIONS) return `Question ${n} needs at least ${MIN_OPTIONS} options with text.`;
+    if (q.options.some((o) => o.trim().length === 0)) return `Question ${n} has an empty option. Fill it in or remove it.`;
+    if (kind === "PRACTICE_SET") {
+      if (q.type === "SINGLE" && (q.single < 0 || q.single >= q.options.length)) return `Choose the correct option of question ${n}.`;
+      if (q.type === "MULTI" && q.multi.length === 0) return `Tick every correct option of question ${n}.`;
+    }
+  }
+  if (kind === "PRACTICE_SET") {
+    if (q.type === "SHORT" && q.accepted.trim().length === 0) return `Write the answer a pupil must give to question ${n}.`;
+    const points = Number(q.points);
+    if (!Number.isInteger(points) || points < 0 || points > MAX_POINTS)
+      return `Points for question ${n} must be a whole number from 0 to ${MAX_POINTS}.`;
+  }
+  return null;
+}
+
+/// The question as the API takes it. A practice set carries its key and points; a questionnaire only asks.
+export function questionPayload(q: DraftQuestion, index: number, kind: FormKindKey) {
+  const options = hasOptions(q.type) ? q.options.map((text, i) => ({ id: optionId(i), text: text.trim() })) : [];
+  const body: Record<string, unknown> = { prompt: q.prompt.trim(), questionType: q.type, sortOrder: index };
+  if (options.length > 0) body.options = options;
+  if (kind === "PRACTICE_SET") {
+    body.points = Number(q.points);
+    if (q.explanation.trim()) body.explanation = q.explanation.trim();
+    body.correctAnswer =
+      q.type === "SINGLE"
+        ? optionId(q.single)
+        : q.type === "MULTI"
+          ? JSON.stringify([...q.multi].sort((a, b) => a - b).map(optionId))
+          : q.type === "TRUE_FALSE"
+            ? String(q.truth)
+            : q.accepted.trim();
+  }
+  return body;
+}
+
+/// A value from a datetime-local input ("2026-12-01T09:00", the browser's own time zone) as the ISO instant the API takes, or null when blank.
+export function instantOf(local: string): string | null {
+  if (!local.trim()) return null;
+  const at = new Date(local);
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
+}
+
+export type ListedForm = {
+  id: string;
+  title: string;
+  instructions: string | null;
+  status: FormStatusKey;
+  opensAt: string | null;
+  closesAt: string | null;
+  maxDurationMinutes?: number | null;
+  questionCount?: number;
+  responseCount?: number;
+  participationCount?: number;
+  isAnonymous?: boolean;
+  shareToken?: string | null;
+  audience?: { kind: "MEMBERS" | "PUBLIC"; roles?: unknown; classGroupIds?: unknown } | null;
+  classGroupIds?: unknown;
+  audiences?: { classGroupIds?: unknown }[];
+  summary?: {
+    totalStudents: number;
+    handedInCount: number;
+    lateCount: number;
+    pendingCount: number;
+    requestedMarkingCount: number;
+    completionRate: number;
+  } | null;
+};
+
+export const STATUS_LABEL: Record<FormStatusKey, string> = {
+  DRAFT: "Draft",
+  PUBLISHED: "Published",
+  CLOSED: "Closed",
+  ARCHIVED: "Archived",
+};
+
+const dayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string) => dayFormat.format(new Date(iso));
+
+/// "Opens 1 Dec 2026, 09:00 · Closes 8 Dec 2026, 09:00", or "No dates set".
+export function windowText(opensAt: string | null, closesAt: string | null): string {
+  const parts = [opensAt ? `Opens ${when(opensAt)}` : null, closesAt ? `Closes ${when(closesAt)}` : null].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "No dates set";
+}
+
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+export const ROLE_CHOICES: { value: string; label: string }[] = [
+  { value: "STUDENT", label: "Pupils" },
+  { value: "PARENT", label: "Guardians" },
+  { value: "TEACHING_STAFF", label: "Teachers" },
+  { value: "NON_TEACHING_STAFF", label: "Non-teaching staff" },
+  { value: "ADMIN", label: "Administrators" },
+];
+
+export const classGroupIdsOf = (form: ListedForm): string[] => {
+  const raw = form.classGroupIds ?? form.audience?.classGroupIds ?? form.audiences?.[0]?.classGroupIds;
+  return Array.isArray(raw) ? (raw as string[]) : [];
+};
