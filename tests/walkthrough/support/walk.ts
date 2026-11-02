@@ -1,10 +1,27 @@
 import type { Page, Locator } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
-import { pace } from "./pace";
+import { pace, keyDelay, TYPING_BUDGET_MINUTES } from "./pace";
 import { getOverlayInitScript } from "./overlay";
+import { Observers } from "./observers";
+import rows from "../coverage/rows.json";
 
-export type WalkRole = "Platform Superadmin" | "School Admin" | "Branch Admin" | "Teacher" | "Pupil" | "Guardian" | "Visitor";
+/// Every row id of the coverage matrix: a step may only claim a row that exists.
+const KNOWN_ROWS = new Set<string>((rows as Array<{ id: string }>).map((row) => row.id));
+
+/// The same seven names as the roles of the coverage matrix.
+export type WalkRole = "Visitor" | "Superadmin" | "Branch administrator" | "Teacher" | "Non-teaching staff" | "Pupil" | "Guardian";
+
+/// The badge colour class (overlay.ts) of each role.
+const ROLE_CLASS: Record<WalkRole, string> = {
+  Visitor: "visitor",
+  Superadmin: "platform",
+  "Branch administrator": "admin",
+  Teacher: "teacher",
+  "Non-teaching staff": "teacher",
+  Pupil: "pupil",
+  Guardian: "parent",
+};
 
 export interface StepMeta {
   id: number;
@@ -12,7 +29,8 @@ export interface StepMeta {
   role: WalkRole;
   caption: string;
   chapter?: string;
-  covers?: string[];
+  /// The coverage-matrix rows this step proves (tests/walkthrough/coverage/rows.json). A step that proves nothing, or names a row that does not exist, is a bug in the journey.
+  covers: string[];
 }
 
 export interface TimelineEntry extends StepMeta {
@@ -31,10 +49,14 @@ export class Walk {
   private timeline: TimelineEntry[] = [];
   private screenshotsDir: string;
   private currentRole: WalkRole = "Visitor";
+  private typedMs: number = 0;
+  /// Always on: console, page errors, failed requests, response statuses, requests that would leave the machine, and axe after every new page.
+  readonly observers: Observers;
 
   constructor(page: Page, screenshotsDir: string = "out/walkthrough/screenshots") {
     this.page = page;
     this.screenshotsDir = screenshotsDir;
+    this.observers = new Observers(page);
   }
 
   /**
@@ -45,6 +67,8 @@ export class Walk {
     if (!fs.existsSync(this.screenshotsDir)) {
       fs.mkdirSync(this.screenshotsDir, { recursive: true });
     }
+
+    await this.observers.start(this.page.context());
 
     // Re-inject overlay automatically across navigations
     await this.page.addInitScript(getOverlayInitScript());
@@ -142,13 +166,31 @@ export class Walk {
   }
 
   /**
-   * Human-paced typing: glides cursor, clicks input, and enters characters sequentially.
+   * Human-paced typing: glides cursor, clicks the field, clears it the way a person does (select all, delete) and presses one key at a time, 50 to 120 ms apart.
    */
   async type(locator: Locator, text: string): Promise<void> {
     await this.click(locator);
-    await locator.fill(""); // Clear cleanly before typing
-    await locator.pressSequentially(text, { delay: pace.typeDelay });
+    await this.page.keyboard.press("ControlOrMeta+A");
+    await this.page.keyboard.press("Backspace");
+    for (const character of text) {
+      await this.page.keyboard.type(character);
+      const delay = keyDelay();
+      this.typedMs += delay;
+      await new Promise((r) => setTimeout(r, delay));
+    }
     await new Promise((r) => setTimeout(r, pace.afterClick));
+  }
+
+  /// Milliseconds spent between key presses so far (the typing budget counts it).
+  typingMs(): number {
+    return this.typedMs;
+  }
+
+  /// Fails the run when the typing alone is longer than a pass may contain: shorten the fixture text.
+  assertTypingBudget(maxMinutes: number = TYPING_BUDGET_MINUTES): void {
+    const minutes = this.typedMs / 60_000;
+    if (minutes > maxMinutes)
+      throw new Error(`Typing took ${minutes.toFixed(1)} minutes, over the budget of ${maxMinutes}. Shorten the fixture text.`);
   }
 
   /**
@@ -170,12 +212,18 @@ export class Walk {
    * runs the action, settles DOM, captures screenshot, and dwells.
    */
   async step(meta: StepMeta, action: () => Promise<void>): Promise<void> {
+    if (!Array.isArray(meta.covers) || meta.covers.length === 0)
+      throw new Error(`Step ${meta.id} ("${meta.title}") covers no coverage-matrix row.`);
+    for (const id of meta.covers) {
+      if (!KNOWN_ROWS.has(id))
+        throw new Error(`Step ${meta.id} ("${meta.title}") covers "${id}", which is not a row of the coverage matrix.`);
+    }
     this.stepCount = meta.id;
     this.currentRole = meta.role;
+    this.observers.setStep(meta.id);
     const startMs = Date.now() - this.recordingStartMs;
 
-    // Format role class
-    const roleSlug = meta.role.toLowerCase().replace(/\s+/g, "-");
+    const roleSlug = ROLE_CLASS[meta.role];
     const stepLabel = `Step ${String(meta.id).padStart(2, "0")}`;
 
     // Update overlay in DOM
@@ -210,6 +258,9 @@ export class Walk {
     // Settle pause
     await new Promise((r) => setTimeout(r, pace.settle));
 
+    // A page reached for the first time is scanned for accessibility before the screenshot (the scan changes nothing on the page).
+    await this.observers.axeOnNewRoute();
+
     // Capture step screenshot
     const screenshotName = `step_${String(meta.id).padStart(3, "0")}.png`;
     const screenshotPath = path.join(this.screenshotsDir, screenshotName);
@@ -237,6 +288,20 @@ export class Walk {
       fs.mkdirSync(dir, { recursive: true });
     }
     fs.writeFileSync(outputPath, JSON.stringify(this.timeline, null, 2), "utf-8");
+  }
+
+  /// Writes what the observers saw, and in a strict run (the final one) fails on any blocker. A recon run passes strict: false and reads the file.
+  finish(observationsPath: string, options: { strict: boolean }): void {
+    this.observers.save(observationsPath);
+    this.assertTypingBudget();
+    const blockers = this.observers.blockers();
+    if (options.strict && blockers.length > 0) {
+      const first = blockers
+        .slice(0, 5)
+        .map((o) => `step ${o.step} ${o.route}: ${o.kind} ${o.detail}`)
+        .join("\n  ");
+      throw new Error(`${blockers.length} blocking observation(s); the first:\n  ${first}`);
+    }
   }
 
   getTimeline(): TimelineEntry[] {

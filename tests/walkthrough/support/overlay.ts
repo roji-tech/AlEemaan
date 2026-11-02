@@ -137,6 +137,8 @@ export const OVERLAY_STYLES = `
 export function getOverlayInitScript(): string {
   return `
     (() => {
+      // This runs at document start (addInitScript), when there is no <head> or <body> yet: mount once the document has been parsed, or the script throws on every page load.
+      const mount = () => {
       if (document.getElementById('walkthrough-overlay-root')) return;
 
       // Inject Styles
@@ -170,6 +172,9 @@ export function getOverlayInitScript(): string {
         </svg>
       \`;
       document.body.appendChild(cursor);
+      };
+      if (document.body) mount();
+      else document.addEventListener('DOMContentLoaded', mount, { once: true });
     })();
   `;
 }
