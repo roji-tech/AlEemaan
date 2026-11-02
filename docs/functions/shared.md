@@ -91,7 +91,7 @@ The build's own settings.
 
 | File | Description |
 | --- | --- |
-| `dist-dir.ts` | `distDirFrom(value)`: the folder `next build` writes to, from `NEXT_DIST_DIR` (for example `.next-walk`, so a walkthrough can be recorded against a build that `next dev` or another build cannot overwrite). Unset or empty is undefined and Next keeps `.next`; only a plain folder name is accepted, anything else (a path, `..`, spaces) throws a sentence naming the setting. Used by `next.config.ts`. |
+| `dist-dir.ts` | `distDirFrom(value)`: the folder `next build` writes to, from `NEXT_DIST_DIR` (for example `.next-walk`, so a walkthrough can be recorded against a build that `next dev` or another build cannot overwrite). Unset or empty is undefined and Next keeps `.next`; only a plain folder name is accepted, anything else (a path, `..`, spaces) throws a sentence naming the setting. Used by `next.config.ts`. `tsconfig.json` lists `.next-walk/types` and `.next-walk/dev/types` beside `.next`'s, because Next adds an unlisted build folder's types to the tracked file and rewrites it; with the folder listed, a build into `.next-walk` (checked) leaves the file untouched. |
 
 ## `src/lib/dev/`
 
