@@ -1,0 +1,2731 @@
+[
+  {
+    "id": "RTE-01",
+    "area": "Start",
+    "feature": "The site address on an empty instance sends a visitor to the setup wizard",
+    "route": "/",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "The first and only page load of the recording: the address lands on First-run setup",
+    "source": [
+      "src/app/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RTE-02",
+    "area": "Start",
+    "feature": "The site address on a set-up instance sends a visitor to sign-in, and a signed-in person to the overview",
+    "route": "/",
+    "roles": [
+      "Visitor",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "In a new tab, type the site address once (one goto for that tab): signed out lands on sign-in; signed in lands on the overview",
+    "source": [
+      "src/app/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "SET-01",
+    "area": "Setup",
+    "feature": "First-run setup creates the superadministrator",
+    "route": "/setup",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Type name, email, setup token, password and its confirmation with key presses; press Initialize; see 'Setup complete'",
+    "source": [
+      "src/app/setup/SetupWizardForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SET-02",
+    "area": "Setup",
+    "feature": "Setup cannot be run a second time",
+    "route": "/setup",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "After 'Setup complete', press the browser Back button: the form is not offered again, and a sentence says why",
+    "source": [
+      "src/app/setup/SetupWizardForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SET-03",
+    "area": "Setup",
+    "feature": "A wrong or missing setup token is refused with a sentence",
+    "route": "/setup",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Submit with a wrong token: the page says the token is invalid (no status code), nothing is created",
+    "source": [
+      "src/app/setup/SetupWizardForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-01",
+    "area": "Sign-in",
+    "feature": "Sign in with email and password, optionally staying signed in",
+    "route": "/login",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Type email and password, tick 'Keep me signed in on this device', press Sign in; land on the overview",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-02",
+    "area": "Sign-in",
+    "feature": "A wrong password is refused with a sentence, and repeated failures are paused",
+    "route": "/login",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong password: a sentence, not a status code; after repeated tries, 'Too many unsuccessful attempts. Please wait a moment'",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-03",
+    "area": "Sign-in",
+    "feature": "Two-step sign-in with the authenticator code, and with a recovery code",
+    "route": "/login",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Sign in on an account with two-step on; read the secret from the Account screen earlier, type the computed code; later sign in again with a recovery code",
+    "source": [
+      "src/app/login/LoginForm.tsx",
+      "src/components/auth/MfaStep.tsx",
+      "src/components/auth/SecondFactorField.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-04",
+    "area": "Sign-in",
+    "feature": "Sign out through the account menu",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Open the account menu, press Sign out; land on the sign-in page",
+    "source": [
+      "src/components/shell/ProfileMenu.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-05",
+    "area": "Sign-in",
+    "feature": "After signing out, the Back button does not show school pages",
+    "route": "/login",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Sign out, press Back: the sign-in page (or a sign-in prompt) is shown, never the dashboard content",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRG-01",
+    "area": "Recovery",
+    "feature": "Ask for a password reset link",
+    "route": "/forgot-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "From the sign-in page press 'Forgot password?', type the email, press send; see 'Check your email'",
+    "source": [
+      "src/components/auth/ForgotPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRG-02",
+    "area": "Recovery",
+    "feature": "The reset request does not reveal whether an account exists",
+    "route": "/forgot-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Ask for a link for an address with no account: the same 'If an account exists for...' sentence appears",
+    "source": [
+      "src/components/auth/ForgotPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RST-01",
+    "area": "Recovery",
+    "feature": "Choose a new password from the emailed link",
+    "route": "/reset-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open the message in the dev inbox, click the link, type a new password twice; see 'Password updated'; sign in with it",
+    "source": [
+      "src/components/auth/ResetPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RST-02",
+    "area": "Recovery",
+    "feature": "The same reset link cannot be used twice",
+    "route": "/reset-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Click the same link in the inbox again: a sentence offers 'Request a new link'",
+    "source": [
+      "src/components/auth/ResetPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "INV-01",
+    "area": "Invitations",
+    "feature": "Accept an invitation: set a name and password",
+    "route": "/accept-invite",
+    "roles": [
+      "Teacher",
+      "Branch administrator",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Open the invitation message in the dev inbox, click the link, type name and password twice; land signed in",
+    "source": [
+      "src/components/auth/AcceptInviteForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "INV-02",
+    "area": "Invitations",
+    "feature": "An invitation link that was already used, or revoked, is refused with a sentence",
+    "route": "/accept-invite",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Click the same invitation link again, and a revoked one: 'Ask your school administrator to send a new invitation.'",
+    "source": [
+      "src/components/auth/AcceptInviteForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "INV-03",
+    "area": "Invitations",
+    "feature": "An invitation opened while signed in as someone else asks whether to sign out",
+    "route": "/accept-invite",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "While signed in, click an invitation meant for another address: 'This invitation is for a different account' with Sign out",
+    "source": [
+      "src/components/auth/AcceptInviteForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "CNF-01",
+    "area": "Account",
+    "feature": "Confirm a new email address from the emailed link",
+    "route": "/confirm-email",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "After asking for a change on the Account page, click the link in the dev inbox; see 'Email address changed'; sign in with the new address",
+    "source": [
+      "src/components/auth/ConfirmEmailForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "OFF-01",
+    "area": "Offline",
+    "feature": "The offline page",
+    "route": "/offline",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "The service worker shows it when the network is gone",
+    "source": [
+      "src/app/offline/page.tsx"
+    ],
+    "status": "not-demonstrable",
+    "reason": "A user loses the network outside the app; taking the network away is not a click in the app, and the guard treats an unclear actor as forbidden. Needs the maintainer's word (decision D5)"
+  },
+  {
+    "id": "VID-01",
+    "area": "Video guide",
+    "feature": "The video guide page plays the walkthrough with chapters and downloads",
+    "route": "/video-guide",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Reach the page by a link, play the video, jump to a chapter, open the PDF and caption downloads. Nothing in the app links to this page (see findings): the row stays planned until it has a link or the maintainer decides",
+    "source": [
+      "src/app/video-guide/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "VER-01",
+    "area": "Verification",
+    "feature": "A published report card is verified on a public page by its link",
+    "route": "/verify/[token]",
+    "roles": [
+      "Visitor",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "From a report card press 'Verify these results': the public page shows the school, pupil, term and that it is genuine",
+    "source": [
+      "src/app/verify/[token]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "VER-02",
+    "area": "Verification",
+    "feature": "A made-up verification token is 'not found', in a sentence, with no internal detail",
+    "route": "/verify/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Open a fresh tab and type a made-up verification address (one goto for that tab, labelled as a typed address in the PDF)",
+    "source": [
+      "src/app/verify/[token]/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "SHL-01",
+    "area": "Shell",
+    "feature": "Sidebar navigation reaches every entry the role may use",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Click each sidebar entry in turn: Superadmin 15, administrator 12, teacher 8, non-teaching staff 2; each lands on its page with the right heading and crumb",
+    "source": [
+      "src/components/shell/AppShell.tsx",
+      "src/components/shell/SidebarNav.tsx",
+      "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-02",
+    "area": "Shell",
+    "feature": "Entries a role may not use are absent from its navigation",
+    "route": "/dashboard",
+    "roles": [
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "Look at the sidebar of an administrator (no Branches, Settings), a teacher (no Academics, Communication, Finance, Approvals, Users) and non-teaching staff (Overview and Announcements only)",
+    "source": [
+      "src/components/shell/AppShell.tsx",
+      "src/components/shell/SidebarNav.tsx",
+      "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-03",
+    "area": "Shell",
+    "feature": "Phone navigation: the bottom bar and the More sheet",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "At phone width press More, choose an entry that lives in the sheet; the same pages as the sidebar are reached",
+    "source": [
+      "src/components/shell/MobileNav.tsx"
+    ],
+    "status": "planned",
+    "passes": [
+      "phone"
+    ]
+  },
+  {
+    "id": "SHL-04",
+    "area": "Shell",
+    "feature": "Switch between light and dark theme",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press the theme toggle: the page changes theme and the choice is still there after going to another page and back",
+    "source": [
+      "src/components/ui/ThemeToggle.tsx",
+      "src/components/ui/ThemeProvider.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-05",
+    "area": "Shell",
+    "feature": "Quick Tools drawer: calculator, notes, student lookup",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press the Quick Tools button (or Cmd+K), use the calculator, write a note, look a student up, close the drawer",
+    "source": [
+      "src/components/tools/QuickToolsDrawer.tsx",
+      "src/components/tools/QuickToolsTrigger.tsx",
+      "src/components/tools/QuickNotesTool.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-06",
+    "area": "Shell",
+    "feature": "Dev email inbox: read a message and click a link in it",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open the dev email inbox from the shell, open a message, click a link under 'Links in this message'; 'Clear all messages' empties it",
+    "source": [
+      "src/components/dev/DevEmailInbox.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-07",
+    "area": "Shell",
+    "feature": "Account menu shows who is signed in and links to the account page",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Open the account menu: name, email and role are shown; 'Account' opens the account page",
+    "source": [
+      "src/components/shell/ProfileMenu.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-08",
+    "area": "Shell",
+    "feature": "'Back to overview' links return to the dashboard",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "On Branches, Settings, Users, Finance press 'Back to overview'",
+    "source": [
+      "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "DSH-01",
+    "area": "Overview",
+    "feature": "The overview shows branch totals, people by role and the viewer's own role",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Read the Totals, Branches and People-with-a-role figures; they equal what the Branches and Users pages show",
+    "source": [
+      "src/app/(app)/dashboard/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "DSH-02",
+    "area": "Overview",
+    "feature": "An empty school says what to do next",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "On a brand-new instance the overview says 'No branches yet.' with a 'Manage branches' link",
+    "source": [
+      "src/app/(app)/dashboard/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "DSH-03",
+    "area": "Overview",
+    "feature": "Someone with no branch is told to ask the administrator, not shown an error",
+    "route": "/dashboard",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A member with no branch signs in: 'Ask your school administrator to add you to a branch.'",
+    "source": [
+      "src/app/(app)/dashboard/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-01",
+    "area": "Branches",
+    "feature": "Create a branch",
+    "route": "/branches",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Press New branch, type the name, save; it is listed",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-02",
+    "area": "Branches",
+    "feature": "A new branch persists",
+    "route": "/branches",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Leave to the overview and return by clicking: the branch is still listed",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-03",
+    "area": "Branches",
+    "feature": "The empty list says how to begin",
+    "route": "/branches",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Before any branch: 'No branches yet' and 'Use New branch above'",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-04",
+    "area": "Branches",
+    "feature": "Branches is not offered to an administrator or a teacher",
+    "route": "/branches",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The sidebar has no Branches entry for them (SHL-02); a typed address is refused with a sentence",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "STG-01",
+    "area": "Settings",
+    "feature": "Edit the school profile (name, head, phone, motto, address, email, website)",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Type the school's details, save, leave and return: they are still there",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-02",
+    "area": "Settings",
+    "feature": "Create an academic session with its terms",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Press New Academic Session, pick a branch, type the label and dates, save",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-03",
+    "area": "Settings",
+    "feature": "Make a term the current term",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Press 'Set Current' on a term; it shows CURRENT TERM and the results screens now offer it",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-04",
+    "area": "Settings",
+    "feature": "Portal access: what pupils and guardians may do, per area",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Open Portal access, change a switch (including question practice), Save changes; 'Recent changes' lists it; 'Discard changes' and 'Use the recommended settings' work",
+    "source": [
+      "src/components/settings/PortalAccessPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-05",
+    "area": "Settings",
+    "feature": "Results approval: sections of classes",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Add a section, put classes in it, rename it, archive it",
+    "source": [
+      "src/components/settings/ResultsApprovalPanel.tsx",
+      "src/components/settings/ScopeEditor.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-06",
+    "area": "Settings",
+    "feature": "Results approval: who approves where, confirmed with a fresh password",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Give a member an approver scope, confirm with the password in the 'Confirm it's you' dialog, see it listed",
+    "source": [
+      "src/components/settings/ResultsApprovalPanel.tsx",
+      "src/components/settings/ScopeEditor.tsx",
+      "src/components/settings/StepUpModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-07",
+    "area": "Settings",
+    "feature": "A wrong password in the confirmation dialog changes nothing and says so",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong password in 'Confirm it's you': a sentence, and the scope is unchanged",
+    "source": [
+      "src/components/settings/StepUpModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-08",
+    "area": "Settings",
+    "feature": "Settings is not offered to an administrator or a teacher",
+    "route": "/settings",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The sidebar has no Settings entry for them; a typed address shows 'Only superadmins can view and manage school settings'",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "ACA-01",
+    "area": "Academics",
+    "feature": "Create a class and add its arms",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Classes and arms: New class, type the name, then Add arm",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-02",
+    "area": "Academics",
+    "feature": "Create subjects and choose which a class studies",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New subject; on a class pick 'This class studies' and save",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-03",
+    "area": "Academics",
+    "feature": "Edit and archive a class or subject",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit, then Archive; it leaves the active list",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-04",
+    "area": "Academics",
+    "feature": "Staff records: create, edit, search, filter by kind",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New staff record (first and last name, kind, optional phone and email), Edit, search by name",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-05",
+    "area": "Academics",
+    "feature": "Link and unlink a staff record to a sign-in",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Link sign-in to a member, then Unlink sign-in",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-06",
+    "area": "Academics",
+    "feature": "Assign a teacher to a class, arm and subject",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "On a staff record choose class and arm and subject, Assign; it appears under 'Teaches'; Remove",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-07",
+    "area": "Academics",
+    "feature": "Archive and restore a staff record",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Archive a staff record, show archived, restore it",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-08",
+    "area": "Academics",
+    "feature": "Assessment scheme: parts, exam marks, archive, locked once used",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New scheme with 'CA, Test 1' parts and exam marks; Archive; a scheme in use shows Locked",
+    "source": [
+      "src/components/academics/GradingPanel.tsx",
+      "src/components/academics/SchemeForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-09",
+    "area": "Academics",
+    "feature": "Grade scale: bands, WAEC-style template, default, archive",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New grade scale: 'Use the WAEC-style template', adjust a band, save; 'Make default'; Archive",
+    "source": [
+      "src/components/academics/GradingPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-10",
+    "area": "Academics",
+    "feature": "Scheme levels: a school-wide default and a scheme for one class",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New school-wide scheme; 'A scheme for one class' with a branch",
+    "source": [
+      "src/components/academics/SchemeLevelsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-11",
+    "area": "Academics",
+    "feature": "Promotion: set up, preview, override, confirm",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Rollover Console: choose branch and source class group, read the preview, change one pupil's decision with an override reason, Confirm Academic Rollover & Promotion",
+    "source": [
+      "src/components/academics/promotion/PromotionConsole.tsx",
+      "src/components/academics/promotion/PromotionPreviewTable.tsx",
+      "src/components/academics/promotion/PromotionConfirmModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-12",
+    "area": "Academics",
+    "feature": "Promotion audit history and batch details",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Audit History: open a batch with View Details; counts add up to Evaluated",
+    "source": [
+      "src/components/academics/promotion/PromotionHistoryView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-13",
+    "area": "Academics",
+    "feature": "A branch administrator only chooses and sees their own branch",
+    "route": "/academics",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "The branch selector offers only the administrator's own branch(es); another branch's classes are not listed",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-14",
+    "area": "Academics",
+    "feature": "Academics is not offered to teachers or non-teaching staff",
+    "route": "/academics",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Academics entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/app/(app)/academics/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "STU-01",
+    "area": "Students",
+    "feature": "Enrol a new student",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New student: names, gender, date of birth, class and arm, guardian name, phone, email; save; listed",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-02",
+    "area": "Students",
+    "feature": "Edit a student and see it after leaving and returning",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit the guardian phone, save, go to another page and back",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-03",
+    "area": "Students",
+    "feature": "Search, filter by status, page through a long list",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Search by name and by admission number; Show archived; Next and Previous",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-04",
+    "area": "Students",
+    "feature": "Import students from a spreadsheet",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Download a template, choose a CSV through the file dialog (and paste rows); read the import summary",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-05",
+    "area": "Students",
+    "feature": "Archive a student and restore them, with the duplicate check",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Archive; show archived; Restore; when the admission number is taken, 'Restore anyway' or 'Leave archived'",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-06",
+    "area": "Students",
+    "feature": "A teacher sees the students of their branch and no way to change them",
+    "route": "/students",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open Students as a teacher: the list is shown; New student, Import, Edit and Archive are absent or refused",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-07",
+    "area": "Students",
+    "feature": "A branch administrator cannot reach another branch's students",
+    "route": "/students",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "The branch selector offers only their branches; searching for a pupil of another branch finds no one",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-08",
+    "area": "Students",
+    "feature": "Non-teaching staff have no Students entry",
+    "route": "/students",
+    "roles": [
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "The sidebar has no Students; a typed address is refused with a sentence",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "ATT-01",
+    "area": "Attendance",
+    "feature": "Take the daily roll call for an arm",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Choose class and arm and date, mark each pupil present, late, absent or excused, add a remark, save",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-02",
+    "area": "Attendance",
+    "feature": "Mark All Present, then change exceptions",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press Mark All Present, mark two pupils absent, save; the summary counts agree",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-03",
+    "area": "Attendance",
+    "feature": "Move between days; a saved day is still there",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press Previous day and Next, return to the saved day: marks are as saved",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-04",
+    "area": "Attendance",
+    "feature": "Summary counts and rate",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Enrolled, Present, Late, Absent, Excused and Rate add up and match the marks",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-05",
+    "area": "Attendance",
+    "feature": "Assign the form teacher of an arm",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Manage Permissions: pick an arm and a designated teacher, save",
+    "source": [
+      "src/components/attendance/AttendanceGrantModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-06",
+    "area": "Attendance",
+    "feature": "Grant and revoke explicit attendance permission",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Grant a staff member an arm; it appears under Active Explicit Grants; Revoke",
+    "source": [
+      "src/components/attendance/AttendanceGrantModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-07",
+    "area": "Attendance",
+    "feature": "A teacher without a grant for an arm cannot take its roll",
+    "route": "/attendance",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The teacher sees only 'Authorized Arm' choices; an arm they do not hold is refused in a sentence",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-01",
+    "area": "Timetable",
+    "feature": "Schedule a period",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Schedule Period: day, arm, subject, teacher, start, end, room; save; it appears",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx",
+      "src/components/timetable/SlotEditModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-02",
+    "area": "Timetable",
+    "feature": "Schedule the same period on several days",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Same period, several days: tick days, save",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx",
+      "src/components/timetable/BatchSlotsModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-03",
+    "area": "Timetable",
+    "feature": "Edit a period",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit a period and save; leave and return",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx",
+      "src/components/timetable/SlotEditModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-04",
+    "area": "Timetable",
+    "feature": "Filter by class arm and by teacher; grid and list views",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Use both filters; switch Grid View and List View",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-05",
+    "area": "Timetable",
+    "feature": "A clash is flagged",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Schedule a teacher twice at the same time: 'Clash' is shown",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-06",
+    "area": "Timetable",
+    "feature": "A teacher can look at the timetable and not change it",
+    "route": "/timetable",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Schedule Period and Edit are absent or refused for a teacher",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-01",
+    "area": "Results",
+    "feature": "Enter marks for a class and subject, save as drafts",
+    "route": "/results",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Choose branch, term, class and subject; type exam marks; Save drafts; leave and return: still there",
+    "source": [
+      "src/components/results/EntryPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-02",
+    "area": "Results",
+    "feature": "A teacher asks for approval of their own scheme",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Teacher scheme panel: Edit, then Ask for approval",
+    "source": [
+      "src/components/results/TeacherSchemePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-03",
+    "area": "Results",
+    "feature": "Submit marks for approval",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Submit entered marks; their status changes",
+    "source": [
+      "src/components/results/EntryPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-04",
+    "area": "Results",
+    "feature": "An approver approves or sends back, and publishes",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "'Results waiting for you': open, approve, publish; the pupil's card now shows them",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-05",
+    "area": "Results",
+    "feature": "View a result's history (audit trail)",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "View history on a result: each event with who and when",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-06",
+    "area": "Results",
+    "feature": "Unlock a result with a reason",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Unlock, type the reason, confirm; the status returns to draft",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-07",
+    "area": "Results",
+    "feature": "Report cards: preview, remarks, print and download",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Choose branch, term, class, student; read the card; type a remark, Save remarks; Print this report card; Download report card",
+    "source": [
+      "src/components/results/CardsPanel.tsx",
+      "src/components/results/ReportCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-08",
+    "area": "Results",
+    "feature": "A card shows a verification link",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "On a published card press 'Verify these results' (continues in VER-01)",
+    "source": [
+      "src/components/results/ReportCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-09",
+    "area": "Results",
+    "feature": "A teacher who is not an approver sees no approval queue",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The 'Results waiting for you' panel is absent for them; an unpublished card needs the 'preview' switch",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-10",
+    "area": "Results",
+    "feature": "A teacher cannot approve their own marks",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The approve action is absent or refused with a sentence",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-01",
+    "area": "Coursework",
+    "feature": "Create an assignment",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New assignment: title, subject, instructions, due date, points, late setting; save as draft, then publish",
+    "source": [
+      "src/components/lms/AssignmentModal.tsx",
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-02",
+    "area": "Coursework",
+    "feature": "Search and filter assignments by subject and status",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Search; Status Draft, Published, Closed, Archived; Subject",
+    "source": [
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-03",
+    "area": "Coursework",
+    "feature": "Grade a hand-in with Speed Grader",
+    "route": "/lms",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "After a pupil hands in (POR-06), open Speed Grader, give points and feedback, Next",
+    "source": [
+      "src/components/lms/SpeedGraderModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-04",
+    "area": "Coursework",
+    "feature": "Delete an assignment",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Delete, confirm; it leaves the list",
+    "source": [
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-05",
+    "area": "Coursework",
+    "feature": "Add a study material and open it",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add Learning Material: title, type, link, summary; 'Open Resource'",
+    "source": [
+      "src/components/lms/MaterialModal.tsx",
+      "src/components/lms/MaterialsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-06",
+    "area": "Coursework",
+    "feature": "Delete a material",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Delete; it leaves the list",
+    "source": [
+      "src/components/lms/MaterialsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-07",
+    "area": "Coursework",
+    "feature": "Create a quiz with multiple choice, true/false and short answer",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Create Interactive Quiz / Test: add one question of each type with the correct answer and points; time limit; save",
+    "source": [
+      "src/components/lms/QuizModal.tsx",
+      "src/components/lms/QuizConsole.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-08",
+    "area": "Coursework",
+    "feature": "Quiz console: list, search, delete",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Questions, Time, Pass Rate shown; search by title; Delete",
+    "source": [
+      "src/components/lms/QuizConsole.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-09",
+    "area": "Coursework",
+    "feature": "A teacher cannot grade or edit another branch's coursework",
+    "route": "/lms",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Only own-branch assignments and subjects are listed",
+    "source": [
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-01",
+    "area": "Announcements",
+    "feature": "Post an announcement to a branch or a class",
+    "route": "/announcements",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Post Announcement: title, message, branch scope, class scope; publish; it is listed as Published",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-02",
+    "area": "Announcements",
+    "feature": "Save a draft, edit it, publish it",
+    "route": "/announcements",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Save as Draft; Edit; publish",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-03",
+    "area": "Announcements",
+    "feature": "Search and filter by branch and status",
+    "route": "/announcements",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Search; Filter by Branch; Status Published, Drafts, Archived",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-04",
+    "area": "Announcements",
+    "feature": "Archive an announcement",
+    "route": "/announcements",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Archive; show Archived",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-05",
+    "area": "Announcements",
+    "feature": "Non-teaching staff can read but not post",
+    "route": "/announcements",
+    "roles": [
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "The page lists announcements; Post Announcement is absent",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-06",
+    "area": "Announcements",
+    "feature": "A guardian sees the announcement on the portal overview",
+    "route": "/portal",
+    "roles": [
+      "Guardian",
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "On the portal overview 'School Announcements' lists it (continues in POR-03)",
+    "source": [
+      "src/components/portal/PortalOverviewTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-01",
+    "area": "Communication",
+    "feature": "Compose a broadcast to guardians or staff",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Compose Broadcast: channel, audience, subject, message, insert personalization tags, send; Clear",
+    "source": [
+      "src/components/communication/BroadcastComposer.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-02",
+    "area": "Communication",
+    "feature": "Templates: create, filter by channel, preview, edit, delete",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New template with name, code, channel, subject and body with {{student_name}}; Preview; Edit; Delete",
+    "source": [
+      "src/components/communication/TemplatesManager.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-03",
+    "area": "Communication",
+    "feature": "Dispatch log: filter by channel and status, open one for details",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Filters; View on one dispatch shows recipient, channel, subject, content and any error",
+    "source": [
+      "src/components/communication/DispatchLogsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-04",
+    "area": "Communication",
+    "feature": "Real e-mail, WhatsApp and SMS delivery",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Sending leaves the machine",
+    "source": [
+      "src/components/communication/BroadcastComposer.tsx"
+    ],
+    "status": "not-demonstrable",
+    "reason": "Real delivery is out of scope (nothing may leave this machine). The in-app channel and the dev inbox are shown; the others are named in the PDF as not walked"
+  },
+  {
+    "id": "COM-05",
+    "area": "Communication",
+    "feature": "Communication is not offered to teachers or non-teaching staff",
+    "route": "/communication",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Communication entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/app/(app)/communication/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "FIN-01",
+    "area": "Finance",
+    "feature": "Fee schedule: add and edit a fee item for a term and class scope",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Fee Schedules and Structures: Add Fee Item (name, term, scope, amount); Edit; the total changes",
+    "source": [
+      "src/components/finance/FeeStructuresPanel.tsx",
+      "src/components/finance/FeeStructureModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-02",
+    "area": "Finance",
+    "feature": "Generate invoices for a term in one batch",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Batch Generate Invoices: term and class group; read 'Invoicing Complete'",
+    "source": [
+      "src/components/finance/InvoicesDashboard.tsx",
+      "src/components/finance/BatchInvoiceModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-03",
+    "area": "Finance",
+    "feature": "Invoice dashboard: totals, filters, search",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Total Invoiced, Collected, Outstanding and Collection Rate; filter by term; search by student or invoice number",
+    "source": [
+      "src/components/finance/InvoicesDashboard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-04",
+    "area": "Finance",
+    "feature": "Open an invoice: itemised breakdown and receipts",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View and Pay opens the invoice: billed, paid, balance, items, receipts",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-05",
+    "area": "Finance",
+    "feature": "Record a cash or bank-transfer payment",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Record Payment: method, amount, reference; the status becomes PARTIAL or PAID and the totals move",
+    "source": [
+      "src/components/finance/RecordPaymentModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-06",
+    "area": "Finance",
+    "feature": "Give a waiver or discount with a reason",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Waiver / Discount: category, amount, approval note; the balance changes; the status can be WAIVED",
+    "source": [
+      "src/components/finance/DiscountModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-07",
+    "area": "Finance",
+    "feature": "Pay online through the gateway (Paystack mock)",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Find the online payment button, complete the mock gateway modal, see the receipt. The payment route exists; whether a screen reaches it is checked in recon",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/components/portal/PortalFinanceTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-08",
+    "area": "Finance",
+    "feature": "Finance follows the chosen branch",
+    "route": "/finance",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Change the Branch selector: invoices and fee items change with it",
+    "source": [
+      "src/components/finance/FinancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-09",
+    "area": "Finance",
+    "feature": "Finance is not offered to teachers or non-teaching staff",
+    "route": "/finance",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Finance entry; a typed address is refused with a sentence",
+    "source": [
+      "src/components/finance/FinancePanel.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "FIN-10",
+    "area": "Finance",
+    "feature": "An administrator sees only their own branch's invoices",
+    "route": "/finance",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "The branch selector offers only their branch",
+    "source": [
+      "src/components/finance/FinancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-01",
+    "area": "Approvals",
+    "feature": "Approve or reject a request, with a reason",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Requests: Approve one, Reject one with a reason; both leave the list",
+    "source": [
+      "src/components/approvals/RequestsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-02",
+    "area": "Approvals",
+    "feature": "Choose what the report card shows (layout)",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Layout: tick what shows on the card, save, open a card to see it",
+    "source": [
+      "src/components/approvals/LayoutPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-03",
+    "area": "Approvals",
+    "feature": "Self-approval: allow and withdraw an administrator",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Allow an administrator to approve their own requests, then Withdraw",
+    "source": [
+      "src/components/approvals/SelfApprovalPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-04",
+    "area": "Approvals",
+    "feature": "What a verification page shows",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Verification: choose subject, marks, grade and how the name is written; the public page follows (VER-01)",
+    "source": [
+      "src/components/approvals/VerificationPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-05",
+    "area": "Approvals",
+    "feature": "Approvals is not offered to teachers or non-teaching staff",
+    "route": "/approvals",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Approvals entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/app/(app)/approvals/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "QBK-01",
+    "area": "Question bank",
+    "feature": "Write a question of each kind, with a picture and a description",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Write a question: multiple choice with options, true/false, accepted answers; add a picture with a description (or mark it decoration)",
+    "source": [
+      "src/components/question-bank/QuestionForm.tsx",
+      "src/components/question-bank/QuestionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-02",
+    "area": "Question bank",
+    "feature": "Browse and My questions, with subject, class and state filters",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Search; Subject; Class; State; switch between Browse and My questions",
+    "source": [
+      "src/components/question-bank/QuestionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-03",
+    "area": "Question bank",
+    "feature": "Send a question for review, edit it, see its state",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Send for review; the state changes; Edit while allowed",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx",
+      "src/components/question-bank/QuestionForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-04",
+    "area": "Question bank",
+    "feature": "A reviewer approves with class, subject and who may see it",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Review queue: Approve, choose subject and classes, 'Teachers only' or 'Pupils can practise now' or 'until a date'",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx",
+      "src/components/question-bank/DecisionDialogs.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-05",
+    "area": "Question bank",
+    "feature": "A reviewer rejects or sends a question back, or retires one, with a reason",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Reject / Send back / Retire each with a reason of 1 to 500 characters; 'What has been decided' records it",
+    "source": [
+      "src/components/question-bank/DecisionDialogs.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-06",
+    "area": "Question bank",
+    "feature": "An exam approver sees the overlap warning on a near copy",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Write a near copy of an approved question: 'This question is very close to N others' with a way to open the other",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-07",
+    "area": "Question bank",
+    "feature": "Choose reviewers and exam approvers",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Reviewers: add a person, covering every subject or one, mark an exam approver; Remove",
+    "source": [
+      "src/components/question-bank/ReviewersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-08",
+    "area": "Question bank",
+    "feature": "Question bank settings for a branch",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Settings: change a switch with a reason; read what the switches can and cannot do",
+    "source": [
+      "src/components/question-bank/SettingsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-09",
+    "area": "Question bank",
+    "feature": "A teacher who is not a reviewer has no Review queue, Reviewers or Settings",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Only Browse and My questions are shown",
+    "source": [
+      "src/components/question-bank/QuestionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-10",
+    "area": "Question bank",
+    "feature": "Teachers do not see the overlap warning or each other's exam answers",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher's view of a near copy shows no overlap line",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-11",
+    "area": "Question bank",
+    "feature": "Non-teaching staff and pupils cannot open the question bank",
+    "route": "/question-bank",
+    "roles": [
+      "Non-teaching staff",
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "No entry; a typed address shows 'Only staff can open this page'",
+    "source": [
+      "src/app/(app)/question-bank/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "USR-01",
+    "area": "Users",
+    "feature": "People list: search, role, branch, status, paging, Clear filters",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Use each filter and the search; Next and Previous; Clear filters resets all",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-02",
+    "area": "Users",
+    "feature": "Invite someone by email with a role and branch",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Invite someone: email, role, branch; they appear under Pending invitations; the message is in the dev inbox",
+    "source": [
+      "src/components/users/InviteDialog.tsx",
+      "src/components/users/InvitationsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-03",
+    "area": "Users",
+    "feature": "Revoke a pending invitation",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Revoke; it leaves the list; its link now fails (INV-02)",
+    "source": [
+      "src/components/users/InvitationsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-04",
+    "area": "Users",
+    "feature": "Change a member's role or branch",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit, choose a role and branch, save; the list shows it",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-05",
+    "area": "Users",
+    "feature": "Let a member approve results, confirmed with a password or code",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Edit, tick 'May approve results', confirm with the password; 'Approves results' tag appears",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-06",
+    "area": "Users",
+    "feature": "Let a member read form results, confirmed with a password or code",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit a staff member, tick 'May read form results', confirm; the tag appears",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-07",
+    "area": "Users",
+    "feature": "The Access filter lists only who reads form results",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Choose Access = Reads form results: only the holders, each tagged; Clear filters",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-08",
+    "area": "Users",
+    "feature": "Deactivate and reactivate a member",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Deactivate; show Deactivated; Reactivate; the person can sign in again",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-09",
+    "area": "Users",
+    "feature": "Grant or remove superadmin, confirmed with a password",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Open the superadmin dialog for a member, confirm with the password",
+    "source": [
+      "src/components/users/SuperAdminDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-10",
+    "area": "Users",
+    "feature": "A wrong password or code at a confirmation changes nothing",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong password in the grant dialog: a sentence, the tag is unchanged",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-11",
+    "area": "Users",
+    "feature": "A branch administrator cannot grant superadmin or reach another branch's people",
+    "route": "/users",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "No superadmin control; the branch filter offers only their branches",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/components/users/SuperAdminDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-12",
+    "area": "Users",
+    "feature": "Users is not offered to teachers or non-teaching staff",
+    "route": "/users",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Users entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "ACC-01",
+    "area": "Account",
+    "feature": "Edit your name",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Edit your name, save; 'Name updated.'; the account menu shows it",
+    "source": [
+      "src/components/auth/ProfileDetails.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-02",
+    "area": "Account",
+    "feature": "Change your password; other devices are signed out",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Type current and new password twice; save; the sessions list shows only this device",
+    "source": [
+      "src/components/auth/ChangePasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-03",
+    "area": "Account",
+    "feature": "Ask to change your email address",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Change email address: new address and password; 'Check your inbox' (continues in CNF-01)",
+    "source": [
+      "src/components/auth/ChangeEmailPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-04",
+    "area": "Account",
+    "feature": "Set up two-step verification, save the recovery codes",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Set up: password, read the setup key from the screen, type the computed code, Turn on, copy the recovery codes",
+    "source": [
+      "src/components/auth/TwoStepPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-05",
+    "area": "Account",
+    "feature": "Turn two-step off, or make new recovery codes",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Generate new recovery codes; Turn off two-step verification with the password",
+    "source": [
+      "src/components/auth/TwoStepPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-06",
+    "area": "Account",
+    "feature": "See your signed-in devices and sign out of the others",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Devices signed in: 'This device'; sign one out; 'Sign out of all other devices'",
+    "source": [
+      "src/components/auth/SessionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-07",
+    "area": "Account",
+    "feature": "'Your access' states what the role may do",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Read the 'Your access' summary for each role",
+    "source": [
+      "src/app/(app)/account/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-08",
+    "area": "Account",
+    "feature": "A wrong current password is refused with a sentence",
+    "route": "/account",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Change password with a wrong current password: a sentence, nothing changes",
+    "source": [
+      "src/components/auth/ChangePasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-01",
+    "area": "Portal",
+    "feature": "Pupil or guardian signs in with admission number and date of birth or guardian phone",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Type the admission number and the date of birth (or phone); press the sign-in button; the overview opens",
+    "source": [
+      "src/components/portal/PortalLoginCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-02",
+    "area": "Portal",
+    "feature": "Guardian signs in with a magic link sent by SMS or WhatsApp",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Paste the token or follow the link",
+    "source": [
+      "src/components/portal/PortalLoginCard.tsx"
+    ],
+    "status": "not-demonstrable",
+    "reason": "The link is sent by SMS or WhatsApp, which this machine cannot do, and there is no local sink for it. A stand-in sink is decision D3"
+  },
+  {
+    "id": "POR-03",
+    "area": "Portal",
+    "feature": "A wrong admission number or date of birth is refused with a sentence that does not say which was wrong",
+    "route": "/portal",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong date of birth: one generic sentence",
+    "source": [
+      "src/components/portal/PortalLoginCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-04",
+    "area": "Portal",
+    "feature": "Overview: attendance rate, fee balance, active term, announcements",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Read the overview figures; 'View Report Card', 'Fees & Billing' and 'LMS Homework' links move to the tabs",
+    "source": [
+      "src/components/portal/PortalOverviewTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-05",
+    "area": "Portal",
+    "feature": "Academic results by term; print and download the card",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Results tab: choose a term, read marks and grades, Print Card, Download Card",
+    "source": [
+      "src/components/portal/PortalResultsTab.tsx",
+      "src/components/results/ReportCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-06",
+    "area": "Portal",
+    "feature": "Coursework: hand in an assignment, take a quiz, read a lesson",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Open an assignment, type an answer and hand in; take a quiz; 'Read Lesson' on a material",
+    "source": [
+      "src/components/portal/PortalLmsTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-07",
+    "area": "Portal",
+    "feature": "Fees and billing: invoices, receipts, payment instructions",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Fees tab: invoices with status, receipt history, payment instructions",
+    "source": [
+      "src/components/portal/PortalFinanceTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-08",
+    "area": "Portal",
+    "feature": "A guardian with several children switches between them",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Viewing Child: choose the second child; every tab shows that child",
+    "source": [
+      "src/components/portal/PortalHeader.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-09",
+    "area": "Portal",
+    "feature": "Sign out of the portal",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Press Sign Out; the portal login card is shown",
+    "source": [
+      "src/components/portal/PortalHeader.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-10",
+    "area": "Portal",
+    "feature": "Results not published or switched off for guardians are not shown",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Before publishing, or with the portal switch off: 'Report Card Access Restricted' or 'No Published Results Found'",
+    "source": [
+      "src/components/portal/PortalResultsTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-11",
+    "area": "Portal",
+    "feature": "A guardian only ever sees their own children",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "The child selector lists only their children",
+    "source": [
+      "src/components/portal/PortalHeader.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-12",
+    "area": "Portal",
+    "feature": "Portal credentials do not open the school app",
+    "route": "/login",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Type a pupil's admission number as an email on the sign-in page: refused with a sentence",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  }
+]
