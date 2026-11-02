@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextAreaField } from "@/components/ui/TextAreaField";
 import { TextField } from "@/components/ui/TextField";
@@ -124,13 +125,21 @@ export function QuestionEditor({
       )}
 
       {practice && question.type === "SHORT" && (
-        <TextField
-          label="Correct answer"
-          hint="A pupil's answer must match this text (capital letters and extra spaces are ignored)."
-          value={question.accepted}
-          onChange={(e) => set("accepted", e.target.value)}
-          maxLength={500}
-        />
+        <div className="space-y-3">
+          <TextField
+            label="Correct answer"
+            hint={
+              question.byHand
+                ? "The model answer you will mark each pupil's answer against."
+                : "A pupil's answer must match this text (capital letters and extra spaces are ignored)."
+            }
+            value={question.accepted}
+            onChange={(e) => set("accepted", e.target.value)}
+            maxLength={500}
+          />
+          <CheckboxField label="Marked by hand" checked={question.byHand} onChange={(e) => set("byHand", e.target.checked)} />
+          <p className="text-xs text-fg-muted">Untick it to have the answer marked automatically against the correct answer.</p>
+        </div>
       )}
 
       {practice && (

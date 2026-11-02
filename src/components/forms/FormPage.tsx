@@ -8,21 +8,25 @@ import { say } from "@/components/academics/common";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { FormOverview } from "@/components/forms/FormOverview";
 import { FormQuestions } from "@/components/forms/FormQuestions";
+import { MarkingQueue } from "@/components/forms/MarkingQueue";
 import { PracticeResults } from "@/components/forms/PracticeResults";
 import { QuestionnaireResults } from "@/components/forms/QuestionnaireResults";
+import { RollCall } from "@/components/forms/RollCall";
 import { SectionTabs } from "@/components/forms/SectionTabs";
 import { StatusBadge } from "@/components/forms/StatusBadge";
 import { useClassGroups } from "@/components/forms/useClassGroups";
 import { KIND_NOUN, type FormDetail, type FormKindKey, type ListedForm } from "@/components/forms/model";
 
-// One form's page (Task 0041, slice F2a): the overview, the questions, the results. Presentation only: everything comes from the forms APIs, which decide who may see or change it.
+// One form's page (Task 0041, slices F2a and F2b): the overview, the questions, the results, the marking of a practice set and the roll call of paper work. Presentation only: everything comes from the forms APIs, which decide who may see or change it.
 
-const SECTIONS = [
-  { id: "overview", label: "Overview" },
-  { id: "questions", label: "Questions" },
-  { id: "results", label: "Results" },
-] as const;
-type SectionId = (typeof SECTIONS)[number]["id"];
+type SectionId = "overview" | "questions" | "results" | "marking" | "rollcall";
+const label: Record<SectionId, string> = {
+  overview: "Overview",
+  questions: "Questions",
+  results: "Results",
+  marking: "Marking",
+  rollcall: "Roll call",
+};
 
 export function FormPage({
   formId,
@@ -67,8 +71,17 @@ export function FormPage({
     return () => controller.abort();
   }, [load]);
 
-  // a paper-work form has only its overview until its roll call and marking arrive (slice F2b)
-  const sections = kind === "PAPER_WORK" ? SECTIONS.filter((s) => s.id === "overview") : SECTIONS;
+  // the tabs by kind: a practice set has a Marking tab when one of its questions is marked by hand; paper work has its roll call
+  const ids: SectionId[] =
+    kind === "PAPER_WORK"
+      ? ["overview", "rollcall"]
+      : [
+          "overview",
+          "questions",
+          "results",
+          ...(kind === "PRACTICE_SET" && detail?.questions.some((q) => q.markingMethod === "MANUAL") ? (["marking"] as const) : []),
+        ];
+  const sections = ids.map((id) => ({ id, label: label[id] }));
 
   return (
     <div className="space-y-6">
@@ -98,6 +111,8 @@ export function FormPage({
           {active === "questions" && <FormQuestions kind={kind} questions={detail.questions} />}
           {active === "results" && kind === "PRACTICE_SET" && <PracticeResults formId={formId} branchId={branchId} />}
           {active === "results" && kind === "QUESTIONNAIRE" && <QuestionnaireResults formId={formId} branchId={branchId} />}
+          {active === "marking" && <MarkingQueue branchId={branchId} formId={formId} />}
+          {active === "rollcall" && <RollCall formId={formId} branchId={branchId} />}
         </SectionTabs>
       )}
     </div>

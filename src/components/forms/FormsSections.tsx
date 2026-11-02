@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SelectField } from "@/components/ui/SelectField";
 import { ForYouPanel } from "@/components/forms/ForYouPanel";
 import { FormsList } from "@/components/forms/FormsList";
+import { MarkingQueue } from "@/components/forms/MarkingQueue";
 import { SectionTabs } from "@/components/forms/SectionTabs";
 import { useClassGroups } from "@/components/forms/useClassGroups";
 
@@ -14,6 +15,7 @@ const SECTIONS = [
   { id: "practice", label: "Practice sets" },
   { id: "questionnaires", label: "Questionnaires" },
   { id: "paper", label: "Paper work" },
+  { id: "marking", label: "Marking" },
   { id: "foryou", label: "For you" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -50,6 +52,7 @@ export function FormsSections({ branches }: { branches: { id: string; name: stri
           <FormsList key={`${branchId}-questionnaires`} kind="QUESTIONNAIRE" branchId={branchId} classGroups={classGroups} />
         )}
         {active === "paper" && <FormsList key={`${branchId}-paper`} kind="PAPER_WORK" branchId={branchId} classGroups={classGroups} />}
+        {active === "marking" && <MarkingQueue key={`${branchId}-marking`} branchId={branchId} />}
         {active === "foryou" && <ForYouPanel key={`${branchId}-foryou`} branchId={branchId} />}
       </SectionTabs>
     </div>
