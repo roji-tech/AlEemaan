@@ -3621,5 +3621,23 @@
       "src/components/lms/QuizConsole.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "VID-02",
+    "area": "Video guide",
+    "feature": "The video guide is reached from the app, from the profile menu",
+    "route": "/dashboard",
+    "roles": [
+      "Branch administrator",
+      "Teacher",
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Signed in, open the profile menu: Video guide is a link; pressing it opens the video guide page with the player and its chapters",
+    "source": [
+      "src/components/shell/ProfileMenu.tsx",
+      "src/app/video-guide/page.tsx"
+    ],
+    "status": "planned"
   }
 ]

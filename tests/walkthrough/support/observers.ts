@@ -46,11 +46,17 @@ export class Observers {
   readonly observations: Observation[] = [];
   private step: number | null = null;
   private scanned = new Set<string>();
+  /// True between walk.goOffline() and walk.goOnline(): the browser's own "network is down" console lines are then expected and only listed.
+  private offline = false;
 
   constructor(private readonly page: Page) {}
 
   setStep(id: number | null): void {
     this.step = id;
+  }
+
+  setOffline(offline: boolean): void {
+    this.offline = offline;
   }
 
   private add(kind: ObservationKind, severity: Severity, detail: string, extra: Pick<Observation, "rule" | "impact"> = {}): void {
@@ -63,7 +69,10 @@ export class Observers {
       const text = message.text();
       if (message.type() === "error") {
         // The browser logs every 4xx/5xx response as a console error too; the response listener below judges those by their status.
-        const isResponseNoise = /Failed to load resource: the server responded with a status of [45]\d\d/.test(text);
+        // The same for the line the browser writes when the network is down on purpose (OFF-01); outside that period it is a real failure.
+        const isResponseNoise =
+          /Failed to load resource: the server responded with a status of [45]\d\d/.test(text) ||
+          (this.offline && /net::ERR_INTERNET_DISCONNECTED/.test(text));
         this.add("console-error", isResponseNoise ? "listed" : "blocker", text);
       } else if (message.type() === "warning") this.add("console-warning", "listed", text);
     });

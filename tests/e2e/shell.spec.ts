@@ -109,6 +109,7 @@ test.describe("the account menu (top bar)", () => {
     await expect(panel).toContainText(admin.email);
     await expect(panel).toContainText("Administrator");
     await expect(panel.getByRole("link", { name: "Profile" })).toBeVisible();
+    await expect(panel.getByRole("link", { name: "Video guide" })).toHaveAttribute("href", "/video-guide");
     await expect(panel.getByText("Settings")).toBeVisible(); // "soon", as in the artifact
     await expect(panel.getByRole("button", { name: "Sign out" })).toBeVisible();
   });
@@ -142,6 +143,16 @@ test.describe("the account menu (top bar)", () => {
     await expect(page).toHaveTitle("Account · AlEemaan");
     await expect(accountMenuButton(page)).toHaveAttribute("aria-expanded", "false");
     if (!isMobile) await expect(breadcrumb(page).getByText("Account")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("Video guide leads to the video guide page, and the menu is closed when you get there", async ({ page }) => {
+    const admin = await createUser({ role: Role.ADMIN, name: "Amina Yusuf" });
+    await signInThroughUi(page, admin);
+    await accountMenuButton(page).click();
+    await page.getByRole("link", { name: "Video guide" }).click();
+
+    await expect(page).toHaveURL(/\/video-guide$/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 
   test("Sign out from the menu ends the session server-side and in the browser", async ({ page, context }) => {

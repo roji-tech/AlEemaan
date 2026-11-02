@@ -142,6 +142,17 @@ export const RULES: Rule[] = [
     reason: "Synthetic events are not a person's action.",
     tamper: 'await locator.dispatchEvent("click");',
   },
+  // The network is not a person's click. The one exception is the offline page (OFF-01), where a person switches the network off (airplane mode) and on again: walk.goOffline() and
+  // walk.goOnline() do that, put a caption on the screen saying so, and tell the observers that the "network is down" lines are expected. Nothing else may call setOffline.
+  {
+    name: "network-switch",
+    tier: "actor",
+    pattern: /\.setOffline\s*\(/,
+    reason:
+      "Switching the network is not a person's click; use walk.goOffline() and walk.goOnline(), the one named exception, which say on screen what is being done.",
+    tamper: "await context.setOffline(true);",
+    exceptIn: ["walk.ts"],
+  },
   {
     name: "fulfill",
     tier: "actor",

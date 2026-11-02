@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-*/
 
 # local reference checkout only — 5 cloned legacy repos (each its own git
 # repo) kept for migration reference, not part of this product. They're
