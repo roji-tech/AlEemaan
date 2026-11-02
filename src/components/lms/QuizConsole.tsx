@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { QuizModal } from "./QuizModal";
+import { QuizQuestionsDialog } from "./QuizQuestionsDialog";
 import Link from "next/link";
 
 interface Question {
@@ -42,6 +43,7 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [viewing, setViewing] = useState<QuizItem | null>(null);
 
   const subjectFilterId = useId();
   const searchFilterId = useId();
@@ -221,20 +223,32 @@ export function QuizConsole({ branchId, subjects, classGroups, userRole = "ADMIN
                 )}
 
                 {canManage && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(quiz.id, quiz.title)}
-                    className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
-                    aria-label={`Delete quiz ${quiz.title}`}
-                  >
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewing(quiz)}
+                      className="min-h-11 rounded px-1 text-xs font-medium text-brand-fg hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={`Questions of ${quiz.title}`}
+                    >
+                      Questions
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(quiz.id, quiz.title)}
+                      className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
+                      aria-label={`Delete quiz ${quiz.title}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {canManage && <QuizQuestionsDialog quiz={viewing} branchId={branchId} onClose={() => setViewing(null)} />}
 
       {/* Creation Modal */}
       {isCreateOpen && (
