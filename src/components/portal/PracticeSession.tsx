@@ -18,6 +18,8 @@ export type AskedPracticeQuestion = { id: string; type: QuestionType; prompt: st
 export type StartedSession = {
   session: { id: string; size: number; feedbackMode: "EACH" | "END"; subjectLabel: string | null; topic: string | null };
   questions: AskedPracticeQuestion[];
+  /** Set when a session left open is carried on with: how many questions were answered before, so the count reads "Question 4 of 10" and not "Question 1 of 7". */
+  answeredCount?: number;
 };
 type Feedback = { correct: boolean | null; correctAnswer: unknown; explanation: string | null };
 
@@ -41,8 +43,9 @@ export function PracticeSession({
   const [confirming, setConfirming] = useState(false);
 
   const q = started.questions[index]!;
-  const total = started.questions.length;
-  const last = index === total - 1;
+  const before = started.answeredCount ?? 0;
+  const total = before + started.questions.length;
+  const last = index === started.questions.length - 1;
   const each = started.session.feedbackMode === "EACH";
   const hasAnswer = value !== null && !(Array.isArray(value) && value.length === 0) && !(typeof value === "string" && value.trim() === "");
 
@@ -82,7 +85,7 @@ export function PracticeSession({
     <section aria-label="Your practice" className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-fg">
-          Question {index + 1} of {total}
+          Question {before + index + 1} of {total}
         </p>
         {where && <p className="text-sm break-words text-fg-muted">{where}</p>}
       </div>

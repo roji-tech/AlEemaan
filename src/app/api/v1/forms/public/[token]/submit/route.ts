@@ -5,12 +5,13 @@ import { readJsonBody } from "@/lib/api/validate";
 import { submitQuestionnaireSchema } from "@/lib/forms/validation";
 import { submitPublicQuestionnaire } from "@/lib/forms/questionnaires-service";
 import { FormsServiceError } from "@/lib/forms/forms-service";
+import { ALREADY_ANSWERED_HERE, answeredHere, markAnsweredHere } from "@/lib/forms/public-answered";
 
 type Context = { params: Promise<{ token: string }> };
 
 /**
  * POST /api/v1/forms/public/[token]/submit
- * Public endpoint to submit questionnaire responses.
+ * Public endpoint to submit questionnaire responses. Once an answer is stored, this browser is marked as having answered (a cookie holding no identity), and a second answer from it is refused.
  */
 export async function POST(req: Request, context: Context) {
   if (!(await reserveAttempt(`public-form-submit:${getClientIp(req)}`, 60))) {
@@ -19,6 +20,9 @@ export async function POST(req: Request, context: Context) {
 
   // No sign-in, so no withAuth: see the GET route.
   const { token } = sanitizePathParams(await context.params);
+
+  // This browser answered already (a courtesy check, not a guarantee: see public-answered.ts). Asked before anything is read or stored.
+  if (answeredHere(req, token)) return noStore(fail(ALREADY_ANSWERED_HERE, 409, "ALREADY_SUBMITTED"));
 
   const read = await readJsonBody(req);
   if (!read.ok) return noStore(read.response);
@@ -33,7 +37,7 @@ export async function POST(req: Request, context: Context) {
       token,
       answers: parsed.data.answers,
     });
-    return noStore(ok(result));
+    return noStore(markAnsweredHere(ok(result), token));
   } catch (err) {
     if (err instanceof FormsServiceError) {
       return noStore(fail(err.message, err.statusCode, err.code));

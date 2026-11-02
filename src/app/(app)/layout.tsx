@@ -9,9 +9,10 @@ import { requirePageSession } from "@/lib/auth/page-session";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { session, memberships, roleLabel, isAdmin, isSuperAdmin } = await requirePageSession();
   const isTeacher = memberships.some((m) => m.role === "TEACHING_STAFF");
+  const isStaff = isTeacher || memberships.some((m) => m.role === "NON_TEACHING_STAFF");
 
   return (
-    <AppShell user={{ name: session.user.name, email: session.user.email, roleLabel, isAdmin, isSuperAdmin, isTeacher }}>
+    <AppShell user={{ name: session.user.name, email: session.user.email, roleLabel, isAdmin, isSuperAdmin, isTeacher, isStaff }}>
       {children}
     </AppShell>
   );
