@@ -290,15 +290,14 @@
     "feature": "The offline page",
     "route": "/offline",
     "roles": [
-      "Visitor"
+      "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "The service worker shows it when the network is gone",
+    "proof": "Signed in, switch the network off the way a person would (airplane mode), press a link to a page that was not loaded: the offline page says so in a sentence; switch it back on and press Try again; the page loads. The harness's one named exception, walk.goOffline()/goOnline(), and the caption says what is being done",
     "source": [
       "src/app/offline/page.tsx"
     ],
-    "status": "not-demonstrable",
-    "reason": "A user loses the network outside the app; taking the network away is not a click in the app, and the guard treats an unclear actor as forbidden. Needs the maintainer's word (decision D5)"
+    "status": "planned"
   },
   {
     "id": "VID-01",
