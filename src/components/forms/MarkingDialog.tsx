@@ -8,7 +8,7 @@ import { TextAreaField } from "@/components/ui/TextAreaField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
-import { optionsOf, plural, type QuestionType } from "@/components/forms/model";
+import { plural, valueText, type QuestionType } from "@/components/forms/model";
 
 // One pupil's finished attempt of a practice set, marked a question at a time. Answers the machine marked are shown with their score and cannot be changed here; answers marked by hand
 // take a score from 0 to the question's points and feedback. A partly marked attempt can be saved and finished later. Presentation only: the API checks every score again and says who
@@ -49,17 +49,6 @@ type Detail = {
 };
 
 const when = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-
-function theirAnswer(a: Answer): string {
-  const v = a.submittedValue;
-  if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) return "No answer";
-  const named = (id: unknown) => optionsOf(a.options).find((o) => o.id === id)?.text ?? String(id);
-  if (a.questionType === "SINGLE") return named(v);
-  if (a.questionType === "MULTI") return (Array.isArray(v) ? v : [v]).map(named).join(", ");
-  if (a.questionType === "TRUE_FALSE") return v === true || v === "true" ? "True" : "False";
-  if (a.questionType === "RATING") return `${String(v)} out of 5`;
-  return typeof v === "string" ? v : JSON.stringify(v);
-}
 
 export function MarkingDialog({
   open,
@@ -206,7 +195,7 @@ function Body({
             <p className="text-sm break-words whitespace-pre-wrap text-fg">{a.prompt}</p>
             <p className="text-sm text-fg-2">
               <span className="font-semibold text-fg">Their answer: </span>
-              <span className="break-words whitespace-pre-wrap">{theirAnswer(a)}</span>
+              <span className="break-words whitespace-pre-wrap">{valueText(a.questionType, a.options, a.submittedValue)}</span>
             </p>
             {a.markingMethod === "MANUAL" ? (
               <>

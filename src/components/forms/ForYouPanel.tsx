@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
-import { TextAreaField } from "@/components/ui/TextAreaField";
-import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type Notice } from "@/components/academics/common";
-import { plural, windowText, type QuestionType } from "@/components/forms/model";
+import { AnswerFields, type AnswerValue, type AskedQuestion } from "@/components/forms/AnswerFields";
+import { plural, windowText } from "@/components/forms/model";
 
 // Questionnaires addressed to the signed-in member of staff, answered in place. Presentation only: the API decides who is addressed, whether it is open, and whether an answer
 // has already been given; an anonymous questionnaire is stored with no link to the person, and this screen says so before it is answered.
@@ -24,12 +22,6 @@ type Available = {
   closesAt: string | null;
   hasSubmitted: boolean;
 };
-type Option = { id: string; text: string };
-type AskedQuestion = { id: string; prompt: string; questionType: QuestionType; options: unknown };
-type Value = string | string[] | number;
-
-const optionsOf = (q: AskedQuestion): Option[] =>
-  Array.isArray(q.options) ? (q.options as Option[]).filter((o) => o && typeof o.id === "string" && typeof o.text === "string") : [];
 
 export function ForYouPanel({ branchId }: { branchId: string }) {
   const [list, setList] = useState<Available[] | null>(null);
@@ -116,7 +108,7 @@ export function ForYouPanel({ branchId }: { branchId: string }) {
 function AnswerBody({ branchId, form, onClose, onSent }: { branchId: string; form: Available; onClose: () => void; onSent: () => void }) {
   const [questions, setQuestions] = useState<AskedQuestion[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [values, setValues] = useState<Record<string, Value>>({});
+  const [values, setValues] = useState<Record<string, AnswerValue>>({});
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -134,7 +126,7 @@ function AnswerBody({ branchId, form, onClose, onSent }: { branchId: string; for
     return () => controller.abort();
   }, [branchId, form.id]);
 
-  const set = (id: string, value: Value | null) =>
+  const set = (id: string, value: AnswerValue | null) =>
     setValues((current) => {
       const next = { ...current };
       if (value === null || value === "" || (Array.isArray(value) && value.length === 0)) delete next[id];
@@ -170,75 +162,7 @@ function AnswerBody({ branchId, form, onClose, onSent }: { branchId: string; for
           : "Whoever set this questionnaire can see who gave which answer."}
       </p>
       {problem && <Alert variant="error">{problem}</Alert>}
-      {questions.map((q) => {
-        const options = optionsOf(q);
-        const value = values[q.id];
-        if (q.questionType === "SINGLE" || q.questionType === "TRUE_FALSE" || q.questionType === "RATING") {
-          const choices: Option[] =
-            q.questionType === "RATING"
-              ? [1, 2, 3, 4, 5].map((n) => ({ id: String(n), text: String(n) }))
-              : q.questionType === "TRUE_FALSE"
-                ? [
-                    { id: "true", text: "True" },
-                    { id: "false", text: "False" },
-                  ]
-                : options;
-          return (
-            <fieldset key={q.id} className="space-y-1">
-              <legend className="text-sm font-semibold break-words text-fg">{q.prompt}</legend>
-              {q.questionType === "RATING" && <p className="text-xs text-fg-muted">1 is the lowest, 5 the highest.</p>}
-              <div className={q.questionType === "RATING" ? "flex flex-wrap gap-x-5" : "space-y-0"}>
-                {choices.map((c) => (
-                  <label key={c.id} className="flex min-h-11 items-center gap-3 text-sm text-fg-2">
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      checked={String(value) === c.id}
-                      onChange={() => set(q.id, q.questionType === "RATING" ? Number(c.id) : c.id)}
-                    />
-                    {c.text}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          );
-        }
-        if (q.questionType === "MULTI") {
-          const picked = Array.isArray(value) ? value : [];
-          return (
-            <fieldset key={q.id} className="space-y-1">
-              <legend className="text-sm font-semibold break-words text-fg">{q.prompt}</legend>
-              <p className="text-xs text-fg-muted">Tick all that apply.</p>
-              {options.map((o) => (
-                <CheckboxField
-                  key={o.id}
-                  label={o.text}
-                  checked={picked.includes(o.id)}
-                  onChange={(e) => set(q.id, e.target.checked ? [...picked, o.id] : picked.filter((x) => x !== o.id))}
-                />
-              ))}
-            </fieldset>
-          );
-        }
-        return q.questionType === "TEXT" ? (
-          <TextAreaField
-            key={q.id}
-            label={q.prompt}
-            rows={3}
-            value={typeof value === "string" ? value : ""}
-            onChange={(e) => set(q.id, e.target.value)}
-            maxLength={5000}
-          />
-        ) : (
-          <TextField
-            key={q.id}
-            label={q.prompt}
-            value={typeof value === "string" ? value : ""}
-            onChange={(e) => set(q.id, e.target.value)}
-            maxLength={1000}
-          />
-        );
-      })}
+      <AnswerFields questions={questions} values={values} onChange={set} />
       <div className="flex flex-wrap justify-end gap-3">
         <Button variant="ghost" onClick={onClose}>
           Cancel

@@ -235,3 +235,25 @@ export function scoreText(status: string, score: number | null, maxScore: number
   if (status !== "COMPLETED" || score === null || maxScore === null) return "—";
   return `${score} of ${maxScore}`;
 }
+
+/// What a stored answer says, in words: the option's text for a choice question, True or False, "4 out of 5" for a rating, the text itself otherwise.
+export function valueText(type: QuestionType, options: unknown, value: unknown): string {
+  if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return "No answer";
+  const named = (id: unknown) => optionsOf(options).find((o) => o.id === id)?.text ?? String(id);
+  if (type === "SINGLE") return named(value);
+  if (type === "MULTI") return (Array.isArray(value) ? value : [value]).map(named).join(", ");
+  if (type === "TRUE_FALSE") return value === true || value === "true" ? "True" : "False";
+  if (type === "RATING") return `${String(value)} out of 5`;
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/// A stored answer key as the value an answer would have: a multiple-choice key is kept as a JSON array of option ids.
+export function keyValue(type: QuestionType, key: string): unknown {
+  if (type !== "MULTI") return key;
+  try {
+    const parsed: unknown = JSON.parse(key);
+    return Array.isArray(parsed) ? parsed : key;
+  } catch {
+    return key;
+  }
+}

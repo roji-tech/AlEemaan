@@ -3094,5 +3094,131 @@
       "src/app/login/LoginForm.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "POR-13",
+    "area": "Portal",
+    "feature": "A pupil's Forms tab with Practice sets, Questionnaires and Paper work",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Signed in with the admission number and date of birth, choose Forms; the sections Practice sets, Questionnaires and Paper work are there",
+    "source": [
+      "src/components/portal/PortalFormsTab.tsx",
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-14",
+    "area": "Portal",
+    "feature": "A guardian has no Forms tab",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Signed in with the guardian's phone, the tabs are Overview, Academic Results, Fees & Billing and Coursework; there is no Forms",
+    "source": [
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-15",
+    "area": "Portal",
+    "feature": "Take a practice set: start, a countdown, every kind of question, submit, and a result that says what is marked and what is waiting",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Practice sets: Start; 'Time left' counts down from the start of the attempt; answer a single-choice, a true/false and a short question; Submit; 'Score so far: 2 of 6', each machine-marked answer Correct or Not quite with the correct answer and the explanation, the short answer 'Waiting for your teacher to mark this answer.' with no score and no key",
+    "source": [
+      "src/components/portal/PortalPracticeSets.tsx",
+      "src/components/portal/PracticeAttempt.tsx",
+      "src/components/portal/PracticeResult.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-16",
+    "area": "Portal",
+    "feature": "A finished practice set is opened again with its result, and the result downloads as a PDF",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "On the result press 'Download PDF'; back in the list the set says 'Finished' with no Start; press 'See result' to see it again",
+    "source": [
+      "src/components/portal/PortalPracticeSets.tsx",
+      "src/components/portal/PracticeResult.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-17",
+    "area": "Portal",
+    "feature": "An attempt in progress is continued, and its countdown runs from when it started",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Start a set, leave, come back to Practice sets: it says 'In progress'; Continue shows the time left counted from the first start",
+    "source": [
+      "src/components/portal/PortalPracticeSets.tsx",
+      "src/components/portal/PracticeAttempt.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-18",
+    "area": "Portal",
+    "feature": "A refused submission keeps the pupil's answers on the screen and says why",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Start a set with a one-minute limit, answer, wait until the minute and the allowance have passed, press Submit: 'The time for this practice set is up.' and the answers are still there",
+    "source": [
+      "src/components/portal/PracticeAttempt.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-19",
+    "area": "Portal",
+    "feature": "A questionnaire is answered once, with the anonymity said before answering",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Questionnaires: Answer; the dialog says it is anonymous; answer and 'Send my answers'; the row says 'Answered' and there is no Answer button",
+    "source": [
+      "src/components/portal/PortalQuestionnaires.tsx",
+      "src/components/forms/AnswerFields.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-20",
+    "area": "Portal",
+    "feature": "Paper work: the pupil's own state, and Request marking once",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Paper work: 'Not handed in yet'; Request marking: 'You asked your teacher to mark it.' and the button goes; after the teacher records the hand-in it says 'Handed in'",
+    "source": [
+      "src/components/portal/PortalPaperWork.tsx"
+    ],
+    "status": "planned"
   }
 ]

@@ -8,22 +8,11 @@ import { Dialog } from "@/components/ui/Dialog";
 import { TextField } from "@/components/ui/TextField";
 import { sendJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
+import { downloadPdf } from "@/components/forms/pdf";
 import { KIND_NOUN, type FormKindKey } from "@/components/forms/model";
 
 // Printing a form as a PDF made by the server, with a watermark and a line in the print log. The answer key is offered only where the questions came with one. Presentation only: the
 // API decides who may print and says why not.
-
-function download(base64: string, name: string) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 export function FormPrintDialog({
   open,
@@ -82,7 +71,7 @@ function Body({
     setPending(false);
     const pdf = reply.data?.pdfBase64;
     if (!reply.ok || typeof pdf !== "string") return setProblem(say(reply, "It couldn't be printed."));
-    download(pdf, `${String(reply.data?.title ?? "form")}.pdf`);
+    downloadPdf(pdf, `${String(reply.data?.title ?? "form")}.pdf`);
     onClose();
   }
 
