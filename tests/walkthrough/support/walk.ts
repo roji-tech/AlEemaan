@@ -207,6 +207,33 @@ export class Walk {
     await new Promise((r) => setTimeout(r, pace.afterClick));
   }
 
+  /// Replaces the words in the caption bar (the step sets them at its start; a helper that does something a person would not see otherwise says so here).
+  private async caption(text: string): Promise<void> {
+    await this.page.evaluate((words) => {
+      const el = document.getElementById("wt-caption");
+      if (el) el.textContent = words;
+    }, text);
+  }
+
+  /**
+   * The harness's one named exception to "nothing but a person's click changes what the app does" (OFF-01, the offline page): switches the network off, as a person does with
+   * airplane mode, and says so in the caption. The browser's own "network is down" lines are expected until goOnline().
+   */
+  async goOffline(): Promise<void> {
+    await this.caption("The network is switched off, as with airplane mode.");
+    this.observers.setOffline(true);
+    await this.page.context().setOffline(true);
+    await new Promise((r) => setTimeout(r, pace.afterClick));
+  }
+
+  /// Switches the network back on (see goOffline) and says so in the caption.
+  async goOnline(): Promise<void> {
+    await this.page.context().setOffline(false);
+    this.observers.setOffline(false);
+    await this.caption("The network is switched back on.");
+    await new Promise((r) => setTimeout(r, pace.afterClick));
+  }
+
   /**
    * Executes a formal walkthrough step: updates the in-page overlay, records timestamps,
    * runs the action, settles DOM, captures screenshot, and dwells.

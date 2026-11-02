@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { distDirFrom } from "./src/lib/build/dist-dir";
 import { API_CSP } from "./src/lib/security/csp";
 
 // Baseline response headers for every route (domain-implementation-plan.md
@@ -20,7 +21,11 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 ];
 
+// NEXT_DIST_DIR gives a production build its own folder (src/lib/build/dist-dir.ts); unset, nothing changes.
+const distDir = distDirFrom(process.env.NEXT_DIST_DIR);
+
 const nextConfig: NextConfig = {
+  ...(distDir ? { distDir } : {}),
   poweredByHeader: false,
   async headers() {
     return [

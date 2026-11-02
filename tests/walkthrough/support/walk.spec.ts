@@ -52,6 +52,21 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     expect(() => walk.assertTypingBudget(0)).toThrow(/over the budget/);
   });
 
+  test("walk.goOffline and walk.goOnline switch the network and say so in the caption; the browser's own network lines are expected only in between", async ({
+    page,
+  }) => {
+    const walk = new Walk(page, tempDir());
+    await walk.init();
+    await walk.goto(PAGE);
+    expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+    await walk.goOffline();
+    expect(await page.evaluate(() => navigator.onLine)).toBe(false);
+    await expect(page.locator("#wt-caption")).toHaveText("The network is switched off, as with airplane mode.");
+    await walk.goOnline();
+    expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+    await expect(page.locator("#wt-caption")).toHaveText("The network is switched back on.");
+  });
+
   test("a page is loaded once per tab; a second tab has its own first load", async ({ page, context }) => {
     const walk = new Walk(page, tempDir());
     await walk.init();
