@@ -2317,6 +2317,153 @@
     "status": "planned"
   },
   {
+    "id": "FRM-07",
+    "area": "Forms",
+    "feature": "A form's title in the list opens its page: the details, the status, and a way back to the list",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "In Practice sets, press a form's title; the page opens with its title, 'Back to Forms', the tabs Overview, Questions and Results, and the status, window, time limit, classes and who wrote it",
+    "source": [
+      "src/app/(app)/forms/[id]/page.tsx",
+      "src/components/forms/FormPage.tsx",
+      "src/components/forms/FormOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-08",
+    "area": "Forms",
+    "feature": "Edit a form's details, publish it, close it after a confirmation",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit details: change the title and the time limit, Save changes; Publish; Close and confirm 'Close it'; the heading, the details and the status follow each step",
+    "source": [
+      "src/components/forms/FormEditDialog.tsx",
+      "src/components/forms/FormOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-09",
+    "area": "Forms",
+    "feature": "A public questionnaire's page shows its link with a copy button and says what a public link cannot do",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open a published public questionnaire; the link /q/... is there with 'Copy link' and 'A public link cannot tell who is answering and cannot stop one person answering twice.'",
+    "source": [
+      "src/components/forms/PublicLinkBox.tsx",
+      "src/components/forms/FormOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-10",
+    "area": "Forms",
+    "feature": "Print a form as a PDF, with the answer key for whoever manages it",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Print: tick 'Include the answer key', give a reason, 'Download PDF'; a watermarked PDF is saved and the print is logged",
+    "source": [
+      "src/components/forms/FormPrintDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-11",
+    "area": "Forms",
+    "feature": "The questions tab: the answer key only for whoever manages the form",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Questions: each question with its kind, points, the right option marked 'Correct answer', the model answer, the explanation and 'Marked by hand'",
+    "source": [
+      "src/components/forms/FormQuestions.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-12",
+    "area": "Forms",
+    "feature": "A colleague who does not manage the form sees its questions without the answer key, and is told why",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as another teacher, open the same practice set's Questions: no 'Correct answer', no model answer, and 'The answer key is shown only to whoever manages this form.'",
+    "source": [
+      "src/components/forms/FormQuestions.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-13",
+    "area": "Forms",
+    "feature": "A practice set's results: who answered, finished or in progress, the score as 'x of y' (a dash, never a zero, until there is one)",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Results: the table of pupils with 'Finished' and '5 of 5', and a pupil still answering with 'In progress' and a dash; '2 finished · 1 in progress'; with nobody yet: 'Nobody has answered yet.'",
+    "source": [
+      "src/components/forms/PracticeResults.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-14",
+    "area": "Forms",
+    "feature": "A questionnaire's results: counts and written answers; an anonymous one with too few answers shows only how many",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Results of a named questionnaire: each choice with its count and percentage and the written answers; of an anonymous one with 2 answers: '2 answered', the sentence that the breakdown appears once 5 people have answered, and no counts or written answers",
+    "source": [
+      "src/components/forms/QuestionnaireResults.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-15",
+    "area": "Forms",
+    "feature": "An unknown form, a form of another branch and a pupil each get a sentence",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Open /forms/ with an unknown id, with a form of another branch (as its staff member), and as a pupil: 'We could not find that form.' (with Back to Forms) and 'Only staff can open this page.'; nothing of the form is shown",
+    "source": [
+      "src/app/(app)/forms/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
     "id": "USR-01",
     "area": "Users",
     "feature": "People list: search, role, branch, status, paging, Clear filters",

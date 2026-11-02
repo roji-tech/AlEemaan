@@ -1,4 +1,4 @@
-// What the staff Forms screens share (Task 0041, slice F1): the three kinds of form, the draft of a question as the builder holds it, how a draft becomes the body the API takes,
+// What the staff Forms screens share (Task 0041, slices F1 and F2a): the three kinds of form, the draft of a question as the builder holds it, how a draft becomes the body the API takes,
 // and the sentences for what is wrong with one. Pure, so the rules are unit-tested; the server checks everything again and says what is wrong, in words.
 
 export type FormKindKey = "PRACTICE_SET" | "QUESTIONNAIRE" | "PAPER_WORK";
@@ -166,3 +166,65 @@ export const classGroupIdsOf = (form: ListedForm): string[] => {
   const raw = form.classGroupIds ?? form.audience?.classGroupIds ?? form.audiences?.[0]?.classGroupIds;
   return Array.isArray(raw) ? (raw as string[]) : [];
 };
+
+/// A stored instant as the value of a datetime-local input (the browser's own time zone, to the minute), or "" when there is none.
+export function localInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+}
+
+/// A form as `GET /api/v1/forms/{id}` answers it for staff. `correctAnswer` and `explanation` are there only when the API sent them: for whoever manages the form.
+export type DetailQuestion = {
+  id: string;
+  prompt: string;
+  questionType: QuestionType;
+  options: unknown;
+  correctAnswer?: string | null;
+  explanation?: string | null;
+  points: number;
+  markingMethod: "AUTO" | "MANUAL";
+  sortOrder: number;
+};
+export type FormDetail = {
+  id: string;
+  title: string;
+  instructions: string | null;
+  status: FormStatusKey;
+  opensAt: string | null;
+  closesAt: string | null;
+  maxDurationMinutes: number | null;
+  questions: DetailQuestion[];
+  responseCount: number;
+  createdBy: { id: string; name: string | null; email: string } | null;
+};
+
+export const optionsOf = (value: unknown): { id: string; text: string }[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (o): o is { id: string; text: string } => !!o && typeof o === "object" && typeof o.id === "string" && typeof o.text === "string",
+      )
+    : [];
+
+/// The ids of the right option(s) of a choice question, from the stored answer: one id, a JSON array of ids, or "true" / "false".
+export function correctIdsOf(q: DetailQuestion): string[] {
+  const raw = q.correctAnswer;
+  if (raw === undefined || raw === null || raw === "") return [];
+  if (q.questionType === "MULTI") {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [raw];
+}
+
+/// "3 of 5" for a finished attempt; a dash while there is no score to show, never a zero that was never earned.
+export function scoreText(status: string, score: number | null, maxScore: number | null): string {
+  if (status !== "COMPLETED" || score === null || maxScore === null) return "—";
+  return `${score} of ${maxScore}`;
+}
