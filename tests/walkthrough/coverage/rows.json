@@ -2215,7 +2215,7 @@
   {
     "id": "FRM-01",
     "area": "Forms",
-    "feature": "Forms is in a teacher's and an administrator's navigation, with its four sections; a pupil who opens the address is told it is for staff",
+    "feature": "Forms is in a teacher's and an administrator's navigation, with its five sections; a pupil who opens the address is told it is for staff",
     "route": "/forms",
     "roles": [
       "Teacher",
@@ -2224,7 +2224,7 @@
       "Pupil"
     ],
     "kind": "positive",
-    "proof": "Choose Forms in the sidebar (phone: More, then Forms); the tabs Practice sets, Questionnaires, Paper work and For you are there; signed in as a pupil, the address shows 'Only staff can open this page.'",
+    "proof": "Choose Forms in the sidebar (phone: More, then Forms); the tabs Practice sets, Questionnaires, Paper work, Marking and For you are there; signed in as a pupil, the address shows 'Only staff can open this page.'",
     "source": [
       "src/app/(app)/forms/page.tsx",
       "src/components/forms/FormsSections.tsx"
@@ -2460,6 +2460,123 @@
     "proof": "Open /forms/ with an unknown id, with a form of another branch (as its staff member), and as a pupil: 'We could not find that form.' (with Back to Forms) and 'Only staff can open this page.'; nothing of the form is shown",
     "source": [
       "src/app/(app)/forms/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-16",
+    "area": "Forms",
+    "feature": "Marking: the queue across forms, one attempt at a time, in two sittings, with feedback and a history of who marked what",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Marking tab: an attempt 'Waiting' with '2 still to mark'; Mark: the automatically marked answer is read-only, give a score and feedback to one hand-marked answer, Save marks (the row says 'Partly marked'); Mark again: the earlier score is there; mark the other; it leaves the queue; filter 'Marked' and Review shows 'Marking history'",
+    "source": [
+      "src/components/forms/MarkingQueue.tsx",
+      "src/components/forms/MarkingDialog.tsx",
+      "src/components/forms/FormsSections.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-17",
+    "area": "Forms",
+    "feature": "A score above the question's points, or no score at all, is refused with a sentence and nothing is sent",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Mark: type 5 for a 3-point question, Save marks: 'The score for question 2 is from 0 to 3.'; clear it, Save marks: 'Give at least one answer a score.'",
+    "source": [
+      "src/components/forms/MarkingDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-18",
+    "area": "Forms",
+    "feature": "A practice set's own Marking tab lists only that form's attempts",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open a practice set with a question marked by hand; Marking: only its pupils' attempts are listed, with the same Mark button",
+    "source": [
+      "src/components/forms/FormPage.tsx",
+      "src/components/forms/MarkingQueue.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-19",
+    "area": "Forms",
+    "feature": "A short question of a practice set is marked by hand unless the teacher unticks it",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New practice set, question type Short answer: 'Marked by hand' is ticked; untick it on another short question to have it marked automatically against the accepted answer",
+    "source": [
+      "src/components/forms/QuestionEditor.tsx",
+      "src/components/forms/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-20",
+    "area": "Forms",
+    "feature": "The roll call of paper work: the class with a summary, who asked for marking flagged",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open paper work, Roll call: '0 of 3 handed in', '3 still to hand in', '1 asked for marking', each pupil with a status and a note, the one who asked flagged 'Asked for marking'",
+    "source": [
+      "src/components/forms/RollCall.tsx",
+      "src/components/forms/FormPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-21",
+    "area": "Forms",
+    "feature": "Record who handed in and who was late, with notes, and save them together; a paper handed in after the closing time is recorded as late",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Roll call: set one pupil Handed in with a note and another Late, 'Save changes (2)': '2 changes saved.' and the summary follows; after the closing time, Handed in is stored as Late and the page says so",
+    "source": [
+      "src/components/forms/RollCall.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-22",
+    "area": "Forms",
+    "feature": "Pupils who joined the class later are added to the roll call",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Roll call: 'Add pupils who joined the class' says 'Nobody new to add.', then after a pupil joins the class '1 pupil added to the roll call.' and they are listed",
+    "source": [
+      "src/components/forms/RollCall.tsx"
     ],
     "status": "planned"
   },

@@ -271,6 +271,6 @@
 - [x] Step 1: the session records the actor; a guard on every portal route; the per-branch `portal_access` setting with its audited admin screen. Separate credentials (step 2) stay an open item.
 
 ### TASK-0041: The Forms screens (the Forms module had an API and no screen)
-- **Status:** Plan written 2026-11-02 (`docs/tasks/0041-forms-screens.md`); slices F1 (PR #138) and F2a built 2026-11-02 (F2a PR pending); F2b to F7 not built. Requested by the maintainer as the answer to decision D1 of task 0033 ("quickly build those screens"); the walkthrough waits for it.
-- [x] F1 staff forms (list, create, publish, close, answer "For you"; the marking queue moved to F2) - [x] F2a a form's page (overview, questions, results) - [ ] F2b marking and the paper-work roll call - [ ] F3 portal forms - [ ] F4 portal question practice - [ ] F5 public questionnaire page - [ ] F6 question-bank reports, printing, offer-back - [ ] F7 video-guide link, configurable media address, `distDir`
+- **Status:** Plan written 2026-11-02 (`docs/tasks/0041-forms-screens.md`); slices F1 (PR #138), F2a (PR #139) and F2b built 2026-11-02 (F2b PR pending); F3 to F7 not built. Requested by the maintainer as the answer to decision D1 of task 0033 ("quickly build those screens"); the walkthrough waits for it.
+- [x] F1 staff forms (list, create, publish, close, answer "For you"; the marking queue moved to F2) - [x] F2a a form's page (overview, questions, results) - [x] F2b marking and the paper-work roll call - [ ] F3 portal forms - [ ] F4 portal question practice - [ ] F5 public questionnaire page - [ ] F6 question-bank reports, printing, offer-back - [ ] F7 video-guide link, configurable media address, `distDir`
 

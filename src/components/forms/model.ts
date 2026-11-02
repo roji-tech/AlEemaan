@@ -42,8 +42,10 @@ export type DraftQuestion = {
   multi: number[];
   /// The answer of a true/false question.
   truth: boolean;
-  /// The text a short answer must match.
+  /// The text a short answer must match (marked automatically), or the model answer shown to whoever marks it by hand.
   accepted: string;
+  /// A practice set's short answer: marked by a teacher (the API's default) or by the machine against `accepted`.
+  byHand: boolean;
   points: string;
   explanation: string;
 };
@@ -56,6 +58,7 @@ export const blankQuestion = (type: QuestionType = "SINGLE"): DraftQuestion => (
   multi: [],
   truth: true,
   accepted: "",
+  byHand: true,
   points: "1",
   explanation: "",
 });
@@ -75,7 +78,10 @@ export function questionProblem(q: DraftQuestion, n: number, kind: FormKindKey):
     }
   }
   if (kind === "PRACTICE_SET") {
-    if (q.type === "SHORT" && q.accepted.trim().length === 0) return `Write the answer a pupil must give to question ${n}.`;
+    if (q.type === "SHORT" && q.accepted.trim().length === 0)
+      return q.byHand
+        ? `Write the model answer for question ${n}, to mark against.`
+        : `Write the answer a pupil must give to question ${n}.`;
     const points = Number(q.points);
     if (!Number.isInteger(points) || points < 0 || points > MAX_POINTS)
       return `Points for question ${n} must be a whole number from 0 to ${MAX_POINTS}.`;
@@ -99,6 +105,7 @@ export function questionPayload(q: DraftQuestion, index: number, kind: FormKindK
           : q.type === "TRUE_FALSE"
             ? String(q.truth)
             : q.accepted.trim();
+    if (q.type === "SHORT") body.markingMethod = q.byHand ? "MANUAL" : "AUTO";
   }
   return body;
 }
