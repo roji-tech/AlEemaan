@@ -8,6 +8,7 @@ import { PortalOverviewTab } from "@/components/portal/PortalOverviewTab";
 import { PortalResultsTab } from "@/components/portal/PortalResultsTab";
 import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
 import { PortalLmsTab, type PortalLms } from "@/components/portal/PortalLmsTab";
+import { PortalFormsTab } from "@/components/portal/PortalFormsTab";
 import { allowedTabs, type Access, type PortalTab } from "@/lib/portal/access";
 
 interface OverviewState {
@@ -85,6 +86,9 @@ interface InvoiceState {
   }>;
 }
 
+// the sections of the portal: those the sign-in's access gives, and Forms, which only a pupil has (the forms routes refuse a guardian)
+type PageTab = PortalTab | "forms";
+
 function PortalContent() {
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("token") || undefined;
@@ -93,7 +97,9 @@ function PortalContent() {
   const [authenticated, setAuthenticated] = useState(false);
   const [students, setStudents] = useState<PortalStudentRecord[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<PortalTab>("overview");
+  const [activeTab, setActiveTab] = useState<PageTab>("overview");
+  // who signed in: a pupil or a guardian, from the server
+  const [actor, setActor] = useState<string>("");
   // What this sign-in may do for each pupil (task 0040), from the server. The screens only decide what to show: every route checks again.
   const [accessByStudent, setAccessByStudent] = useState<Record<string, Access>>({});
 
@@ -116,6 +122,7 @@ function PortalContent() {
           if (json.data && json.data.students?.length > 0) {
             setStudents(json.data.students);
             setAccessByStudent(json.data.access ?? {});
+            setActor(String(json.data.actor ?? ""));
             setSelectedStudentId(json.data.students[0].id);
             setAuthenticated(true);
           }
@@ -135,7 +142,9 @@ function PortalContent() {
   // The sections this sign-in may open for the pupil shown, and the one on screen: the chosen one if it is allowed, otherwise the first that is.
   const currentAccess = accessByStudent[selectedStudentId];
   const tabs: PortalTab[] = currentAccess ? allowedTabs(currentAccess) : [];
-  const shownTab: PortalTab = tabs.includes(activeTab) ? activeTab : (tabs[0] ?? activeTab);
+  const mayForms = actor === "PUPIL" && Boolean(currentAccess?.overview);
+  const allTabs: PageTab[] = mayForms ? [...tabs, "forms"] : tabs;
+  const shownTab: PageTab = allTabs.includes(activeTab) ? activeTab : (allTabs[0] ?? activeTab);
 
   // Fetch data for selected student and the section on screen
   useEffect(() => {
@@ -182,7 +191,7 @@ function PortalContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `tabs` and `currentAccess` follow `accessByStudent`, which is listed
   }, [authenticated, selectedStudentId, shownTab, accessByStudent]);
 
-  const handleTabChange = (tab: PortalTab) => {
+  const handleTabChange = (tab: PageTab) => {
     setTabLoading(true);
     setActiveTab(tab);
   };
@@ -193,10 +202,11 @@ function PortalContent() {
     setOverviewData(null);
   };
 
-  const handleLoginSuccess = (data: { student: PortalStudentRecord; siblingStudents: PortalStudentRecord[]; access?: Record<string, Access> }) => {
+  const handleLoginSuccess = (data: { student: PortalStudentRecord; siblingStudents: PortalStudentRecord[]; access?: Record<string, Access>; actor?: string }) => {
     const all = data.siblingStudents && data.siblingStudents.length > 0 ? data.siblingStudents : [data.student];
     setStudents(all);
     setAccessByStudent(data.access ?? {});
+    setActor(String(data.actor ?? ""));
     setSelectedStudentId(data.student.id);
     setAuthenticated(true);
     setTabLoading(true);
@@ -211,6 +221,7 @@ function PortalContent() {
     setAuthenticated(false);
     setStudents([]);
     setAccessByStudent({});
+    setActor("");
     setSelectedStudentId("");
     setOverviewData(null);
     setResultsData([]);
@@ -309,6 +320,19 @@ function PortalContent() {
             Coursework (LMS)
           </button>
           )}
+          {mayForms && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={shownTab === "forms"}
+            onClick={() => handleTabChange("forms")}
+            className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
+              shownTab === "forms" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+            }`}
+          >
+            Forms
+          </button>
+          )}
         </div>
 
         {/* Tab Body */}
@@ -345,6 +369,7 @@ function PortalContent() {
                   if (res.ok) setLmsData({ quizzes: [], ...(await res.json()).data });
                 }}
               />}
+            {shownTab === "forms" && mayForms && <PortalFormsTab studentId={selectedStudentId} />}
           </div>
         )}
       </main>
