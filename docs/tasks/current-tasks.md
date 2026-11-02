@@ -269,3 +269,8 @@
 ### TASK-0040: The portal tells a pupil from a guardian, and what each may do is an admin setting
 - **Status:** Step 1 merged 2026-10-26 (PR #93, branch `claude/portal-actor-and-access`); the maintainer answered yes to the three questions and asked for the access to be an admin setting. Step 2 (real separate credentials) is not started. See `docs/tasks/0040-portal-pupil-guardian-separation.md`.
 - [x] Step 1: the session records the actor; a guard on every portal route; the per-branch `portal_access` setting with its audited admin screen. Separate credentials (step 2) stay an open item.
+
+### TASK-0041: The Forms screens (the Forms module had an API and no screen)
+- **Status:** Plan written 2026-11-02 (`docs/tasks/0041-forms-screens.md`); slices F1 to F7 not built. Requested by the maintainer as the answer to decision D1 of task 0033 ("quickly build those screens"); the walkthrough waits for it.
+- [ ] F1 staff forms (list, create, publish, close) - [ ] F2 a form's page (results, marking, roll call) - [ ] F3 portal forms - [ ] F4 portal question practice - [ ] F5 public questionnaire page - [ ] F6 question-bank reports, printing, offer-back - [ ] F7 video-guide link, configurable media address, `distDir`
+
