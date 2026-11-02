@@ -409,3 +409,39 @@ test("archiving practice attempt hides it from default history while preserving 
   expect(histArch.json.data.sessions[0].attempts).toHaveLength(1);
   expect(histArch.json.data.sessions[0].attempts[0].id).toBe(attempt.id);
 });
+
+// Task 0041, slice F4: the screens show an answer in the option's words ("Mitochondria", not "B"), so the finished session and the history carry the kind and the options of each question,
+// which the pupil was shown when the question was asked. The key was already part of both (it is the pupil's own finished practice).
+test("a finished session and the history name the kind and the options of each answered question", async () => {
+  const cookie = await portalCookie(student.admissionNo);
+  const startRes = await api(`/api/v1/portal/students/${student.id}/practice/sessions`, {
+    method: "POST",
+    cookie,
+    body: { subjectLabel: "Biology", size: 1, feedbackMode: "EACH" },
+  });
+  expect(startRes.status).toBe(201);
+  const session = startRes.json.data.session;
+  const asked = startRes.json.data.questions[0];
+  const ans = await api(`/api/v1/portal/students/${student.id}/practice/sessions/${session.id}/answers`, {
+    method: "POST",
+    cookie,
+    body: { bankItemId: asked.id, answer: "A" },
+  });
+  expect(ans.status).toBe(200);
+
+  const finish = await api(`/api/v1/portal/students/${student.id}/practice/sessions/${session.id}/finish`, { method: "POST", cookie });
+  expect(finish.status).toBe(200);
+  const options = [
+    { id: "A", text: "Nucleus" },
+    { id: "B", text: "Mitochondria" },
+    { id: "C", text: "Ribosome" },
+  ];
+  expect(finish.json.data.attempts[0].type).toBe("SINGLE");
+  expect(finish.json.data.attempts[0].options).toEqual(options);
+
+  const history = await api(`/api/v1/portal/students/${student.id}/practice/history`, { cookie });
+  expect(history.status).toBe(200);
+  const shown = history.json.data.sessions.find((s: { id: string }) => s.id === session.id).attempts[0];
+  expect(shown.type).toBe("SINGLE");
+  expect(shown.options).toEqual(options);
+});
