@@ -1,7 +1,7 @@
 # 0033: Walkthrough videos and PDFs that double as a flow audit
 
-- **Period / Focus:** requested 2026-10-19; **deferred: runs last, after all other tasks are done** (maintainer's decision, 2026-10-19). Nothing is built.
-- **Status:** Pending (specified and refined 2026-10-23, not started; 0 of 9 items done; the prerequisites in section 6 are not met)
+- **Period / Focus:** requested 2026-10-19; **deferred: runs last, after all other tasks are done** (maintainer's decision, 2026-10-19). P0 (plan, guardrails, coverage matrix) built 2026-11-02; no journey yet (section 6).
+- **Status:** In progress (P0 built 2026-11-02 for AlEemaan: matrix, guardrails, runner safety; P1 recon has not started; it waits for the maintainer's answers in section 6)
 - **Priority:** Medium (last in the order of work)
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** to be created off `dev` when the work starts; one PR per repository (AlEemaan and Octalve Edu, each on its own)
@@ -70,8 +70,8 @@ Everything in section 3 stands. These make it sharper and are additive; the ones
 Not proposed: the single 1280 x 720 pass of the prompt. The three passes of section 3 stay (theme and phone layout are features here); the refinements above apply to each pass.
 
 ## 4. Work Breakdown
-- [ ] P0.1 Coverage matrix (every feature, route and screen, with negative rows per role and a computed "API route with no screen" list; plan before code), agreed with the maintainer
-- [ ] P0.2 Guardrails: separate Playwright config and folder (`tests/walkthrough`), a per-tab `goto` wrapper that throws after the first call, a tamper-tested unit test that greps the folder for `request`, `fetch`, `prisma`, `pg`, `skip`, `fixme`, `isVisible`, `try {`, `localStorage`, `sessionStorage` and `cookies` (outside an allowlisted observer file), a visible cursor and click ripple, an in-page caption bar, human-speed typing (50 to 120 ms a key), observers always on (console, pageerror, requestfailed, response status, axe after each new route), and `timeline.json` as the single source of captions, ticks and chapters
+- [x] P0.1 Coverage matrix (every feature, route and screen, with negative rows per role and a computed "API route with no screen" list; plan before code): built 2026-11-02, 168 rows; agreement of the maintainer outstanding (section 6)
+- [x] P0.2 Guardrails (built 2026-11-02, section 6): separate Playwright config and folder (`tests/walkthrough`), a per-tab `goto` wrapper that throws after the first call, a tamper-tested unit test that greps the folder for `request`, `fetch`, `prisma`, `pg`, `skip`, `fixme`, `isVisible`, `try {`, `localStorage`, `sessionStorage` and `cookies` (outside an allowlisted observer file), a visible cursor and click ripple, an in-page caption bar, human-speed typing (50 to 120 ms a key), observers always on (console, pageerror, requestfailed, response status, axe after each new route), and `timeline.json` as the single source of captions, ticks and chapters
 - [ ] P0.3 Tooling: Playwright records `.webm`; the mp4, burned-in captions and chapters need ffmpeg (none is installed; a static build from npm into a tools folder outside the repo, no sudo, is the proposal); the PDF is an HTML report printed with Chromium (`page.pdf()`), which needs nothing new
 - [ ] P1 Recon runs (soft mode, chapter snapshots) until the journey reaches the end; findings logged
 - [ ] P2 Findings fixed (a regression test each that fails on the old code), or listed with the decision they need
@@ -83,11 +83,42 @@ Not proposed: the single 1280 x 720 pass of the prompt. The three passes of sect
 ## 5. Definition of done
 The matrix is fully ticked in one green run per pass; every finding is fixed or listed with its reason and the decision it needs; the guardrail unit test is green; tsc, lint, build, then the full suite pass on the final commit; PR into `dev` with `base.ref` verified; docs (this file, HANDOVER, open-items, current-tasks) updated in the same change.
 
-## 6. Where it stands, and what it waits for (2026-10-23)
-- **Built:** nothing. This file and `docs/HANDOVER.md` section 6.7 are the whole of it.
-- **Prerequisites, none met:**
-  - Task 0032 (Forms and question bank): slice 1 is merged; slice 2 is partly built on a local branch (storage adapter with three backends, image processing, the overlap function, the migration and the rules module are written; the question service, the review routes, the image routes and the screens are not); slices 3 to 10 have not started.
-  - Octalve Edu's question-bank parity: a design note exists and one of its decisions (how guardians sign in) waits for the maintainer; no slice is built.
-  - Octalve ADR 0018 (results approvers by scope) waits for the maintainer's answer, and this repository follows it afterwards.
-  - One green full suite (every project, including e2e and https) on each `dev`: the runs of 2026-10-23 had 29 failures in each repository; 28 (AlEemaan) and all 29 (Octalve) were slow tests timing out under a heavily loaded machine and passed alone, and AlEemaan's one real failure (a keyboard-unreachable scrolling table in the promotion screens) is fixed (task 0037, follow-up). What is left is one run on an idle machine, on a `dev` with the pending work merged.
-- **Order when it starts:** P0 for both repositories (report, wait), then P1 to P4 for AlEemaan, then Octalve Edu.
+## 6. Where it stands (2026-11-02: P0 done for AlEemaan; P1 waits for the maintainer)
+
+### 6.1 What P0 built (tests and scripts only; no product code)
+- **The coverage matrix.** `tests/walkthrough/coverage/rows.json` holds 168 rows: 130 positive, 38 negative (what each role must be refused), 3 `not demonstrable` with their reason (the offline page, real e-mail/WhatsApp/SMS delivery, the guardian's SMS magic link), 12 that need a typed address (see D2). The rows are written by hand; everything else is computed by `scripts/walkthrough-run/coverage.mjs`: the 27 pages and 15 navigation entries, the 184 API routes with their methods and who may call them (from the function catalog), which screens call which route (by following each screen's imports and matching its `/api/v1/...` strings), the API column of every row, and the list of API routes no screen reaches. `--structure` fails when a page or navigation entry has no row, a row names a file, role or route that does not exist, an id repeats or a "not demonstrable" row gives no reason; `--check` (the final gate) also fails while any row is only `planned`. A row is ticked only by a recorded step that names it in `covers`. `tests/walkthrough/support/coverage.spec.ts` breaks the matrix on purpose and watches the gate refuse it.
+- **The guard is a table of rules** (`support/guard-rules.ts`), each with its own tamper line that guard.spec.ts feeds it. Two tiers: the actor tier (page.request/APIRequestContext, fetch, prisma/pg, shell-out, local/session storage, cookies, skip/fixme, retries, any `goto` that is not `Walk.goto`, forced clicks, fill, insertText, setInputFiles, dispatchEvent, fulfill) binds every file including the helpers; the journey tier (isVisible and its relatives, try/catch/.catch, if/else/switch/while, evaluate, Promise.race, expect.soft, route) binds the journey files and not the observer library. Comments are ignored, strings are not.
+- **The walk helpers follow the rules.** Typing is one key press at a time, 50 to 120 ms apart (the old 25 ms and `fill` are gone), the speed scale cannot shorten it, and a pass fails over a 12-minute typing budget. A step must name coverage-matrix rows that exist. Roles use the matrix's seven names (the old role names never matched the overlay's colour classes). One `goto` per tab, counted by `Walk`.
+- **Observers, always on** (`support/observers.ts`): console errors and warnings, page errors, failed requests, HTTP statuses, any request that would leave the machine (refused and recorded: "the app calls X"), and axe on every new path. Blockers (script error, console error, 5xx, an outside request, serious or critical axe) fail a strict run; a recon run only records them.
+- **Config.** `playwright.walkthrough.config.ts` has a `support` project (the harness's own tests, no recording) and three recording passes: `desktop-light` and `desktop-dark` at 1280 x 720 and `phone` on a Pixel 7. No retries, no parallelism. Output goes to the main checkout's git-ignored `out/walkthrough/aleemaan/<pass>/`, never into a worktree.
+- **The runner's safety** (`scripts/walkthrough-run/safety.mjs`, used by `run.mjs`): it drops and recreates a database, so the name must be `wip_<repo>_walkthrough` (never test, dev or prod), the server must be on this machine, nobody else may be connected, and `select current_database()` must return the name before the first write. Each run makes its own setup token (never printed).
+- **Tests:** `pnpm exec playwright test --config=playwright.walkthrough.config.ts --project=support` (the harness's own tests; they need no database and no server).
+
+### 6.2 What P0 found
+Defects in the harness that was merged on 2026-10-28 (never run, so none could show):
+1. The journey typed into a `schoolName` field that the setup page does not have, and left out the setup token it asks for: it could not have got past step 2. It also branched with `if (onSetup)`. It was removed (it is in the history); P1 writes the real one against the matrix.
+2. The caption bar's script ran before the page had a body and threw on every page load: a false page error on every page of every run, and a caption bar that vanished after each click until the next step. Fixed; the test fails on the old script.
+3. Role names did not match the overlay's colour classes, so no role badge was coloured.
+4. Typing at 25 ms and `fill`, against the rule (50 to 120 ms of real key presses); one viewport at 1366 x 768, against the three passes at 1280 x 720; no observers; a guard that let `if (`, `page.goto(`, `evaluate`, cookies, forced clicks and `fill` through and exempted four whole files from every check; a runner that dropped whatever database a variable named, with no `current_database()` check and no password for the client tools.
+5. Still to adapt in P1 and P3: `report.mjs` reads the old single-pass layout, `timeline.json` still uses `title` where the specification says `name`, and `run.mjs` falls back to `next dev` and builds into `.next` (the specification wants a production build in its own directory, which needs a `distDir` setting in `next.config.ts`: product configuration, so left for the maintainer's word).
+
+Findings about the product (stated in general terms):
+- **Forms, practice and questionnaires have an API and no screen.** The scan finds no trace of a screen for 54 of the 184 routes; read by hand: 35 are the Forms module and the pupil's practice (create and close a form, responses, marking queue, analytics, turn-ins, print, the public questionnaire link, practice sets, questionnaires, paper work and practice sessions); 6 are question-bank reports, printing, print logs and offer-back; 3 (approve, reject, retire) are reached by a screen that builds their address from a variable, so a screen exists; the other 10 are single routes, below. The task 0032 header already says slices 3 to 10 are not started. There is no pupil practice screen and no public questionnaire page.
+- Of the other 10: three look unused by any screen (a second `attendance` route beside the one the screen uses, `auth/me`, the invoice `pay` route) and need a person to decide, remove or give them a screen; two are not for a screen (the Paystack webhook, and the JSON twin of the public verification page); five are not settled by the scan (the grade-scale and assessment-scheme item routes, the session item route, staff restore, and a teacher's quiz-attempt route; the grading panel builds its addresses from constants, so some are likely in use) and are read by hand in recon.
+- `/video-guide` is reachable by address only: nothing in the app links to it.
+
+### 6.3 Prerequisites (re-checked 2026-11-02)
+- Task 0032: the question-bank screens (browse, write, review, reviewers, settings) are built; the Forms and practice screens are not (above).
+- Results approval by scope (Octalve's ADR 0018) is built here as task 0039.
+- One green full suite on `dev`: the run of 2026-10-30 had 2169 non-browser tests passed and 3 failed (two fixed in #131, one a load flake that passes alone), and 567 browser tests passed, 0 failed.
+- Octalve Edu: not started (its question-bank parity and its own P0 are separate).
+
+### 6.4 Decisions needed from the maintainer (my recommendation first)
+- **D1 Walk now, or build the Forms and practice screens first?** Recommended: walk now. The PDF and findings list the Forms module under "has an API, no screen" with the decision each needs, and the harness is re-run when the screens land. The alternative honours "runs last" to the letter but leaves the walkthrough waiting on slices 3 to 10, a large piece of product work.
+- **D2 Typed-address rows.** Twelve negative rows can only be proved by typing an address (a role opening a page it may not, a made-up verification token, the site address on a set-up instance). Recommended: allow a fresh tab with exactly one counted `goto` for each, labelled "typed address" in the PDF. Otherwise they become "not demonstrable".
+- **D3 The guardian's SMS or WhatsApp magic link.** Recommended: leave as "not demonstrable" (a local sink for it is more build than it shows).
+- **D4 Where the finished video lives.** Recommended: out of git (done: `public/media/video-guide/` is now git-ignored) and hosted somewhere you choose, with `/video-guide` pointed at it; and either a link to `/video-guide` from the app or an explicit decision that it is shared by address only. Until then, the page on `prod` says the walkthrough is queued and its three download links lead nowhere.
+- **D5 The offline page.** Recommended: "not demonstrable" (taking the network away is not a click in the app, and an unclear actor is forbidden).
+
+### 6.5 Next
+On the maintainer's answers: P1 recon (write the journey against the matrix, soft mode, chapter snapshots, read the findings), then P2 fix, P3 the three strict passes, P4 ship. Octalve Edu is its own run and its own PR.

@@ -53,3 +53,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /tests/.tmp/
+
+# The walkthrough video, PDF and captions are large and derived: they are not committed (docs/tasks/0033, decision D4).
+/public/media/video-guide/
