@@ -190,9 +190,9 @@ test.describe("someone who is not an administrator", () => {
     await signInThroughUi(page, teacher);
 
     await expect(page.getByRole("heading", { level: 1, name: "Welcome, Zainab" })).toBeVisible();
-    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, students, announcements, question bank); the phone's tab bar keeps only
+    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, students, announcements, question bank, forms); the phone's tab bar keeps only
     // Overview and Results and the rest live in the More sheet.
-    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 2 : 8);
+    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 2 : 9);
     await expect(mainNav(page).getByRole("link", { name: "Overview" })).toBeVisible();
     await expect(mainNav(page).getByRole("link", { name: "Results" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);
@@ -315,9 +315,28 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     await expect(moreButton(page)).toBeFocused();
 
     await moreButton(page).click();
-    await page.mouse.click(195, 60); // the dimmed area above the sheet
+    const panel = await page.getByRole("dialog").locator("> div").boundingBox(); // where the sheet starts depends on how many entries the role has
+    expect(panel!.y).toBeGreaterThan(8); // there is always a dimmed strip above the sheet to tap
+    await page.mouse.click(195, panel!.y / 2);
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect(moreButton(page)).toBeFocused();
+  });
+
+  test("on a short phone the sheet stays on the screen, scrolls, and keeps Close and Sign out reachable", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 640 });
+    const admin = await createUser({ role: Role.ADMIN });
+    await signInThroughUi(page, admin);
+
+    await moreButton(page).click();
+    const sheet = page.getByRole("dialog");
+    const panel = sheet.locator("> div");
+    const box = await panel.boundingBox();
+    expect(box!.y).toBeGreaterThan(8); // a dimmed strip is left above it
+    expect(box!.y + box!.height).toBeLessThanOrEqual(640);
+    await expect(sheet.getByRole("button", { name: "Close" })).toBeInViewport();
+    const signOut = sheet.getByRole("button", { name: "Sign out" });
+    await signOut.scrollIntoViewIfNeeded();
+    await expect(signOut).toBeInViewport();
   });
 
   test("it traps focus while open (Tab never leaves the sheet) and the page behind is inert", async ({ page }) => {
