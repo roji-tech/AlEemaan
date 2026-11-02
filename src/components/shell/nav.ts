@@ -49,6 +49,7 @@ export const NAV: readonly NavItem[] = [
   { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true, inMore: true },
   { label: "Approvals", href: "/approvals", icon: ShieldCheckIcon, adminOnly: true, inMore: true },
   { label: "Question bank", href: "/question-bank", icon: FileTextIcon, staffOnly: true, inMore: true },
+  { label: "Forms", href: "/forms", icon: ClipboardIcon, staffOnly: true, inMore: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
@@ -71,6 +72,7 @@ export const PAGE_LABELS: Record<string, string> = {
   "/finance": "Finance",
   "/approvals": "Approvals and rules",
   "/question-bank": "Question bank",
+  "/forms": "Forms",
   "/users": "Users",
   "/account": "Account",
 };

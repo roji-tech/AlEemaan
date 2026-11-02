@@ -359,7 +359,7 @@
       "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "Click each sidebar entry in turn: Superadmin 15, administrator 12, teacher 8, non-teaching staff 2; each lands on its page with the right heading and crumb",
+    "proof": "Click each sidebar entry in turn: Superadmin 16, administrator 13, teacher 9, non-teaching staff 2; each lands on its page with the right heading and crumb",
     "source": [
       "src/components/shell/AppShell.tsx",
       "src/components/shell/SidebarNav.tsx",
@@ -2211,6 +2211,110 @@
     ],
     "status": "planned",
     "typedAddress": true
+  },
+  {
+    "id": "FRM-01",
+    "area": "Forms",
+    "feature": "Forms is in a teacher's and an administrator's navigation, with its four sections; a pupil who opens the address is told it is for staff",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator",
+      "Superadmin",
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Choose Forms in the sidebar (phone: More, then Forms); the tabs Practice sets, Questionnaires, Paper work and For you are there; signed in as a pupil, the address shows 'Only staff can open this page.'",
+    "source": [
+      "src/app/(app)/forms/page.tsx",
+      "src/components/forms/FormsSections.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-02",
+    "area": "Forms",
+    "feature": "Write a practice set, save it as a draft, publish it and close it",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New practice set: title, class, time limit, a single-choice question with the correct option ticked and a true/false question; Save as draft; the list says Draft; Publish; Close and confirm 'Close it'",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/QuestionEditor.tsx",
+      "src/components/forms/FormsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-03",
+    "area": "Forms",
+    "feature": "A practice set with a question left unwritten is refused with a sentence and nothing is saved",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "New practice set: leave the question empty, Save as draft; the sentence 'Write the question for question 1.' appears and the list stays as it was",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-04",
+    "area": "Forms",
+    "feature": "A questionnaire for members is limited to the roles ticked; one for anyone with the link is anonymous and shows its link with the weakness said in words",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New questionnaire: Members of the school, tick Teaching staff and Non-teaching staff, Save as draft; New questionnaire: Anyone with the link, Anonymous, a rating question, Save as draft, Publish; the link /q/… appears with Copy link and 'A public link cannot tell who is answering and cannot stop one person answering twice.'",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/FormsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-05",
+    "area": "Forms",
+    "feature": "Paper work needs a class; it is published at once and can be closed",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New paper work with no class: 'Choose at least one class for the paper work.'; tick a class, Create paper work; the list says Published; Close and confirm",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/FormsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-06",
+    "area": "Forms",
+    "feature": "For you: a questionnaire addressed to the signed-in staff member is answered in place, once; an anonymous one says nobody can see who answered",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "For you: Answer on a questionnaire, read the anonymity sentence, fill the answers, Send my answers; the row says Answered; with nothing waiting the section says 'Nothing is waiting for you.'",
+    "source": [
+      "src/components/forms/ForYouPanel.tsx"
+    ],
+    "status": "planned"
   },
   {
     "id": "USR-01",
