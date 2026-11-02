@@ -1,25 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { CopyIcon } from "@/components/ui/icons";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type Notice } from "@/components/academics/common";
 import { FormBuilderDialog } from "@/components/forms/FormBuilderDialog";
-import { KIND_NOUN, STATUS_LABEL, classGroupIdsOf, plural, windowText, type FormKindKey, type ListedForm } from "@/components/forms/model";
+import { PublicLinkBox } from "@/components/forms/PublicLinkBox";
+import { StatusBadge } from "@/components/forms/StatusBadge";
+import { KIND_NOUN, classGroupIdsOf, plural, windowText, type FormKindKey, type ListedForm } from "@/components/forms/model";
 
 // The forms of one kind in one branch, with the two things a teacher does to each one here: publish a draft and close a published one. Presentation only - the API decides who may.
 
 type ClassGroup = { id: string; name: string };
-
-const STATUS_STYLE: Record<ListedForm["status"], string> = {
-  DRAFT: "border-line-strong text-fg-2",
-  PUBLISHED: "border-ok-line bg-ok-bg text-ok-fg",
-  CLOSED: "border-line-strong bg-surface-2 text-fg-muted",
-  ARCHIVED: "border-line-strong bg-surface-2 text-fg-muted",
-};
 
 const upper = (word: string) => `${word[0]!.toUpperCase()}${word.slice(1)}`;
 
@@ -99,20 +94,18 @@ export function FormsList({ kind, branchId, classGroups }: { kind: FormKindKey; 
           {(forms ?? []).map((form) => {
             const classes = classGroupIdsOf(form).map(className).filter(Boolean) as string[];
             const isPublic = form.audience?.kind === "PUBLIC";
-            const link =
-              isPublic && form.shareToken && form.status === "PUBLISHED"
-                ? `${typeof window === "undefined" ? "" : window.location.origin}/q/${form.shareToken}`
-                : null;
             return (
               <li key={form.id} className="space-y-3 rounded-2xl border border-line bg-surface p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold break-words text-fg">{form.title}</p>
+                    <p className="font-semibold break-words text-fg">
+                      <Link href={`/forms/${form.id}`} className="underline-offset-2 hover:underline">
+                        {form.title}
+                      </Link>
+                    </p>
                     {form.instructions && <p className="mt-1 text-sm break-words text-fg-muted">{form.instructions}</p>}
                   </div>
-                  <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_STYLE[form.status]}`}>
-                    {STATUS_LABEL[form.status]}
-                  </span>
+                  <StatusBadge status={form.status} />
                 </div>
                 <p className="text-sm text-fg-muted">
                   {[
@@ -131,28 +124,11 @@ export function FormsList({ kind, branchId, classGroups }: { kind: FormKindKey; 
                     .join(" · ")}
                 </p>
                 {kind === "QUESTIONNAIRE" && isPublic && (
-                  <div className="space-y-2 rounded-xl border border-line bg-field p-3 text-sm">
-                    {link ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <code className="min-w-0 flex-1 break-all text-fg">{link}</code>
-                        <Button
-                          variant="secondary"
-                          onClick={async () => {
-                            await navigator.clipboard?.writeText(link).catch(() => undefined);
-                            setNotice({ variant: "success", text: "Link copied." });
-                          }}
-                        >
-                          <CopyIcon className="h-4 w-4" />
-                          Copy link
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-fg-muted">The link works once the questionnaire is published.</p>
-                    )}
-                    <p className="text-xs text-fg-muted">
-                      A public link cannot tell who is answering and cannot stop one person answering twice.
-                    </p>
-                  </div>
+                  <PublicLinkBox
+                    shareToken={form.shareToken}
+                    published={form.status === "PUBLISHED"}
+                    onCopied={() => setNotice({ variant: "success", text: "Link copied." })}
+                  />
                 )}
                 <div className="flex flex-wrap gap-2">
                   {form.status === "DRAFT" && (
