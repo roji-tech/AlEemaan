@@ -1,7 +1,7 @@
 # 0042: The sidebar in sections, collapsible to icons, with the person pinned at the foot
 
 - **Period / Focus:** requested 2026-11-03 by the maintainer, for this repo and for Octalve Edu
-- **Status:** Built and tested 2026-11-03 (PR pending)
+- **Status:** Built and tested 2026-11-03; merged into `dev` as PR #148 (merge commit `bea6529`, 2026-11-03)
 - **Priority:** High (the walkthrough, task 0033, films the sidebar, so it changes first)
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** one branch (`claude/sidebar-sections`) and one PR off `dev`
