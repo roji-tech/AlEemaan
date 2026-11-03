@@ -277,5 +277,5 @@
 
 
 ### TASK-0042: The sidebar in sections, collapsible to icons, with the person pinned at the foot
-- **Status:** Built and tested 2026-11-03 (PR pending); see `docs/tasks/0042-sidebar-sections.md`. Requested by the maintainer for this repo and for Octalve Edu (its task 0026).
+- **Status:** Built and tested 2026-11-03 and merged into `dev` as PR #148 (`bea6529`); see `docs/tasks/0042-sidebar-sections.md`. Requested by the maintainer for this repo and for Octalve Edu (its task 0026).
 - [x] Sections that fold (remembered in a cookie; the section of the current page opens on arrival; a section of one entry is a plain link with a rule above it when it follows a section) - [x] The whole sidebar folds to a rail of icons with a round arrow on its edge; it opens over the page while an icon is hovered or focused, and hovering the arrow does nothing - [x] The person stays pinned at the foot - [x] The phone More sheet has the same section headings - [x] Tests (unit and e2e, both themes, open, rail and peek) - [x] Matrix rows SHL-09 and SHL-10
