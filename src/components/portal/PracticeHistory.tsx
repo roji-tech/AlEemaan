@@ -9,11 +9,12 @@ import { say, type Notice } from "@/components/academics/common";
 import { downloadPdf } from "@/components/forms/pdf";
 import { plural } from "@/components/forms/model";
 import { PracticeAnswerItem } from "@/components/portal/PracticeAnswers";
+import type { StartedSession } from "@/components/portal/PracticeSession";
 import { ReportQuestionDialog } from "@/components/portal/ReportQuestionDialog";
 import { REPORT_SENT, practiceBase, printAddress, when, type PracticedAnswer } from "@/components/portal/practiceModel";
 
 // The history of the pupil's practice. A pupil sees every session and, once it is finished, its answers (archive or restore one, report a problem with its question, download a PDF);
-// a session left open can be finished, which gives its unanswered questions back. A session set to show answers at the end keeps that promise: its answers are not listed until it is
+// a session left open can be carried on with (the questions still to answer) or finished, which gives its unanswered questions back. A session set to show answers at the end keeps that promise: its answers are not listed until it is
 // finished. Whoever has only the summary level (a guardian by default) is shown how practice is going and never a question; a guardian given the full history sees it and can change
 // nothing. Presentation only: the API decides which of these a person gets.
 
@@ -36,7 +37,16 @@ type Summary = {
 };
 type History = { mode: "FULL"; sessions: Session[] } | { mode: "SUMMARY"; summary: Summary };
 
-export function PracticeHistory({ studentId, canAct }: { studentId: string; canAct: boolean }) {
+export function PracticeHistory({
+  studentId,
+  canAct,
+  onResume,
+}: {
+  studentId: string;
+  canAct: boolean;
+  /** Carry on with a session left open: given the questions still to answer, the owner shows them. Without it the history only offers to finish the session. */
+  onResume?: (started: StartedSession) => void;
+}) {
   const base = practiceBase(studentId);
   const [archivedView, setArchivedView] = useState(false);
   const [history, setHistory] = useState<History | null>(null);
@@ -81,6 +91,17 @@ export function PracticeHistory({ studentId, canAct }: { studentId: string; canA
     act(sessionId, async () => {
       const reply = await sendJson(`${base}/sessions/${encodeURIComponent(sessionId)}/finish`, "POST", {});
       return { ok: reply.ok, message: say(reply, "The session couldn't be finished.") };
+    });
+  const carryOn = (sessionId: string) =>
+    act(sessionId, async () => {
+      const reply = await getJson(`${base}/sessions/${encodeURIComponent(sessionId)}`);
+      if (!reply.ok) return { ok: false, message: say(reply, "The session couldn't be opened.") };
+      const started = reply.data as unknown as StartedSession;
+      if (started.questions.length === 0) {
+        return { ok: false, message: "No question is left to answer in this session. Finish it to see how you did." };
+      }
+      onResume?.(started);
+      return { ok: true, message: "" };
     });
   const download = (sessionId: string) =>
     act(sessionId, async () => {
@@ -207,9 +228,16 @@ export function PracticeHistory({ studentId, canAct }: { studentId: string; canA
                   </Button>
                 )}
                 {canAct && !finished && (
-                  <Button variant="secondary" loading={busy === s.id} onClick={() => finishIt(s.id)}>
-                    Finish it
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {onResume && (
+                      <Button loading={busy === s.id} onClick={() => carryOn(s.id)}>
+                        Continue<span className="sr-only"> this session</span>
+                      </Button>
+                    )}
+                    <Button variant="secondary" loading={busy === s.id} onClick={() => finishIt(s.id)}>
+                      Finish it
+                    </Button>
+                  </div>
                 )}
               </li>
             );

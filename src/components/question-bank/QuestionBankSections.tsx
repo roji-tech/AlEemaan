@@ -6,6 +6,7 @@ import { ReviewersPanel } from "@/components/question-bank/ReviewersPanel";
 import { SettingsPanel } from "@/components/question-bank/SettingsPanel";
 import { PrintLogPanel } from "@/components/question-bank/PrintLogPanel";
 import { QuestionsPanel } from "@/components/question-bank/QuestionsPanel";
+import { MyReportsPanel } from "@/components/question-bank/MyReportsPanel";
 import { ReportsPanel } from "@/components/question-bank/ReportsPanel";
 
 // The Question bank page's sections behind one tab list: the same ARIA tabs pattern as Approvals, Academics and Results (Left/Right/Home/End move between tabs, only the
@@ -26,6 +27,7 @@ export function QuestionBankSections({
   const sections = [
     { id: "browse", label: "Browse" },
     { id: "mine", label: "My questions" },
+    { id: "myreports", label: "My reports" },
     ...(canReview ? [{ id: "queue", label: "Review queue" }, { id: "reports", label: "Reports" }, { id: "prints", label: "Print log" }] : []),
     ...(isAdmin ? [{ id: "reviewers", label: "Reviewers" }, { id: "settings", label: "Settings" }] : []),
   ];
@@ -83,6 +85,7 @@ export function QuestionBankSections({
       <div role="tabpanel" id={`qpanel-${active}`} aria-labelledby={`qtab-${active}`}>
         {(active === "browse" || active === "mine" || active === "queue") && <QuestionsPanel key={active} view={active} writeBranches={writeBranches} />}
         {active === "reports" && <ReportsPanel writeBranches={writeBranches} />}
+        {active === "myreports" && <MyReportsPanel />}
         {active === "prints" && <PrintLogPanel branches={isAdmin ? branches.map((b) => ({ id: b.id, name: b.name })) : writeBranches} />}
         {active === "reviewers" && <ReviewersPanel branches={branches} isSuperAdmin={isSuperAdmin} />}
         {active === "settings" && <SettingsPanel branches={branches} isSuperAdmin={isSuperAdmin} />}

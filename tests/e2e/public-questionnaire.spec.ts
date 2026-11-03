@@ -134,6 +134,35 @@ test.describe("answering", () => {
     expect(byPrompt).toEqual({ "Which meal do you like best?": "B", "How was lunch today?": 4, "Anything to add?": "More rice, please." });
   });
 
+  test("a browser that has answered is told so instead of being offered the form again; another browser may still answer", async ({
+    page,
+    browser,
+    baseURL,
+  }) => {
+    const s = await school();
+    const form = await questionnaire(s, `${tag} Lunch survey`);
+    await page.goto(`/q/${form.shareToken}`);
+    await main(page).getByRole("radio", { name: "Rice" }).check();
+    await main(page).getByRole("button", { name: "Send my answers" }).click();
+    await expect(main(page)).toContainText("Thank you. Your answers were sent.");
+
+    await page.reload();
+    await expect(main(page)).toContainText("You have already answered this questionnaire from this browser. Thank you.");
+    await expect(main(page).getByRole("button", { name: "Send my answers" })).toHaveCount(0);
+    await checkBothThemes(page, "the already-answered page");
+    expect(await db.formResponse.count({ where: { formId: form.id } })).toBe(1);
+
+    // another browser carries no cookie: the page offers the form and the answer is stored (a courtesy, not a guarantee, and the staff screens say so)
+    const other = await browser.newContext({ baseURL: baseURL! });
+    const second = await other.newPage();
+    await second.goto(`/q/${form.shareToken}`);
+    await second.getByRole("main").getByRole("radio", { name: "Beans" }).check();
+    await second.getByRole("main").getByRole("button", { name: "Send my answers" }).click();
+    await expect(second.getByRole("main")).toContainText("Thank you. Your answers were sent.");
+    expect(await db.formResponse.count({ where: { formId: form.id } })).toBe(2);
+    await other.close();
+  });
+
   test("sending nothing is refused on the screen and nothing is stored", async ({ page }) => {
     const s = await school();
     const form = await questionnaire(s, `${tag} Lunch survey`);

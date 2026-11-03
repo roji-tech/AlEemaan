@@ -28,6 +28,8 @@ export type NavItem = {
   superAdminOnly?: boolean;
   /// Administrators and teaching staff (marks and report cards).
   staffOnly?: boolean;
+  /// Administrators and every member of staff, teaching or not (a page every member of staff has something to do on).
+  allStaff?: boolean;
   /// Phone only: the bottom bar fits four tabs plus More, so a rarely used page lives in the More sheet instead of squeezing the bar (the sidebar still lists it).
   inMore?: boolean;
 };
@@ -49,12 +51,22 @@ export const NAV: readonly NavItem[] = [
   { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true, inMore: true },
   { label: "Approvals", href: "/approvals", icon: ShieldCheckIcon, adminOnly: true, inMore: true },
   { label: "Question bank", href: "/question-bank", icon: FileTextIcon, staffOnly: true, inMore: true },
-  { label: "Forms", href: "/forms", icon: ClipboardIcon, staffOnly: true, inMore: true },
+  { label: "Forms", href: "/forms", icon: ClipboardIcon, allStaff: true, inMore: true },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true },
 ];
 
-export const navFor = (isAdmin: boolean, isSuperAdmin: boolean, isTeacher = false): NavItem[] =>
-  NAV.filter((item) => (item.superAdminOnly ? isSuperAdmin : item.adminOnly ? isAdmin : item.staffOnly ? isAdmin || isTeacher : true));
+export const navFor = (isAdmin: boolean, isSuperAdmin: boolean, isTeacher = false, isStaff = false): NavItem[] =>
+  NAV.filter((item) =>
+    item.superAdminOnly
+      ? isSuperAdmin
+      : item.adminOnly
+        ? isAdmin
+        : item.allStaff
+          ? isAdmin || isTeacher || isStaff
+          : item.staffOnly
+            ? isAdmin || isTeacher
+            : true,
+  );
 
 /// Second crumb of the top bar, by path (the first crumb is the person's section: "Admin", …).
 export const PAGE_LABELS: Record<string, string> = {

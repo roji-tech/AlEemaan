@@ -466,6 +466,50 @@ test.describe("history", () => {
     expect(bytes.subarray(0, 4).toString()).toBe("%PDF");
   });
 
+  test("a session left open is carried on from the history: the questions still to answer, counted from where the pupil stopped, then the result", async ({
+    page,
+  }) => {
+    const s = await school();
+    const items = await bank(s);
+    const left = await sessionOf(s, items.slice(0, 2), [true], true);
+    await portalSignIn(page);
+    await openPractice(page, "History");
+
+    const open = sessions(page).filter({ hasText: "Not finished" });
+    await expect(open).toContainText("1 answered so far");
+    await open.getByRole("button", { name: "Continue" }).click();
+    const session = page.getByRole("region", { name: "Your practice" });
+    await expect(session).toContainText("Question 2 of 2");
+    await expect(session).toContainText("What is cell part 2?");
+    await expect(session).not.toContainText("What is cell part 1?");
+    await checkBothThemes(page, "a practice session carried on");
+
+    await session.getByRole("radio", { name: "Mitochondria" }).check();
+    await session.getByRole("button", { name: "Check answer" }).click();
+    await expect(session.getByRole("status")).toContainText("Correct");
+    await session.getByRole("button", { name: "See my result" }).click();
+    await expect(page.getByRole("region", { name: "Your practice result" })).toContainText("You got 2 of 2 right (100%).");
+    expect((await db.practiceSession.findUniqueOrThrow({ where: { id: left.session.id } })).finishedAt).not.toBeNull();
+    expect(await db.practiceAttempt.count({ where: { sessionId: left.session.id } })).toBe(2);
+
+    // leaving the section forgets it: History no longer has a session to continue
+    await page.getByRole("tab", { name: "History" }).click();
+    await expect(sessions(page).filter({ hasText: "Not finished" })).toHaveCount(0);
+  });
+
+  test("with practice closed, Continue says so in the school's words and the session stays open", async ({ page }) => {
+    const s = await school();
+    const items = await bank(s);
+    const left = await sessionOf(s, items.slice(0, 2), [true], true);
+    await setting("bank.access.pupils", false);
+    await portalSignIn(page);
+    await openPractice(page, "History");
+    await sessions(page).filter({ hasText: "Not finished" }).getByRole("button", { name: "Continue" }).click();
+    await expect(panel(page).getByRole("alert")).toContainText("Practice is currently closed.");
+    await expect(page.getByRole("region", { name: "Your practice" })).toHaveCount(0);
+    expect((await db.practiceSession.findUniqueOrThrow({ where: { id: left.session.id } })).finishedAt).toBeNull();
+  });
+
   test("with nothing practised yet the history says so", async ({ page }) => {
     const s = await school();
     await bank(s);

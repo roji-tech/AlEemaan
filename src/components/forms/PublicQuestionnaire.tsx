@@ -7,8 +7,8 @@ import { GENERIC_ERROR, NETWORK_ERROR, getJson, sendJson, type Reply } from "@/c
 import { AnswerFields, type AnswerValue, type AskedQuestion } from "@/components/forms/AnswerFields";
 
 // The public questionnaire page's screen: read the questionnaire by its link, answer, send. Nothing about the school is shown, only the form. A link that cannot be answered says so in a
-// sentence (never a status code, never an empty page). A public link cannot tell who is answering and cannot stop one person answering twice, so the page does not say "once" and does not
-// offer "answer again". Presentation only: the public API decides whether the link can be answered, and checks every answer again.
+// sentence (never a status code, never an empty page). A public link cannot tell who is answering and cannot truly stop one person answering twice. It asks each browser to answer once (the
+// API remembers that, holding no identity) and says so when this browser has; it never claims more than that, because anyone can clear it or use another browser. Presentation only: the public API decides whether the link can be answered, and checks every answer again.
 
 type Loaded = { title: string; instructions: string | null; questions: AskedQuestion[] };
 
@@ -20,6 +20,7 @@ function sentenceFor(reply: Reply, fallback: string): string {
   if (reply.code === "NOT_YET_OPEN") return "This questionnaire has not opened yet.";
   if (reply.code === "CLOSED" || reply.code === "NOT_PUBLISHED") return "This questionnaire is closed.";
   if (reply.code === "FORBIDDEN") return "This questionnaire is not open to the public.";
+  if (reply.code === "ALREADY_SUBMITTED") return "You have already answered this questionnaire from this browser.";
   return reply.status >= 500 ? GENERIC_ERROR : (reply.message ?? fallback);
 }
 
@@ -31,6 +32,7 @@ export function PublicQuestionnaire({ token }: { token: string }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [answeredBefore, setAnsweredBefore] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,6 +41,7 @@ export function PublicQuestionnaire({ token }: { token: string }) {
       if (controller.signal.aborted) return;
       if (!reply.ok) return setRefused(sentenceFor(reply, GENERIC_ERROR));
       setForm(reply.data?.questionnaire as Loaded);
+      setAnsweredBefore(reply.data?.answeredHere === true);
     })();
     return () => controller.abort();
   }, [base]);
@@ -77,6 +80,11 @@ export function PublicQuestionnaire({ token }: { token: string }) {
         <>
           <h1 className="text-xl font-bold break-words text-fg">{form.title}</h1>
           <Alert variant="success">Thank you. Your answers were sent.</Alert>
+        </>
+      ) : answeredBefore ? (
+        <>
+          <h1 className="text-xl font-bold break-words text-fg">{form.title}</h1>
+          <Alert variant="info">You have already answered this questionnaire from this browser. Thank you.</Alert>
         </>
       ) : (
         <>

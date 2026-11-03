@@ -222,13 +222,13 @@ test.describe("a reviewer reads and answers the reports", () => {
     await signInThroughUi(reporterPage, s.reporter);
     await reporterPage.goto("/question-bank");
     await expect(reporterPage.getByRole("tab", { name: "Review queue" })).toHaveCount(0);
-    await expect(reporterPage.getByRole("tab", { name: "Reports" })).toHaveCount(0);
+    await expect(reporterPage.getByRole("tab", { name: "Reports", exact: true })).toHaveCount(0);
     await other.close();
 
     await signInThroughUi(page, s.reviewer);
     await page.goto("/question-bank");
-    await page.getByRole("tab", { name: "Reports" }).click();
-    await expect(page.getByRole("tab", { name: "Reports" })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: "Reports", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "Reports", exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(reportRows(page)).toHaveCount(2);
     const teacherRow = reportRows(page).filter({ hasText: "The key says Mercury" });
     await expect(teacherRow).toContainText("Teacher in Main Branch");
@@ -260,7 +260,7 @@ test.describe("a reviewer reads and answers the reports", () => {
     const report = await teacherReport(s, item);
     await signInThroughUi(page, s.reviewer);
     await page.goto("/question-bank");
-    await page.getByRole("tab", { name: "Reports" }).click();
+    await page.getByRole("tab", { name: "Reports", exact: true }).click();
     await reportRows(page).first().getByRole("button", { name: "Answer this report" }).click();
     const ask = dialogNamed(page, "Answer this report");
     await expect(ask).toContainText("A pupil who reported it sees the outcome and your reason.");
@@ -307,7 +307,7 @@ test.describe("a reviewer reads and answers the reports", () => {
     const report = await teacherReport(s, item);
     await signInThroughUi(page, s.reviewer);
     await page.goto("/question-bank");
-    await page.getByRole("tab", { name: "Reports" }).click();
+    await page.getByRole("tab", { name: "Reports", exact: true }).click();
     await reportRows(page).first().getByRole("button", { name: "Answer this report" }).click();
     const ask = dialogNamed(page, "Answer this report");
     await ask.getByLabel("Outcome").selectOption("NEEDS_DISCUSSION");
@@ -395,7 +395,7 @@ test.describe("a reviewer reads and answers the reports", () => {
 
     await signInThroughUi(page, s.reviewer);
     await page.goto("/question-bank");
-    await page.getByRole("tab", { name: "Reports" }).click();
+    await page.getByRole("tab", { name: "Reports", exact: true }).click();
     const row = reportRows(page).first();
     // what the report was filed against, and that the question has changed since
     await expect(row).toContainText("Reported on version 1; the question is now version 2.");
@@ -440,7 +440,7 @@ test.describe("who is asked", () => {
     await pupilReport(s, item);
     await signInThroughUi(page, s.admin);
     await page.goto("/question-bank");
-    await page.getByRole("tab", { name: "Reports" }).click();
+    await page.getByRole("tab", { name: "Reports", exact: true }).click();
     await expect(reportRows(page)).toHaveCount(1);
 
     const user = await createUser({ role: Role.STUDENT, name: "Sam Pupil" });
@@ -451,5 +451,55 @@ test.describe("who is asked", () => {
     await expect(pupilPage.getByRole("main").getByRole("alert")).toContainText("Only staff can open this page.");
     await expect(pupilPage.getByRole("tab")).toHaveCount(0);
     await context.close();
+  });
+});
+
+test.describe("a reporter reads their own reports", () => {
+  test("every member of staff has My reports: waiting, then the reviewer's outcome and reason; another teacher sees only their own", async ({
+    page,
+    browser,
+    baseURL,
+  }) => {
+    const s = await school();
+    const item = await approved(s);
+    const report = await teacherReport(s, item);
+    await signInThroughUi(page, s.reporter);
+    await page.goto("/question-bank");
+    await page.getByRole("tab", { name: "My reports" }).click();
+    const mine = page.getByRole("list", { name: "Your reports" }).locator(":scope > li");
+    await expect(mine).toHaveCount(1);
+    await expect(mine.first()).toContainText("nearest to the Sun");
+    await expect(mine.first()).toContainText("Waiting");
+    await expect(mine.first()).toContainText("What you wrote: The key says Mercury but the picture shows Venus.");
+    // not a reviewer: the reviewers' Reports tab is still not theirs
+    await expect(page.getByRole("tab", { name: "Reports", exact: true })).toHaveCount(0);
+    await checkBothThemes(page, "my reports (waiting)");
+
+    await db.questionReport.update({
+      where: { id: report.id },
+      data: {
+        status: "RESOLVED",
+        outcome: "FIXED",
+        outcomeReason: "The key now says Venus.",
+        resolvedAt: new Date(),
+        resolvedById: s.reviewer.id,
+      },
+    });
+    await page.reload();
+    await page.getByRole("tab", { name: "My reports" }).click();
+    await expect(mine.first()).toContainText("Resolved");
+    await expect(mine.first()).toContainText("Fixed");
+    await expect(mine.first()).toContainText("Reason: The key now says Venus.");
+    await checkBothThemes(page, "my reports (answered)");
+
+    // another teacher filed nothing, and sees nothing of this one's
+    const other = await browser.newContext({ baseURL: baseURL! });
+    const writerPage = await other.newPage();
+    await signInThroughUi(writerPage, s.writer);
+    await writerPage.goto("/question-bank");
+    await writerPage.getByRole("tab", { name: "My reports" }).click();
+    await expect(writerPage.getByText("You have not reported a question.")).toBeVisible();
+    await expect(writerPage.getByRole("tabpanel")).not.toContainText("The key says Mercury");
+    await other.close();
   });
 });
