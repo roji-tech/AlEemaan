@@ -7,7 +7,7 @@ import { useSignOut } from "@/components/auth/useSignOut";
 import { Button } from "@/components/ui/Button";
 import { LogOutIcon, MoreIcon, UserIcon, XIcon } from "@/components/ui/icons";
 import { SoonTag } from "./SoonTag";
-import { FOCUS_RING, initialsOf, isActive, navFor } from "./nav";
+import { FOCUS_RING, groupNav, initialsOf, isActive, navFor } from "./nav";
 
 type MobileNavProps = {
   name: string | null;
@@ -25,7 +25,8 @@ const SHEET_ROW =
   "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg";
 
 /// Phone navigation (below `lg`): a floating bottom tab bar in place of a hamburger drawer, and
-/// a "More" sheet for everything that doesn't fit — pages that aren't built yet, Profile, and
+/// a "More" sheet for everything that doesn't fit — grouped under the same section headings as the
+/// desktop sidebar (a section of one has no heading), pages that aren't built yet, Profile, and
 /// Sign out. The sheet is a native modal `<dialog>`, so the focus trap, Escape, an inert page
 /// behind it and focus returning to "More" come from the platform rather than hand-rolled code.
 export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTeacher, isStaff }: MobileNavProps) {
@@ -36,7 +37,7 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
 
   const items = navFor(isAdmin, isSuperAdmin, isTeacher, isStaff);
   const tabs = items.filter((item) => item.href && !item.inMore);
-  const moreLinks = items.filter((item) => item.href && item.inMore);
+  const moreGroups = groupNav(items.filter((item) => item.href && item.inMore));
   const soon = items.filter((item) => !item.href);
   const displayName = name?.trim() || email || "Account";
 
@@ -113,12 +114,28 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
           </div>
 
           <ul className="mt-3 border-t border-line pt-2">
-            {moreLinks.map(({ label, href, icon: Icon }) => (
-              <li key={label}>
-                <Link href={href!} aria-current={isActive(pathname, href!) ? "page" : undefined} className={`${SHEET_ROW} ${FOCUS_RING}`}>
-                  <Icon className="h-5 w-5" />
-                  {label}
-                </Link>
+            {moreGroups.map((group, index) => (
+              <li
+                key={group.section?.id ?? group.items[0].label}
+                className={!group.section && index > 0 ? "mt-1 border-t border-line pt-1" : undefined}
+              >
+                {group.section && (
+                  <h3 className="px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">{group.section.label}</h3>
+                )}
+                <ul>
+                  {group.items.map(({ label, href, icon: Icon }) => (
+                    <li key={label}>
+                      <Link
+                        href={href!}
+                        aria-current={isActive(pathname, href!) ? "page" : undefined}
+                        className={`${SHEET_ROW} ${FOCUS_RING}`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        {label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
             {soon.map(({ label, icon: Icon }) => (

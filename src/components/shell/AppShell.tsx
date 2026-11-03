@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { SessionRevalidator } from "@/components/auth/SessionRevalidator";
-import { GraduationCapIcon } from "@/components/ui/icons";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { brand } from "@/lib/brand";
+import { BrandMark } from "./BrandMark";
 import { Breadcrumb } from "./Breadcrumb";
 import { MobileNav } from "./MobileNav";
 import { ProfileMenu } from "./ProfileMenu";
+import { SidebarFrame, SidebarProvider } from "./SidebarFrame";
 import { SidebarNav } from "./SidebarNav";
-import { initialsOf } from "./nav";
+import type { SectionId } from "./nav";
 import { QuickToolsTrigger } from "@/components/tools/QuickToolsTrigger";
 
 export type ShellUser = {
@@ -22,30 +23,30 @@ export type ShellUser = {
   isStaff: boolean;
 };
 
-function BrandMark({ size }: { size: "sm" | "md" }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center rounded-xl bg-brand text-white ${size === "md" ? "h-10 w-10" : "h-9 w-9"}`}
-    >
-      <GraduationCapIcon className="h-5 w-5" />
-    </span>
-  );
-}
-
 /// The signed-in admin app's frame, from the design artifact ("same shell, one brand tweak"):
-///  - `lg` and up: a 248 px sidebar (brand, navigation, the signed-in person) and a 60 px top bar
-///    (breadcrumb, theme toggle, account menu);
+///  - `lg` and up: a 248 px sidebar (brand, navigation in foldable sections, the signed-in person pinned
+///    at its foot) that the person can fold to a 64 px rail of icons, and a 60 px top bar (breadcrumb,
+///    theme toggle, account menu);
 ///  - below `lg`: a compact top bar and a floating bottom tab bar with a "More" sheet — the page
 ///    reserves room for it, so it never covers content.
 /// A skip link is the first thing in the tab order. Every page inside is still responsible for its
 /// own session check; the shell only displays who is signed in.
-export function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {
+export function AppShell({
+  user,
+  sidebarCollapsed = false,
+  foldedSections = [],
+  children,
+}: {
+  user: ShellUser;
+  /// The remembered choice (a cookie, read by the layout) so the first paint has the right width.
+  sidebarCollapsed?: boolean;
+  foldedSections?: readonly SectionId[];
+  children: ReactNode;
+}) {
   const section = user.isAdmin ? "Admin" : user.roleLabel;
-  const displayName = user.name?.trim() || user.email || "Signed in";
 
   return (
-    <div className="min-h-screen bg-canvas text-fg-2">
+    <SidebarProvider initialCollapsed={sidebarCollapsed} initialFolded={foldedSections}>
       <SessionRevalidator />
       <a
         href="#main"
@@ -54,29 +55,11 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         Skip to content
       </a>
 
-      <div className="fixed inset-y-0 left-0 z-20 hidden w-62 flex-col border-r border-line bg-surface lg:flex print:hidden">
-        <div className="flex h-15 shrink-0 items-center gap-3 px-5">
-          <BrandMark size="md" />
-          <span className="text-lg font-bold tracking-tight text-fg">{brand.name}</span>
-        </div>
-        <div className="flex-1 overflow-y-auto px-3 py-4">
-          <SidebarNav isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} isTeacher={user.isTeacher} isStaff={user.isStaff} />
-        </div>
-        <div className="flex items-center gap-3 border-t border-line p-4">
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-strong text-xs font-bold text-white"
-          >
-            {initialsOf(user.name, user.email)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-fg">{displayName}</p>
-            <p className="truncate text-xs text-fg-muted">{user.roleLabel}</p>
-          </div>
-        </div>
-      </div>
+      <SidebarFrame person={{ name: user.name, email: user.email, roleLabel: user.roleLabel }}>
+        <SidebarNav isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} isTeacher={user.isTeacher} isStaff={user.isStaff} />
+      </SidebarFrame>
 
-      <div className="lg:pl-62 print:pl-0">
+      <div className="transition-[padding] duration-200 motion-reduce:transition-none lg:pl-62 lg:group-data-[sidebar=collapsed]/shell:pl-16 print:pl-0">
         <header className="sticky top-0 z-20 flex h-15 print:hidden items-center justify-between gap-4 border-b border-line bg-canvas px-4 sm:px-6">
           <div className="flex items-center gap-2.5 lg:hidden">
             <BrandMark size="sm" />
@@ -110,6 +93,6 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
       />
 
       <QuickToolsTrigger />
-    </div>
+    </SidebarProvider>
   );
 }

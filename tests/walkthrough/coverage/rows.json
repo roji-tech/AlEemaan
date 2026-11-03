@@ -363,6 +363,7 @@
     "source": [
       "src/components/shell/AppShell.tsx",
       "src/components/shell/SidebarNav.tsx",
+      "src/components/shell/SidebarFrame.tsx",
       "src/components/shell/Breadcrumb.tsx"
     ],
     "status": "planned"
@@ -492,6 +493,44 @@
     "proof": "On Branches, Settings, Users, Finance press 'Back to overview'",
     "source": [
       "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-09",
+    "area": "Shell",
+    "feature": "The sidebar is in sections, and a section can be folded",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "See Overview on its own and four sections (Classroom, Assessment, Communication, Administration); fold Classroom and its pages leave the screen; reload and it is still folded; open a page in a folded section by address and the section opens; a teacher sees Announcements as a plain link with a rule above it",
+    "source": [
+      "src/components/shell/nav.ts",
+      "src/components/shell/SidebarNav.tsx",
+      "src/lib/shell-prefs.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-10",
+    "area": "Shell",
+    "feature": "The sidebar folds to icons, opens when an icon is hovered, and keeps the person at its foot",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press the round arrow on the sidebar's edge: only icons stay and the page moves over; hover an icon and the sidebar opens over the page without moving it; hover the arrow and nothing happens; move away and it closes; reload and it is still folded; the person stays at the bottom of the sidebar whatever the length of the list",
+    "source": [
+      "src/components/shell/SidebarFrame.tsx",
+      "src/components/shell/AppShell.tsx",
+      "src/lib/shell-prefs.ts"
     ],
     "status": "planned"
   },
