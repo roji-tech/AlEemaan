@@ -1,7 +1,7 @@
 # 0033: Walkthrough videos and PDFs that double as a flow audit
 
 - **Period / Focus:** requested 2026-10-19; **deferred: runs last, after all other tasks are done** (maintainer's decision, 2026-10-19). P0 (plan, guardrails, coverage matrix) built 2026-11-02; no journey yet (section 6).
-- **Status:** In progress (P0 built 2026-11-02 for AlEemaan: matrix, guardrails, runner safety; P1 recon has not started; it waits for the maintainer's answers in section 6)
+- **Status:** In progress (P0 built 2026-11-02 for AlEemaan: matrix, guardrails, runner safety; P1 recon started 2026-11-03 after task 0041 merged, section 6.6)
 - **Priority:** Medium (last in the order of work)
 - **Assignee:** next AI / maintainer
 - **Target Branch / PR:** to be created off `dev` when the work starts; one PR per repository (AlEemaan and Octalve Edu, each on its own)
@@ -122,3 +122,28 @@ Findings about the product (stated in general terms):
 
 ### 6.5 Next
 After task 0041: P1 recon (write the journey against the matrix, soft mode, chapter snapshots, read the findings), then P2 fix, P3 the three strict passes, P4 ship. Octalve Edu is its own run and its own PR.
+
+### 6.6 P1 recon: the plan (2026-11-03; the maintainer said "start P1" once the Forms screens (task 0041, F1 to F8) were merged)
+**Goal.** Write the journey against the matrix (224 rows now: 171 positive, 53 negative) and run it, soft, on a fresh `wip_aleemaan_walkthrough` database until it reaches the end; every place it breaks is a finding. Nothing from P1 is a deliverable (section 3a). No product code changes in P1 except what a finding needs and the maintainer's rules allow: P2 does the fixing.
+
+**Environment (checked 2026-11-03).** The docker PostgreSQL on `:5434` is up and its role may create databases; the walkthrough database is `wip_aleemaan_walkthrough`, never `aleemaan_test`; ffmpeg and ffprobe are installed outside the repository (`~/.local/bin`); ports 3320 and 3321 are free; a worktree (`../AlEemaan-p1`, branch `claude/walkthrough-p1`) off `dev`, because the main checkout belongs to another session. The server is a production build in its own folder (`NEXT_DIST_DIR=.next-walk`, task 0041 F7), started like the dev-tools server of the test harness (`APP_ENV=staging`, `DEV_TOOLS=true`, a token the run makes, `EMAIL_TRANSPORT` empty so mail goes to the in-app inbox, mock payments, a setup token the run makes). Throwaway values only, kept in the runner's environment and never printed.
+
+**What P1 changes in the harness (tests and scripts only).**
+1. `scripts/walkthrough-run/run.mjs` still names the old environment (`DEV_TOOLS_ENABLED`) and falls back to `next dev`; it will build into `.next-walk`, serve from it with the variables above, and take `WALKTHROUGH_MODE=recon|strict`.
+2. A chapter wrapper in `support/walk.ts` (the library file, exempt from the journey tier of the guard): `walk.chapter(name, run)`. In recon it records a failed step as a finding (id, chapter, step, route, what a user saw, evidence) and goes on to the next chapter; in strict it rethrows. The journey files themselves keep the no-`try`, no-`if` rule.
+3. A snapshot per chapter, recon only: the runner takes a `pg_dump` after each chapter that passes. When a chapter fails, the next one is not started on its half-made data: the runner restores the last good snapshot, and the chapters that depend on the failed one are recorded as "blocked by C0n" in the findings instead of failing again for the same reason. The snapshots are evidence (kept in `_evidence/<run-id>/`), never a deliverable.
+4. `report.mjs` and the timeline: `name` instead of `title`, the three-pass layout (section 6.2 item 5); only as far as recon needs it (the PDF is P3).
+
+**The journey: chapters, in the order the data is made (each chapter names the rows it covers; the rows are the matrix's, nothing new).**
+- C01 Start and sign-in: RTE-01, SET-01 to SET-03, LOG-01, LOG-02, LOG-04, LOG-05, SHL-04, SHL-07, DSH-02, VID-01, VID-02, OFF-01.
+- C02 The school: BRN-01 to BRN-04, STG-01 to STG-08, APR-01 to APR-05, DSH-01.
+- C03 Academics and people: ACA-01 to ACA-14, USR-01 to USR-12 (with the dev inbox: SHL-06, INV-01 to INV-03, CNF-01, FRG-01, FRG-02, RST-01, RST-02), LOG-03, ACC-01 to ACC-08.
+- C04 Students and the day: STU-01 to STU-08, ATT-01 to ATT-07, TMT-01 to TMT-06, ANN-01 to ANN-06, COM-01 to COM-05.
+- C05 Coursework and results: LMS-01 to LMS-10, RES-01 to RES-10, VER-01, VER-02, FIN-01 to FIN-10.
+- C06 The question bank and Forms: QBK-01 to QBK-19, FRM-01 to FRM-22, FRM-23 to FRM-26 (the public link, as a visitor).
+- C07 The portal: POR-01 to POR-32 (pupil and guardian), SHL-01 to SHL-03, SHL-05, SHL-08, DSH-03.
+A chapter is written, run and read before the next is written: the journey grows from the front, so a finding in C01 is found before C02 is written on top of it.
+
+**Findings.** One file per run, `findings.md` under `_evidence/<run-id>/`, each with the fields of section 3a; the first run's findings and the decisions they need go in section 6.7 of this file (stated in general terms: how to trigger a weakness stays in the private tracker).
+
+**Stops.** A finding that is a product choice (section 3, fix authority) is written as Needs a decision and the run goes on; the report at the end of P1 says what was run and what was only read. No migration is run on any hosted database.

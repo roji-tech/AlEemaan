@@ -6,7 +6,7 @@
  * Automates:
  * 1. Dedicated walkthrough database reset and migration (wip_aleemaan_walkthrough).
  * 2. Dedicated web server startup with in-app dev tools / mail inbox enabled.
- * 3. Execution of the unbroken Playwright walkthrough recording (1366x768).
+ * 3. Execution of the unbroken Playwright walkthrough recording (one pass; WALKTHROUGH_PASS, WALKTHROUGH_MODE=recon|strict).
  * 4. Invocation of report.mjs to generate video, VTT, chapters, and captioned PDF.
  */
 
@@ -14,6 +14,7 @@ import { spawn } from "child_process";
 import http from "http";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import {
   assertCurrentDatabase,
   assertLocalDatabaseHost,
@@ -135,23 +136,46 @@ async function main() {
     DATABASE_URL,
   });
 
-  // 2. Start Web Server
+  // 2. Build (its own folder, so a dev server or another build is never touched) and start the web server
   console.log(`\n[2/4] Starting server on port ${PORT}...`);
-  // The setup wizard asks for a deployment token when the server has one; each run makes its own and keeps it out of the logs.
+  // Everything secret is made for this run, kept in this process and the server's environment, and never printed: the setup wizard's token, the sign-in secret, the key for two-step
+  // verification, the payment stand-in's key and the dev tools' token. The server is shaped like the harness's dev-tools server (staging, the in-app mail inbox, mock payments).
   const SETUP_TOKEN = generateSetupToken();
+  const DEV_TOOLS_TOKEN = crypto.randomBytes(18).toString("hex");
+  const DIST_DIR = ".next-walk";
   const serverEnv = {
     ...process.env,
     PORT,
     DATABASE_URL,
-    SETUP_TOKEN,
-    APP_URL: `http://localhost:${PORT}`,
-    DEV_TOOLS_ENABLED: "true",
+    NEXT_DIST_DIR: DIST_DIR,
     NODE_ENV: "production",
+    APP_URL: `http://localhost:${PORT}`,
+    APP_ENV: "staging",
+    DEV_TOOLS: "true",
+    DEV_TOOLS_TOKEN,
+    SETUP_TOKEN,
+    EMAIL_TRANSPORT: "",
+    RESEND_API_KEY: "",
+    PWNED_PASSWORD_CHECK: "off",
+    CLIENT_IP_HEADER: "x-real-ip",
+    TRUSTED_PROXY_HOPS: "1",
+    SESSION_SECRET: crypto.randomBytes(32).toString("hex"),
+    MFA_ENCRYPTION_KEY: crypto.randomBytes(32).toString("base64"),
+    FORCE_MOCK_PAYSTACK: "true",
+    ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: "true",
+    PAYSTACK_SECRET_KEY: `sk_test_walkthrough_${crypto.randomBytes(12).toString("hex")}`,
+    IMAGE_STORE: "memory",
+    ALLOW_MEMORY_IMAGE_STORE_IN_PRODUCTION: "true",
   };
 
-  const hasBuild = fs.existsSync(path.resolve(process.cwd(), ".next"));
-  const serverCmd = hasBuild ? "start" : "dev";
-  console.log(`Starting Next.js using 'next ${serverCmd}'...`);
+  const hasBuild = fs.existsSync(path.resolve(process.cwd(), DIST_DIR, "BUILD_ID"));
+  if (!hasBuild || process.env.WALKTHROUGH_REBUILD) {
+    console.log(`Building into ${DIST_DIR} (a production build, as the specification asks)...`);
+    // The build does not need a database; it must not be handed a developer's own.
+    await runCmd("pnpm", ["build"], { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL, NODE_ENV: "production" });
+  }
+  const serverCmd = "start";
+  console.log(`Starting Next.js using 'next ${serverCmd}' from ${DIST_DIR}...`);
 
   const serverProc = spawn("pnpm", ["exec", "next", serverCmd, "-p", PORT], {
     env: serverEnv,
@@ -193,6 +217,8 @@ async function main() {
       {
         WALKTHROUGH_OUTPUT_ROOT: outputRoot(),
         WALKTHROUGH_SETUP_TOKEN: SETUP_TOKEN,
+        WALKTHROUGH_DEV_TOOLS_TOKEN: DEV_TOOLS_TOKEN,
+        WALKTHROUGH_MODE: process.env.WALKTHROUGH_MODE || "strict",
         WALKTHROUGH_PORT: PORT,
         WALKTHROUGH_BASE_URL: `http://localhost:${PORT}`,
       },
@@ -201,9 +227,13 @@ async function main() {
     cleanup();
   }
 
-  // 4. Generate Artifacts & Publish to Web
-  console.log("\n[4/4] Generating deliverables & publishing to /video-guide...");
-  await runCmd("node", ["scripts/walkthrough-run/report.mjs"]);
+  // 4. Deliverables. Only a strict run produces them; a recon run's evidence is what the tests wrote (findings, observations, screenshots).
+  if ((process.env.WALKTHROUGH_MODE || "strict") === "strict") {
+    console.log("\n[4/4] Generating deliverables...");
+    await runCmd("node", ["scripts/walkthrough-run/report.mjs"]);
+  } else {
+    console.log("\n[4/4] Recon run: no deliverables; read findings.md under the pass's evidence folder.");
+  }
 
   console.log("\n=== WALKTHROUGH RUN COMPLETED SUCCESSFULLY ===");
 }
