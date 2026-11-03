@@ -279,3 +279,11 @@
 ### TASK-0042: The sidebar in sections, collapsible to icons, with the person pinned at the foot
 - **Status:** Built and tested 2026-11-03 and merged into `dev` as PR #148 (`bea6529`); see `docs/tasks/0042-sidebar-sections.md`. Requested by the maintainer for this repo and for Octalve Edu (its task 0026).
 - [x] Sections that fold (remembered in a cookie; the section of the current page opens on arrival; a section of one entry is a plain link with a rule above it when it follows a section) - [x] The whole sidebar folds to a rail of icons with a round arrow on its edge; it opens over the page while an icon is hovered or focused, and hovering the arrow does nothing - [x] The person stays pinned at the foot - [x] The phone More sheet has the same section headings - [x] Tests (unit and e2e, both themes, open, rail and peek) - [x] Matrix rows SHL-09 and SHL-10
+
+### TASK-0043: Programs (a structure beside the branches and classes, for learning that is not a normal class)
+- **Status:** Design written 2026-11-03 (`docs/tasks/0043-programs.md`); no slice started. Requested by the maintainer (a Quran memorisation program is the first case: continuous, with its own classes, categories and sub-classes; others run for six months or three or five years).
+- [ ] P1 structure (programs, branches, level names, groups, settings with the ceiling) - [ ] P2 people (participants of every kind, enrolment, statuses per branch) - [ ] P3 staff and attendance - [ ] P4 fees (its own design note first) - [ ] P5 completion and certificates
+
+### TASK-0044: Progress records (logbooks): a running log a teacher keeps for each person in a program
+- **Status:** Design written 2026-11-03 (`docs/tasks/0044-progress-records.md`); no slice started; waits for task 0043 P1 and P2. Requested by the maintainer from a paper booklet used for daily Quran memorisation; built generally so other programs can use it.
+- [ ] R1 templates and entries (quick add, week grid) - [ ] R2 verification and locks - [ ] R3 family views (student and guardian, summary or full) - [ ] R4 Arabic and English, Hijri and Gregorian, digits, print - [ ] R5 translation helper (opt-in)
