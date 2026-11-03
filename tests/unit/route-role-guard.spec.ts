@@ -63,6 +63,8 @@ const ALLOWED: Record<string, string> = {
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/practice/sessions/route.ts":
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "GET v1/portal/students/[studentId]/practice/sessions/[id]/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/answers/route.ts":
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/finish/route.ts":
@@ -282,6 +284,8 @@ const NOT_WRAPPED: Record<string, string> = {
     "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/practice/sessions/route.ts":
     "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "GET v1/portal/students/[studentId]/practice/sessions/[id]/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/answers/route.ts":
     "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/finish/route.ts":
@@ -431,6 +435,7 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS verified by portal session cookie",
   "GET v1/portal/students/[studentId]/practice/options/route.ts": "portal student practice options verified by portal session cookie",
   "GET v1/portal/students/[studentId]/practice/history/route.ts": "portal student practice history verified by portal session cookie",
+  "GET v1/portal/students/[studentId]/practice/sessions/[id]/route.ts": "portal student practice session to carry on verified by portal session cookie",
   "GET v1/question-bank/reviewers/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
   "POST v1/question-bank/reviewers/route.ts":

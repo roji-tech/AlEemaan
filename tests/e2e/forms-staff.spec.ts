@@ -98,6 +98,18 @@ test.describe("who sees the page", () => {
   });
 });
 
+test.describe("who sees the navigation entry", () => {
+  test("a member of non-teaching staff finds Forms in the navigation too, for the questionnaires addressed to them", async ({
+    page,
+    isMobile,
+  }) => {
+    const { clerk } = await people();
+    await signInThroughUi(page, clerk);
+    await openForms(page, isMobile);
+    await expect(page.getByRole("tab", { name: "For you" })).toBeVisible();
+  });
+});
+
 test.describe("practice sets", () => {
   test("a teacher writes a practice set with a single-choice and a true/false question, saves it as a draft, publishes it, then closes it", async ({
     page,
