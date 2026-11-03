@@ -435,7 +435,6 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS verified by portal session cookie",
   "GET v1/portal/students/[studentId]/practice/options/route.ts": "portal student practice options verified by portal session cookie",
   "GET v1/portal/students/[studentId]/practice/history/route.ts": "portal student practice history verified by portal session cookie",
-  "GET v1/portal/students/[studentId]/practice/sessions/[id]/route.ts": "portal student practice session to carry on verified by portal session cookie",
   "GET v1/question-bank/reviewers/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, only a superadmin gets the school-wide answer (checked in the handler)",
   "POST v1/question-bank/reviewers/route.ts":
