@@ -275,3 +275,7 @@
 - [x] F1 staff forms (list, create, publish, close, answer "For you"; the marking queue moved to F2) - [x] F2a a form's page (overview, questions, results) - [x] F2b marking and the paper-work roll call - [x] F3 portal forms - [x] F4 portal question practice - [x] F5 public questionnaire page - [x] F6 question-bank reports, printing, offer-back - [x] F7 video-guide link, configurable media address, `distDir`
 - [x] F8 built and tested: the gaps the screens showed (a staff reporter's own reports, one answer per practice set, carrying on a practice session, one answer per browser on a public link, a Forms entry for non-teaching staff)
 
+
+### TASK-0042: The sidebar in sections, collapsible to icons, with the person pinned at the foot
+- **Status:** Built and tested 2026-11-03 (PR pending); see `docs/tasks/0042-sidebar-sections.md`. Requested by the maintainer for this repo and for Octalve Edu (its task 0026).
+- [x] Sections that fold (remembered in a cookie; the section of the current page opens on arrival; a section of one entry is a plain link with a rule above it when it follows a section) - [x] The whole sidebar folds to a rail of icons with a round arrow on its edge; it opens over the page while an icon is hovered or focused, and hovering the arrow does nothing - [x] The person stays pinned at the foot - [x] The phone More sheet has the same section headings - [x] Tests (unit and e2e, both themes, open, rail and peek) - [x] Matrix rows SHL-09 and SHL-10
