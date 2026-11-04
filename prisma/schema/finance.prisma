@@ -58,6 +58,8 @@ model Invoice {
   amountPaid  Decimal       @default(0) @db.Decimal(12, 2)
   status      InvoiceStatus @default(UNPAID)
   dueDate     DateTime?     @db.Date
+  /// Task 0046: the invoice must be settled in one payment. Can only tighten the school's part-payment rule, never loosen it.
+  payInFull   Boolean       @default(false)
   lineItems   Json? // Snapshot of fee structures [{ name, amount, feeStructureId }]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @default(now()) @updatedAt

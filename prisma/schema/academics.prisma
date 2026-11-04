@@ -315,6 +315,9 @@ model StaffRecord {
   nextOfKinPhone        String?
   nextOfKinAddress      String?
   archivedAt            DateTime?
+  /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`) or TERMINATED (the record is also archived).
+  standing              StandingState            @default(ACTIVE)
+  standingUntil         DateTime?                @db.Date
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @default(now()) @updatedAt
 
