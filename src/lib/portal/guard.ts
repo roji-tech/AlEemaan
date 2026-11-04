@@ -3,6 +3,7 @@ import { fail, noStore } from "@/lib/api/envelope";
 import { prisma } from "@/lib/db";
 import { getPortalSession, type PortalSessionPayload } from "./auth";
 import { accessFor, type Access, type Capability } from "./access";
+import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccessByBranch } from "./access-service";
 
 // The one check every portal student route makes after reading its path (task 0040). It answers, in this order: is there a portal session (401), is this pupil one the sign-in
@@ -27,7 +28,7 @@ export async function portalGate(req: NextRequest, studentId: string | undefined
 
   const students = await prisma.studentRecord.findMany({
     where: { id: { in: [...new Set([studentId, session.primaryStudentId])] } },
-    select: { id: true, branchId: true },
+    select: { id: true, branchId: true, standing: true, standingUntil: true },
   });
   const asked = students.find((student) => student.id === studentId);
   if (!asked) return refuse(fail(NOT_YOURS, 403));
@@ -37,7 +38,8 @@ export async function portalGate(req: NextRequest, studentId: string | undefined
   if (studentId !== session.primaryStudentId && !accessFor(byBranch.get(primary.branchId)!, session.actor).siblings) {
     return refuse(fail(PORTAL_REFUSED, 403, "PORTAL_ACCESS"));
   }
-  const access = accessFor(byBranch.get(asked.branchId)!, session.actor);
-  if (!access[capability]) return refuse(fail(PORTAL_REFUSED, 403, "PORTAL_ACCESS"));
+  // The branch's setting, narrowed by the pupil's standing today (task 0045): read now on every request, like the setting, so a suspension or an expulsion takes effect at once.
+  const access = capForStanding(accessFor(byBranch.get(asked.branchId)!, session.actor), session.actor, studentStandingNow(asked, dayOf(new Date())));
+  if (!access || !access[capability]) return refuse(fail(PORTAL_REFUSED, 403, "PORTAL_ACCESS"));
   return { ok: true, session, access, branchId: asked.branchId };
 }

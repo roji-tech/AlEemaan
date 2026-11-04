@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PortalLoginCard, type PortalStudentRecord } from "@/components/portal/PortalLoginCard";
 import { PortalHeader } from "@/components/portal/PortalHeader";
+import { PortalStandingNotice } from "@/components/portal/PortalStandingNotice";
 import { PortalOverviewTab } from "@/components/portal/PortalOverviewTab";
 import { PortalResultsTab } from "@/components/portal/PortalResultsTab";
 import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
@@ -265,6 +266,9 @@ function PortalContent() {
 
       {/* Main Navigation & Tab Bar */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8">
+        {currentStudent && (
+          <PortalStandingNotice standing={currentStudent.standing} until={currentStudent.standingUntil} firstName={currentStudent.firstName} actor={actor} />
+        )}
         <div
           role="tablist"
           aria-label="Student Portal Sections"

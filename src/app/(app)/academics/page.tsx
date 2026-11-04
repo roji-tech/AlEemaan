@@ -4,6 +4,7 @@ import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { AcademicsSections } from "@/components/academics/AcademicsSections";
+import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
 
 export const metadata: Metadata = { title: "Academics" };
 export const dynamic = "force-dynamic";
@@ -19,6 +20,19 @@ export default async function AcademicsPage() {
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+
+  // What this person may do about standing in each branch (display only; the API decides).
+  const standing = Object.fromEntries(
+    await Promise.all(
+      branches.map(async (b) => {
+        const administers = mayAdminister(scope, b.id);
+        return [
+          b.id,
+          { suspend: administers && (scope.superAdmin || (await branchAdminMaySuspend(b.id))), remove: administers && scope.superAdmin },
+        ] as const;
+      }),
+    ),
+  );
 
   return (
     <div>
@@ -36,7 +50,7 @@ export default async function AcademicsPage() {
         </p>
       ) : (
         <AcademicsSections
-          branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
+          branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id), standing: standing[b.id] }))}
           isSuperAdmin={isSuperAdmin}
         />
       )}

@@ -3960,5 +3960,176 @@
       "src/app/video-guide/page.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "STD-01",
+    "area": "Students",
+    "feature": "A super admin suspends a pupil with a reason and a last day, and the list says so",
+    "route": "/students",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Students, Suspend beside a pupil: the dialog says what a suspension does; Suspend with no reason says 'Say why (at least 3 characters).'; give a reason and a last day, Suspend: 'Amina Musa is suspended.' and the row shows 'Suspended until <day>'",
+    "source": [
+      "src/components/students/StudentsPanel.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/standing/student-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-02",
+    "area": "Students",
+    "feature": "Lifting a suspension, and the history of a pupil's standing",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Lift suspension beside the pupil, give a reason: the badge goes. History beside the pupil lists every change newest first with the reason, the day and who decided, and nothing in it can be edited",
+    "source": [
+      "src/components/standing/StandingHistoryDialog.tsx",
+      "src/app/api/v1/students/[id]/standing/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-03",
+    "area": "Students",
+    "feature": "Expelling takes a pupil off the class lists; reinstating puts them back; the Show filter finds them",
+    "route": "/students",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Expel beside a pupil (the dialog says their guardian can still see the invoices and only a super admin can reinstate); the row shows 'Expelled'; Show, Expelled lists them; Reinstate with a reason brings them back on the class list",
+    "source": [
+      "src/components/students/StudentsPanel.tsx",
+      "src/lib/standing/student-service.ts",
+      "src/lib/students/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-04",
+    "area": "Students",
+    "feature": "A branch administrator is offered Suspend and Lift but never Expel, and nothing at all when the school has taken suspending from branch administrators",
+    "route": "/students",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As a branch administrator: Suspend and Lift suspension are there, Expel and Reinstate are not; after the super admin turns 'Branch administrators may suspend' off, none of the standing buttons is there. A teacher sees the badge and no button",
+    "source": [
+      "src/app/(app)/students/page.tsx",
+      "src/components/standing/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-05",
+    "area": "Attendance",
+    "feature": "A suspended pupil stays on the class list, flagged; an expelled pupil is not on it",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Take attendance for the class: a suspended pupil shows the 'Suspended' badge and can be marked as usual; an expelled pupil is not in the list",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx",
+      "src/lib/attendance/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-06",
+    "area": "Users",
+    "feature": "A super admin suspends, terminates and reinstates a member of staff",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Users, Suspend beside a teacher (a tick box offers 'Everywhere in the school'): the row shows 'Suspended' with Lift suspension and Terminate, and no Reactivate; Terminate with a reason: 'Terminated' and Reinstate; History lists both with the reasons",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/standing/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-07",
+    "area": "Users",
+    "feature": "A suspended or terminated person cannot simply be reactivated, and a branch administrator never terminates or touches another administrator",
+    "route": "/users",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As a branch administrator: Suspend and Lift on teachers in the branch only; no Terminate; no standing buttons on another administrator; a suspended person has Lift suspension and no Reactivate",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/lib/members/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-08",
+    "area": "Academics",
+    "feature": "Staff records, including people who never sign in, can be suspended or terminated",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Academics, Staff: Suspend or Terminate beside a staff record, History beside it; a terminated record is under Show, Archived and offers Reinstate, not Restore",
+    "source": [
+      "src/components/academics/StaffPanel.tsx",
+      "src/app/api/v1/staff/[id]/standing/route.ts",
+      "src/lib/academics/staff.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-09",
+    "area": "Settings",
+    "feature": "Settings, Discipline: whether branch administrators may suspend, with the school as the ceiling",
+    "route": "/settings",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Discipline: 'Branch administrators may suspend'; Turn off for the school: 'Branch administrators may no longer suspend.' and every branch says 'may not suspend, set by the school'; turn on again; 'Stop administrators of <branch> suspending' narrows one branch",
+    "source": [
+      "src/components/standing/StandingSettingsPanel.tsx",
+      "src/components/settings/SwitchSettingsPanel.tsx",
+      "src/lib/standing/settings-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-10",
+    "area": "Portal",
+    "feature": "A suspended pupil is told so without the reason; an expelled pupil is refused; an expelled child's guardian keeps only the fees",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Sign in as a suspended pupil: 'You are suspended until <day>' and no hand-in, quizzes or practice; sign in as the guardian of an expelled child: 'is no longer a pupil of the school', Fees & Billing only; the pupil's own sign-in says the one generic sentence",
+    "source": [
+      "src/components/portal/PortalStandingNotice.tsx",
+      "src/lib/portal/service.ts",
+      "src/lib/portal/guard.ts"
+    ],
+    "status": "planned"
   }
 ]

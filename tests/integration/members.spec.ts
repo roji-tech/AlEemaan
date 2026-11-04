@@ -51,6 +51,8 @@ test.describe("listMembers", () => {
       "joinedAt",
       "name",
       "role",
+      "standing",
+      "standingUntil",
       "status",
       "userId",
     ]);
