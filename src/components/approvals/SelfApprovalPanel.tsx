@@ -27,20 +27,29 @@ export function SelfApprovalPanel({ branches }: { branches: BranchChoice[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
 
-  const load = useCallback(async () => {
-    const [m, g] = await Promise.all([
-      getJson(`/api/v1/members?role=ADMIN&branchId=${encodeURIComponent(branchId)}&limit=100`),
-      getJson(`/api/v1/settings/self-approval?branchId=${encodeURIComponent(branchId)}`),
-    ]);
-    const bad = [m, g].find((r) => !r.ok);
-    if (bad) return setError(say(bad, "Couldn't load this branch."));
-    setError(null);
-    setAdmins(m.data!.members as Person[]);
-    setGrants(g.data!.grants as Grant[]);
-  }, [branchId]);
+  // `stillCurrent` is false once another branch has been chosen: an answer that arrives late must not replace the list of the branch now showing.
+  const load = useCallback(
+    async (stillCurrent: () => boolean = () => true) => {
+      const [m, g] = await Promise.all([
+        getJson(`/api/v1/members?role=ADMIN&branchId=${encodeURIComponent(branchId)}&limit=100`),
+        getJson(`/api/v1/settings/self-approval?branchId=${encodeURIComponent(branchId)}`),
+      ]);
+      if (!stillCurrent()) return;
+      const bad = [m, g].find((r) => !r.ok);
+      if (bad) return setError(say(bad, "Couldn't load this branch."));
+      setError(null);
+      setAdmins(m.data!.members as Person[]);
+      setGrants(g.data!.grants as Grant[]);
+    },
+    [branchId],
+  );
   useEffect(() => {
+    let current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading on a branch change is exactly what this effect is for
-    void load();
+    void load(() => current);
+    return () => {
+      current = false;
+    };
   }, [load]);
 
   const grantOf = (userId: string) => grants.find((g) => g.adminUser.id === userId && g.active);
