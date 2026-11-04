@@ -4131,5 +4131,73 @@
       "src/lib/portal/guard.ts"
     ],
     "status": "planned"
+  },
+  {
+    "id": "PPY-01",
+    "area": "Finance",
+    "feature": "Finance, Payment Rules: the school decides whether an invoice can be paid in parts and the smallest part",
+    "route": "/finance",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Finance, Payment Rules: 'The school: Part payments are allowed, of any amount.'; choose An amount, type 10000, Save the school's rule: 'The school's rule is saved.' and the sentence now names the ₦10,000",
+    "source": [
+      "src/components/finance/PaymentRulesPanel.tsx",
+      "src/lib/finance/part-payment-service.ts",
+      "src/app/api/v1/settings/part-payment/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-02",
+    "area": "Finance",
+    "feature": "A branch can make the rule stricter for itself, never looser than the school's",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "In Payment Rules, under the branch, set a smaller smallest part than the school's and Save: the screen says 'a branch can only raise it'; set a larger one: saved",
+    "source": [
+      "src/components/finance/PaymentRulesPanel.tsx",
+      "src/lib/finance/part-payment.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-03",
+    "area": "Finance",
+    "feature": "The invoice says what may be paid, a part below the smallest is refused in words, and the whole balance is one click",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View & Pay on an invoice: 'Part payments are allowed, at least ₦10,000.'; Record Payment, type 2500: 'The smallest part you can pay is ₦10,000.'; Pay the full balance fills the balance and the payment is recorded",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/components/finance/RecordPaymentModal.tsx",
+      "src/lib/finance/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-04",
+    "area": "Finance",
+    "feature": "One invoice can be marked pay in full, and cleared again",
+    "route": "/finance",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View & Pay: 'Pay in full only' turns the sentence into 'This invoice has to be paid in full.' and a part is refused; 'Allow part payments again' turns it back",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/app/api/v1/finance/invoices/[id]/pay-in-full/route.ts"
+    ],
+    "status": "planned"
   }
 ]
