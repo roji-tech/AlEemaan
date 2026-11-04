@@ -3516,6 +3516,288 @@
     "status": "planned"
   },
   {
+    "id": "PRG-01",
+    "area": "Programs",
+    "feature": "Programs is in the sidebar's Classroom section (phone: More), and a person with no place in any program is told so",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Choose Programs in the sidebar (phone: More, then Programs); a super admin sees 'No programs yet' and the New program button; a teacher sees 'You are not part of any program yet.' and no button",
+    "source": [
+      "src/components/shell/nav.ts",
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-02",
+    "area": "Programs",
+    "feature": "A super admin starts a program that never ends, in one or more branches, with its own level names",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: name 'Quran memorisation', Never ends, tick a branch, level names Juz and Group (Add a level); Create program; the program's page opens as a Draft with its branch",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/lib/programs/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-03",
+    "area": "Programs",
+    "feature": "A program for a period is given a length and the last day is worked out",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: For a set period, start 3 Nov 2026, Runs for 6 months; Create; the page says 'For a period, 3 Nov 2026 to 2 May 2027'. Again with 3 years: ends 2 Nov 2029; or choose 'Until a date I choose'",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/lib/programs/rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-04",
+    "area": "Programs",
+    "feature": "A program can have a branch of its own, created with it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: tick 'Give it a branch of its own', name it Daarul-Hadeeth; the program's page lists that branch marked 'Its own branch' and it has no Remove button; the branch is also in Branches",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/components/programs/ProgramOverview.tsx",
+      "src/lib/programs/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-05",
+    "area": "Programs",
+    "feature": "The new-program form explains what is missing and names a branch that is already taken",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "New program: press Create program with nothing filled in: 'Please check the fields marked below.' with a message under the name and the branches; give an own-branch name that already exists: the message names the branch field and nothing is created",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-06",
+    "area": "Programs",
+    "feature": "A program's Overview: its details, its branches and its history in words",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open a program: Details (kind, dates, about), Branches, and History such as 'Amina Yusuf created the program'; a branch administrator sees no History",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx",
+      "src/components/programs/model.ts",
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-07",
+    "area": "Programs",
+    "feature": "Edit a program's details; a bad date is explained next to its field",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Edit details: set the end date to the start date, Save: 'The end date must be after the start date.'; set a later date and a new name, Save: the heading and the dates follow",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-08",
+    "area": "Programs",
+    "feature": "Activate a draft, archive a program after a confirmation (it turns read only), and restore it",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Activate; Archive then Cancel (nothing happens); Archive then 'Archive program': 'This program is archived and can only be read.' and the edit buttons are gone; a super admin presses Restore: it is a Draft again",
+    "source": [
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-09",
+    "area": "Programs",
+    "feature": "Add a branch to a program and remove one; the program's own branch cannot be removed",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Add a branch: choose one, Add branch: 'The branch was added.'; Remove it and confirm: 'The branch was removed.'; the own branch has no Remove button",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-10",
+    "area": "Programs",
+    "feature": "The Structure tab: level names, and groups inside groups, each shown inside the one above",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Structure: the level names (1. Juz, 2. Group); Add Juz: 'Juz A'; Add a Group inside Juz A: 'Group 1'; the group of the last level has no Add button of its own",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-11",
+    "area": "Programs",
+    "feature": "Rename, reorder, archive and restore a group; the same name twice is refused in the dialog",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Add Juz with the name 'juz a' again: 'There is already a group with this name here.' and the dialog stays; add 'Juz B', Move Juz B up; Rename a group; Archive it, tick 'Show archived', Restore it",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-12",
+    "area": "Programs",
+    "feature": "A level in use cannot be taken away from the level names",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Change level names: Remove level 2 while groups exist at it, Save: the dialog says groups exist at that level and nothing is changed",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx",
+      "src/lib/programs/structure-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-13",
+    "area": "Programs",
+    "feature": "The Staff tab: a super admin names a member of staff of the program's branches as a program admin, and ends the place",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Staff: 'No program admin has been named'; Name a program admin, choose a person, 'Name program admin': 'Hassan Teacher now runs the program.' and the name is listed; End the place and confirm",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-14",
+    "area": "Programs",
+    "feature": "A named program admin finds the program in their Programs page and can change its structure but not name other admins or add branches",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Signed in as the named teacher: Programs lists the program; Structure: add a Juz; Staff has no 'Name a program admin'; Overview has no 'Add a branch'",
+    "source": [
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx",
+      "src/app/(app)/programs/[id]/page.tsx",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-15",
+    "area": "Programs",
+    "feature": "A branch administrator reads the programs of their branch and sees no button to change anything",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a branch administrator: Programs lists the programs that run in the branch, with no New program; the program's pages show no Edit details, Activate, Archive, Add Juz, Rename, Name a program admin, and no History",
+    "source": [
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx",
+      "src/app/(app)/programs/[id]/page.tsx",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-16",
+    "area": "Programs",
+    "feature": "A person with no place in a program who opens its address is told 'We could not find that program.', word for word what an address that does not exist gets",
+    "route": "/programs/[id]",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a teacher with no place: open /programs/ followed by a real program's id, then an id that does not exist: the same sentence 'We could not find that program.' with a way back to All programs; nothing of the program is shown",
+    "source": [
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-17",
+    "area": "Programs",
+    "feature": "The programs switch: the school can turn programs off, a branch can turn them off for itself but never back on over the school",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Programs: 'On for the school'; 'Turn off programs for' a branch: '... no longer takes part in programs.'; back on; 'Turn off for the school': every branch says 'off, set by the school' with no button; Programs then says 'Programs are switched off for the school.' and offers no New program; turn it on again",
+    "source": [
+      "src/components/programs/ProgramsSettingsPanel.tsx",
+      "src/lib/programs/settings-service.ts",
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
     "id": "QBK-12",
     "area": "Question bank",
     "feature": "A teacher reports a problem with an approved question",
@@ -3676,6 +3958,245 @@
     "source": [
       "src/components/shell/ProfileMenu.tsx",
       "src/app/video-guide/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-01",
+    "area": "Students",
+    "feature": "A super admin suspends a pupil with a reason and a last day, and the list says so",
+    "route": "/students",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Students, Suspend beside a pupil: the dialog says what a suspension does; Suspend with no reason says 'Say why (at least 3 characters).'; give a reason and a last day, Suspend: 'Amina Musa is suspended.' and the row shows 'Suspended until <day>'",
+    "source": [
+      "src/components/students/StudentsPanel.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/standing/student-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-02",
+    "area": "Students",
+    "feature": "Lifting a suspension, and the history of a pupil's standing",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Lift suspension beside the pupil, give a reason: the badge goes. History beside the pupil lists every change newest first with the reason, the day and who decided, and nothing in it can be edited",
+    "source": [
+      "src/components/standing/StandingHistoryDialog.tsx",
+      "src/app/api/v1/students/[id]/standing/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-03",
+    "area": "Students",
+    "feature": "Expelling takes a pupil off the class lists; reinstating puts them back; the Show filter finds them",
+    "route": "/students",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Expel beside a pupil (the dialog says their guardian can still see the invoices and only a super admin can reinstate); the row shows 'Expelled'; Show, Expelled lists them; Reinstate with a reason brings them back on the class list",
+    "source": [
+      "src/components/students/StudentsPanel.tsx",
+      "src/lib/standing/student-service.ts",
+      "src/lib/students/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-04",
+    "area": "Students",
+    "feature": "A branch administrator is offered Suspend and Lift but never Expel, and nothing at all when the school has taken suspending from branch administrators",
+    "route": "/students",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As a branch administrator: Suspend and Lift suspension are there, Expel and Reinstate are not; after the super admin turns 'Branch administrators may suspend' off, none of the standing buttons is there. A teacher sees the badge and no button",
+    "source": [
+      "src/app/(app)/students/page.tsx",
+      "src/components/standing/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-05",
+    "area": "Attendance",
+    "feature": "A suspended pupil stays on the class list, flagged; an expelled pupil is not on it",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Take attendance for the class: a suspended pupil shows the 'Suspended' badge and can be marked as usual; an expelled pupil is not in the list",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx",
+      "src/lib/attendance/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-06",
+    "area": "Users",
+    "feature": "A super admin suspends, terminates and reinstates a member of staff",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Users, Suspend beside a teacher (a tick box offers 'Everywhere in the school'): the row shows 'Suspended' with Lift suspension and Terminate, and no Reactivate; Terminate with a reason: 'Terminated' and Reinstate; History lists both with the reasons",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/standing/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-07",
+    "area": "Users",
+    "feature": "A suspended or terminated person cannot simply be reactivated, and a branch administrator never terminates or touches another administrator",
+    "route": "/users",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As a branch administrator: Suspend and Lift on teachers in the branch only; no Terminate; no standing buttons on another administrator; a suspended person has Lift suspension and no Reactivate",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/lib/members/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-08",
+    "area": "Academics",
+    "feature": "Staff records, including people who never sign in, can be suspended or terminated",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Academics, Staff: Suspend or Terminate beside a staff record, History beside it; a terminated record is under Show, Archived and offers Reinstate, not Restore",
+    "source": [
+      "src/components/academics/StaffPanel.tsx",
+      "src/app/api/v1/staff/[id]/standing/route.ts",
+      "src/lib/academics/staff.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-09",
+    "area": "Settings",
+    "feature": "Settings, Discipline: whether branch administrators may suspend, with the school as the ceiling",
+    "route": "/settings",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Discipline: 'Branch administrators may suspend'; Turn off for the school: 'Branch administrators may no longer suspend.' and every branch says 'may not suspend, set by the school'; turn on again; 'Stop administrators of <branch> suspending' narrows one branch",
+    "source": [
+      "src/components/standing/StandingSettingsPanel.tsx",
+      "src/components/settings/SwitchSettingsPanel.tsx",
+      "src/lib/standing/settings-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-10",
+    "area": "Portal",
+    "feature": "A suspended pupil is told so without the reason; an expelled pupil is refused; an expelled child's guardian keeps only the fees",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Sign in as a suspended pupil: 'You are suspended until <day>' and no hand-in, quizzes or practice; sign in as the guardian of an expelled child: 'is no longer a pupil of the school', Fees & Billing only; the pupil's own sign-in says the one generic sentence",
+    "source": [
+      "src/components/portal/PortalStandingNotice.tsx",
+      "src/lib/portal/service.ts",
+      "src/lib/portal/guard.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-01",
+    "area": "Finance",
+    "feature": "Finance, Payment Rules: the school decides whether an invoice can be paid in parts and the smallest part",
+    "route": "/finance",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Finance, Payment Rules: 'The school: Part payments are allowed, of any amount.'; choose An amount, type 10000, Save the school's rule: 'The school's rule is saved.' and the sentence now names the ₦10,000",
+    "source": [
+      "src/components/finance/PaymentRulesPanel.tsx",
+      "src/lib/finance/part-payment-service.ts",
+      "src/app/api/v1/settings/part-payment/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-02",
+    "area": "Finance",
+    "feature": "A branch can make the rule stricter for itself, never looser than the school's",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "In Payment Rules, under the branch, set a smaller smallest part than the school's and Save: the screen says 'a branch can only raise it'; set a larger one: saved",
+    "source": [
+      "src/components/finance/PaymentRulesPanel.tsx",
+      "src/lib/finance/part-payment.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-03",
+    "area": "Finance",
+    "feature": "The invoice says what may be paid, a part below the smallest is refused in words, and the whole balance is one click",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View & Pay on an invoice: 'Part payments are allowed, at least ₦10,000.'; Record Payment, type 2500: 'The smallest part you can pay is ₦10,000.'; Pay the full balance fills the balance and the payment is recorded",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/components/finance/RecordPaymentModal.tsx",
+      "src/lib/finance/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-04",
+    "area": "Finance",
+    "feature": "One invoice can be marked pay in full, and cleared again",
+    "route": "/finance",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View & Pay: 'Pay in full only' turns the sentence into 'This invoice has to be paid in full.' and a part is refused; 'Allow part payments again' turns it back",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/app/api/v1/finance/invoices/[id]/pay-in-full/route.ts"
     ],
     "status": "planned"
   }

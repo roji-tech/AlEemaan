@@ -13,6 +13,8 @@ export interface RecordPaymentModalProps {
   invoiceNo: string;
   totalAmount: number;
   amountPaid: number;
+  /// What the server says may be paid on this invoice (task 0046). The server decides when the payment is recorded; this is only said first.
+  partText?: string;
 }
 
 export function RecordPaymentModal({
@@ -24,6 +26,7 @@ export function RecordPaymentModal({
   invoiceNo,
   totalAmount,
   amountPaid,
+  partText,
 }: RecordPaymentModalProps) {
   const formId = useId();
   const balanceDue = Math.max(0, totalAmount - amountPaid);
@@ -91,6 +94,12 @@ export function RecordPaymentModal({
           <span className="font-bold text-fg text-sm">{formatNaira(balanceDue)}</span>
         </div>
 
+        {partText && (
+          <p className="text-xs text-fg-muted" id={`${formId}-part-text`}>
+            {partText}
+          </p>
+        )}
+
         <div>
           <label htmlFor={`${formId}-amount`} className="block text-xs font-medium text-fg-muted mb-1">
             Payment Amount (₦)
@@ -104,8 +113,16 @@ export function RecordPaymentModal({
             required
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            aria-describedby={partText ? `${formId}-part-text` : undefined}
             className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand-strong"
           />
+          <button
+            type="button"
+            onClick={() => setAmount(String(balanceDue))}
+            className="mt-1.5 rounded-lg px-1 py-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            Pay the full balance
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

@@ -378,3 +378,13 @@ export function BookOpenIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function LayersIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 2 9 4.5-9 4.5-9-4.5z" />
+      <path d="m3 12 9 4.5 9-4.5" />
+      <path d="m3 17.5 9 4.5 9-4.5" />
+    </svg>
+  );
+}

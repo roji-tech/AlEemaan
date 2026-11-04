@@ -46,6 +46,12 @@ export function memberFailure(reason: MemberFailure): Response {
       ]);
     case "DEACTIVATED":
       return fail("This person is deactivated. Reactivate them first.", 409, "DEACTIVATED");
+    case "UNDER_STANDING":
+      return fail(
+        "This person is suspended or terminated. Lift the suspension or reinstate them instead: that records why.",
+        409,
+        "UNDER_STANDING",
+      );
     case "SUPERADMIN_ONLY":
       return fail("Only a superadmin can say who may approve results.", 403, "FORBIDDEN");
     case "NOT_APPROVER_ROLE":

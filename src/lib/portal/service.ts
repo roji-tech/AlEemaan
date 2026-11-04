@@ -12,7 +12,8 @@ import {
 import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus, QuizStatus } from "@prisma/client";
 import { submitAssignment, attemptQuiz } from "@/lib/lms/service";
 import { reportCardVisibleTo } from "@/lib/academics/report-card";
-import { accessFor, type Access, type Actor } from "./access";
+import { accessFor, allowedTabs, type Access, type Actor } from "./access";
+import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
 
 export interface PortalAuthResult {
@@ -26,10 +27,49 @@ export interface PortalAuthResult {
   access?: Record<string, Access>;
 }
 
-/// What `actor` may do for each of these pupils, by the settings of the pupil's own branch.
-export async function portalAccessFor(students: readonly { id: string; branchId: string }[], actor: Actor): Promise<Record<string, Access>> {
+/// Nothing at all: what a pupil gets when their standing leaves nothing to open (an expelled pupil, or an expelled child whose guardian has no invoices section).
+export const NO_ACCESS: Access = {
+  overview: false,
+  results: false,
+  invoices: false,
+  materials: false,
+  submitWork: false,
+  takeQuizzes: false,
+  siblings: false,
+  practice: "NONE",
+};
+
+export const hasAnyAccess = (access: Access): boolean => allowedTabs(access).length > 0;
+
+/// A pupil's record as the portal shows it: the standing that applies TODAY and the last day of a suspension (a day, "YYYY-MM-DD"), never the stored value or the reason (task 0045).
+export function withStandingShown<S extends { standing?: string; standingUntil?: Date | null }>(student: S): Omit<S, "standing" | "standingUntil"> & { standing: string; standingUntil: string | null } {
+  const now = studentStandingNow({ standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null }, dayOf(new Date()));
+  return { ...student, standing: now, standingUntil: now === "SUSPENDED" && student.standingUntil ? dayOf(student.standingUntil) : null };
+}
+
+type Standing = { standing?: string; standingUntil?: Date | null };
+
+/// What `actor` may do for each of these pupils: the settings of the pupil's own branch, narrowed by the pupil's standing today (task 0045: a suspended pupil cannot hand in work,
+/// take quizzes or practise; an expelled pupil's guardian keeps the invoices; an expelled pupil keeps nothing). A standing only ever narrows.
+export async function portalAccessFor(
+  students: readonly ({ id: string; branchId: string } & Standing)[],
+  actor: Actor,
+): Promise<Record<string, Access>> {
   const byBranch = await getPortalAccessByBranch(students.map((student) => student.branchId));
-  return Object.fromEntries(students.map((student) => [student.id, accessFor(byBranch.get(student.branchId)!, actor)]));
+  const todayDay = dayOf(new Date());
+  return Object.fromEntries(
+    students.map((student) => {
+      const base = accessFor(byBranch.get(student.branchId)!, actor);
+      const capped = capForStanding(base, actor, studentStandingNow({ standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null }, todayDay));
+      return [student.id, capped ?? NO_ACCESS];
+    }),
+  );
+}
+
+/// The pupils of a family that this sign-in can open anything for, today (task 0045): those whose standing leaves something to open for this actor.
+async function reachableStudents<S extends { id: string; branchId: string } & Standing>(students: readonly S[], actor: Actor): Promise<S[]> {
+  const access = await portalAccessFor(students, actor);
+  return students.filter((student) => hasAnyAccess(access[student.id]!));
 }
 
 /// The pupils this sign-in reaches: the pupil alone, or every pupil sharing the guardian's contact when the branch's setting for this actor allows siblings. (A later
@@ -99,11 +139,14 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
     },
   });
 
+  const reachable = await reachableStudents(siblingStudents, actor);
+  if (!reachable.some((candidate) => candidate.id === primaryStudent.id)) return { success: false, error: "Invalid or expired access token" };
+
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
     actor,
     primaryStudentId: primaryStudent.id,
-    allowedStudentIds: siblingStudents.map((s) => s.id),
+    allowedStudentIds: reachable.map((s) => s.id),
     guardianPhone: primaryStudent.guardianPhone,
     guardianEmail: primaryStudent.guardianEmail,
     issuedAt: now,
@@ -115,10 +158,10 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
   return {
     success: true,
     sessionToken,
-    student: primaryStudent,
-    siblingStudents,
+    student: withStandingShown(primaryStudent),
+    siblingStudents: reachable.map(withStandingShown),
     actor,
-    access: await portalAccessFor(siblingStudents, actor),
+    access: await portalAccessFor(reachable, actor),
   };
 }
 
@@ -189,11 +232,16 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     },
   });
 
+  // Task 0045: a pupil whose standing leaves nothing to open (an expelled pupil, signing in as the pupil) is refused with the one generic sentence, and a family's other children
+  // who have nothing to open are not part of the sign-in. An expelled pupil's guardian still gets in, to the invoices only.
+  const reachable = await reachableStudents(siblingStudents, actor);
+  if (!reachable.some((candidate) => candidate.id === student.id)) return { success: false, error: PORTAL_SIGNIN_FAILED };
+
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
     actor,
     primaryStudentId: student.id,
-    allowedStudentIds: siblingStudents.map((s) => s.id),
+    allowedStudentIds: reachable.map((s) => s.id),
     guardianPhone: student.guardianPhone,
     guardianEmail: student.guardianEmail,
     issuedAt: now,
@@ -205,10 +253,10 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
   return {
     success: true,
     sessionToken,
-    student,
-    siblingStudents,
+    student: withStandingShown(student),
+    siblingStudents: reachable.map(withStandingShown),
     actor,
-    access: await portalAccessFor(siblingStudents, actor),
+    access: await portalAccessFor(reachable, actor),
   };
 }
 

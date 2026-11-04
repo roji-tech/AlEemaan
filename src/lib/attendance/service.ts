@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { SessionStatus } from "@prisma/client";
 import { isFutureDate, canEditAttendance, calculateAttendanceSummary, AttendanceStatus, type AttendanceCountSummary } from "./rules";
 import { resolveBranchRole } from "@/lib/auth/branch-access";
+import { dayOf, studentStandingNow } from "@/lib/standing/rules";
 import type { BulkMarkAttendanceInput, AttendanceFailure } from "./http";
 
 export type ServiceResult<T> = { ok: true; data: T } | { ok: false; failure: AttendanceFailure };
@@ -12,6 +13,10 @@ export type StudentRollCallEntry = {
   firstName: string;
   middleName: string | null;
   lastName: string;
+  /// Suspended on this day (task 0045), as the school's records stand now - so only for today and later days; an earlier day never says it. The pupil stays on the roll: a
+  /// suspension changes the portal, not the class list, and the teacher marks them present, absent or excused as usual.
+  suspended: boolean;
+  suspendedUntil: string | null;
   status: AttendanceStatus | null;
   remarks: string | null;
   markedAt: Date | null;
@@ -82,6 +87,8 @@ export async function getBranchRollCall({
           firstName: true,
           middleName: true,
           lastName: true,
+          standing: true,
+          standingUntil: true,
         },
       },
     },
@@ -112,12 +119,15 @@ export async function getBranchRollCall({
   // 5. Combine into roll call roster
   const students: StudentRollCallEntry[] = enrollments.map((e) => {
     const record = recordMap.get(e.student.id);
+    const suspended = dateStr >= dayOf(new Date()) && studentStandingNow(e.student, dateStr) === "SUSPENDED";
     return {
       studentId: e.student.id,
       admissionNo: e.student.admissionNo,
       firstName: e.student.firstName,
       middleName: e.student.middleName,
       lastName: e.student.lastName,
+      suspended,
+      suspendedUntil: suspended && e.student.standingUntil ? dayOf(e.student.standingUntil) : null,
       status: record?.status ?? null,
       remarks: record?.remarks ?? null,
       markedAt: record?.markedAt ?? null,

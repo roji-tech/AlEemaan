@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ok } from "@/lib/api/envelope";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
+import { liftEndedSuspensions } from "@/lib/standing/sign-in";
 import { SESSION_COOKIE_NAME, createSession, deleteSessionByToken, setSessionCookie } from "@/lib/auth/session";
 
 /// The ONE place a person becomes signed in. Used by sign-in step 1 (no second factor on the account) and
@@ -21,6 +22,9 @@ export async function completeSignIn(
 ): Promise<NextResponse> {
   const presentedToken = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (presentedToken) await deleteSessionByToken(presentedToken);
+
+  // A suspension whose end date has passed ends here, before anything reads the person's memberships (task 0045).
+  await liftEndedSuspensions(user.id);
 
   // An administrator of any branch, or a superadmin, gets the shorter lifetime.
   const holdsAdmin =

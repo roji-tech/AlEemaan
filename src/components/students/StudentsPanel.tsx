@@ -9,6 +9,10 @@ import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 import { CSV_TEMPLATE, parseStudentCsv } from "@/lib/students/csv";
+import { StandingBadge } from "@/components/standing/StandingBadge";
+import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
+import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
+import { KIND_TEXT, kindsFor, type StandingCan, type StandingValue } from "@/components/standing/model";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
 // decides who may read and change what, refuses a namesake unless an administrator confirms it (ADR 0011), and audits that confirmation.
@@ -22,6 +26,9 @@ type Student = {
   dateOfBirth: string;
   admissionNo: string;
   archived: boolean;
+  /// What applies today, and the last day of a suspension (task 0045).
+  standing: StandingValue;
+  standingUntil: string | null;
   guardianName: string | null;
   guardianPhone: string | null;
   guardianEmail: string | null;
@@ -34,24 +41,33 @@ type Editing = { kind: "form"; item: Student | null } | { kind: "import" } | nul
 
 const PAGE_SIZE = 25;
 
-export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
+type Show = "live" | "suspended" | "expelled" | "archived";
+
+/// `standingCan`: what the person may do about a pupil's standing in each branch (display only: the API decides).
+export function StudentsPanel({ branches, standingCan = {} }: { branches: BranchChoice[]; standingCan?: Record<string, StandingCan> }) {
   const [branchId, setBranchId] = useState(branches[0].id);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [students, setStudents] = useState<Student[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [paging, setPaging] = useState<Paging>({ page: 1, totalPages: 1, total: 0 });
-  const [status, setStatus] = useState<"live" | "archived">("live");
+  const [show, setShow] = useState<Show>("live");
+  const status = show === "archived" ? "archived" : "live";
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<Editing>(null);
   const [restoreAsk, setRestoreAsk] = useState<{ student: Student; message: string } | null>(null);
+  const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
+  const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
+  const can: StandingCan = standingCan[branchId] ?? { suspend: false, remove: false };
 
   const load = useCallback(async () => {
     const base = `branchId=${encodeURIComponent(branchId)}`;
     const [s, c] = await Promise.all([
-      getJson(`/api/v1/students?${base}&status=${status}&q=${encodeURIComponent(q)}&page=${page}&limit=${PAGE_SIZE}`),
+      getJson(
+        `/api/v1/students?${base}&status=${status}${show === "suspended" || show === "expelled" ? `&standing=${show}` : ""}&q=${encodeURIComponent(q)}&page=${page}&limit=${PAGE_SIZE}`,
+      ),
       getJson(`/api/v1/academics/class-groups?${base}`),
     ]);
     const bad = [s, c].find((r) => !r.ok);
@@ -60,7 +76,7 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
     setStudents(s.data!.students as Student[]);
     setPaging(s.data!.pagination as Paging);
     setClasses(c.data!.classGroups as ClassOption[]);
-  }, [branchId, status, q, page]);
+  }, [branchId, status, show, q, page]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading data on a branch / filter / page change is exactly what this effect is for
@@ -156,13 +172,15 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
           />
           <SelectField
             label="Show"
-            value={status}
+            value={show}
             onChange={(e) => {
-              setStatus(e.target.value as "live" | "archived");
+              setShow(e.target.value as Show);
               setPage(1);
             }}
             options={[
               { value: "live", label: "Current students" },
+              { value: "suspended", label: "Suspended" },
+              { value: "expelled", label: "Expelled" },
               { value: "archived", label: "Archived" },
             ]}
           />
@@ -173,7 +191,7 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
           </p>
         ) : students.length === 0 ? (
           <p className="mt-3 rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-            {q || status === "archived"
+            {q || show !== "live"
               ? "No students match."
               : branch.canEdit
                 ? "No students yet. Add one, or import a class from a spreadsheet."
@@ -184,9 +202,12 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
             {students.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <p className="font-semibold text-fg">
-                    {s.firstName} {s.middleName ? `${s.middleName} ` : ""}
-                    {s.lastName}
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-fg">
+                    <span>
+                      {s.firstName} {s.middleName ? `${s.middleName} ` : ""}
+                      {s.lastName}
+                    </span>
+                    <StandingBadge standing={s.standing} until={s.standingUntil} />
                   </p>
                   <p className="text-sm text-fg-muted">
                     {s.admissionNo} · {s.gender === "MALE" ? "Male" : "Female"} · born {s.dateOfBirth} · {s.currentClass ?? "No class yet"}
@@ -196,6 +217,24 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
                 </div>
                 {branch.canEdit && (
                   <div className="flex flex-wrap gap-2">
+                    {!s.archived &&
+                      kindsFor("student", s.standing, can).map((kind) => (
+                        <Button
+                          key={kind}
+                          variant={kind === "expel" ? "danger" : "secondary"}
+                          onClick={() =>
+                            setStandingAsk({
+                              kind,
+                              subject: "student",
+                              endpoint: `/api/v1/students/${s.id}/standing`,
+                              name: `${s.firstName} ${s.lastName}`,
+                            })
+                          }
+                          aria-label={`${KIND_TEXT[kind]} ${s.firstName} ${s.lastName}`}
+                        >
+                          {KIND_TEXT[kind]}
+                        </Button>
+                      ))}
                     {!s.archived && (
                       <Button
                         variant="secondary"
@@ -205,6 +244,13 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
                         Edit
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      onClick={() => setHistoryOf({ endpoint: `/api/v1/students/${s.id}/standing`, name: `${s.firstName} ${s.lastName}` })}
+                      aria-label={`Standing history of ${s.firstName} ${s.lastName}`}
+                    >
+                      History
+                    </Button>
                     <Button
                       variant="ghost"
                       onClick={() => setArchived(s, !s.archived)}
@@ -233,6 +279,16 @@ export function StudentsPanel({ branches }: { branches: BranchChoice[] }) {
         )}
       </section>
 
+      <StandingDialog
+        ask={standingAsk}
+        onClose={() => setStandingAsk(null)}
+        onDone={(text) => {
+          setStandingAsk(null);
+          setNotice({ variant: "success", text });
+          void load();
+        }}
+      />
+      <StandingHistoryDialog endpoint={historyOf?.endpoint ?? null} name={historyOf?.name ?? ""} onClose={() => setHistoryOf(null)} />
       <StudentDialog
         key={editing?.kind === "form" ? (editing.item?.id ?? "new") : "none"}
         open={editing?.kind === "form"}

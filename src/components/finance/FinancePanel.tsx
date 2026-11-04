@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { InvoicesDashboard, type InvoiceItemSummary } from "./InvoicesDashboard";
 import { FeeStructuresPanel } from "./FeeStructuresPanel";
 import { type FeeStructureItem } from "./FeeStructureModal";
+import { PaymentRulesPanel } from "./PaymentRulesPanel";
 
 export interface FinancePanelProps {
   branches: { id: string; name: string }[];
@@ -14,7 +15,7 @@ export interface FinancePanelProps {
 
 export function FinancePanel({ branches, isSuperAdmin = false, canManage = true, userBranchId }: FinancePanelProps) {
   const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
-  const [activeTab, setActiveTab] = useState<"invoices" | "fee_structures">("invoices");
+  const [activeTab, setActiveTab] = useState<"invoices" | "fee_structures" | "payment_rules">("invoices");
 
   const [invoices, setInvoices] = useState<InvoiceItemSummary[]>([]);
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
@@ -125,9 +126,24 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
         >
           Fee Schedules & Structures
         </button>
+        {canManage && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "payment_rules"}
+            onClick={() => setActiveTab("payment_rules")}
+            className={`pb-3 px-1 border-b-2 transition ${
+              activeTab === "payment_rules" ? "border-brand-strong text-fg font-bold" : "border-transparent text-fg-muted hover:text-fg"
+            }`}
+          >
+            Payment Rules
+          </button>
+        )}
       </div>
 
-      {loading ? (
+      {activeTab === "payment_rules" ? (
+        <PaymentRulesPanel />
+      ) : loading ? (
         <div className="flex h-64 items-center justify-center rounded-2xl border border-line bg-surface">
           <p className="text-xs font-medium text-fg-muted animate-pulse">Loading finance records...</p>
         </div>

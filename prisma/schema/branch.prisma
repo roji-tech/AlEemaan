@@ -68,6 +68,9 @@ model Branch {
   formResponses         FormResponse[]
   formAnswers           FormAnswer[]
   formParticipations    FormParticipation[]
+  /// The program this branch was made for, when it has one of its own (task 0043).
+  ownedProgram          Program?            @relation("ProgramOwnBranch")
+  programLinks          ProgramBranch[]     @relation("ProgramBranches")
   formTurnIns           FormTurnIn[]
   formTurnInAudits      FormTurnInAudit[]
   formMarkingAudits     FormMarkingAudit[]
@@ -116,10 +119,16 @@ model Membership {
   /// every row that existed before this column did, so nobody is deactivated by the migration.
   deactivatedAt DateTime?
 
+  /// Standing (task 0045). A suspension or a termination also sets `deactivatedAt`, which is what every authority check already reads; this says WHY it is set and, for a
+  /// suspension, until when (lifted at the next sign-in once the date has passed).
+  standing      StandingState @default(ACTIVE)
+  standingUntil DateTime?     @db.Date
+
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   staffRecords StaffRecord[]
+  programStaff ProgramStaff[]
   /// Where this person approves results in this branch (task 0039); empty = nowhere.
   resultApprovalScopes ResultApprovalScope[]
 

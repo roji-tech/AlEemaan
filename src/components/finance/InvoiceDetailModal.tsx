@@ -16,6 +16,9 @@ export interface InvoiceDetail {
   dueDate: string | null;
   lineItems: { name: string; amount: string | number; feeStructureId?: string }[] | null;
   createdAt: string;
+  /// "Pay in full only" on this invoice (task 0046), and what the server says may be paid on it now.
+  payInFull?: boolean;
+  partPayment?: { allowed: boolean; smallest: string | null; text: string };
   student: {
     id: string;
     firstName: string;
@@ -54,12 +57,17 @@ export interface InvoiceDetailModalProps {
   onClose: () => void;
   invoice: InvoiceDetail | null;
   canManage?: boolean;
+  /// Something changed that the whole list shows (a payment, a discount): reload the list. The list reloads behind a spinner, so the dialogs close.
   onRefresh: () => void;
+  /// Something changed that only this invoice shows (the "pay in full only" mark): read this invoice again and keep the dialog open. Falls back to `onRefresh`.
+  onReloadInvoice?: () => void;
 }
 
-export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true, onRefresh }: InvoiceDetailModalProps) {
+export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true, onRefresh, onReloadInvoice }: InvoiceDetailModalProps) {
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  const [payInFullBusy, setPayInFullBusy] = useState(false);
+  const [payInFullError, setPayInFullError] = useState<string | null>(null);
 
   if (!isOpen || !invoice) return null;
 
@@ -69,6 +77,29 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
   const isPaid = invoice.status === InvoiceStatus.PAID;
   const isWaived = invoice.status === InvoiceStatus.WAIVED;
   const isPartial = invoice.status === InvoiceStatus.PARTIALLY_PAID;
+
+  async function togglePayInFull() {
+    if (!invoice || payInFullBusy) return;
+    setPayInFullBusy(true);
+    setPayInFullError(null);
+    try {
+      const res = await fetch(`/api/v1/finance/invoices/${invoice.id}/pay-in-full?branchId=${invoice.branchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payInFull: !invoice.payInFull }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setPayInFullError(json?.error?.message ?? "That didn't work. Please try again.");
+      } else {
+        (onReloadInvoice ?? onRefresh)();
+      }
+    } catch {
+      setPayInFullError("Can't reach the server. Check your internet connection and try again.");
+    } finally {
+      setPayInFullBusy(false);
+    }
+  }
 
   function handlePrint() {
     window.print();
@@ -101,7 +132,9 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
                 </span>
               )}
               {!isPaid && !isPartial && !isWaived && (
-                <span className="rounded-full bg-red-500/20 border border-red-500/30 px-3 py-1 text-xs font-bold text-red-400">UNPAID</span>
+                <span className="rounded-full bg-danger-bg border border-danger-line px-3 py-1 text-xs font-bold text-danger-fg">
+                  UNPAID
+                </span>
               )}
               {isWaived && (
                 <span className="rounded-full bg-surface border border-line px-3 py-1 text-xs font-bold text-fg-muted">WAIVED</span>
@@ -124,6 +157,35 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
               <span className="text-base font-bold text-warn-fg mt-1 block">{formatNaira(balanceDue)}</span>
             </div>
           </div>
+
+          {/* What may be paid now (task 0046) */}
+          {invoice.partPayment && balanceDue > 0 && !isWaived && (
+            <div className="rounded-xl border border-line bg-surface p-3 text-xs">
+              <p className="text-fg" id="invoice-part-payment-text">
+                {invoice.partPayment.text}
+              </p>
+              {canManage && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={Boolean(invoice.payInFull)}
+                    aria-describedby="invoice-part-payment-text"
+                    disabled={payInFullBusy}
+                    onClick={() => void togglePayInFull()}
+                    className="rounded-xl border border-line px-3 py-2 text-xs font-medium text-fg hover:bg-surface-2 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {invoice.payInFull ? "Allow part payments again" : "Pay in full only"}
+                  </button>
+                  {payInFullError && (
+                    <span role="alert" className="text-red-500">
+                      {payInFullError}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Line Items */}
           <div>
@@ -234,6 +296,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
         invoiceNo={invoice.invoiceNo}
         totalAmount={total}
         amountPaid={paid}
+        partText={invoice.partPayment?.text}
       />
 
       {/* Discount Sub-modal */}

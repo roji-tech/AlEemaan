@@ -19,6 +19,8 @@ export const GET = withAuth(
       const { searchParams } = new URL(req.url);
       const branchId = searchParams.get("branchId") || undefined;
       const status = (searchParams.get("status") as "live" | "archived" | "all") || "live";
+      const standingParam = searchParams.get("standing");
+      const standing = standingParam === "suspended" || standingParam === "expelled" ? standingParam : undefined;
       const q = searchParams.get("q") || undefined;
       const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
       const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "25", 10)));
@@ -27,7 +29,7 @@ export const GET = withAuth(
       // A branch the caller does not belong to answers like an unknown one.
       if (branchId && visible !== "all" && !visible.includes(branchId)) return fail("No such branch.", 404, "NOT_FOUND");
 
-      const result = await listStudents({ visible, branchId, status, q, page, limit });
+      const result = await listStudents({ visible, branchId, status, standing, q, page, limit });
       return ok(result);
     } catch (error) {
       console.error("[STUDENTS_GET_ERROR]", error);

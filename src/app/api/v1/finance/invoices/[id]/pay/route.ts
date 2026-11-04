@@ -50,7 +50,7 @@ export const POST = withAuth(
       return ok(result);
     } catch (error) {
       if (error instanceof FinanceError) {
-        return fail(error.message, 400, "FINANCE_ERROR");
+        return fail(error.message, 400, error.code ?? "FINANCE_ERROR");
       }
       // No Paystack key on a production-shaped server (or the mock forced there): say so plainly, and nothing was started (the payment row is rolled back).
       if (error instanceof PaymentsNotConfiguredError) {

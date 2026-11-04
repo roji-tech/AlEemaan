@@ -22,6 +22,9 @@ export type Member = {
   /// May read the results, answers and turn-ins of the branch's forms (never the answer key, never write). Given by an administrator of the branch.
   canViewFormResults: boolean;
   status: "active" | "deactivated";
+  /// Why a deactivated membership is not active: suspended (until a date, or until lifted) or terminated, as opposed to simply deactivated (task 0045).
+  standing: "ACTIVE" | "SUSPENDED" | "TERMINATED";
+  standingUntil: string | null;
   joinedAt: string;
 };
 

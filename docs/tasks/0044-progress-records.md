@@ -26,7 +26,7 @@ The booklet's pages, as read from the photographs: the cover (name, circle, date
 - **Attendance** is part of programs (task 0043, slice P3); a progress record may use it (a day with an entry and no attendance is flagged, not blocked).
 
 ## 3. What it builds on
-Programs, participants, groups and program staff (task 0043); the settings ceiling (`SettingValue`, GLOBAL and BRANCH); the portal's access switches and the way a guardian is linked (`GuardianLinkToken`, `Role.PARENT`); the verify-by-link page for certificates; the Forms module's field kinds (single choice, multiple choice, short and long text, rating) and its `AnswerFields` components as the vocabulary for a template's fields, kept separate from the questionnaire code because a log is rows by date, not one response.
+Programs, participants, groups and program staff (task 0043: P2 people, section 9; P3 staff and attendance, section 10), and the published results of a program's assessments (task 0043, 8.11, slice P3b), which a participant's record page lists read only without copying the marks; the settings ceiling (`SettingValue`, GLOBAL and BRANCH); the portal's access switches and the way a guardian is linked (`GuardianLinkToken`, `Role.PARENT`); the verify-by-link page for certificates; the Forms module's field kinds (single choice, multiple choice, short and long text, rating) and its `AnswerFields` components as the vocabulary for a template's fields, kept separate from the questionnaire code because a log is rows by date, not one response.
 
 ## 4. Design
 
@@ -37,7 +37,7 @@ Programs, participants, groups and program staff (task 0043); the settings ceili
 | Track | `table` (dated rows with typed columns) or `notes` (dated free notes, such as the student's recurring mistakes). A table track says whether it is one row per day |
 | Column | `key`, label in English and Arabic, `type`: `date`, `text`, `choice` (from a reference list or a fixed list), `range` (a from and a to inside a reference list, such as surah and ayah), `rating`, `note`, `remark` (standard remarks) |
 | Reference list | a bilingual list shipped in code, not in the database: for the Quran pack, the 114 surahs with their names in Arabic and English and their ayah counts, so `from` and `to` are checked (ayah 1 to the count) and totals can be worked out. **Only references are stored (surah and ayah numbers), never the text of the Quran.** |
-| `ProgressRecord` | one per `ProgramEnrollment` and template version: the profile values (the data the system already has is shown live from the person's record, not copied) |
+| `ProgressRecord` | one per `ProgramParticipant` (the person's one place in the program, task 0043 section 9) and template version: the profile values (the data the system already has is shown live from the person's record, not copied) |
 | `ProgressEntry` | `recordId`, `trackKey`, `entryDate` (Gregorian), `values` (JSON, validated against the column types), `status` (`DRAFT`, `SUBMITTED`, `VERIFIED`), `version` (an integer for the save check), `createdBy`, `lastEditedBy`, `verifiedBy`, `verifiedAt`, and `publishedValues` (the last verified copy, what families see) |
 | `ProgressEntryRevision` | every save, append-only: who, when, what changed |
 | `ProgressLock` | `entryId` (unique), holder, `heartbeatAt`, `expiresAt`, `releaseAt` |

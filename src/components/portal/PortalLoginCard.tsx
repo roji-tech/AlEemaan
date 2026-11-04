@@ -12,6 +12,9 @@ export interface PortalStudentRecord {
   guardianPhone: string | null;
   guardianEmail: string | null;
   branch: { id: string; name: string };
+  /// What applies today (task 0045): shown as a notice, never with the reason.
+  standing?: "ACTIVE" | "SUSPENDED" | "EXPELLED";
+  standingUntil?: string | null;
   enrollments?: Array<{
     className: string;
     arm: string | null;

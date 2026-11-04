@@ -2,7 +2,14 @@ import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, type Reply } from "@/compon
 
 // Shared by the Academics sections: the one place that turns a failed reply into a sentence for the person.
 /// `canEdit`: administers the branch. `canApprove`: an approver there (task 0039), who reviews the results in their scope but is not an administrator.
-export type BranchChoice = { id: string; name: string; canEdit: boolean; canApprove?: boolean };
+export type BranchChoice = {
+  id: string;
+  name: string;
+  canEdit: boolean;
+  canApprove?: boolean;
+  /// What the person may do about standing in this branch (task 0045; display only, the API decides): suspend and lift, and expel, terminate and reinstate.
+  standing?: { suspend: boolean; remove: boolean };
+};
 export type Notice = { variant: "success" | "error"; text: string } | null;
 
 export const say = (reply: Reply, fallback: string) =>

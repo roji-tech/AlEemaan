@@ -8,6 +8,10 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { StandingBadge } from "@/components/standing/StandingBadge";
+import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
+import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
+import { KIND_TEXT, kindsFor, type StandingValue } from "@/components/standing/model";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
 // sign-in account is an existing member it can be linked to. Presentation only: the API decides who may read and change what.
@@ -23,6 +27,8 @@ type Staff = {
   phone: string | null;
   email: string | null;
   archived: boolean;
+  standing: Exclude<StandingValue, "EXPELLED">;
+  standingUntil: string | null;
   account: Account;
   assignmentCount: number;
 };
@@ -45,6 +51,9 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<Editing>(null);
+  const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
+  const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
+  const can = branch.standing ?? { suspend: false, remove: false };
 
   const load = useCallback(async () => {
     const base = `branchId=${encodeURIComponent(branchId)}`;
@@ -142,8 +151,11 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
             {staff.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <p className="font-semibold text-fg">
-                    {p.firstName} {p.lastName}
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-fg">
+                    <span>
+                      {p.firstName} {p.lastName}
+                    </span>
+                    <StandingBadge standing={p.standing} until={p.standingUntil} />
                   </p>
                   <p className="text-sm text-fg-muted">
                     {CATEGORY[p.category]} · {p.account.state === "linked" ? "Can sign in" : "No sign-in"} · {p.assignmentCount}{" "}
@@ -171,13 +183,40 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                           Edit
                         </Button>
                       )}
+                      {kindsFor("staff", p.standing, can).map((kind) => (
+                        <Button
+                          key={kind}
+                          variant={kind === "terminate" ? "danger" : "secondary"}
+                          onClick={() =>
+                            setStandingAsk({
+                              kind,
+                              subject: "staff",
+                              endpoint: `/api/v1/staff/${p.id}/standing`,
+                              name: `${p.firstName} ${p.lastName}`,
+                              canSchoolWide: can.remove && p.account.state === "linked",
+                            })
+                          }
+                          aria-label={`${KIND_TEXT[kind]} ${p.firstName} ${p.lastName}`}
+                        >
+                          {KIND_TEXT[kind]}
+                        </Button>
+                      ))}
                       <Button
                         variant="ghost"
-                        onClick={() => setArchived(p, !p.archived)}
-                        aria-label={`${p.archived ? "Restore" : "Archive"} ${p.firstName} ${p.lastName}`}
+                        onClick={() => setHistoryOf({ endpoint: `/api/v1/staff/${p.id}/standing`, name: `${p.firstName} ${p.lastName}` })}
+                        aria-label={`Standing history of ${p.firstName} ${p.lastName}`}
                       >
-                        {p.archived ? "Restore" : "Archive"}
+                        History
                       </Button>
+                      {p.standing !== "TERMINATED" && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setArchived(p, !p.archived)}
+                          aria-label={`${p.archived ? "Restore" : "Archive"} ${p.firstName} ${p.lastName}`}
+                        >
+                          {p.archived ? "Restore" : "Archive"}
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -187,6 +226,16 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
         )}
       </section>
 
+      <StandingDialog
+        ask={standingAsk}
+        onClose={() => setStandingAsk(null)}
+        onDone={(text) => {
+          setStandingAsk(null);
+          setNotice({ variant: "success", text });
+          void load();
+        }}
+      />
+      <StandingHistoryDialog endpoint={historyOf?.endpoint ?? null} name={historyOf?.name ?? ""} onClose={() => setHistoryOf(null)} />
       <RecordDialog
         key={editing?.kind === "record" ? (editing.item?.id ?? "new") : "none"}
         open={editing?.kind === "record"}

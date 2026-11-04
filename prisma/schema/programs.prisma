@@ -1,0 +1,141 @@
+// --- Programs (task 0043, slice P1: structure) ---
+//
+// A program is learning that is not a normal class (a Quran memorisation programme that never ends, a three-year course). It sits BESIDE the branches and classes: it
+// links to one or more branches (or has a branch of its own), names its own levels, and holds a tree of groups. People, attendance, fees and certificates come in later slices.
+// Nothing here is ever hard-deleted: programs and groups are archived, program admins are ended, and every change is written to ProgramAudit.
+
+enum ProgramKind {
+  ONGOING
+  FIXED_TERM
+}
+
+enum ProgramStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ProgramStaffRole {
+  ADMIN
+  SUPERVISOR
+  TEACHER
+  RECORDER
+}
+
+enum ProgramStaffStatus {
+  ACTIVE
+  ENDED
+}
+
+model Program {
+  id              String        @id @default(cuid())
+  name            String
+  description     String?
+  kind            ProgramKind
+  status          ProgramStatus @default(DRAFT)
+  /// A fixed-term program has both dates (end is the LAST day, start + duration - 1 day); an ongoing one may have a start and never an end.
+  startsOn        DateTime?     @db.Date
+  endsOn          DateTime?     @db.Date
+  /// Set when the program was created with a branch of its own. At most one program per branch.
+  ownBranchId     String?       @unique
+  /// Plain id of the super admin who created it (like AuditLog.actorUserId: the history must outlive the account).
+  createdByUserId String
+  archivedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  ownBranch   Branch?             @relation("ProgramOwnBranch", fields: [ownBranchId], references: [id], onDelete: NoAction)
+  branches    ProgramBranch[]
+  levelLabels ProgramLevelLabel[]
+  groups      ProgramGroup[]
+  staff       ProgramStaff[]
+  audits      ProgramAudit[]
+
+  @@index([status])
+}
+
+/// The branches a program runs in (one or more). The own branch, when there is one, is in this list too.
+model ProgramBranch {
+  programId String
+  branchId  String
+  createdAt DateTime @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  branch  Branch  @relation("ProgramBranches", fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([programId, branchId])
+  @@index([branchId])
+}
+
+/// The program's own names for its levels, in order (for example "Section", "Class", "Category"). Level 0 is the top. 1 to 4 of them (the cap is in code).
+model ProgramLevelLabel {
+  programId  String
+  levelIndex Int
+  name       String
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@id([programId, levelIndex])
+}
+
+/// A node of the program's tree. `levelIndex` is its depth (0 = top level) and always equals its parent's plus one; the service keeps that true and a check constraint in the
+/// migration refuses a negative or too-deep value. Live namesakes among siblings are refused by a unique index in the migration SQL (Prisma cannot express a partial,
+/// case-insensitive one) as well as by the service.
+model ProgramGroup {
+  id         String    @id @default(cuid())
+  programId  String
+  parentId   String?
+  levelIndex Int
+  name       String
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  program  Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  parent   ProgramGroup?  @relation("ProgramGroupTree", fields: [parentId], references: [id], onDelete: NoAction)
+  children ProgramGroup[] @relation("ProgramGroupTree")
+
+  @@index([programId, parentId])
+}
+
+/// A person with a role in the program. In slice P1 only ADMIN is used (named by the super admin); the other roles are for slice P3. `branchId` is the branch (one the
+/// program runs in) through which the person holds their staff membership: their authority is read at every request from that active membership.
+model ProgramStaff {
+  id              String             @id @default(cuid())
+  programId       String
+  userId          String
+  branchId        String
+  role            ProgramStaffRole
+  status          ProgramStaffStatus @default(ACTIVE)
+  createdByUserId String
+  createdAt       DateTime           @default(now())
+  endedAt         DateTime?
+
+  program    Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  /// The person must be a member of that branch (composite key, like StaffRecord): the database refuses a program admin who holds no membership there.
+  membership Membership @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: Cascade)
+
+  @@unique([programId, userId, role])
+  @@index([userId, status])
+  @@index([programId, status])
+}
+
+/// Append-only history of a program: who changed what, the old and the new value. No route updates or deletes a row.
+model ProgramAudit {
+  id          String   @id @default(cuid())
+  programId   String
+  actorUserId String
+  action      String
+  targetType  String
+  targetId    String?
+  beforeValue Json?
+  afterValue  Json?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, createdAt])
+}
