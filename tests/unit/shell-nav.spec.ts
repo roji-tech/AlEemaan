@@ -30,7 +30,7 @@ test.describe("groupNav: sections for each kind of person", () => {
       "Administration",
     ]);
     expect(labels(groups[0].items)).toEqual(["Overview"]);
-    expect(labels(groups[1].items)).toEqual(["Students", "Coursework", "Attendance", "Timetable"]);
+    expect(labels(groups[1].items)).toEqual(["Students", "Coursework", "Attendance", "Timetable", "Programs"]);
     expect(labels(groups[2].items)).toEqual(["Results", "Question bank", "Forms"]);
     expect(labels(groups[3].items)).toEqual(["Announcements", "Communication"]);
     expect(labels(groups[4].items)).toEqual(["Branches", "Settings", "Academics", "Finance", "Approvals", "Users"]);
@@ -48,10 +48,10 @@ test.describe("groupNav: sections for each kind of person", () => {
     expect(labels(groups.flatMap((group) => group.items))).toHaveLength(teacher().length);
   });
 
-  test("a member of staff who does not teach sees Overview, Announcements and Forms only: two single-entry sections, so no heading at all", () => {
+  test("a member of staff who does not teach sees Overview, Programs, Forms and Announcements only: three single-entry sections, so no heading at all", () => {
     const groups = groupNav(otherStaff());
     expect(groups.every((group) => group.section === null)).toBe(true);
-    expect(labels(groups.flatMap((group) => group.items))).toEqual(["Overview", "Forms", "Announcements"]);
+    expect(labels(groups.flatMap((group) => group.items))).toEqual(["Overview", "Programs", "Forms", "Announcements"]);
   });
 
   test("nothing is lost or repeated: the groups hold exactly the visible entries", () => {

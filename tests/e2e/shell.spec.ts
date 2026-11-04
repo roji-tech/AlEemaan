@@ -143,7 +143,7 @@ test.describe("desktop: the sidebar in sections", () => {
     // Overview is not inside a section; the pages are inside theirs.
     await expect(nav.locator("ul ul").getByRole("link", { name: "Overview" })).toHaveCount(0);
     const classroom = nav.locator(`#${await sectionButton(page, "Classroom").getAttribute("aria-controls")}`);
-    await expect(classroom.getByRole("link")).toHaveText(["Students", "Coursework", "Attendance", "Timetable"]);
+    await expect(classroom.getByRole("link")).toHaveText(["Students", "Coursework", "Attendance", "Timetable", "Programs"]);
     const assessment = nav.locator(`#${await sectionButton(page, "Assessment").getAttribute("aria-controls")}`);
     await expect(assessment.getByRole("link")).toHaveText(["Results", "Question bank", "Forms"]);
     const administration = nav.locator(`#${await sectionButton(page, "Administration").getAttribute("aria-controls")}`);
@@ -616,9 +616,9 @@ test.describe("someone who is not an administrator", () => {
     await signInThroughUi(page, teacher);
 
     await expect(page.getByRole("heading", { level: 1, name: "Welcome, Zainab" })).toBeVisible();
-    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, students, announcements, question bank, forms); the phone's tab bar keeps only
+    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, programs, students, announcements, question bank, forms); the phone's tab bar keeps only
     // Overview and Results and the rest live in the More sheet.
-    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 2 : 9);
+    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 2 : 10);
     await expect(mainNav(page).getByRole("link", { name: "Overview" })).toBeVisible();
     await expect(mainNav(page).getByRole("link", { name: "Results" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);
@@ -820,7 +820,7 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     }
     await expect(sheet.getByRole("button", { name: "Classroom" })).toHaveCount(0); // a sheet is short-lived: its headings do not fold
     const classroom = sheet.getByRole("heading", { name: "Classroom" }).locator("xpath=..");
-    await expect(classroom.getByRole("link")).toHaveText(["Students", "Coursework", "Attendance", "Timetable"]);
+    await expect(classroom.getByRole("link")).toHaveText(["Students", "Coursework", "Attendance", "Timetable", "Programs"]);
   });
 
   test("a teacher's sheet: Classroom and Assessment have headings; Announcements, alone, has none", async ({ page }) => {

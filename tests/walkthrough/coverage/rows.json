@@ -3516,6 +3516,288 @@
     "status": "planned"
   },
   {
+    "id": "PRG-01",
+    "area": "Programs",
+    "feature": "Programs is in the sidebar's Classroom section (phone: More), and a person with no place in any program is told so",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Choose Programs in the sidebar (phone: More, then Programs); a super admin sees 'No programs yet' and the New program button; a teacher sees 'You are not part of any program yet.' and no button",
+    "source": [
+      "src/components/shell/nav.ts",
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-02",
+    "area": "Programs",
+    "feature": "A super admin starts a program that never ends, in one or more branches, with its own level names",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: name 'Quran memorisation', Never ends, tick a branch, level names Juz and Group (Add a level); Create program; the program's page opens as a Draft with its branch",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/lib/programs/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-03",
+    "area": "Programs",
+    "feature": "A program for a period is given a length and the last day is worked out",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: For a set period, start 3 Nov 2026, Runs for 6 months; Create; the page says 'For a period, 3 Nov 2026 to 2 May 2027'. Again with 3 years: ends 2 Nov 2029; or choose 'Until a date I choose'",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/lib/programs/rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-04",
+    "area": "Programs",
+    "feature": "A program can have a branch of its own, created with it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: tick 'Give it a branch of its own', name it Daarul-Hadeeth; the program's page lists that branch marked 'Its own branch' and it has no Remove button; the branch is also in Branches",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/components/programs/ProgramOverview.tsx",
+      "src/lib/programs/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-05",
+    "area": "Programs",
+    "feature": "The new-program form explains what is missing and names a branch that is already taken",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "New program: press Create program with nothing filled in: 'Please check the fields marked below.' with a message under the name and the branches; give an own-branch name that already exists: the message names the branch field and nothing is created",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-06",
+    "area": "Programs",
+    "feature": "A program's Overview: its details, its branches and its history in words",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open a program: Details (kind, dates, about), Branches, and History such as 'Amina Yusuf created the program'; a branch administrator sees no History",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx",
+      "src/components/programs/model.ts",
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-07",
+    "area": "Programs",
+    "feature": "Edit a program's details; a bad date is explained next to its field",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Edit details: set the end date to the start date, Save: 'The end date must be after the start date.'; set a later date and a new name, Save: the heading and the dates follow",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-08",
+    "area": "Programs",
+    "feature": "Activate a draft, archive a program after a confirmation (it turns read only), and restore it",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Activate; Archive then Cancel (nothing happens); Archive then 'Archive program': 'This program is archived and can only be read.' and the edit buttons are gone; a super admin presses Restore: it is a Draft again",
+    "source": [
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-09",
+    "area": "Programs",
+    "feature": "Add a branch to a program and remove one; the program's own branch cannot be removed",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Add a branch: choose one, Add branch: 'The branch was added.'; Remove it and confirm: 'The branch was removed.'; the own branch has no Remove button",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-10",
+    "area": "Programs",
+    "feature": "The Structure tab: level names, and groups inside groups, each shown inside the one above",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Structure: the level names (1. Juz, 2. Group); Add Juz: 'Juz A'; Add a Group inside Juz A: 'Group 1'; the group of the last level has no Add button of its own",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-11",
+    "area": "Programs",
+    "feature": "Rename, reorder, archive and restore a group; the same name twice is refused in the dialog",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Add Juz with the name 'juz a' again: 'There is already a group with this name here.' and the dialog stays; add 'Juz B', Move Juz B up; Rename a group; Archive it, tick 'Show archived', Restore it",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-12",
+    "area": "Programs",
+    "feature": "A level in use cannot be taken away from the level names",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Change level names: Remove level 2 while groups exist at it, Save: the dialog says groups exist at that level and nothing is changed",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx",
+      "src/lib/programs/structure-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-13",
+    "area": "Programs",
+    "feature": "The Staff tab: a super admin names a member of staff of the program's branches as a program admin, and ends the place",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Staff: 'No program admin has been named'; Name a program admin, choose a person, 'Name program admin': 'Hassan Teacher now runs the program.' and the name is listed; End the place and confirm",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-14",
+    "area": "Programs",
+    "feature": "A named program admin finds the program in their Programs page and can change its structure but not name other admins or add branches",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Signed in as the named teacher: Programs lists the program; Structure: add a Juz; Staff has no 'Name a program admin'; Overview has no 'Add a branch'",
+    "source": [
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx",
+      "src/app/(app)/programs/[id]/page.tsx",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-15",
+    "area": "Programs",
+    "feature": "A branch administrator reads the programs of their branch and sees no button to change anything",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a branch administrator: Programs lists the programs that run in the branch, with no New program; the program's pages show no Edit details, Activate, Archive, Add Juz, Rename, Name a program admin, and no History",
+    "source": [
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx",
+      "src/app/(app)/programs/[id]/page.tsx",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-16",
+    "area": "Programs",
+    "feature": "A person with no place in a program who opens its address is told 'We could not find that program.', word for word what an address that does not exist gets",
+    "route": "/programs/[id]",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a teacher with no place: open /programs/ followed by a real program's id, then an id that does not exist: the same sentence 'We could not find that program.' with a way back to All programs; nothing of the program is shown",
+    "source": [
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-17",
+    "area": "Programs",
+    "feature": "The programs switch: the school can turn programs off, a branch can turn them off for itself but never back on over the school",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Programs: 'On for the school'; 'Turn off programs for' a branch: '... no longer takes part in programs.'; back on; 'Turn off for the school': every branch says 'off, set by the school' with no button; Programs then says 'Programs are switched off for the school.' and offers no New program; turn it on again",
+    "source": [
+      "src/components/programs/ProgramsSettingsPanel.tsx",
+      "src/lib/programs/settings-service.ts",
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
     "id": "QBK-12",
     "area": "Question bank",
     "feature": "A teacher reports a problem with an approved question",
