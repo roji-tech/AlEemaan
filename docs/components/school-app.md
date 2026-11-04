@@ -113,6 +113,7 @@ The Finance page: invoices and payments on one tab, fee structures on the other.
 | `InvoiceDetailModal.tsx` | Client component (uses `Dialog`): one invoice with student, term, totals (`totalAmount` is already net of discounts), line items, discounts as negative lines and the payment receipts; Print calls `window.print()`. "Waiver / Discount" and "Record Payment" show only with `canManage`, a balance above zero and a status other than WAIVED. Exports `InvoiceDetail`. |
 | `InvoicesDashboard.tsx` | Client component: KPI cards (invoiced, collected, outstanding, collection rate; computed in the browser from every loaded invoice, not from the filtered rows), status pills (UNPAID, PARTIALLY_PAID, PAID), term filter, search by pupil, admission number or invoice number, and the table. "View & Pay" loads `GET /api/v1/finance/invoices/{id}` into `InvoiceDetailModal`; "Batch Generate Invoices" (only with `canManage`) opens `BatchInvoiceModal`. No badge is drawn for CANCELLED. |
 | `RecordPaymentModal.tsx` | Client component (uses `Dialog`): records an offline payment (`POST .../invoices/{id}/record-payment`): amount (defaults to the balance, refused above it), method cash, POS or bank transfer, optional teller reference and note; the API issues the receipt number. The API also accepts the channels `card` and `mock` and wants a reference of at least 3 characters. |
+| `PaymentRulesPanel.tsx` | Client component: the "Payment Rules" tab of Finance. The school's rule (a super admin edits it) and each branch's (a branch administrator edits their own, only stricter), each as "Invoices can be paid in parts" and a smallest part (any amount, an amount, or a percentage of the invoice), with the sentence that applies and the server's refusal in words. |
 
 ## `src/components/approvals/`
 
@@ -192,6 +193,22 @@ The Forms pages (Task 0041, slices F1, F2a and F2b): staff write practice sets, 
 | `StatusBadge.tsx` | Server-safe component, prop `status`: a form's state (Draft, Published, Closed, Archived) as a pill; the list and the form's page say it the same way. |
 | `useClassGroups.ts` | Hook `useClassGroups(branchId)`: the branch's class groups from `GET /api/v1/academics/class-groups`, empty while loading or when they cannot be read. Also exports `ClassGroup`. |
 
+## `src/components/programs/`
+
+The Programs screens (task 0043, slice P1): learning that is not a normal class, with its own branches, level names and groups. Client components that call `/api/v1/programs/*` and `/api/v1/settings/programs` and only present what those routes allow: a button is shown from the `can` object the API returns, and every action is checked again on the server.
+
+| File | Description |
+| --- | --- |
+| `CreateProgramDialog.tsx` | Client component, props `open`, `onClose`, `branches`: "New program" (a superadmin's act). Name, description, Never ends / For a period (a start date and a length of 6 months, 1, 2, 3 or 5 years, or an end date), where it runs (a checkbox per branch and "Give it a branch of its own" with the branch's name), and the level names (1 to 4, Add a level / Remove). Posts to `/api/v1/programs`, shows the server's field messages under the fields, and goes to the new program's page. |
+| `ProgramBadge.tsx` | The status of a program as a pill (Draft, Active, Completed, Archived); the list and the program's page say it the same way. |
+| `ProgramOverview.tsx` | Client component, props `program`, `allBranches`, `run`: the Overview tab. Details (kind, dates, about) with "Edit details" (a dialog: name, description, dates; PATCH), Branches (a warning for a branch that switched programs off; "Add a branch" and "Remove" for a superadmin, never on the own branch), and History in words (for those who manage the program). |
+| `ProgramPage.tsx` | Client component, props `id`, `allBranches`: loads `GET /api/v1/programs/[id]`, shows the name, kind, dates and status, the lifecycle buttons the API allows (Activate, Archive after a confirmation, Restore for a superadmin), banners (switched off for the school, archived and read only), and the three tabs through `SectionTabs`. Exports `RunChange`, the one way a tab runs a change, shows the result and reloads. |
+| `ProgramStaffTab.tsx` | Client component, props `program`, `run`: the Staff tab. The program admins with the branch each serves through; "Name a program admin" (a superadmin; the dialog lists the staff of the program's branches from `GET .../staff/candidates`) and "End" after a confirmation. |
+| `ProgramStructure.tsx` | Client component, props `program`, `run`: the Structure tab. The level names (and "Change level names" in a dialog, 1 to 4, a level in use cannot be removed) and the tree of groups: each group inside the one above, with Add (the next level's name), Rename, Up, Down, Archive and, for an archived one, Restore; "Show archived" appears when there are some. The group dialogs show the server's message and stay open. |
+| `ProgramsPanel.tsx` | Client component, props `canCreate`, `isSuperAdmin`, `branches`: the Programs list. Loads `GET /api/v1/programs`; one card per program (name, status, kind, dates, branches, number of groups); states for loading, an error, nothing yet, and "Programs are switched off for the school" (with the Settings link for a superadmin). |
+| `ProgramsSettingsPanel.tsx` | Client component: the "Programs" tab of the Settings page. The school's switch and, per branch, whether it takes part and who decided ("off, set by the school" / "off, set by the branch"); a branch can be turned off or back on only while the school has programs on. Calls `GET`/`PATCH /api/v1/settings/programs`. |
+| `model.ts` | Words and dates shared by the screens: `KIND_TEXT`, `STATUS_TEXT`, the preset `DURATIONS`, `dayText` (a calendar day formatted in UTC so no time zone shifts it), `periodText`, `historyText` (an audit action as a sentence) and `when`. Re-exports the `ProgramSummary` and `ProgramDetail` types. |
+
 ## Colocated with the page (`src/app/(app)/branches/`)
 
 The view the `/branches` page renders for a superadmin.
@@ -208,6 +225,7 @@ The view the `/branches` page renders for a superadmin.
 | `ResultsApprovalPanel.tsx` | Client component, props `branches`, `hasMfa`; the "Results approval" tab of the Settings page (task 0039, slice 3). A branch select loads `GET /api/v1/settings/results-approval`: the branch's sections (add, rename, archive, restore, with their classes and a select-and-button to move one), the classes in no section, the choice of who approves a class in no section, and the approvers with where they approve. Every change opens the confirmation dialog first; states: loading, load error with Try again, saved. |
 | `ScopeEditor.tsx` | Client component: where one approver approves. "Everything" (General), or any mix of sections and classes; ticking Everything switches the rest off; an archived section the person holds stays in the list, marked, so the refusal can be explained. "Review & save" is off until something changed. |
 | `StepUpModal.tsx` | Client component: the confirmation dialog for a change to who may approve results. Shows the proposed change and asks for the superadmin's password, or the authenticator code (or a recovery code) when two-step verification is on; what is typed exists only while the dialog is open. |
+| `SwitchSettingsPanel.tsx` | Client component: a ceiling switch as a Settings tab (the school's state, and per branch who decided). One screen for every such switch; `ProgramsSettingsPanel` and `StandingSettingsPanel` pass their endpoint and words. |
 
 ## Colocated with the page (`src/app/(app)/settings/`)
 
@@ -216,3 +234,20 @@ The view the `/settings` page renders for a superadmin.
 | File | Description |
 | --- | --- |
 | `SettingsView.tsx` | Client component, props `initialSettings`, `branches`, `initialSessions`; three tabs (School Profile, Academic Sessions & Terms, Portal access). "School Profile": seven fields (name, principal, phone, motto, address, email, website) sent whole to `PATCH /api/v1/settings/school`. "Academic Sessions & Terms": session cards filtered by branch, a new-session dialog (`POST /api/v1/academics/sessions`; the API creates the terms) and "Set Current" per term (`PATCH /api/v1/academics/periods/{id}`). A failed "Set Current" shows nothing; a successful one updates only the term flags, although the server also activates that session (closing the branch's previous active one) when it was not active; a new session is added as the API returns it (nested `branch`, ISO dates), so its branch badge is empty until reload. |
+
+## `src/components/standing/`
+
+The screens of suspension, expulsion and termination (task 0045). Presentation only: the API decides who may and says why when it refuses.
+
+| File | Description |
+| --- | --- |
+| `model.ts` | Pure and unit-tested: the labels, `kindsFor(subject, standing, can)` (which buttons a row offers; a courtesy, the server checks again), `explain` (the sentence shown before anyone confirms), `standingLine`, `prettyDay`. |
+| `StandingBadge.tsx` | The pill for a standing ("Suspended until 12 Nov 2026", "Expelled", "Terminated"); nothing for a person in good standing. |
+| `StandingDialog.tsx` | Client component: suspend, lift, expel, terminate or reinstate one person. Says what the action does, asks for the reason (3 to 500 characters, kept in the history) and, for a suspension, the last day; a staff action offers "Everywhere in the school" to a super admin. Shows the server's refusal in the dialog and keeps it open. |
+| `StandingHistoryDialog.tsx` | Client component: every change of one person's standing, newest first, with the reason, the day and who decided. Read only. |
+| `StandingSettingsPanel.tsx` | The "Discipline" tab of Settings: may branch administrators suspend? The shared switch screen with this switch's words. |
+
+## Standing and part payment: other screens changed (tasks 0045 and 0046)
+
+The Payment Rules panel is catalogued with `finance/`, the switch screen with `settings/`, and the portal's standing notice in `docs/components/portal.md`. Existing screens changed: Students, Users and the Academics staff list show the standing badge and the Suspend, Lift, Expel, Terminate, Reinstate and History buttons their viewer may use; the attendance roll marks a suspended pupil; `finance/InvoiceDetailModal.tsx` shows what may be paid and the "Pay in full only" switch; `finance/RecordPaymentModal.tsx` says it and offers "Pay the full balance"; `programs/ProgramsSettingsPanel.tsx` is now a thin wrapper of `SwitchSettingsPanel`.
+
