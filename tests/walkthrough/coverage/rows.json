@@ -3798,6 +3798,188 @@
     "status": "planned"
   },
   {
+    "id": "PPL-01",
+    "area": "Programs",
+    "feature": "A program's People tab lists who is in it, in which group, through which branch, and in what state",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Open a program, People: 'No one is in this program yet.'; after adding people each shows its kind, its group path (Juz A-Group 1), its branch and a state pill (Taking part)",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-02",
+    "area": "Programs",
+    "feature": "A pupil or a member of staff is added by searching for the school's record, which is linked and never typed again",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add people: choose the group, search 'Amina', Add Amina Musa; the page says 'Amina Musa was added.', the dialog stays open and the result reads 'Already in this program'",
+    "source": [
+      "src/components/programs/AddPersonDialog.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-03",
+    "area": "Programs",
+    "feature": "A whole class of pupils is added in one step, after it says who would be added and who would be skipped",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add people, A whole class of pupils, choose the class, See who would be added: '1 pupil will be added, 1 will be skipped.' with the skipped one named; Add 1 pupil",
+    "source": [
+      "src/components/programs/AddPersonDialog.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-04",
+    "area": "Programs",
+    "feature": "A new person (adult, guardian or child) is typed in; a child needs a birth date and a guardian; a namesake is asked about",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add people, A new person, A small child: Add person says 'A child needs a date of birth.'; fill the birth date and the guardian; Add person; adding the same person again asks 'Yes, this is a different person'",
+    "source": [
+      "src/components/programs/AddPersonDialog.tsx",
+      "src/lib/programs/people-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-05",
+    "area": "Programs",
+    "feature": "A place can be moved to another group, ended by withdrawing (with a reason) and opened again by re-enrolling",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Move Binta Musa to Juz B; Withdraw Binta Musa needs a reason and the row reads 'Left the program' with only Re-enrol offered; Re-enrol Binta Musa brings it back as 'Taking part'",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-06",
+    "area": "Programs",
+    "feature": "Someone with no school record can be suspended, lifted, expelled and reinstated, with a reason and a history",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Suspend Zainab Abubakar (reason, last day): 'Suspended until ...'; Lift suspension; Expel is offered to a super admin; History of Zainab Abubakar lists each step with who and why",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-07",
+    "area": "Programs",
+    "feature": "A pupil's or member of staff's state is read from the school's own record, and the row says where to change it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Suspend the pupil on the Students page, then open People: the row reads 'Suspended' and 'Change this on the Students page.' with no suspend or expel button",
+    "source": [
+      "src/lib/programs/people-rules.ts",
+      "src/components/programs/ProgramPeopleTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-08",
+    "area": "Programs",
+    "feature": "A branch administrator sees only the people through their own branch and is never offered Expel",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "People as a branch administrator: only people through their branch, the Branch filter lists only it, Suspend is offered and Expel is not; with the school's switch off Suspend goes too",
+    "source": [
+      "src/lib/programs/people-service.ts",
+      "src/lib/programs/people-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-09",
+    "area": "Programs",
+    "feature": "The list can be searched and filtered by group, branch, kind and state",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Search 'binta' finds one person; Group Juz A narrows to its people; State Suspended with none says 'No one matches.'",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-10",
+    "area": "Programs",
+    "feature": "The Structure tab shows how many people each group holds, and an archived program only shows its people",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Structure: 'Juz A - 1 person'; archive the program: People shows the list, no Add people and no change buttons, only History",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-11",
+    "area": "Programs",
+    "feature": "A teacher who is not in the program cannot find it",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Open the program's address as a teacher: 'We could not find that program.' and no People tab",
+    "source": [
+      "src/lib/programs/access.ts",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
     "id": "QBK-12",
     "area": "Question bank",
     "feature": "A teacher reports a problem with an approved question",
@@ -4197,6 +4379,231 @@
     "source": [
       "src/components/finance/InvoiceDetailModal.tsx",
       "src/app/api/v1/finance/invoices/[id]/pay-in-full/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-01",
+    "area": "Programs",
+    "feature": "A super admin or a program admin names supervisors, teachers and recorders, and a super admin the program admins",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Staff: 'Name a teacher', choose a member of staff of a branch the program runs in, Name teacher; they appear under Teachers. Same for Supervisors and Recorders",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx",
+      "src/lib/programs/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-02",
+    "area": "Programs",
+    "feature": "A teacher or a recorder is given the groups they take attendance for",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Staff, Teachers, 'Groups' beside the teacher: tick Juz A, Save groups; the line under them reads 'Takes attendance for Juz A'. With no group it reads 'No groups yet: they see nothing.'",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx",
+      "src/lib/programs/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-03",
+    "area": "Programs",
+    "feature": "A teacher takes the roll of a group and the groups inside it, one tap for everyone present, one save",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Attendance, Roll call: choose Juz A, today; Mark everyone present; change one person to Absent; Save attendance; 'Saved: 3 marked, 0 corrected.' and the line 'Marked by Teacher'",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-04",
+    "area": "Programs",
+    "feature": "A suspended person is on today's roll with a flag and cannot be marked; an earlier day is not rewritten by it",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Suspend a typed-in person; today's roll shows 'Suspended' and their buttons are disabled; open an earlier day: no flag, the buttons work",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-05",
+    "area": "Programs",
+    "feature": "Two sessions on one day are told apart by a session name",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Session name 'Morning', mark and save; change it to 'After Asr', the roll is empty again; mark and save; This week lists both",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-validation.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-06",
+    "area": "Programs",
+    "feature": "If someone else changed a mark while you had the roll open, the save is refused and nothing is lost",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Two browsers on the same roll: save a change in one, then a different change in the other; 'was changed by someone else. Reload the roll.' with a Reload the roll link",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-07",
+    "area": "Programs",
+    "feature": "A mark is corrected with a reason, and the correction keeps what it replaced",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Roll of a day more than a week ago: change a mark; 'Why are you correcting a mark?' must be filled in; Save; History of the person shows the old status, the new one, who and why",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-08",
+    "area": "Programs",
+    "feature": "A teacher cannot mark a day older than a week or a day that has not come",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Pick a date 10 days ago: 'You can take attendance from ... onward.' and no buttons; the date picker stops at today",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/components/programs/attendance-model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-09",
+    "area": "Programs",
+    "feature": "A branch administrator sees only their own branch's people on a roll and cannot mark",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Attendance as the administrator of one branch: only that branch's people, 'You can read this roll but not change it.', no Save button",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-10",
+    "area": "Programs",
+    "feature": "The summary shows each person's percentage and flags the low ones",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Attendance, Summary: pick a group and a range; each person shows Present, Late, Absent, Excused and a percentage; under 75% reads 'Low'; lowest first",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-11",
+    "area": "Programs",
+    "feature": "This week lists the sessions held and opens any of them",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Attendance, This week: each session shows the group, the day and how many were marked each way; Open roll shows that roll",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-12",
+    "area": "Programs",
+    "feature": "A program admin turns attendance off for the program or changes the low-attendance percentage",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: untick 'Take attendance in this program', Save settings; the Attendance tab disappears and the state line says it is off for this program; set 60 and save",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-13",
+    "area": "Programs",
+    "feature": "The school and each branch have their own attendance switch, and a branch can only turn it off",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Programs, 'Attendance in programs': turn it off for a branch; that branch's people leave every roll while the other branches go on; a branch cannot turn it on when the school has it off",
+    "source": [
+      "src/components/programs/ProgramsSettingsPanel.tsx",
+      "src/lib/programs/settings-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-14",
+    "area": "Programs",
+    "feature": "A teacher with no group has no Attendance tab",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher named to the program but given no group opens it: Overview, Structure, People and Staff only; the roll of any group answers 'not found'",
+    "source": [
+      "src/components/programs/ProgramPage.tsx",
+      "src/lib/programs/attendance-rules.ts"
     ],
     "status": "planned"
   }
