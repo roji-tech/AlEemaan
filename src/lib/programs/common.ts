@@ -66,19 +66,20 @@ export async function schoolEnabled(client: Pick<typeof prisma, "settingValue"> 
 
 type ChangeContext = { tx: Prisma.TransactionClient; program: Program; viewer: ProgramViewer };
 
-/// Runs a change to one program. Order: who you are (404 for a program you have no place in, 403 for one you may read but not change), whether programs are switched
+/// `need`: "super" a super admin; "manage" a super admin or a program admin; "people" (slice P2) also an administrator of a branch the program runs in - the work then limits itself
+/// to the people through THEIR branches; "attend" (slice P3) anyone with a place in the program, and the work then checks the group the person may mark. Runs a change to one program. Order: who you are (404 for a program you have no place in, 403 for one you may read but not change), whether programs are switched
 /// off (409), then - inside a transaction that holds the program's lock - whether the program can still be changed (409). `work` must make its checks BEFORE its first
 /// write: a refusal it returns does not undo writes already made.
 export async function change<T>(
   actorUserId: string,
   programId: string,
-  need: "manage" | "super",
+  need: "manage" | "super" | "people" | "attend",
   work: (context: ChangeContext) => Promise<Result<T>>,
   options: { allowArchived?: boolean } = {},
 ): Promise<Result<T>> {
   const viewer = await viewerOf(actorUserId, programId);
   if (!viewer) return refuse(404, "NOT_FOUND", NOT_FOUND);
-  if (need === "super" ? viewer.level !== "SUPER" : !canManage(viewer))
+  if (need === "super" ? viewer.level !== "SUPER" : need === "manage" ? !canManage(viewer) : need === "people" && viewer.level === "STAFF")
     return refuse(403, "FORBIDDEN", "You don't have permission to do that.");
   if ((await schoolEnabled()) === false) return refuse(409, "PROGRAMS_OFF", "Programs are switched off for the school.");
   try {

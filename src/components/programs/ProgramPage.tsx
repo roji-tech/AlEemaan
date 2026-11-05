@@ -9,21 +9,32 @@ import { ArrowLeftIcon } from "@/components/ui/icons";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type Notice } from "@/components/academics/common";
 import { SectionTabs } from "@/components/forms/SectionTabs";
+import { ProgramAttendanceTab } from "@/components/programs/ProgramAttendanceTab";
 import { ProgramBadge } from "@/components/programs/ProgramBadge";
 import { ProgramOverview } from "@/components/programs/ProgramOverview";
+import { ProgramPeopleTab } from "@/components/programs/ProgramPeopleTab";
+import { ProgramSettingsTab } from "@/components/programs/ProgramSettingsTab";
 import { ProgramStaffTab } from "@/components/programs/ProgramStaffTab";
 import { ProgramStructure } from "@/components/programs/ProgramStructure";
 import { headlineText, type ProgramDetail } from "@/components/programs/model";
 
-// One program: Overview, Structure and Staff. (People arrives with the next slice, Settings with the first switch that does something: a tab that says "soon" is a dead end.)
+// One program: Overview, Structure, People and Staff, and from slice P3 Attendance (shown only while attendance is on and the person reaches a group) and Settings (the program's own
+// attendance switch, for a super admin and a program admin). A tab that would say "soon" is a dead end, so a tab appears only when it does something.
 // Presentation only: the API decides who sees the program and what each button may do (`can`), and checks again on every request.
 
-const SECTIONS = [
-  { id: "overview", label: "Overview" },
-  { id: "structure", label: "Structure" },
-  { id: "staff", label: "Staff" },
-] as const;
-type SectionId = (typeof SECTIONS)[number]["id"];
+type SectionId = "overview" | "structure" | "people" | "staff" | "attendance" | "settings";
+
+function sectionsFor(program: ProgramDetail): { id: SectionId; label: string }[] {
+  const sections: { id: SectionId; label: string }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "structure", label: "Structure" },
+    { id: "people", label: "People" },
+    { id: "staff", label: "Staff" },
+  ];
+  if (program.attendance.on && program.attendance.readGroupIds.length > 0) sections.push({ id: "attendance", label: "Attendance" });
+  if (program.access === "SUPER" || program.access === "ADMIN") sections.push({ id: "settings", label: "Settings" });
+  return sections;
+}
 
 type Branch = { id: string; name: string };
 
@@ -89,6 +100,10 @@ export function ProgramPage({ id, allBranches }: { id: string; allBranches: Bran
   }
   if (!program) return <p className="text-sm text-fg-muted">Loading…</p>;
 
+  const sections = sectionsFor(program);
+  // A tab can disappear while it is open (attendance switched off elsewhere): fall back to the first.
+  const shown: SectionId = sections.some((candidate) => candidate.id === section) ? section : "overview";
+
   return (
     <div className="space-y-5">
       <BackLink />
@@ -125,11 +140,14 @@ export function ProgramPage({ id, allBranches }: { id: string; allBranches: Bran
       )}
       {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
 
-      <SectionTabs label="Program sections" idPrefix="program-" sections={SECTIONS} active={section} onChange={setSection}>
+      <SectionTabs label="Program sections" idPrefix="program-" sections={sections} active={shown} onChange={setSection}>
         <div className="pt-5">
-          {section === "overview" && <ProgramOverview program={program} allBranches={allBranches} run={run} />}
-          {section === "structure" && <ProgramStructure program={program} run={run} />}
-          {section === "staff" && <ProgramStaffTab program={program} run={run} />}
+          {shown === "overview" && <ProgramOverview program={program} allBranches={allBranches} run={run} />}
+          {shown === "structure" && <ProgramStructure program={program} run={run} />}
+          {shown === "people" && <ProgramPeopleTab program={program} run={run} />}
+          {shown === "staff" && <ProgramStaffTab program={program} run={run} />}
+          {shown === "attendance" && <ProgramAttendanceTab program={program} />}
+          {shown === "settings" && <ProgramSettingsTab program={program} run={run} />}
         </div>
       </SectionTabs>
 

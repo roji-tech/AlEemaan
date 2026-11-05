@@ -31,6 +31,10 @@ export type SwitchCopy = {
   branchDoneOn: (branchName: string) => string;
   /// Distinguishes the ids of two panels (a test selects by the school-state id).
   idPrefix: string;
+  /// When two panels share a tab their visible words must differ too (a screen reader lists buttons and headings by name): the school's two buttons and the branches heading.
+  turnOffSchool?: string;
+  turnOnSchool?: string;
+  branchesTitle?: string;
 };
 
 export function SwitchSettingsPanel({ copy }: { copy: SwitchCopy }) {
@@ -87,14 +91,14 @@ export function SwitchSettingsPanel({ copy }: { copy: SwitchCopy }) {
               loading={busy === "school"}
               onClick={() => void set("school", { scope: "GLOBAL", enabled: !schoolOn }, schoolOn ? copy.schoolDoneOff : copy.schoolDoneOn)}
             >
-              {schoolOn ? "Turn off for the school" : "Turn on for the school"}
+              {schoolOn ? (copy.turnOffSchool ?? "Turn off for the school") : (copy.turnOnSchool ?? "Turn on for the school")}
             </Button>
           )}
         </div>
       </Card>
 
       <Card className="space-y-3">
-        <h2 className="text-lg font-semibold text-fg">Branches</h2>
+        <h2 className="text-lg font-semibold text-fg">{copy.branchesTitle ?? "Branches"}</h2>
         <ul className="space-y-2">
           {view.branches.map((branch) => {
             const decidedBySchool = !schoolOn;

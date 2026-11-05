@@ -32,6 +32,8 @@ export type EventInput = {
   studentId?: string | null;
   staffRecordId?: string | null;
   membershipId?: string | null;
+  /// A person of a program who has no school record (subject PARTICIPANT).
+  participantId?: string | null;
   userId?: string | null;
   branchId: string;
   action: StandingAction;
@@ -54,6 +56,7 @@ export async function writeEvent(
       studentId: event.studentId ?? null,
       staffRecordId: event.staffRecordId ?? null,
       membershipId: event.membershipId ?? null,
+      participantId: event.participantId ?? null,
       userId: event.userId ?? null,
       branchId: event.branchId,
       action: EVENT_ACTION[event.action],

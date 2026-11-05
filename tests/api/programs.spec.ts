@@ -211,7 +211,7 @@ test.describe("who sees which program", () => {
     const id = await makeProgram();
     const p = await detail(id, adminA);
     expect(p.access).toBe("BRANCH");
-    expect(p.can).toEqual({ editDetails: false, editStructure: false, administer: false, restore: false });
+    expect(p.can).toEqual({ editDetails: false, editStructure: false, administer: false, restore: false, people: true, settings: false });
     expect(p.audit).toBeNull();
     for (const res of [
       await send("PATCH", `${PROGRAMS}/${id}`, adminA, { name: "Hijacked" }),
@@ -236,7 +236,7 @@ test.describe("program admins", () => {
     expect((await name(id, teacherA)).status).toBe(201);
     const p = await detail(id, teacherA);
     expect(p.access).toBe("ADMIN");
-    expect(p.can).toEqual({ editDetails: true, editStructure: true, administer: false, restore: false });
+    expect(p.can).toEqual({ editDetails: true, editStructure: true, administer: false, restore: false, people: true, settings: true });
     expect((await get(PROGRAMS, teacherA)).json.data.programs.map((x: { id: string }) => x.id)).toEqual([id]);
     // may change the structure and details ...
     expect((await send("PATCH", `${PROGRAMS}/${id}`, teacherA, { name: "Renamed by the program admin" })).status).toBe(200);
@@ -421,7 +421,14 @@ test.describe("the lifecycle", () => {
     ]) {
       expect(res.status, res.text).toBe(409);
     }
-    expect((await detail(id)).can).toEqual({ editDetails: false, editStructure: false, administer: false, restore: true });
+    expect((await detail(id)).can).toEqual({
+      editDetails: false,
+      editStructure: false,
+      administer: false,
+      restore: true,
+      people: false,
+      settings: false,
+    });
     expect((await status(sa, "restore")).status).toBe(200);
     expect((await detail(id)).status).toBe("DRAFT");
     expect(await db.program.findUniqueOrThrow({ where: { id } }).then((p) => p.archivedAt)).toBeNull();
