@@ -56,6 +56,12 @@ const ACTION_TEXT: Record<string, string> = {
   GROUP_RESTORED: "restored a group",
   ADMIN_NAMED: "named a program admin",
   ADMIN_ENDED: "ended a program admin's place",
+  STAFF_NAMED: "named a member of the program's staff",
+  STAFF_ENDED: "ended a place in the program's staff",
+  STAFF_GROUPS_CHANGED: "changed the groups someone takes attendance for",
+  ATTENDANCE_TAKEN: "took attendance",
+  ATTENDANCE_CORRECTED: "corrected attendance",
+  PROGRAM_SETTINGS_CHANGED: "changed the program's settings",
 };
 
 export const historyText = (action: string): string => ACTION_TEXT[action] ?? action.toLowerCase().replace(/_/g, " ");

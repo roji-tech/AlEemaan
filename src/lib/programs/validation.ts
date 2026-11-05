@@ -111,6 +111,15 @@ export const updateGroupSchema = z
   ])
   .describe("exactly one of: a new name, a move, or archived true/false");
 
-export const nameAdminSchema = z.object({ userId: id("The person"), branchId: id("The branch") }).strict();
+/// `role` defaults to ADMIN (what the first slice did); only a super admin may name an ADMIN.
+export const nameStaffSchema = z
+  .object({
+    userId: id("The person"),
+    branchId: id("The branch"),
+    role: z.enum(["ADMIN", "SUPERVISOR", "TEACHER", "RECORDER"]).default("ADMIN"),
+  })
+  .strict();
+export const staffGroupsSchema = z.object({ groupIds: z.array(id("A group")).max(200) }).strict();
+export const staffCandidatesQuery = z.object({ role: z.enum(["ADMIN", "SUPERVISOR", "TEACHER", "RECORDER"]).default("ADMIN") });
 
 export { switchSettingSchema as programsSettingSchema } from "@/lib/settings/switch-schema";

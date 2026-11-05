@@ -281,7 +281,11 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
   "DELETE v1/programs/[id]/branches/[branchId]/route.ts":
     "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
+  "GET v1/programs/[id]/people/route.ts":
+    "the branch is the PROGRAM's and the PERSON's, never the request's: the service reads the viewer's place in the program (a super admin, a program admin, or an administrator of a branch it runs in), and a branch administrator is limited to the people through their own branches; a person or program outside that reach is the same 404 as one that does not exist",
   "GET v1/settings/programs/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-attendance/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/standing/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
@@ -523,7 +527,11 @@ const NOT_WRAPPED: Record<string, string> = {
     "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
   "DELETE v1/programs/[id]/branches/[branchId]/route.ts":
     "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
+  "GET v1/programs/[id]/people/route.ts":
+    "the branch is the PROGRAM's and the PERSON's, never the request's: the service reads the viewer's place in the program (a super admin, a program admin, or an administrator of a branch it runs in), and a branch administrator is limited to the people through their own branches; a person or program outside that reach is the same 404 as one that does not exist",
   "GET v1/settings/programs/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-attendance/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/standing/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",

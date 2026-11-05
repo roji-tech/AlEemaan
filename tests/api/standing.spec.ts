@@ -461,9 +461,9 @@ test.describe("a member of staff", () => {
       statuses.filter((status) => status === 200),
       results.map((r) => r.text).join(" | "),
     ).toHaveLength(1);
-    // The other one was refused: either by the guard (409 LAST_SUPERADMIN) or, when it arrived after the first had been signed out, because it is no longer a super admin (401/403).
+    // The other one was refused: either by the guard (409 LAST_SUPERADMIN) or, when it arrived after the first had suspended them, because they are no longer a super admin (401, 403, or 404: the person is no longer one this caller administers).
     const refused = results.find((r) => r.status !== 200)!;
-    expect([401, 403, 409]).toContain(refused.status);
+    expect([401, 403, 404, 409]).toContain(refused.status);
     if (refused.status === 409) expect(refused.json.error.code).toBe("LAST_SUPERADMIN");
     const standings = [
       (await membershipOf(first.id, firstMember.branchId)).standing,

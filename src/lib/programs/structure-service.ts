@@ -150,6 +150,24 @@ export async function updateGroup(
       if (group.archivedAt) return done({ id: group.id });
       const inside = await tx.programGroup.count({ where: { programId: program.id, parentId: group.id, archivedAt: null } });
       if (inside > 0) return refuse(409, "HAS_GROUPS", "This group has groups inside it. Archive those first.");
+      // A group with people in it (their place is still open) is not archived: "move or withdraw them first". Groups inside it are archived by now, so these are its own.
+      const people = await tx.programParticipant.count({ where: { programId: program.id, groupId: group.id, status: "ACTIVE" } });
+      if (people > 0)
+        return refuse(
+          409,
+          "HAS_PEOPLE",
+          `${people} ${people === 1 ? "person is" : "people are"} in this group. Move or withdraw them first.`,
+        );
+      // A teacher or a recorder assigned to the group keeps the assignment only while the group is live: "remove the assignment first" (only places that are still open count).
+      const assigned = await tx.programStaffGroup.count({
+        where: { programId: program.id, groupId: group.id, staff: { status: "ACTIVE" } },
+      });
+      if (assigned > 0)
+        return refuse(
+          409,
+          "HAS_STAFF",
+          `${assigned} ${assigned === 1 ? "teacher or recorder is" : "teachers or recorders are"} assigned to this group. Remove the assignment first.`,
+        );
       await tx.programGroup.update({ where: { id: group.id }, data: { archivedAt: new Date() } });
       await writeAudit(tx, {
         programId: program.id,

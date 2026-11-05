@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { canManage, levelsOf, viewerOf, type ProgramViewer } from "./access";
 import { NOT_FOUND, change, done, refuse, schoolEnabled, writeAudit, type Result } from "./common";
 import { branchesTakingPart } from "./settings-service";
+import { mayReadGroup } from "./attendance-rules";
+import { accessOf, attendanceStateOf } from "./attendance-service";
+import { peopleByGroup } from "./people-service";
 import { endDateFor, groupPath, isEditableStatus, parseIsoDate, statusAfter, toIsoDate, type StatusAction } from "./rules";
 import type { CreateProgramInput, UpdateProgramInput } from "./validation";
 
@@ -29,7 +32,7 @@ export async function listPrograms(userId: string): Promise<{ enabled: boolean; 
   // With programs switched off the school's super admin can still read what exists; nobody else is shown anything.
   if (!enabled && !levels.superAdmin) return { enabled, programs: [] };
   const rows = await prisma.program.findMany({
-    where: levels.superAdmin ? {} : { id: { in: [...levels.admin, ...levels.branch] } },
+    where: levels.superAdmin ? {} : { id: { in: [...levels.admin, ...levels.branch, ...levels.staff] } },
     orderBy: [{ name: "asc" }],
     include: {
       branches: { include: { branch: { select: { id: true, name: true } } }, orderBy: { branch: { name: "asc" } } },
@@ -47,7 +50,7 @@ export async function listPrograms(userId: string): Promise<{ enabled: boolean; 
       status: row.status,
       startsOn: dateOrNull(row.startsOn),
       endsOn: dateOrNull(row.endsOn),
-      access: levels.superAdmin ? "SUPER" : levels.admin.has(row.id) ? "ADMIN" : "BRANCH",
+      access: levels.superAdmin ? "SUPER" : levels.admin.has(row.id) ? "ADMIN" : levels.branch.has(row.id) ? "BRANCH" : "STAFF",
       branches: row.branches.map((link) => link.branch),
       groupCount: row._count.groups,
     })),
@@ -66,13 +69,46 @@ export type ProgramDetail = {
   createdAt: string;
   access: ProgramViewer["level"];
   /// What this person may do here, decided on the server (a button is shown from this and every action checks again).
-  can: { editDetails: boolean; editStructure: boolean; administer: boolean; restore: boolean };
+  can: { editDetails: boolean; editStructure: boolean; administer: boolean; restore: boolean; people: boolean; settings: boolean };
+  /// The branches whose people this viewer may add and manage: every branch of the program for a super admin and a program admin, their own for a branch administrator.
+  manageBranchIds: string[];
+  /// Attendance (slice P3): whether it is on for this program and who decided if not, the program's own switch and threshold, the groups this person may read the roll of, and the
+  /// groups they may mark. A courtesy for the screens: every route checks again.
+  attendance: {
+    on: boolean;
+    offBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
+    branchesOff: { id: string; name: string }[];
+    enabled: boolean;
+    lowPercent: number;
+    readGroupIds: string[];
+    markGroupIds: string[];
+  };
   /// Programs are switched off for the school: the program is read only.
   switchedOff: boolean;
   branches: { id: string; name: string; own: boolean; takingPart: boolean }[];
   levelLabels: string[];
-  groups: { id: string; parentId: string | null; levelIndex: number; name: string; sortOrder: number; archived: boolean; path: string }[];
-  staff: { id: string; userId: string; name: string; email: string | null; branchId: string; branchName: string; role: string }[];
+  /// `people`: the places still open in the group and in the groups inside it, among the people this viewer may see (slice P2).
+  groups: {
+    id: string;
+    parentId: string | null;
+    levelIndex: number;
+    name: string;
+    sortOrder: number;
+    archived: boolean;
+    path: string;
+    people: number;
+  }[];
+  /// `groupIds`: for a teacher or a recorder, the groups they are assigned to (empty for the other roles).
+  staff: {
+    id: string;
+    userId: string;
+    name: string;
+    email: string | null;
+    branchId: string;
+    branchName: string;
+    role: string;
+    groupIds: string[];
+  }[];
   /// The latest entries, for the people who may manage the program.
   audit: { id: string; action: string; targetType: string; actor: string; at: string; reason: string | null }[] | null;
 };
@@ -90,7 +126,10 @@ export async function getProgram(userId: string, programId: string): Promise<Res
       groups: { orderBy: [{ levelIndex: "asc" }, { sortOrder: "asc" }, { name: "asc" }] },
       staff: {
         where: { status: ProgramStaffStatus.ACTIVE },
-        include: { membership: { include: { user: { select: { name: true, email: true } }, branch: { select: { name: true } } } } },
+        include: {
+          membership: { include: { user: { select: { name: true, email: true } }, branch: { select: { name: true } } } },
+          groups: { select: { groupId: true } },
+        },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -102,6 +141,12 @@ export async function getProgram(userId: string, programId: string): Promise<Res
   const taking = await branchesTakingPart(program.branches.map((link) => link.branchId));
   const editable = manage && !switchedOff && isEditableStatus(program.status);
   const nodes = program.groups.map((group) => ({ id: group.id, parentId: group.parentId, name: group.name }));
+  const headCounts = await peopleByGroup(viewer, programId, nodes);
+  const [attendance, access] = await Promise.all([
+    attendanceStateOf(programId, program.attendanceEnabled),
+    accessOf(userId, programId, viewer),
+  ]);
+  const liveGroups = program.groups.filter((group) => group.archivedAt === null).map((group) => group.id);
 
   let audit: ProgramDetail["audit"] = null;
   if (manage) {
@@ -137,6 +182,19 @@ export async function getProgram(userId: string, programId: string): Promise<Res
       editStructure: editable,
       administer: viewer.level === "SUPER" && !switchedOff && isEditableStatus(program.status),
       restore: viewer.level === "SUPER" && !switchedOff && program.status === ProgramStatus.ARCHIVED,
+      people: viewer.level !== "STAFF" && !switchedOff && isEditableStatus(program.status),
+      settings: editable,
+    },
+    manageBranchIds:
+      viewer.level === "STAFF" ? [] : viewer.level === "BRANCH" ? viewer.branchIds : program.branches.map((link) => link.branchId),
+    attendance: {
+      on: attendance.on,
+      offBy: attendance.offBy,
+      branchesOff: attendance.branchesOff,
+      enabled: program.attendanceEnabled,
+      lowPercent: program.lowAttendancePercent,
+      readGroupIds: liveGroups.filter((id) => mayReadGroup(access, id)),
+      markGroupIds: liveGroups.filter((id) => access.markAll || access.groups.has(id)),
     },
     switchedOff,
     branches: program.branches
@@ -156,6 +214,7 @@ export async function getProgram(userId: string, programId: string): Promise<Res
       sortOrder: group.sortOrder,
       archived: group.archivedAt !== null,
       path: groupPath(nodes, group.id),
+      people: headCounts[group.id] ?? 0,
     })),
     // A branch administrator reads the structure and who runs the program, without the e-mail addresses of staff of other branches.
     staff: program.staff.map((place) => ({
@@ -166,6 +225,7 @@ export async function getProgram(userId: string, programId: string): Promise<Res
       branchId: place.branchId,
       branchName: place.membership.branch.name,
       role: place.role,
+      groupIds: place.groups.map((row) => row.groupId),
     })),
     audit,
   });
@@ -391,6 +451,13 @@ export async function unlinkBranch(actorUserId: string, programId: string, branc
       return refuse(409, "LAST_BRANCH", "A program must run in at least one branch.");
     const serving = await tx.programStaff.count({ where: { programId: program.id, branchId, status: ProgramStaffStatus.ACTIVE } });
     if (serving > 0) return refuse(409, "BRANCH_IN_USE", "End the program admins who serve through this branch first.");
+    // People are in the program THROUGH a branch (the database's foreign key refuses the removal too): a person who has left still counts, because their history stays with it.
+    if ((await tx.programParticipant.count({ where: { programId: program.id, branchId } })) > 0)
+      return refuse(
+        409,
+        "BRANCH_HAS_PEOPLE",
+        "People are, or were, in the program through this branch, so it can't be removed. Their history stays with it.",
+      );
     await tx.programBranch.delete({ where: { programId_branchId: { programId: program.id, branchId } } });
     await writeAudit(tx, {
       programId: program.id,

@@ -48,6 +48,7 @@ export function ProgramStructure({ program, run }: { program: ProgramDetail; run
             <span className="text-fg-muted">
               · {labels[node.levelIndex] ?? "Level"}
               {node.archived ? " · archived" : ""}
+              {!node.archived && node.people > 0 ? ` · ${node.people} ${node.people === 1 ? "person" : "people"}` : ""}
             </span>
           </p>
           {edit && (
