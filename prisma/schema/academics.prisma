@@ -326,6 +326,7 @@ model StaffRecord {
   assignments      StaffSubjectAssignment[]
   teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
   attendanceGrants AttendanceGrant[]
+  programPlaces    ProgramParticipant[]
   timetableSlots   TimetableSlot[]
   createdAssignments Assignment[]
   gradedSubmissions  AssignmentSubmission[]

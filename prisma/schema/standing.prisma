@@ -14,6 +14,8 @@ enum StandingState {
 enum StandingSubject {
   STUDENT
   STAFF
+  /// A person in a program who has no school record (task 0043, slice P2).
+  PARTICIPANT
 }
 
 enum StandingEventAction {
@@ -37,6 +39,8 @@ model StandingEvent {
   studentId       String?
   staffRecordId   String?
   membershipId    String?
+  /// A standalone person of a program (subject PARTICIPANT); no foreign key, like the other ids.
+  participantId   String?
   /// The person's account, for a member of staff who has one.
   userId          String?
   branchId        String
@@ -52,5 +56,6 @@ model StandingEvent {
   @@index([studentId, createdAt])
   @@index([staffRecordId, createdAt])
   @@index([membershipId, createdAt])
+  @@index([participantId, createdAt])
   @@index([branchId, createdAt])
 }

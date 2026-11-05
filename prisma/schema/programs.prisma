@@ -42,6 +42,9 @@ model Program {
   /// Plain id of the super admin who created it (like AuditLog.actorUserId: the history must outlive the account).
   createdByUserId String
   archivedAt      DateTime?
+  /// Slice P3: the program's own switch for attendance (the school's and the branch's are the ceiling: effective = all three) and the percentage below which a person is flagged.
+  attendanceEnabled    Boolean @default(true)
+  lowAttendancePercent Int     @default(75)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
 
@@ -51,6 +54,7 @@ model Program {
   groups      ProgramGroup[]
   staff       ProgramStaff[]
   audits      ProgramAudit[]
+  participants ProgramParticipant[]
 
   @@index([status])
 }
@@ -63,6 +67,8 @@ model ProgramBranch {
 
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
   branch  Branch  @relation("ProgramBranches", fields: [branchId], references: [id], onDelete: Cascade)
+  /// People in the program through this branch: the branch cannot be unlinked while there are any (the foreign key refuses it).
+  participants ProgramParticipant[]
 
   @@id([programId, branchId])
   @@index([branchId])
@@ -96,7 +102,12 @@ model ProgramGroup {
   program  Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
   parent   ProgramGroup?  @relation("ProgramGroupTree", fields: [parentId], references: [id], onDelete: NoAction)
   children ProgramGroup[] @relation("ProgramGroupTree")
+  participants ProgramParticipant[]
+  staffGroups  ProgramStaffGroup[]
+  sessions     ProgramSession[]
 
+  /// Lets a participant name a group of its own program with a composite key.
+  @@unique([programId, id])
   @@index([programId, parentId])
 }
 
@@ -114,10 +125,14 @@ model ProgramStaff {
   endedAt         DateTime?
 
   program    Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  /// The groups a TEACHER or a RECORDER is assigned to (slice P3); an assignment covers the groups inside it.
+  groups     ProgramStaffGroup[]
   /// The person must be a member of that branch (composite key, like StaffRecord): the database refuses a program admin who holds no membership there.
   membership Membership @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: Cascade)
 
   @@unique([programId, userId, role])
+  /// Lets a table name a staff place of its own program with a composite key.
+  @@unique([programId, id])
   @@index([userId, status])
   @@index([programId, status])
 }
@@ -138,4 +153,152 @@ model ProgramAudit {
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@index([programId, createdAt])
+}
+
+// --- Programs, slice P2: people (task 0043, section 9) ---
+
+enum ParticipantKind {
+  /// A pupil of the school, LINKED (their details are read from the StudentRecord every time).
+  STUDENT
+  /// A member of staff taking part (not teaching: that is ProgramStaff), LINKED to the StaffRecord.
+  STAFF
+  GUARDIAN
+  ADULT
+  CHILD
+}
+
+enum ProgramPlaceStatus {
+  ACTIVE
+  WITHDRAWN
+  /// Set only by slice P5.
+  COMPLETED
+}
+
+/// A person in a program, and their ONE place in it (one live place, in one group, through one branch; leaving and coming back re-opens the same row, so attendance, scores and
+/// progress records keep one continuous history). A pupil or a member of staff is LINKED to the school's record and keeps no details here; anyone else is typed in. The state of the
+/// place (suspended, expelled, ended by the school...) is READ from the school's own records and never stored. Never hard-deleted: withdrawing ends the place.
+model ProgramParticipant {
+  id            String             @id @default(cuid())
+  programId     String
+  kind          ParticipantKind
+  studentId     String?
+  staffRecordId String?
+  /// The details below are for a person typed in (GUARDIAN, ADULT, CHILD) and are null for a linked one (a check constraint in the migration).
+  firstName     String?
+  lastName      String?
+  gender        Gender?
+  dateOfBirth   DateTime?          @db.Date
+  phone         String?
+  email         String?
+  guardianName  String?
+  guardianPhone String?
+  groupId       String
+  /// The branch the person is in the program THROUGH: the record's own branch for a linked person (the composite keys make the database refuse any other), chosen for the rest.
+  branchId      String
+  status        ProgramPlaceStatus @default(ACTIVE)
+  joinedOn      DateTime           @db.Date
+  endedOn       DateTime?          @db.Date
+  endedReason   String?
+  /// Counts only for a person typed in: a linked person's standing lives on the school's record. Same enum and rules as a pupil (ACTIVE, SUSPENDED, EXPELLED).
+  standing      StandingState      @default(ACTIVE)
+  standingUntil DateTime?          @db.Date
+  createdByUserId String
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @default(now()) @updatedAt
+
+  program     Program       @relation(fields: [programId], references: [id], onDelete: Cascade)
+  group       ProgramGroup  @relation(fields: [programId, groupId], references: [programId, id], onDelete: Restrict)
+  link        ProgramBranch @relation(fields: [programId, branchId], references: [programId, branchId], onDelete: Restrict)
+  student     StudentRecord? @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Restrict)
+  staffRecord StaffRecord?   @relation(fields: [branchId, staffRecordId], references: [branchId, id], onDelete: Restrict)
+
+  attendance  ProgramAttendance[]
+
+  @@unique([programId, studentId])
+  @@unique([programId, staffRecordId])
+  /// Lets attendance name a participant of its own program with a composite key.
+  @@unique([programId, id])
+  @@index([programId, status])
+  @@index([programId, groupId])
+  @@index([programId, branchId])
+  @@index([studentId])
+  @@index([staffRecordId])
+}
+
+// --- Programs, slice P3: staff in groups and attendance (task 0043, section 10) ---
+
+/// The groups a TEACHER or a RECORDER of a program is assigned to. An assignment covers the groups inside it. Only those two roles use it (the service says so); a SUPERVISOR and an
+/// ADMIN reach every group.
+model ProgramStaffGroup {
+  programStaffId  String
+  groupId         String
+  programId       String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  staff ProgramStaff @relation(fields: [programId, programStaffId], references: [programId, id], onDelete: Cascade)
+  group ProgramGroup @relation(fields: [programId, groupId], references: [programId, id], onDelete: Restrict)
+
+  @@id([programStaffId, groupId])
+  @@index([groupId])
+}
+
+/// One sitting of a group on a day ("Morning", "After Asr": the label tells two apart). Opened on demand by the first person who takes the roll, so no job runs and no empty sessions
+/// pile up. Never deleted.
+model ProgramSession {
+  id              String   @id @default(cuid())
+  programId       String
+  groupId         String
+  date            DateTime @db.Date
+  /// Up to 40 characters, trimmed; an empty label is a value like any other.
+  label           String   @default("")
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  group      ProgramGroup        @relation(fields: [programId, groupId], references: [programId, id], onDelete: Restrict)
+  attendance ProgramAttendance[]
+
+  @@unique([programId, groupId, date, label])
+  @@index([programId, date])
+}
+
+/// One participant's mark for one session. A stale `version` on a save is refused, so two markers cannot overwrite each other.
+model ProgramAttendance {
+  id             String           @id @default(cuid())
+  sessionId      String
+  programId      String
+  participantId  String
+  /// The branch of the place when the mark was made (a branch administrator reads only their own people's marks).
+  branchId       String
+  status         AttendanceStatus
+  remarks        String?
+  markedByUserId String
+  markedAt       DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
+  version        Int              @default(1)
+
+  session     ProgramSession     @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  participant ProgramParticipant @relation(fields: [programId, participantId], references: [programId, id], onDelete: Restrict)
+
+  @@unique([sessionId, participantId])
+  @@index([programId, participantId])
+  @@index([programId, branchId])
+}
+
+/// Every change of a mark after the first, append-only (a trigger in the migration refuses every UPDATE and DELETE). No foreign keys on purpose: the history outlives what it is about.
+model ProgramAttendanceChange {
+  id              String           @id @default(cuid())
+  programId       String
+  sessionId       String
+  participantId   String
+  beforeStatus    AttendanceStatus
+  afterStatus     AttendanceStatus
+  beforeRemarks   String?
+  afterRemarks    String?
+  reason          String?
+  changedByUserId String
+  createdAt       DateTime         @default(now())
+
+  @@index([programId, sessionId])
+  @@index([participantId, createdAt])
 }
