@@ -10,6 +10,8 @@ import { Alert } from "@/components/ui/Alert";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
 import { PortalAccessPanel } from "@/components/settings/PortalAccessPanel";
+import { ProgramsSettingsPanel } from "@/components/programs/ProgramsSettingsPanel";
+import { StandingSettingsPanel } from "@/components/standing/StandingSettingsPanel";
 import { ResultsApprovalPanel } from "@/components/settings/ResultsApprovalPanel";
 
 type SchoolSettingsState = {
@@ -49,7 +51,7 @@ type Props = {
 };
 
 export function SettingsView({ initialSettings, branches, initialSessions, hasMfa }: Props) {
-  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval" | "programs" | "discipline">("profile");
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
@@ -139,7 +141,7 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
       <PageHeader title="Settings" description="Configure institution profile, contact details, and branch academic sessions." />
 
       {/* Tabs */}
-      <div className="flex border-b border-line">
+      <div className="flex overflow-x-auto border-b border-line">
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
@@ -176,10 +178,34 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
         >
           Results approval
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("programs")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+            activeTab === "programs" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Programs
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("discipline")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+            activeTab === "discipline" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Discipline
+        </button>
       </div>
 
       {/* Tab 3: what a pupil and a guardian may do in the portal */}
       {activeTab === "portal" && <PortalAccessPanel branches={branches} />}
+
+      {/* Tab 5: the programs switch (task 0043) */}
+      {activeTab === "programs" && <ProgramsSettingsPanel />}
+
+      {/* Tab 6: may branch administrators suspend (task 0045) */}
+      {activeTab === "discipline" && <StandingSettingsPanel />}
 
       {/* Tab 4: who approves results, and where (task 0039) */}
       {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}

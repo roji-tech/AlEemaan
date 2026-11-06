@@ -50,7 +50,7 @@ export const POST = withAuth(
       return ok(payment, {}, 201);
     } catch (error) {
       if (error instanceof FinanceError) {
-        return fail(error.message, 400, "FINANCE_ERROR");
+        return fail(error.message, 400, error.code ?? "FINANCE_ERROR");
       }
       console.error("[INVOICE_RECORD_PAYMENT_ERROR]", error);
       return fail("Failed to record manual payment", 500, "INTERNAL");

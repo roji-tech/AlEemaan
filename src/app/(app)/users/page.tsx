@@ -6,6 +6,7 @@ import { adminScope } from "@/lib/auth/branch-access";
 import { hasActiveMfa } from "@/lib/auth/mfa/service";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { UsersPanel } from "@/components/users/UsersPanel";
+import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
 
 export const metadata: Metadata = { title: "Users" };
 export const dynamic = "force-dynamic";
@@ -43,6 +44,16 @@ export default async function UsersPage() {
     select: { id: true, name: true },
   });
 
+  // What this person may do about a member's standing in each branch (display only; the API decides): a super admin everything, an administrator suspend and lift while the school
+  // allows it, never terminate.
+  const standingCan = Object.fromEntries(
+    await Promise.all(
+      branches.map(
+        async (b) => [b.id, { suspend: scope.superAdmin || (await branchAdminMaySuspend(b.id)), remove: scope.superAdmin }] as const,
+      ),
+    ),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -51,6 +62,7 @@ export default async function UsersPage() {
       />
       <UsersPanel
         branches={branches}
+        standingCan={standingCan}
         currentUserId={session.userId}
         isSuperAdmin={isSuperAdmin}
         hasMfa={isSuperAdmin && (await hasActiveMfa(session.userId))}

@@ -1,13 +1,11 @@
 /**
- * Rushing Human Pacing Configuration
+ * Pacing for the continuous product walkthrough.
  *
- * Natural, fast, watchable timing for full continuous product walkthroughs.
- * Ensures multi-hundred step tours finish in 15-20 minutes without looking robotic.
+ * The pauses around a click (glide, hover, settle, dwell) can be shortened with WALKTHROUGH_SPEED_SCALE for a recon run. Typing cannot: a person types at 50 to 120 ms a key, and a
+ * video that types faster is not showing what a person would do. The scale never touches key delays.
  */
 
 export interface PaceConfig {
-  /** Sequential character entry delay in milliseconds (~40-50 chars/sec) */
-  typeDelay: number;
   /** Number of interpolation steps between current cursor position and target */
   glideSteps: number;
   /** Pause in ms upon hovering target before initiating mouse click */
@@ -20,10 +18,20 @@ export interface PaceConfig {
   dwell: number;
 }
 
+/** A person's gap between two key presses, in milliseconds. */
+export const KEY_DELAY_MIN_MS = 50;
+export const KEY_DELAY_MAX_MS = 120;
+
+/** `random` is injectable so that the bounds can be tested exactly. */
+export const keyDelay = (random: () => number = Math.random): number =>
+  KEY_DELAY_MIN_MS + Math.floor(random() * (KEY_DELAY_MAX_MS - KEY_DELAY_MIN_MS + 1));
+
+/** The most typing a whole pass may contain, in minutes. Fixture text is kept short to stay inside it. */
+export const TYPING_BUDGET_MINUTES = 12;
+
 const scale = Number(process.env.WALKTHROUGH_SPEED_SCALE ?? "1") || 1;
 
 export const pace: PaceConfig = {
-  typeDelay: Math.max(10, Math.round(25 * scale)),
   glideSteps: Math.max(4, Math.round(10 * scale)),
   beforeClick: Math.max(40, Math.round(120 * scale)),
   afterClick: Math.max(50, Math.round(180 * scale)),

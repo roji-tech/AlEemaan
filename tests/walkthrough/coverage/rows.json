@@ -1,0 +1,5049 @@
+[
+  {
+    "id": "RTE-01",
+    "area": "Start",
+    "feature": "The site address on an empty instance sends a visitor to the setup wizard",
+    "route": "/",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "The first and only page load of the recording: the address lands on First-run setup",
+    "source": [
+      "src/app/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RTE-02",
+    "area": "Start",
+    "feature": "The site address on a set-up instance sends a visitor to sign-in, and a signed-in person to the overview",
+    "route": "/",
+    "roles": [
+      "Visitor",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "In a new tab, type the site address once (one goto for that tab): signed out lands on sign-in; signed in lands on the overview",
+    "source": [
+      "src/app/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "SET-01",
+    "area": "Setup",
+    "feature": "First-run setup creates the superadministrator",
+    "route": "/setup",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Type name, email, setup token, password and its confirmation with key presses; press Initialize; see 'Setup complete'",
+    "source": [
+      "src/app/setup/SetupWizardForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SET-02",
+    "area": "Setup",
+    "feature": "Setup cannot be run a second time",
+    "route": "/setup",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "After 'Setup complete', press the browser Back button: the form is not offered again, and a sentence says why",
+    "source": [
+      "src/app/setup/SetupWizardForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SET-03",
+    "area": "Setup",
+    "feature": "A wrong or missing setup token is refused with a sentence",
+    "route": "/setup",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Submit with a wrong token: the page says the token is invalid (no status code), nothing is created",
+    "source": [
+      "src/app/setup/SetupWizardForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-01",
+    "area": "Sign-in",
+    "feature": "Sign in with email and password, optionally staying signed in",
+    "route": "/login",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Type email and password, tick 'Keep me signed in on this device', press Sign in; land on the overview",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-02",
+    "area": "Sign-in",
+    "feature": "A wrong password is refused with a sentence, and repeated failures are paused",
+    "route": "/login",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong password: a sentence, not a status code; after repeated tries, 'Too many unsuccessful attempts. Please wait a moment'",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-03",
+    "area": "Sign-in",
+    "feature": "Two-step sign-in with the authenticator code, and with a recovery code",
+    "route": "/login",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Sign in on an account with two-step on; read the secret from the Account screen earlier, type the computed code; later sign in again with a recovery code",
+    "source": [
+      "src/app/login/LoginForm.tsx",
+      "src/components/auth/MfaStep.tsx",
+      "src/components/auth/SecondFactorField.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-04",
+    "area": "Sign-in",
+    "feature": "Sign out through the account menu",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Open the account menu, press Sign out; land on the sign-in page",
+    "source": [
+      "src/components/shell/ProfileMenu.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LOG-05",
+    "area": "Sign-in",
+    "feature": "After signing out, the Back button does not show school pages",
+    "route": "/login",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Sign out, press Back: the sign-in page (or a sign-in prompt) is shown, never the dashboard content",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRG-01",
+    "area": "Recovery",
+    "feature": "Ask for a password reset link",
+    "route": "/forgot-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "From the sign-in page press 'Forgot password?', type the email, press send; see 'Check your email'",
+    "source": [
+      "src/components/auth/ForgotPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRG-02",
+    "area": "Recovery",
+    "feature": "The reset request does not reveal whether an account exists",
+    "route": "/forgot-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Ask for a link for an address with no account: the same 'If an account exists for...' sentence appears",
+    "source": [
+      "src/components/auth/ForgotPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RST-01",
+    "area": "Recovery",
+    "feature": "Choose a new password from the emailed link",
+    "route": "/reset-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open the message in the dev inbox, click the link, type a new password twice; see 'Password updated'; sign in with it",
+    "source": [
+      "src/components/auth/ResetPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RST-02",
+    "area": "Recovery",
+    "feature": "The same reset link cannot be used twice",
+    "route": "/reset-password",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Click the same link in the inbox again: a sentence offers 'Request a new link'",
+    "source": [
+      "src/components/auth/ResetPasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "INV-01",
+    "area": "Invitations",
+    "feature": "Accept an invitation: set a name and password",
+    "route": "/accept-invite",
+    "roles": [
+      "Teacher",
+      "Branch administrator",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Open the invitation message in the dev inbox, click the link, type name and password twice; land signed in",
+    "source": [
+      "src/components/auth/AcceptInviteForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "INV-02",
+    "area": "Invitations",
+    "feature": "An invitation link that was already used, or revoked, is refused with a sentence",
+    "route": "/accept-invite",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Click the same invitation link again, and a revoked one: 'Ask your school administrator to send a new invitation.'",
+    "source": [
+      "src/components/auth/AcceptInviteForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "INV-03",
+    "area": "Invitations",
+    "feature": "An invitation opened while signed in as someone else asks whether to sign out",
+    "route": "/accept-invite",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "While signed in, click an invitation meant for another address: 'This invitation is for a different account' with Sign out",
+    "source": [
+      "src/components/auth/AcceptInviteForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "CNF-01",
+    "area": "Account",
+    "feature": "Confirm a new email address from the emailed link",
+    "route": "/confirm-email",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "After asking for a change on the Account page, click the link in the dev inbox; see 'Email address changed'; sign in with the new address",
+    "source": [
+      "src/components/auth/ConfirmEmailForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "OFF-01",
+    "area": "Offline",
+    "feature": "The offline page",
+    "route": "/offline",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Signed in, switch the network off the way a person would (airplane mode), press a link to a page that was not loaded: the offline page says so in a sentence; switch it back on and press Try again; the page loads. The harness's one named exception, walk.goOffline()/goOnline(), and the caption says what is being done",
+    "source": [
+      "src/app/offline/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "VID-01",
+    "area": "Video guide",
+    "feature": "The video guide page plays the walkthrough with chapters and downloads",
+    "route": "/video-guide",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Reach the page by a link, play the video, jump to a chapter, open the PDF and caption downloads. Nothing in the app links to this page (see findings): the row stays planned until it has a link or the maintainer decides",
+    "source": [
+      "src/app/video-guide/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "VER-01",
+    "area": "Verification",
+    "feature": "A published report card is verified on a public page by its link",
+    "route": "/verify/[token]",
+    "roles": [
+      "Visitor",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "From a report card press 'Verify these results': the public page shows the school, pupil, term and that it is genuine",
+    "source": [
+      "src/app/verify/[token]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "VER-02",
+    "area": "Verification",
+    "feature": "A made-up verification token is 'not found', in a sentence, with no internal detail",
+    "route": "/verify/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Open a fresh tab and type a made-up verification address (one goto for that tab, labelled as a typed address in the PDF)",
+    "source": [
+      "src/app/verify/[token]/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "SHL-01",
+    "area": "Shell",
+    "feature": "Sidebar navigation reaches every entry the role may use",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Click each sidebar entry in turn: Superadmin 16, administrator 13, teacher 9, non-teaching staff 2; each lands on its page with the right heading and crumb",
+    "source": [
+      "src/components/shell/AppShell.tsx",
+      "src/components/shell/SidebarNav.tsx",
+      "src/components/shell/SidebarFrame.tsx",
+      "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-02",
+    "area": "Shell",
+    "feature": "Entries a role may not use are absent from its navigation",
+    "route": "/dashboard",
+    "roles": [
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "Look at the sidebar of an administrator (no Branches, Settings), a teacher (no Academics, Communication, Finance, Approvals, Users) and non-teaching staff (Overview and Announcements only)",
+    "source": [
+      "src/components/shell/AppShell.tsx",
+      "src/components/shell/SidebarNav.tsx",
+      "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-03",
+    "area": "Shell",
+    "feature": "Phone navigation: the bottom bar and the More sheet",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "At phone width press More, choose an entry that lives in the sheet; the same pages as the sidebar are reached",
+    "source": [
+      "src/components/shell/MobileNav.tsx"
+    ],
+    "status": "planned",
+    "passes": [
+      "phone"
+    ]
+  },
+  {
+    "id": "SHL-04",
+    "area": "Shell",
+    "feature": "Switch between light and dark theme",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press the theme toggle: the page changes theme and the choice is still there after going to another page and back",
+    "source": [
+      "src/components/ui/ThemeToggle.tsx",
+      "src/components/ui/ThemeProvider.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-05",
+    "area": "Shell",
+    "feature": "Quick Tools drawer: calculator, notes, student lookup",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press the Quick Tools button (or Cmd+K), use the calculator, write a note, look a student up, close the drawer",
+    "source": [
+      "src/components/tools/QuickToolsDrawer.tsx",
+      "src/components/tools/QuickToolsTrigger.tsx",
+      "src/components/tools/QuickNotesTool.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-06",
+    "area": "Shell",
+    "feature": "Dev email inbox: read a message and click a link in it",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open the dev email inbox from the shell, open a message, click a link under 'Links in this message'; 'Clear all messages' empties it",
+    "source": [
+      "src/components/dev/DevEmailInbox.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-07",
+    "area": "Shell",
+    "feature": "Account menu shows who is signed in and links to the account page",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Open the account menu: name, email and role are shown; 'Account' opens the account page",
+    "source": [
+      "src/components/shell/ProfileMenu.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-08",
+    "area": "Shell",
+    "feature": "'Back to overview' links return to the dashboard",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "On Branches, Settings, Users, Finance press 'Back to overview'",
+    "source": [
+      "src/components/shell/Breadcrumb.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-09",
+    "area": "Shell",
+    "feature": "The sidebar is in sections, and a section can be folded",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "See Overview on its own and four sections (Classroom, Assessment, Communication, Administration); fold Classroom and its pages leave the screen; reload and it is still folded; open a page in a folded section by address and the section opens; a teacher sees Announcements as a plain link with a rule above it",
+    "source": [
+      "src/components/shell/nav.ts",
+      "src/components/shell/SidebarNav.tsx",
+      "src/lib/shell-prefs.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SHL-10",
+    "area": "Shell",
+    "feature": "The sidebar folds to icons, opens when an icon is hovered, and keeps the person at its foot",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press the round arrow on the sidebar's edge: only icons stay and the page moves over; hover an icon and the sidebar opens over the page without moving it; hover the arrow and nothing happens; move away and it closes; reload and it is still folded; the person stays at the bottom of the sidebar whatever the length of the list",
+    "source": [
+      "src/components/shell/SidebarFrame.tsx",
+      "src/components/shell/AppShell.tsx",
+      "src/lib/shell-prefs.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "DSH-01",
+    "area": "Overview",
+    "feature": "The overview shows branch totals, people by role and the viewer's own role",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Read the Totals, Branches and People-with-a-role figures; they equal what the Branches and Users pages show",
+    "source": [
+      "src/app/(app)/dashboard/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "DSH-02",
+    "area": "Overview",
+    "feature": "An empty school says what to do next",
+    "route": "/dashboard",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "On a brand-new instance the overview says 'No branches yet.' with a 'Manage branches' link",
+    "source": [
+      "src/app/(app)/dashboard/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "DSH-03",
+    "area": "Overview",
+    "feature": "Someone with no branch is told to ask the administrator, not shown an error",
+    "route": "/dashboard",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A member with no branch signs in: 'Ask your school administrator to add you to a branch.'",
+    "source": [
+      "src/app/(app)/dashboard/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-01",
+    "area": "Branches",
+    "feature": "Create a branch",
+    "route": "/branches",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Press New branch, type the name, save; it is listed",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-02",
+    "area": "Branches",
+    "feature": "A new branch persists",
+    "route": "/branches",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Leave to the overview and return by clicking: the branch is still listed",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-03",
+    "area": "Branches",
+    "feature": "The empty list says how to begin",
+    "route": "/branches",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Before any branch: 'No branches yet' and 'Use New branch above'",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "BRN-04",
+    "area": "Branches",
+    "feature": "Branches is not offered to an administrator or a teacher",
+    "route": "/branches",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The sidebar has no Branches entry for them (SHL-02); a typed address is refused with a sentence",
+    "source": [
+      "src/app/(app)/branches/BranchesView.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "STG-01",
+    "area": "Settings",
+    "feature": "Edit the school profile (name, head, phone, motto, address, email, website)",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Type the school's details, save, leave and return: they are still there",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-02",
+    "area": "Settings",
+    "feature": "Create an academic session with its terms",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Press New Academic Session, pick a branch, type the label and dates, save",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-03",
+    "area": "Settings",
+    "feature": "Make a term the current term",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Press 'Set Current' on a term; it shows CURRENT TERM and the results screens now offer it",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-04",
+    "area": "Settings",
+    "feature": "Portal access: what pupils and guardians may do, per area",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Open Portal access, change a switch (including question practice), Save changes; 'Recent changes' lists it; 'Discard changes' and 'Use the recommended settings' work",
+    "source": [
+      "src/components/settings/PortalAccessPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-05",
+    "area": "Settings",
+    "feature": "Results approval: sections of classes",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Add a section, put classes in it, rename it, archive it",
+    "source": [
+      "src/components/settings/ResultsApprovalPanel.tsx",
+      "src/components/settings/ScopeEditor.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-06",
+    "area": "Settings",
+    "feature": "Results approval: who approves where, confirmed with a fresh password",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Give a member an approver scope, confirm with the password in the 'Confirm it's you' dialog, see it listed",
+    "source": [
+      "src/components/settings/ResultsApprovalPanel.tsx",
+      "src/components/settings/ScopeEditor.tsx",
+      "src/components/settings/StepUpModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-07",
+    "area": "Settings",
+    "feature": "A wrong password in the confirmation dialog changes nothing and says so",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong password in 'Confirm it's you': a sentence, and the scope is unchanged",
+    "source": [
+      "src/components/settings/StepUpModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STG-08",
+    "area": "Settings",
+    "feature": "Settings is not offered to an administrator or a teacher",
+    "route": "/settings",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The sidebar has no Settings entry for them; a typed address shows 'Only superadmins can view and manage school settings'",
+    "source": [
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "ACA-01",
+    "area": "Academics",
+    "feature": "Create a class and add its arms",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Classes and arms: New class, type the name, then Add arm",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-02",
+    "area": "Academics",
+    "feature": "Create subjects and choose which a class studies",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New subject; on a class pick 'This class studies' and save",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-03",
+    "area": "Academics",
+    "feature": "Edit and archive a class or subject",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit, then Archive; it leaves the active list",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-04",
+    "area": "Academics",
+    "feature": "Staff records: create, edit, search, filter by kind",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New staff record (first and last name, kind, optional phone and email), Edit, search by name",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-05",
+    "area": "Academics",
+    "feature": "Link and unlink a staff record to a sign-in",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Link sign-in to a member, then Unlink sign-in",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-06",
+    "area": "Academics",
+    "feature": "Assign a teacher to a class, arm and subject",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "On a staff record choose class and arm and subject, Assign; it appears under 'Teaches'; Remove",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-07",
+    "area": "Academics",
+    "feature": "Archive and restore a staff record",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Archive a staff record, show archived, restore it",
+    "source": [
+      "src/components/academics/StaffPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-08",
+    "area": "Academics",
+    "feature": "Assessment scheme: parts, exam marks, archive, locked once used",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New scheme with 'CA, Test 1' parts and exam marks; Archive; a scheme in use shows Locked",
+    "source": [
+      "src/components/academics/GradingPanel.tsx",
+      "src/components/academics/SchemeForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-09",
+    "area": "Academics",
+    "feature": "Grade scale: bands, WAEC-style template, default, archive",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New grade scale: 'Use the WAEC-style template', adjust a band, save; 'Make default'; Archive",
+    "source": [
+      "src/components/academics/GradingPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-10",
+    "area": "Academics",
+    "feature": "Scheme levels: a school-wide default and a scheme for one class",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New school-wide scheme; 'A scheme for one class' with a branch",
+    "source": [
+      "src/components/academics/SchemeLevelsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-11",
+    "area": "Academics",
+    "feature": "Promotion: set up, preview, override, confirm",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Rollover Console: choose branch and source class group, read the preview, change one pupil's decision with an override reason, Confirm Academic Rollover & Promotion",
+    "source": [
+      "src/components/academics/promotion/PromotionConsole.tsx",
+      "src/components/academics/promotion/PromotionPreviewTable.tsx",
+      "src/components/academics/promotion/PromotionConfirmModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-12",
+    "area": "Academics",
+    "feature": "Promotion audit history and batch details",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Audit History: open a batch with View Details; counts add up to Evaluated",
+    "source": [
+      "src/components/academics/promotion/PromotionHistoryView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-13",
+    "area": "Academics",
+    "feature": "A branch administrator only chooses and sees their own branch",
+    "route": "/academics",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "The branch selector offers only the administrator's own branch(es); another branch's classes are not listed",
+    "source": [
+      "src/components/academics/ClassesPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACA-14",
+    "area": "Academics",
+    "feature": "Academics is not offered to teachers or non-teaching staff",
+    "route": "/academics",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Academics entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/app/(app)/academics/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "STU-01",
+    "area": "Students",
+    "feature": "Enrol a new student",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New student: names, gender, date of birth, class and arm, guardian name, phone, email; save; listed",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-02",
+    "area": "Students",
+    "feature": "Edit a student and see it after leaving and returning",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit the guardian phone, save, go to another page and back",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-03",
+    "area": "Students",
+    "feature": "Search, filter by status, page through a long list",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Search by name and by admission number; Show archived; Next and Previous",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-04",
+    "area": "Students",
+    "feature": "Import students from a spreadsheet",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Download a template, choose a CSV through the file dialog (and paste rows); read the import summary",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-05",
+    "area": "Students",
+    "feature": "Archive a student and restore them, with the duplicate check",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Archive; show archived; Restore; when the admission number is taken, 'Restore anyway' or 'Leave archived'",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-06",
+    "area": "Students",
+    "feature": "A teacher sees the students of their branch and no way to change them",
+    "route": "/students",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open Students as a teacher: the list is shown; New student, Import, Edit and Archive are absent or refused",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-07",
+    "area": "Students",
+    "feature": "A branch administrator cannot reach another branch's students",
+    "route": "/students",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "The branch selector offers only their branches; searching for a pupil of another branch finds no one",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STU-08",
+    "area": "Students",
+    "feature": "Non-teaching staff have no Students entry",
+    "route": "/students",
+    "roles": [
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "The sidebar has no Students; a typed address is refused with a sentence",
+    "source": [
+      "src/components/students/StudentsPanel.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "ATT-01",
+    "area": "Attendance",
+    "feature": "Take the daily roll call for an arm",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Choose class and arm and date, mark each pupil present, late, absent or excused, add a remark, save",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-02",
+    "area": "Attendance",
+    "feature": "Mark All Present, then change exceptions",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press Mark All Present, mark two pupils absent, save; the summary counts agree",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-03",
+    "area": "Attendance",
+    "feature": "Move between days; a saved day is still there",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Press Previous day and Next, return to the saved day: marks are as saved",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-04",
+    "area": "Attendance",
+    "feature": "Summary counts and rate",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Enrolled, Present, Late, Absent, Excused and Rate add up and match the marks",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-05",
+    "area": "Attendance",
+    "feature": "Assign the form teacher of an arm",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Manage Permissions: pick an arm and a designated teacher, save",
+    "source": [
+      "src/components/attendance/AttendanceGrantModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-06",
+    "area": "Attendance",
+    "feature": "Grant and revoke explicit attendance permission",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Grant a staff member an arm; it appears under Active Explicit Grants; Revoke",
+    "source": [
+      "src/components/attendance/AttendanceGrantModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ATT-07",
+    "area": "Attendance",
+    "feature": "A teacher without a grant for an arm cannot take its roll",
+    "route": "/attendance",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The teacher sees only 'Authorized Arm' choices; an arm they do not hold is refused in a sentence",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-01",
+    "area": "Timetable",
+    "feature": "Schedule a period",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Schedule Period: day, arm, subject, teacher, start, end, room; save; it appears",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx",
+      "src/components/timetable/SlotEditModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-02",
+    "area": "Timetable",
+    "feature": "Schedule the same period on several days",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Same period, several days: tick days, save",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx",
+      "src/components/timetable/BatchSlotsModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-03",
+    "area": "Timetable",
+    "feature": "Edit a period",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit a period and save; leave and return",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx",
+      "src/components/timetable/SlotEditModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-04",
+    "area": "Timetable",
+    "feature": "Filter by class arm and by teacher; grid and list views",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Use both filters; switch Grid View and List View",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-05",
+    "area": "Timetable",
+    "feature": "A clash is flagged",
+    "route": "/timetable",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Schedule a teacher twice at the same time: 'Clash' is shown",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "TMT-06",
+    "area": "Timetable",
+    "feature": "A teacher can look at the timetable and not change it",
+    "route": "/timetable",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Schedule Period and Edit are absent or refused for a teacher",
+    "source": [
+      "src/components/timetable/TimetableCanvas.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-01",
+    "area": "Results",
+    "feature": "Enter marks for a class and subject, save as drafts",
+    "route": "/results",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Choose branch, term, class and subject; type exam marks; Save drafts; leave and return: still there",
+    "source": [
+      "src/components/results/EntryPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-02",
+    "area": "Results",
+    "feature": "A teacher asks for approval of their own scheme",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Teacher scheme panel: Edit, then Ask for approval",
+    "source": [
+      "src/components/results/TeacherSchemePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-03",
+    "area": "Results",
+    "feature": "Submit marks for approval",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Submit entered marks; their status changes",
+    "source": [
+      "src/components/results/EntryPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-04",
+    "area": "Results",
+    "feature": "An approver approves or sends back, and publishes",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "'Results waiting for you': open, approve, publish; the pupil's card now shows them",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-05",
+    "area": "Results",
+    "feature": "View a result's history (audit trail)",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "View history on a result: each event with who and when",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-06",
+    "area": "Results",
+    "feature": "Unlock a result with a reason",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Unlock, type the reason, confirm; the status returns to draft",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-07",
+    "area": "Results",
+    "feature": "Report cards: preview, remarks, print and download",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Choose branch, term, class, student; read the card; type a remark, Save remarks; Print this report card; Download report card",
+    "source": [
+      "src/components/results/CardsPanel.tsx",
+      "src/components/results/ReportCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-08",
+    "area": "Results",
+    "feature": "A card shows a verification link",
+    "route": "/results",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "On a published card press 'Verify these results' (continues in VER-01)",
+    "source": [
+      "src/components/results/ReportCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-09",
+    "area": "Results",
+    "feature": "A teacher who is not an approver sees no approval queue",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The 'Results waiting for you' panel is absent for them; an unpublished card needs the 'preview' switch",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "RES-10",
+    "area": "Results",
+    "feature": "A teacher cannot approve their own marks",
+    "route": "/results",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "The approve action is absent or refused with a sentence",
+    "source": [
+      "src/components/results/ReviewPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-01",
+    "area": "Coursework",
+    "feature": "Create an assignment",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New assignment: title, subject, instructions, due date, points, late setting; save as draft, then publish",
+    "source": [
+      "src/components/lms/AssignmentModal.tsx",
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-02",
+    "area": "Coursework",
+    "feature": "Search and filter assignments by subject and status",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Search; Status Draft, Published, Closed, Archived; Subject",
+    "source": [
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-03",
+    "area": "Coursework",
+    "feature": "Grade a hand-in with Speed Grader",
+    "route": "/lms",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "After a pupil hands in (POR-06), open Speed Grader, give points and feedback, Next",
+    "source": [
+      "src/components/lms/SpeedGraderModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-04",
+    "area": "Coursework",
+    "feature": "Delete an assignment",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Delete, confirm; it leaves the list",
+    "source": [
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-05",
+    "area": "Coursework",
+    "feature": "Add a study material and open it",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add Learning Material: title, type, link, summary; 'Open Resource'",
+    "source": [
+      "src/components/lms/MaterialModal.tsx",
+      "src/components/lms/MaterialsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-06",
+    "area": "Coursework",
+    "feature": "Delete a material",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Delete; it leaves the list",
+    "source": [
+      "src/components/lms/MaterialsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-07",
+    "area": "Coursework",
+    "feature": "Create a quiz with multiple choice, true/false and short answer",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Create Interactive Quiz / Test: add one question of each type with the correct answer and points; time limit; save",
+    "source": [
+      "src/components/lms/QuizModal.tsx",
+      "src/components/lms/QuizConsole.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-08",
+    "area": "Coursework",
+    "feature": "Quiz console: list, search, delete",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Questions, Time, Pass Rate shown; search by title; Delete",
+    "source": [
+      "src/components/lms/QuizConsole.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-09",
+    "area": "Coursework",
+    "feature": "A teacher cannot grade or edit another branch's coursework",
+    "route": "/lms",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Only own-branch assignments and subjects are listed",
+    "source": [
+      "src/components/lms/AssignmentsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-01",
+    "area": "Announcements",
+    "feature": "Post an announcement to a branch or a class",
+    "route": "/announcements",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Post Announcement: title, message, branch scope, class scope; publish; it is listed as Published",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-02",
+    "area": "Announcements",
+    "feature": "Save a draft, edit it, publish it",
+    "route": "/announcements",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Save as Draft; Edit; publish",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-03",
+    "area": "Announcements",
+    "feature": "Search and filter by branch and status",
+    "route": "/announcements",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Search; Filter by Branch; Status Published, Drafts, Archived",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-04",
+    "area": "Announcements",
+    "feature": "Archive an announcement",
+    "route": "/announcements",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Archive; show Archived",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-05",
+    "area": "Announcements",
+    "feature": "Non-teaching staff can read but not post",
+    "route": "/announcements",
+    "roles": [
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "The page lists announcements; Post Announcement is absent",
+    "source": [
+      "src/components/announcements/AnnouncementsFeed.tsx",
+      "src/components/announcements/AnnouncementComposerModal.tsx",
+      "src/components/announcements/AnnouncementsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ANN-06",
+    "area": "Announcements",
+    "feature": "A guardian sees the announcement on the portal overview",
+    "route": "/portal",
+    "roles": [
+      "Guardian",
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "On the portal overview 'School Announcements' lists it (continues in POR-03)",
+    "source": [
+      "src/components/portal/PortalOverviewTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-01",
+    "area": "Communication",
+    "feature": "Compose a broadcast to guardians or staff",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Compose Broadcast: channel, audience, subject, message, insert personalization tags, send; Clear",
+    "source": [
+      "src/components/communication/BroadcastComposer.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-02",
+    "area": "Communication",
+    "feature": "Templates: create, filter by channel, preview, edit, delete",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New template with name, code, channel, subject and body with {{student_name}}; Preview; Edit; Delete",
+    "source": [
+      "src/components/communication/TemplatesManager.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-03",
+    "area": "Communication",
+    "feature": "Dispatch log: filter by channel and status, open one for details",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Filters; View on one dispatch shows recipient, channel, subject, content and any error",
+    "source": [
+      "src/components/communication/DispatchLogsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "COM-04",
+    "area": "Communication",
+    "feature": "Real e-mail, WhatsApp and SMS delivery",
+    "route": "/communication",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Sending leaves the machine",
+    "source": [
+      "src/components/communication/BroadcastComposer.tsx"
+    ],
+    "status": "not-demonstrable",
+    "reason": "Real delivery is out of scope (nothing may leave this machine). The in-app channel and the dev inbox are shown; the others are named in the PDF as not walked"
+  },
+  {
+    "id": "COM-05",
+    "area": "Communication",
+    "feature": "Communication is not offered to teachers or non-teaching staff",
+    "route": "/communication",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Communication entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/app/(app)/communication/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "FIN-01",
+    "area": "Finance",
+    "feature": "Fee schedule: add and edit a fee item for a term and class scope",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Fee Schedules and Structures: Add Fee Item (name, term, scope, amount); Edit; the total changes",
+    "source": [
+      "src/components/finance/FeeStructuresPanel.tsx",
+      "src/components/finance/FeeStructureModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-02",
+    "area": "Finance",
+    "feature": "Generate invoices for a term in one batch",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Batch Generate Invoices: term and class group; read 'Invoicing Complete'",
+    "source": [
+      "src/components/finance/InvoicesDashboard.tsx",
+      "src/components/finance/BatchInvoiceModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-03",
+    "area": "Finance",
+    "feature": "Invoice dashboard: totals, filters, search",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Total Invoiced, Collected, Outstanding and Collection Rate; filter by term; search by student or invoice number",
+    "source": [
+      "src/components/finance/InvoicesDashboard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-04",
+    "area": "Finance",
+    "feature": "Open an invoice: itemised breakdown and receipts",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View and Pay opens the invoice: billed, paid, balance, items, receipts",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-05",
+    "area": "Finance",
+    "feature": "Record a cash or bank-transfer payment",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Record Payment: method, amount, reference; the status becomes PARTIAL or PAID and the totals move",
+    "source": [
+      "src/components/finance/RecordPaymentModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-06",
+    "area": "Finance",
+    "feature": "Give a waiver or discount with a reason",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Waiver / Discount: category, amount, approval note; the balance changes; the status can be WAIVED",
+    "source": [
+      "src/components/finance/DiscountModal.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-07",
+    "area": "Finance",
+    "feature": "Pay online through the gateway (Paystack mock)",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Find the online payment button, complete the mock gateway modal, see the receipt. The payment route exists; whether a screen reaches it is checked in recon",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/components/portal/PortalFinanceTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-08",
+    "area": "Finance",
+    "feature": "Finance follows the chosen branch",
+    "route": "/finance",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Change the Branch selector: invoices and fee items change with it",
+    "source": [
+      "src/components/finance/FinancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FIN-09",
+    "area": "Finance",
+    "feature": "Finance is not offered to teachers or non-teaching staff",
+    "route": "/finance",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Finance entry; a typed address is refused with a sentence",
+    "source": [
+      "src/components/finance/FinancePanel.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "FIN-10",
+    "area": "Finance",
+    "feature": "An administrator sees only their own branch's invoices",
+    "route": "/finance",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "The branch selector offers only their branch",
+    "source": [
+      "src/components/finance/FinancePanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-01",
+    "area": "Approvals",
+    "feature": "Approve or reject a request, with a reason",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Requests: Approve one, Reject one with a reason; both leave the list",
+    "source": [
+      "src/components/approvals/RequestsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-02",
+    "area": "Approvals",
+    "feature": "Choose what the report card shows (layout)",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Layout: tick what shows on the card, save, open a card to see it",
+    "source": [
+      "src/components/approvals/LayoutPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-03",
+    "area": "Approvals",
+    "feature": "Self-approval: allow and withdraw an administrator",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Allow an administrator to approve their own requests, then Withdraw",
+    "source": [
+      "src/components/approvals/SelfApprovalPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-04",
+    "area": "Approvals",
+    "feature": "What a verification page shows",
+    "route": "/approvals",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Verification: choose subject, marks, grade and how the name is written; the public page follows (VER-01)",
+    "source": [
+      "src/components/approvals/VerificationPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "APR-05",
+    "area": "Approvals",
+    "feature": "Approvals is not offered to teachers or non-teaching staff",
+    "route": "/approvals",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Approvals entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/app/(app)/approvals/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "QBK-01",
+    "area": "Question bank",
+    "feature": "Write a question of each kind, with a picture and a description",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Write a question: multiple choice with options, true/false, accepted answers; add a picture with a description (or mark it decoration)",
+    "source": [
+      "src/components/question-bank/QuestionForm.tsx",
+      "src/components/question-bank/QuestionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-02",
+    "area": "Question bank",
+    "feature": "Browse and My questions, with subject, class and state filters",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Search; Subject; Class; State; switch between Browse and My questions",
+    "source": [
+      "src/components/question-bank/QuestionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-03",
+    "area": "Question bank",
+    "feature": "Send a question for review, edit it, see its state",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Send for review; the state changes; Edit while allowed",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx",
+      "src/components/question-bank/QuestionForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-04",
+    "area": "Question bank",
+    "feature": "A reviewer approves with class, subject and who may see it",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Review queue: Approve, choose subject and classes, 'Teachers only' or 'Pupils can practise now' or 'until a date'",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx",
+      "src/components/question-bank/DecisionDialogs.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-05",
+    "area": "Question bank",
+    "feature": "A reviewer rejects or sends a question back, or retires one, with a reason",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Reject / Send back / Retire each with a reason of 1 to 500 characters; 'What has been decided' records it",
+    "source": [
+      "src/components/question-bank/DecisionDialogs.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-06",
+    "area": "Question bank",
+    "feature": "An exam approver sees the overlap warning on a near copy",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Write a near copy of an approved question: 'This question is very close to N others' with a way to open the other",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-07",
+    "area": "Question bank",
+    "feature": "Choose reviewers and exam approvers",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Reviewers: add a person, covering every subject or one, mark an exam approver; Remove",
+    "source": [
+      "src/components/question-bank/ReviewersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-08",
+    "area": "Question bank",
+    "feature": "Question bank settings for a branch",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Settings: change a switch with a reason; read what the switches can and cannot do",
+    "source": [
+      "src/components/question-bank/SettingsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-09",
+    "area": "Question bank",
+    "feature": "A teacher who is not a reviewer has no Review queue, Reviewers or Settings",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Only Browse and My questions are shown",
+    "source": [
+      "src/components/question-bank/QuestionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-10",
+    "area": "Question bank",
+    "feature": "Teachers do not see the overlap warning or each other's exam answers",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher's view of a near copy shows no overlap line",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-11",
+    "area": "Question bank",
+    "feature": "Non-teaching staff and pupils cannot open the question bank",
+    "route": "/question-bank",
+    "roles": [
+      "Non-teaching staff",
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "No entry; a typed address shows 'Only staff can open this page'",
+    "source": [
+      "src/app/(app)/question-bank/page.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "FRM-01",
+    "area": "Forms",
+    "feature": "Forms is in a teacher's and an administrator's navigation, with its five sections; a pupil who opens the address is told it is for staff",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator",
+      "Superadmin",
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Choose Forms in the sidebar (phone: More, then Forms); the tabs Practice sets, Questionnaires, Paper work, Marking and For you are there; signed in as a pupil, the address shows 'Only staff can open this page.'",
+    "source": [
+      "src/app/(app)/forms/page.tsx",
+      "src/components/forms/FormsSections.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-02",
+    "area": "Forms",
+    "feature": "Write a practice set, save it as a draft, publish it and close it",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New practice set: title, class, time limit, a single-choice question with the correct option ticked and a true/false question; Save as draft; the list says Draft; Publish; Close and confirm 'Close it'",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/QuestionEditor.tsx",
+      "src/components/forms/FormsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-03",
+    "area": "Forms",
+    "feature": "A practice set with a question left unwritten is refused with a sentence and nothing is saved",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "New practice set: leave the question empty, Save as draft; the sentence 'Write the question for question 1.' appears and the list stays as it was",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-04",
+    "area": "Forms",
+    "feature": "A questionnaire for members is limited to the roles ticked; one for anyone with the link is anonymous and shows its link with the weakness said in words",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New questionnaire: Members of the school, tick Teaching staff and Non-teaching staff, Save as draft; New questionnaire: Anyone with the link, Anonymous, a rating question, Save as draft, Publish; the link /q/… appears with Copy link and 'A public link cannot tell who is answering and cannot stop one person answering twice.'",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/FormsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-05",
+    "area": "Forms",
+    "feature": "Paper work needs a class; it is published at once and can be closed",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New paper work with no class: 'Choose at least one class for the paper work.'; tick a class, Create paper work; the list says Published; Close and confirm",
+    "source": [
+      "src/components/forms/FormBuilderDialog.tsx",
+      "src/components/forms/FormsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-06",
+    "area": "Forms",
+    "feature": "For you: a questionnaire addressed to the signed-in staff member is answered in place, once; an anonymous one says nobody can see who answered",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "For you: Answer on a questionnaire, read the anonymity sentence, fill the answers, Send my answers; the row says Answered; with nothing waiting the section says 'Nothing is waiting for you.'",
+    "source": [
+      "src/components/forms/ForYouPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-07",
+    "area": "Forms",
+    "feature": "A form's title in the list opens its page: the details, the status, and a way back to the list",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "In Practice sets, press a form's title; the page opens with its title, 'Back to Forms', the tabs Overview, Questions and Results, and the status, window, time limit, classes and who wrote it",
+    "source": [
+      "src/app/(app)/forms/[id]/page.tsx",
+      "src/components/forms/FormPage.tsx",
+      "src/components/forms/FormOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-08",
+    "area": "Forms",
+    "feature": "Edit a form's details, publish it, close it after a confirmation",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit details: change the title and the time limit, Save changes; Publish; Close and confirm 'Close it'; the heading, the details and the status follow each step",
+    "source": [
+      "src/components/forms/FormEditDialog.tsx",
+      "src/components/forms/FormOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-09",
+    "area": "Forms",
+    "feature": "A public questionnaire's page shows its link with a copy button and says what a public link cannot do",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open a published public questionnaire; the link /q/... is there with 'Copy link' and 'A public link cannot tell who is answering and cannot stop one person answering twice.'",
+    "source": [
+      "src/components/forms/PublicLinkBox.tsx",
+      "src/components/forms/FormOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-10",
+    "area": "Forms",
+    "feature": "Print a form as a PDF, with the answer key for whoever manages it",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Print: tick 'Include the answer key', give a reason, 'Download PDF'; a watermarked PDF is saved and the print is logged",
+    "source": [
+      "src/components/forms/FormPrintDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-11",
+    "area": "Forms",
+    "feature": "The questions tab: the answer key only for whoever manages the form",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Questions: each question with its kind, points, the right option marked 'Correct answer', the model answer, the explanation and 'Marked by hand'",
+    "source": [
+      "src/components/forms/FormQuestions.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-12",
+    "area": "Forms",
+    "feature": "A colleague who does not manage the form sees its questions without the answer key, and is told why",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as another teacher, open the same practice set's Questions: no 'Correct answer', no model answer, and 'The answer key is shown only to whoever manages this form.'",
+    "source": [
+      "src/components/forms/FormQuestions.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-13",
+    "area": "Forms",
+    "feature": "A practice set's results: who answered, finished or in progress, the score as 'x of y' (a dash, never a zero, until there is one)",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Results: the table of pupils with 'Finished' and '5 of 5', and a pupil still answering with 'In progress' and a dash; '2 finished · 1 in progress'; with nobody yet: 'Nobody has answered yet.'",
+    "source": [
+      "src/components/forms/PracticeResults.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-14",
+    "area": "Forms",
+    "feature": "A questionnaire's results: counts and written answers; an anonymous one with too few answers shows only how many",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Results of a named questionnaire: each choice with its count and percentage and the written answers; of an anonymous one with 2 answers: '2 answered', the sentence that the breakdown appears once 5 people have answered, and no counts or written answers",
+    "source": [
+      "src/components/forms/QuestionnaireResults.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-15",
+    "area": "Forms",
+    "feature": "An unknown form, a form of another branch and a pupil each get a sentence",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Open /forms/ with an unknown id, with a form of another branch (as its staff member), and as a pupil: 'We could not find that form.' (with Back to Forms) and 'Only staff can open this page.'; nothing of the form is shown",
+    "source": [
+      "src/app/(app)/forms/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-16",
+    "area": "Forms",
+    "feature": "Marking: the queue across forms, one attempt at a time, in two sittings, with feedback and a history of who marked what",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Marking tab: an attempt 'Waiting' with '2 still to mark'; Mark: the automatically marked answer is read-only, give a score and feedback to one hand-marked answer, Save marks (the row says 'Partly marked'); Mark again: the earlier score is there; mark the other; it leaves the queue; filter 'Marked' and Review shows 'Marking history'",
+    "source": [
+      "src/components/forms/MarkingQueue.tsx",
+      "src/components/forms/MarkingDialog.tsx",
+      "src/components/forms/FormsSections.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-17",
+    "area": "Forms",
+    "feature": "A score above the question's points, or no score at all, is refused with a sentence and nothing is sent",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Mark: type 5 for a 3-point question, Save marks: 'The score for question 2 is from 0 to 3.'; clear it, Save marks: 'Give at least one answer a score.'",
+    "source": [
+      "src/components/forms/MarkingDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-18",
+    "area": "Forms",
+    "feature": "A practice set's own Marking tab lists only that form's attempts",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open a practice set with a question marked by hand; Marking: only its pupils' attempts are listed, with the same Mark button",
+    "source": [
+      "src/components/forms/FormPage.tsx",
+      "src/components/forms/MarkingQueue.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-19",
+    "area": "Forms",
+    "feature": "A short question of a practice set is marked by hand unless the teacher unticks it",
+    "route": "/forms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "New practice set, question type Short answer: 'Marked by hand' is ticked; untick it on another short question to have it marked automatically against the accepted answer",
+    "source": [
+      "src/components/forms/QuestionEditor.tsx",
+      "src/components/forms/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-20",
+    "area": "Forms",
+    "feature": "The roll call of paper work: the class with a summary, who asked for marking flagged",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open paper work, Roll call: '0 of 3 handed in', '3 still to hand in', '1 asked for marking', each pupil with a status and a note, the one who asked flagged 'Asked for marking'",
+    "source": [
+      "src/components/forms/RollCall.tsx",
+      "src/components/forms/FormPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-21",
+    "area": "Forms",
+    "feature": "Record who handed in and who was late, with notes, and save them together; a paper handed in after the closing time is recorded as late",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Roll call: set one pupil Handed in with a note and another Late, 'Save changes (2)': '2 changes saved.' and the summary follows; after the closing time, Handed in is stored as Late and the page says so",
+    "source": [
+      "src/components/forms/RollCall.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-22",
+    "area": "Forms",
+    "feature": "Pupils who joined the class later are added to the roll call",
+    "route": "/forms/[id]",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Roll call: 'Add pupils who joined the class' says 'Nobody new to add.', then after a pupil joins the class '1 pupil added to the roll call.' and they are listed",
+    "source": [
+      "src/components/forms/RollCall.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-01",
+    "area": "Users",
+    "feature": "People list: search, role, branch, status, paging, Clear filters",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Use each filter and the search; Next and Previous; Clear filters resets all",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-02",
+    "area": "Users",
+    "feature": "Invite someone by email with a role and branch",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Invite someone: email, role, branch; they appear under Pending invitations; the message is in the dev inbox",
+    "source": [
+      "src/components/users/InviteDialog.tsx",
+      "src/components/users/InvitationsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-03",
+    "area": "Users",
+    "feature": "Revoke a pending invitation",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Revoke; it leaves the list; its link now fails (INV-02)",
+    "source": [
+      "src/components/users/InvitationsList.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-04",
+    "area": "Users",
+    "feature": "Change a member's role or branch",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit, choose a role and branch, save; the list shows it",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-05",
+    "area": "Users",
+    "feature": "Let a member approve results, confirmed with a password or code",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Edit, tick 'May approve results', confirm with the password; 'Approves results' tag appears",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-06",
+    "area": "Users",
+    "feature": "Let a member read form results, confirmed with a password or code",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Edit a staff member, tick 'May read form results', confirm; the tag appears",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-07",
+    "area": "Users",
+    "feature": "The Access filter lists only who reads form results",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Choose Access = Reads form results: only the holders, each tagged; Clear filters",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-08",
+    "area": "Users",
+    "feature": "Deactivate and reactivate a member",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Deactivate; show Deactivated; Reactivate; the person can sign in again",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-09",
+    "area": "Users",
+    "feature": "Grant or remove superadmin, confirmed with a password",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Open the superadmin dialog for a member, confirm with the password",
+    "source": [
+      "src/components/users/SuperAdminDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-10",
+    "area": "Users",
+    "feature": "A wrong password or code at a confirmation changes nothing",
+    "route": "/users",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong password in the grant dialog: a sentence, the tag is unchanged",
+    "source": [
+      "src/components/users/EditMemberDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-11",
+    "area": "Users",
+    "feature": "A branch administrator cannot grant superadmin or reach another branch's people",
+    "route": "/users",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "No superadmin control; the branch filter offers only their branches",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/components/users/SuperAdminDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "USR-12",
+    "area": "Users",
+    "feature": "Users is not offered to teachers or non-teaching staff",
+    "route": "/users",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "No Users entry; a typed address shows 'Only administrators can open this page'",
+    "source": [
+      "src/components/users/UsersPanel.tsx"
+    ],
+    "status": "planned",
+    "typedAddress": true
+  },
+  {
+    "id": "ACC-01",
+    "area": "Account",
+    "feature": "Edit your name",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Edit your name, save; 'Name updated.'; the account menu shows it",
+    "source": [
+      "src/components/auth/ProfileDetails.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-02",
+    "area": "Account",
+    "feature": "Change your password; other devices are signed out",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Type current and new password twice; save; the sessions list shows only this device",
+    "source": [
+      "src/components/auth/ChangePasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-03",
+    "area": "Account",
+    "feature": "Ask to change your email address",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Change email address: new address and password; 'Check your inbox' (continues in CNF-01)",
+    "source": [
+      "src/components/auth/ChangeEmailPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-04",
+    "area": "Account",
+    "feature": "Set up two-step verification, save the recovery codes",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Set up: password, read the setup key from the screen, type the computed code, Turn on, copy the recovery codes",
+    "source": [
+      "src/components/auth/TwoStepPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-05",
+    "area": "Account",
+    "feature": "Turn two-step off, or make new recovery codes",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Generate new recovery codes; Turn off two-step verification with the password",
+    "source": [
+      "src/components/auth/TwoStepPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-06",
+    "area": "Account",
+    "feature": "See your signed-in devices and sign out of the others",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Devices signed in: 'This device'; sign one out; 'Sign out of all other devices'",
+    "source": [
+      "src/components/auth/SessionsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-07",
+    "area": "Account",
+    "feature": "'Your access' states what the role may do",
+    "route": "/account",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Read the 'Your access' summary for each role",
+    "source": [
+      "src/app/(app)/account/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "ACC-08",
+    "area": "Account",
+    "feature": "A wrong current password is refused with a sentence",
+    "route": "/account",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Change password with a wrong current password: a sentence, nothing changes",
+    "source": [
+      "src/components/auth/ChangePasswordForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-01",
+    "area": "Portal",
+    "feature": "Pupil or guardian signs in with admission number and date of birth or guardian phone",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Type the admission number and the date of birth (or phone); press the sign-in button; the overview opens",
+    "source": [
+      "src/components/portal/PortalLoginCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-02",
+    "area": "Portal",
+    "feature": "Guardian signs in with a magic link sent by SMS or WhatsApp",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Paste the token or follow the link",
+    "source": [
+      "src/components/portal/PortalLoginCard.tsx"
+    ],
+    "status": "not-demonstrable",
+    "reason": "The link is sent by SMS or WhatsApp, which this machine cannot do, and there is no local sink for it. A stand-in sink is decision D3"
+  },
+  {
+    "id": "POR-03",
+    "area": "Portal",
+    "feature": "A wrong admission number or date of birth is refused with a sentence that does not say which was wrong",
+    "route": "/portal",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Type a wrong date of birth: one generic sentence",
+    "source": [
+      "src/components/portal/PortalLoginCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-04",
+    "area": "Portal",
+    "feature": "Overview: attendance rate, fee balance, active term, announcements",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Read the overview figures; 'View Report Card', 'Fees & Billing' and 'LMS Homework' links move to the tabs",
+    "source": [
+      "src/components/portal/PortalOverviewTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-05",
+    "area": "Portal",
+    "feature": "Academic results by term; print and download the card",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Results tab: choose a term, read marks and grades, Print Card, Download Card",
+    "source": [
+      "src/components/portal/PortalResultsTab.tsx",
+      "src/components/results/ReportCard.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-06",
+    "area": "Portal",
+    "feature": "Coursework: hand in an assignment, take a quiz, read a lesson",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Open an assignment, type an answer and hand in; take a quiz; 'Read Lesson' on a material",
+    "source": [
+      "src/components/portal/PortalLmsTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-07",
+    "area": "Portal",
+    "feature": "Fees and billing: invoices, receipts, payment instructions",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Fees tab: invoices with status, receipt history, payment instructions",
+    "source": [
+      "src/components/portal/PortalFinanceTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-08",
+    "area": "Portal",
+    "feature": "A guardian with several children switches between them",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Viewing Child: choose the second child; every tab shows that child",
+    "source": [
+      "src/components/portal/PortalHeader.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-09",
+    "area": "Portal",
+    "feature": "Sign out of the portal",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Press Sign Out; the portal login card is shown",
+    "source": [
+      "src/components/portal/PortalHeader.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-10",
+    "area": "Portal",
+    "feature": "Results not published or switched off for guardians are not shown",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Before publishing, or with the portal switch off: 'Report Card Access Restricted' or 'No Published Results Found'",
+    "source": [
+      "src/components/portal/PortalResultsTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-11",
+    "area": "Portal",
+    "feature": "A guardian only ever sees their own children",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "The child selector lists only their children",
+    "source": [
+      "src/components/portal/PortalHeader.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-12",
+    "area": "Portal",
+    "feature": "Portal credentials do not open the school app",
+    "route": "/login",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Type a pupil's admission number as an email on the sign-in page: refused with a sentence",
+    "source": [
+      "src/app/login/LoginForm.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-13",
+    "area": "Portal",
+    "feature": "A pupil's Forms tab with Practice sets, Questionnaires and Paper work",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Signed in with the admission number and date of birth, choose Forms; the sections Practice sets, Questionnaires and Paper work are there",
+    "source": [
+      "src/components/portal/PortalFormsTab.tsx",
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-14",
+    "area": "Portal",
+    "feature": "A guardian has no Forms tab",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Signed in with the guardian's phone, the tabs are Overview, Academic Results, Fees & Billing and Coursework; there is no Forms",
+    "source": [
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-15",
+    "area": "Portal",
+    "feature": "Take a practice set: start, a countdown, every kind of question, submit, and a result that says what is marked and what is waiting",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Practice sets: Start; 'Time left' counts down from the start of the attempt; answer a single-choice, a true/false and a short question; Submit; 'Score so far: 2 of 6', each machine-marked answer Correct or Not quite with the correct answer and the explanation, the short answer 'Waiting for your teacher to mark this answer.' with no score and no key",
+    "source": [
+      "src/components/portal/PortalPracticeSets.tsx",
+      "src/components/portal/PracticeAttempt.tsx",
+      "src/components/portal/PracticeResult.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-16",
+    "area": "Portal",
+    "feature": "A finished practice set is opened again with its result, and the result downloads as a PDF",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "On the result press 'Download PDF'; back in the list the set says 'Finished' with no Start; press 'See result' to see it again",
+    "source": [
+      "src/components/portal/PortalPracticeSets.tsx",
+      "src/components/portal/PracticeResult.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-17",
+    "area": "Portal",
+    "feature": "An attempt in progress is continued, and its countdown runs from when it started",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Start a set, leave, come back to Practice sets: it says 'In progress'; Continue shows the time left counted from the first start",
+    "source": [
+      "src/components/portal/PortalPracticeSets.tsx",
+      "src/components/portal/PracticeAttempt.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-18",
+    "area": "Portal",
+    "feature": "A refused submission keeps the pupil's answers on the screen and says why",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Start a set with a one-minute limit, answer, wait until the minute and the allowance have passed, press Submit: 'The time for this practice set is up.' and the answers are still there",
+    "source": [
+      "src/components/portal/PracticeAttempt.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-19",
+    "area": "Portal",
+    "feature": "A questionnaire is answered once, with the anonymity said before answering",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Questionnaires: Answer; the dialog says it is anonymous; answer and 'Send my answers'; the row says 'Answered' and there is no Answer button",
+    "source": [
+      "src/components/portal/PortalQuestionnaires.tsx",
+      "src/components/forms/AnswerFields.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-20",
+    "area": "Portal",
+    "feature": "Paper work: the pupil's own state, and Request marking once",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Paper work: 'Not handed in yet'; Request marking: 'You asked your teacher to mark it.' and the button goes; after the teacher records the hand-in it says 'Handed in'",
+    "source": [
+      "src/components/portal/PortalPaperWork.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-21",
+    "area": "Portal",
+    "feature": "A pupil's Practice tab with Practise now, History and My reports",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Signed in with the admission number and date of birth, choose Practice; the sections Practise now, History and My reports are there",
+    "source": [
+      "src/components/portal/PortalPracticeTab.tsx",
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-22",
+    "area": "Portal",
+    "feature": "A guardian's Practice tab shows how practice is going and never a question",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Signed in with the guardian's phone, choose Practice: sessions, questions answered, how many were right, by subject and topic; no question text and no Start practice button",
+    "source": [
+      "src/components/portal/PracticeHistory.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-23",
+    "area": "Portal",
+    "feature": "A pupil whose school switched practice off has no Practice tab",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "With the pupil's practice level set to none in the portal access settings, sign in: there is no Practice tab",
+    "source": [
+      "src/app/portal/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-24",
+    "area": "Portal",
+    "feature": "Set up a practice session: subject, topic, number of questions, when the answer is shown, and what is left of today's allowance",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Practise now: 'You can answer N more questions today.'; choose the subject, the topic, the number and 'After each answer' or 'At the end'; Start practice",
+    "source": [
+      "src/components/portal/PracticeSetup.tsx",
+      "src/components/portal/PracticeNow.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-25",
+    "area": "Portal",
+    "feature": "Answer after each question: correct or not quite, the key and the explanation, then the result",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Choose an option, Check answer: 'Correct' or 'Not quite' with the correct answer and the explanation; Next question; See my result: 'You got 1 of 2 right (50%).' with every answer",
+    "source": [
+      "src/components/portal/PracticeSession.tsx",
+      "src/components/portal/PracticeFinished.tsx",
+      "src/components/portal/PracticeAnswers.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-26",
+    "area": "Portal",
+    "feature": "Answer with the answers at the end: nothing is revealed until the session is finished",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Start with 'At the end', Save answer: 'Answer saved.' and no key or explanation; See my result shows them all",
+    "source": [
+      "src/components/portal/PracticeSession.tsx",
+      "src/components/portal/PracticeFinished.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-27",
+    "area": "Portal",
+    "feature": "Finish now asks first and gives the unanswered questions back",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Answer one question, Finish now: the dialog says the questions not answered are given back; Finish now again shows the result of what was answered; Practise again shows the allowance went back up",
+    "source": [
+      "src/components/portal/PracticeSession.tsx",
+      "src/components/portal/PracticeNow.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-28",
+    "area": "Portal",
+    "feature": "A spent allowance, a closed practice and a pool too small each stop a start and say so",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Practise now with today's allowance used: 'You have used today's practice allowance. Come back tomorrow.' and Start practice is off; with practice closed: the school's sentence; with too few questions: 'No practice questions are ready for your class yet.'",
+    "source": [
+      "src/components/portal/PracticeSetup.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-29",
+    "area": "Portal",
+    "feature": "A refused answer keeps the pupil on the question with the sentence and the answer still chosen",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "negative",
+    "proof": "Choose an answer while the school has just closed practice, press Check answer: the sentence 'Practice is currently closed.' appears, the question and the chosen option stay, and nothing is saved",
+    "source": [
+      "src/components/portal/PracticeSession.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-30",
+    "area": "Portal",
+    "feature": "History: sessions newest first, answers in the options' words, archive and restore, finish one left open, PDF",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "History: each session with subject, topic, date and 'x of y right'; Show answers; Archive hides an answer and Show archived answers brings it back with Restore; a session 'Not finished' has Finish it; Download PDF saves a PDF",
+    "source": [
+      "src/components/portal/PracticeHistory.tsx",
+      "src/components/portal/PracticeAnswers.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-31",
+    "area": "Portal",
+    "feature": "Report a problem with a question just practised, and see the reviewer's answer under My reports",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "On an answer, Report a problem: fewer than 5 characters is refused on the screen; a real reason is sent; a second report on the same question is refused with the school's sentence; My reports lists it as 'Waiting for a reviewer' and later shows the outcome and the reason the reviewer gave",
+    "source": [
+      "src/components/portal/ReportQuestionDialog.tsx",
+      "src/components/portal/PracticeReports.tsx",
+      "src/components/portal/PracticeHistory.tsx",
+      "src/components/portal/PracticeFinished.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "POR-32",
+    "area": "Portal",
+    "feature": "A guardian given the full history sees it and can change nothing",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a guardian whose school gave the full practice history: Show answers lists the answers; there is no Archive, Report a problem, Download PDF, Finish it or Start practice",
+    "source": [
+      "src/components/portal/PracticeHistory.tsx",
+      "src/components/portal/PortalPracticeTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-23",
+    "area": "Forms",
+    "feature": "Anyone with the public link answers a questionnaire without signing in",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open the link of a published public questionnaire in a fresh tab, signed out: the title, the instructions and 'Your answers are sent without your name.'; choose, rate and type; 'Send my answers' shows 'Thank you. Your answers were sent.'; no school name and no menu",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-24",
+    "area": "Forms",
+    "feature": "Sending a public questionnaire with no answer is refused on the screen",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Press 'Send my answers' with nothing answered: 'Answer at least one question.' and nothing is sent",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-25",
+    "area": "Forms",
+    "feature": "A public link that cannot be answered says why in a sentence",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Open the link of a closed or draft questionnaire ('This questionnaire is closed.'), one that opens later ('This questionnaire has not opened yet.'), a link that matches nothing ('This link doesn't match a questionnaire. Check that you copied all of it.') and a members-only one ('This questionnaire is not open to the public.'): a sentence, no form",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "FRM-26",
+    "area": "Forms",
+    "feature": "A public questionnaire that closes while someone answers keeps their answers on the screen",
+    "route": "/q/[token]",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Answer, then have the questionnaire closed, press 'Send my answers': 'This questionnaire is closed.' and the chosen option and the typed text are still there",
+    "source": [
+      "src/app/q/[token]/page.tsx",
+      "src/components/forms/PublicQuestionnaire.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-01",
+    "area": "Programs",
+    "feature": "Programs is in the sidebar's Classroom section (phone: More), and a person with no place in any program is told so",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator",
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "positive",
+    "proof": "Choose Programs in the sidebar (phone: More, then Programs); a super admin sees 'No programs yet' and the New program button; a teacher sees 'You are not part of any program yet.' and no button",
+    "source": [
+      "src/components/shell/nav.ts",
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-02",
+    "area": "Programs",
+    "feature": "A super admin starts a program that never ends, in one or more branches, with its own level names",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: name 'Quran memorisation', Never ends, tick a branch, level names Juz and Group (Add a level); Create program; the program's page opens as a Draft with its branch",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/lib/programs/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-03",
+    "area": "Programs",
+    "feature": "A program for a period is given a length and the last day is worked out",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: For a set period, start 3 Nov 2026, Runs for 6 months; Create; the page says 'For a period, 3 Nov 2026 to 2 May 2027'. Again with 3 years: ends 2 Nov 2029; or choose 'Until a date I choose'",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/lib/programs/rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-04",
+    "area": "Programs",
+    "feature": "A program can have a branch of its own, created with it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "New program: tick 'Give it a branch of its own', name it Daarul-Hadeeth; the program's page lists that branch marked 'Its own branch' and it has no Remove button; the branch is also in Branches",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx",
+      "src/components/programs/ProgramOverview.tsx",
+      "src/lib/programs/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-05",
+    "area": "Programs",
+    "feature": "The new-program form explains what is missing and names a branch that is already taken",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "New program: press Create program with nothing filled in: 'Please check the fields marked below.' with a message under the name and the branches; give an own-branch name that already exists: the message names the branch field and nothing is created",
+    "source": [
+      "src/components/programs/CreateProgramDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-06",
+    "area": "Programs",
+    "feature": "A program's Overview: its details, its branches and its history in words",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open a program: Details (kind, dates, about), Branches, and History such as 'Amina Yusuf created the program'; a branch administrator sees no History",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx",
+      "src/components/programs/model.ts",
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-07",
+    "area": "Programs",
+    "feature": "Edit a program's details; a bad date is explained next to its field",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Edit details: set the end date to the start date, Save: 'The end date must be after the start date.'; set a later date and a new name, Save: the heading and the dates follow",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-08",
+    "area": "Programs",
+    "feature": "Activate a draft, archive a program after a confirmation (it turns read only), and restore it",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Activate; Archive then Cancel (nothing happens); Archive then 'Archive program': 'This program is archived and can only be read.' and the edit buttons are gone; a super admin presses Restore: it is a Draft again",
+    "source": [
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-09",
+    "area": "Programs",
+    "feature": "Add a branch to a program and remove one; the program's own branch cannot be removed",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Add a branch: choose one, Add branch: 'The branch was added.'; Remove it and confirm: 'The branch was removed.'; the own branch has no Remove button",
+    "source": [
+      "src/components/programs/ProgramOverview.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-10",
+    "area": "Programs",
+    "feature": "The Structure tab: level names, and groups inside groups, each shown inside the one above",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Structure: the level names (1. Juz, 2. Group); Add Juz: 'Juz A'; Add a Group inside Juz A: 'Group 1'; the group of the last level has no Add button of its own",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-11",
+    "area": "Programs",
+    "feature": "Rename, reorder, archive and restore a group; the same name twice is refused in the dialog",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Add Juz with the name 'juz a' again: 'There is already a group with this name here.' and the dialog stays; add 'Juz B', Move Juz B up; Rename a group; Archive it, tick 'Show archived', Restore it",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-12",
+    "area": "Programs",
+    "feature": "A level in use cannot be taken away from the level names",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Change level names: Remove level 2 while groups exist at it, Save: the dialog says groups exist at that level and nothing is changed",
+    "source": [
+      "src/components/programs/ProgramStructure.tsx",
+      "src/lib/programs/structure-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-13",
+    "area": "Programs",
+    "feature": "The Staff tab: a super admin names a member of staff of the program's branches as a program admin, and ends the place",
+    "route": "/programs/[id]",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Staff: 'No program admin has been named'; Name a program admin, choose a person, 'Name program admin': 'Hassan Teacher now runs the program.' and the name is listed; End the place and confirm",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-14",
+    "area": "Programs",
+    "feature": "A named program admin finds the program in their Programs page and can change its structure but not name other admins or add branches",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Signed in as the named teacher: Programs lists the program; Structure: add a Juz; Staff has no 'Name a program admin'; Overview has no 'Add a branch'",
+    "source": [
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx",
+      "src/app/(app)/programs/[id]/page.tsx",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-15",
+    "area": "Programs",
+    "feature": "A branch administrator reads the programs of their branch and sees no button to change anything",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a branch administrator: Programs lists the programs that run in the branch, with no New program; the program's pages show no Edit details, Activate, Archive, Add Juz, Rename, Name a program admin, and no History",
+    "source": [
+      "src/app/(app)/programs/page.tsx",
+      "src/components/programs/ProgramsPanel.tsx",
+      "src/app/(app)/programs/[id]/page.tsx",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-16",
+    "area": "Programs",
+    "feature": "A person with no place in a program who opens its address is told 'We could not find that program.', word for word what an address that does not exist gets",
+    "route": "/programs/[id]",
+    "roles": [
+      "Teacher",
+      "Non-teaching staff"
+    ],
+    "kind": "negative",
+    "proof": "Signed in as a teacher with no place: open /programs/ followed by a real program's id, then an id that does not exist: the same sentence 'We could not find that program.' with a way back to All programs; nothing of the program is shown",
+    "source": [
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PRG-17",
+    "area": "Programs",
+    "feature": "The programs switch: the school can turn programs off, a branch can turn them off for itself but never back on over the school",
+    "route": "/settings",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Programs: 'On for the school'; 'Turn off programs for' a branch: '... no longer takes part in programs.'; back on; 'Turn off for the school': every branch says 'off, set by the school' with no button; Programs then says 'Programs are switched off for the school.' and offers no New program; turn it on again",
+    "source": [
+      "src/components/programs/ProgramsSettingsPanel.tsx",
+      "src/lib/programs/settings-service.ts",
+      "src/app/(app)/settings/SettingsView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-01",
+    "area": "Programs",
+    "feature": "A program's People tab lists who is in it, in which group, through which branch, and in what state",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Open a program, People: 'No one is in this program yet.'; after adding people each shows its kind, its group path (Juz A-Group 1), its branch and a state pill (Taking part)",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/app/(app)/programs/[id]/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-02",
+    "area": "Programs",
+    "feature": "A pupil or a member of staff is added by searching for the school's record, which is linked and never typed again",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add people: choose the group, search 'Amina', Add Amina Musa; the page says 'Amina Musa was added.', the dialog stays open and the result reads 'Already in this program'",
+    "source": [
+      "src/components/programs/AddPersonDialog.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-03",
+    "area": "Programs",
+    "feature": "A whole class of pupils is added in one step, after it says who would be added and who would be skipped",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add people, A whole class of pupils, choose the class, See who would be added: '1 pupil will be added, 1 will be skipped.' with the skipped one named; Add 1 pupil",
+    "source": [
+      "src/components/programs/AddPersonDialog.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-04",
+    "area": "Programs",
+    "feature": "A new person (adult, guardian or child) is typed in; a child needs a birth date and a guardian; a namesake is asked about",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Add people, A new person, A small child: Add person says 'A child needs a date of birth.'; fill the birth date and the guardian; Add person; adding the same person again asks 'Yes, this is a different person'",
+    "source": [
+      "src/components/programs/AddPersonDialog.tsx",
+      "src/lib/programs/people-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-05",
+    "area": "Programs",
+    "feature": "A place can be moved to another group, ended by withdrawing (with a reason) and opened again by re-enrolling",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Move Binta Musa to Juz B; Withdraw Binta Musa needs a reason and the row reads 'Left the program' with only Re-enrol offered; Re-enrol Binta Musa brings it back as 'Taking part'",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-06",
+    "area": "Programs",
+    "feature": "Someone with no school record can be suspended, lifted, expelled and reinstated, with a reason and a history",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Suspend Zainab Abubakar (reason, last day): 'Suspended until ...'; Lift suspension; Expel is offered to a super admin; History of Zainab Abubakar lists each step with who and why",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-07",
+    "area": "Programs",
+    "feature": "A pupil's or member of staff's state is read from the school's own record, and the row says where to change it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Suspend the pupil on the Students page, then open People: the row reads 'Suspended' and 'Change this on the Students page.' with no suspend or expel button",
+    "source": [
+      "src/lib/programs/people-rules.ts",
+      "src/components/programs/ProgramPeopleTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-08",
+    "area": "Programs",
+    "feature": "A branch administrator sees only the people through their own branch and is never offered Expel",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "People as a branch administrator: only people through their branch, the Branch filter lists only it, Suspend is offered and Expel is not; with the school's switch off Suspend goes too",
+    "source": [
+      "src/lib/programs/people-service.ts",
+      "src/lib/programs/people-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-09",
+    "area": "Programs",
+    "feature": "The list can be searched and filtered by group, branch, kind and state",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Search 'binta' finds one person; Group Juz A narrows to its people; State Suspended with none says 'No one matches.'",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/lib/programs/people-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-10",
+    "area": "Programs",
+    "feature": "The Structure tab shows how many people each group holds, and an archived program only shows its people",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Structure: 'Juz A - 1 person'; archive the program: People shows the list, no Add people and no change buttons, only History",
+    "source": [
+      "src/components/programs/ProgramPeopleTab.tsx",
+      "src/components/programs/ProgramStructure.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPL-11",
+    "area": "Programs",
+    "feature": "A teacher who is not in the program cannot find it",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Open the program's address as a teacher: 'We could not find that program.' and no People tab",
+    "source": [
+      "src/lib/programs/access.ts",
+      "src/components/programs/ProgramPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-12",
+    "area": "Question bank",
+    "feature": "A teacher reports a problem with an approved question",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Open an approved question someone else wrote: Report a problem; fewer than 5 characters is refused on the screen; a real reason is sent and the question says 'Your report went to the reviewers.'; reporting it again shows the API's 'already reported' sentence",
+    "source": [
+      "src/components/question-bank/QuestionDetail.tsx",
+      "src/components/question-bank/ReportProblemDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-13",
+    "area": "Question bank",
+    "feature": "A reviewer reads the reports on questions, each reporter shown by role and section only",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Reports tab: each report with its question, reporter ('Teacher in Main Branch', 'Pupil'; never a name), reason, version reported and what the question was copied into; the filter Waiting, Resolved, Dismissed, All; the question opens from its report",
+    "source": [
+      "src/components/question-bank/ReportsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-14",
+    "area": "Question bank",
+    "feature": "A reviewer answers a report: Fixed, Not an error or Needs discussion, with a reason",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Answer this report: nothing chosen or a reason under 3 characters is refused on the screen; an answered report leaves Waiting and shows its outcome and reason under Dismissed or Resolved; a report someone else just answered gives the API's sentence and the list updates",
+    "source": [
+      "src/components/question-bank/AnswerReportDialog.tsx",
+      "src/components/question-bank/ReportsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-15",
+    "area": "Question bank",
+    "feature": "A fixed question is corrected in the assessments that copied it, and the attempts are scored again",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Answer a report as Fixed on an approved question that a quiz copied: the tick 'Correct the copies in this branch's assessments' appears with the past-papers warning (not for the other outcomes); ticked, the answer shows how many copies were corrected and attempts scored again",
+    "source": [
+      "src/components/question-bank/AnswerReportDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-16",
+    "area": "Question bank",
+    "feature": "A teacher who is not a reviewer has no Reports section, and a writer cannot report their own question",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher who reviews nothing sees Browse and My questions only; on a question they wrote there is no Report a problem",
+    "source": [
+      "src/components/question-bank/QuestionBankSections.tsx",
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-17",
+    "area": "Question bank",
+    "feature": "Print a question as a watermarked PDF, with or without the answer key and with a reason",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open a question: Print; tick Include the answer key, give a reason, Download PDF saves a PDF and the question says the print is in the print log",
+    "source": [
+      "src/components/question-bank/PrintDialog.tsx",
+      "src/components/question-bank/QuestionDetail.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-18",
+    "area": "Question bank",
+    "feature": "A print of a secret exam question near the exam is refused in the API's words",
+    "route": "/question-bank",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher prints a question kept for an exam inside the near-exam window: the dialog shows the API's sentence and no PDF is saved",
+    "source": [
+      "src/components/question-bank/PrintDialog.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "QBK-19",
+    "area": "Question bank",
+    "feature": "The print log: who printed what, when, how many pages and why",
+    "route": "/question-bank",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Print log tab (reviewers and administrators): each line with title, kind, pages, who, when and the reason; filter by what was printed; Show more; a branch choice when the person is staff in several",
+    "source": [
+      "src/components/question-bank/PrintLogPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LMS-10",
+    "area": "Learning (LMS)",
+    "feature": "Offer a quiz question back to the question bank, and print a quiz",
+    "route": "/lms",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Quizzes: Questions on a quiz card lists its questions; Offer to the question bank (subject, topic, difficulty) says it was offered and the copy is in My questions as waiting for review; Print this quiz saves a PDF",
+    "source": [
+      "src/components/lms/QuizQuestionsDialog.tsx",
+      "src/components/lms/QuizConsole.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "VID-02",
+    "area": "Video guide",
+    "feature": "The video guide is reached from the app, from the profile menu",
+    "route": "/dashboard",
+    "roles": [
+      "Branch administrator",
+      "Teacher",
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Signed in, open the profile menu: Video guide is a link; pressing it opens the video guide page with the player and its chapters",
+    "source": [
+      "src/components/shell/ProfileMenu.tsx",
+      "src/app/video-guide/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-01",
+    "area": "Students",
+    "feature": "A super admin suspends a pupil with a reason and a last day, and the list says so",
+    "route": "/students",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Students, Suspend beside a pupil: the dialog says what a suspension does; Suspend with no reason says 'Say why (at least 3 characters).'; give a reason and a last day, Suspend: 'Amina Musa is suspended.' and the row shows 'Suspended until <day>'",
+    "source": [
+      "src/components/students/StudentsPanel.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/standing/student-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-02",
+    "area": "Students",
+    "feature": "Lifting a suspension, and the history of a pupil's standing",
+    "route": "/students",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Lift suspension beside the pupil, give a reason: the badge goes. History beside the pupil lists every change newest first with the reason, the day and who decided, and nothing in it can be edited",
+    "source": [
+      "src/components/standing/StandingHistoryDialog.tsx",
+      "src/app/api/v1/students/[id]/standing/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-03",
+    "area": "Students",
+    "feature": "Expelling takes a pupil off the class lists; reinstating puts them back; the Show filter finds them",
+    "route": "/students",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Expel beside a pupil (the dialog says their guardian can still see the invoices and only a super admin can reinstate); the row shows 'Expelled'; Show, Expelled lists them; Reinstate with a reason brings them back on the class list",
+    "source": [
+      "src/components/students/StudentsPanel.tsx",
+      "src/lib/standing/student-service.ts",
+      "src/lib/students/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-04",
+    "area": "Students",
+    "feature": "A branch administrator is offered Suspend and Lift but never Expel, and nothing at all when the school has taken suspending from branch administrators",
+    "route": "/students",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As a branch administrator: Suspend and Lift suspension are there, Expel and Reinstate are not; after the super admin turns 'Branch administrators may suspend' off, none of the standing buttons is there. A teacher sees the badge and no button",
+    "source": [
+      "src/app/(app)/students/page.tsx",
+      "src/components/standing/model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-05",
+    "area": "Attendance",
+    "feature": "A suspended pupil stays on the class list, flagged; an expelled pupil is not on it",
+    "route": "/attendance",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Take attendance for the class: a suspended pupil shows the 'Suspended' badge and can be marked as usual; an expelled pupil is not in the list",
+    "source": [
+      "src/components/attendance/AttendancePanel.tsx",
+      "src/lib/attendance/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-06",
+    "area": "Users",
+    "feature": "A super admin suspends, terminates and reinstates a member of staff",
+    "route": "/users",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Users, Suspend beside a teacher (a tick box offers 'Everywhere in the school'): the row shows 'Suspended' with Lift suspension and Terminate, and no Reactivate; Terminate with a reason: 'Terminated' and Reinstate; History lists both with the reasons",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/components/standing/StandingDialog.tsx",
+      "src/lib/standing/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-07",
+    "area": "Users",
+    "feature": "A suspended or terminated person cannot simply be reactivated, and a branch administrator never terminates or touches another administrator",
+    "route": "/users",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As a branch administrator: Suspend and Lift on teachers in the branch only; no Terminate; no standing buttons on another administrator; a suspended person has Lift suspension and no Reactivate",
+    "source": [
+      "src/components/users/UsersPanel.tsx",
+      "src/lib/members/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-08",
+    "area": "Academics",
+    "feature": "Staff records, including people who never sign in, can be suspended or terminated",
+    "route": "/academics",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Academics, Staff: Suspend or Terminate beside a staff record, History beside it; a terminated record is under Show, Archived and offers Reinstate, not Restore",
+    "source": [
+      "src/components/academics/StaffPanel.tsx",
+      "src/app/api/v1/staff/[id]/standing/route.ts",
+      "src/lib/academics/staff.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-09",
+    "area": "Settings",
+    "feature": "Settings, Discipline: whether branch administrators may suspend, with the school as the ceiling",
+    "route": "/settings",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Discipline: 'Branch administrators may suspend'; Turn off for the school: 'Branch administrators may no longer suspend.' and every branch says 'may not suspend, set by the school'; turn on again; 'Stop administrators of <branch> suspending' narrows one branch",
+    "source": [
+      "src/components/standing/StandingSettingsPanel.tsx",
+      "src/components/settings/SwitchSettingsPanel.tsx",
+      "src/lib/standing/settings-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "STD-10",
+    "area": "Portal",
+    "feature": "A suspended pupil is told so without the reason; an expelled pupil is refused; an expelled child's guardian keeps only the fees",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Sign in as a suspended pupil: 'You are suspended until <day>' and no hand-in, quizzes or practice; sign in as the guardian of an expelled child: 'is no longer a pupil of the school', Fees & Billing only; the pupil's own sign-in says the one generic sentence",
+    "source": [
+      "src/components/portal/PortalStandingNotice.tsx",
+      "src/lib/portal/service.ts",
+      "src/lib/portal/guard.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-01",
+    "area": "Finance",
+    "feature": "Finance, Payment Rules: the school decides whether an invoice can be paid in parts and the smallest part",
+    "route": "/finance",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Finance, Payment Rules: 'The school: Part payments are allowed, of any amount.'; choose An amount, type 10000, Save the school's rule: 'The school's rule is saved.' and the sentence now names the ₦10,000",
+    "source": [
+      "src/components/finance/PaymentRulesPanel.tsx",
+      "src/lib/finance/part-payment-service.ts",
+      "src/app/api/v1/settings/part-payment/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-02",
+    "area": "Finance",
+    "feature": "A branch can make the rule stricter for itself, never looser than the school's",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "In Payment Rules, under the branch, set a smaller smallest part than the school's and Save: the screen says 'a branch can only raise it'; set a larger one: saved",
+    "source": [
+      "src/components/finance/PaymentRulesPanel.tsx",
+      "src/lib/finance/part-payment.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-03",
+    "area": "Finance",
+    "feature": "The invoice says what may be paid, a part below the smallest is refused in words, and the whole balance is one click",
+    "route": "/finance",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View & Pay on an invoice: 'Part payments are allowed, at least ₦10,000.'; Record Payment, type 2500: 'The smallest part you can pay is ₦10,000.'; Pay the full balance fills the balance and the payment is recorded",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/components/finance/RecordPaymentModal.tsx",
+      "src/lib/finance/service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PPY-04",
+    "area": "Finance",
+    "feature": "One invoice can be marked pay in full, and cleared again",
+    "route": "/finance",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "View & Pay: 'Pay in full only' turns the sentence into 'This invoice has to be paid in full.' and a part is refused; 'Allow part payments again' turns it back",
+    "source": [
+      "src/components/finance/InvoiceDetailModal.tsx",
+      "src/app/api/v1/finance/invoices/[id]/pay-in-full/route.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-01",
+    "area": "Programs",
+    "feature": "A super admin or a program admin names supervisors, teachers and recorders, and a super admin the program admins",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Staff: 'Name a teacher', choose a member of staff of a branch the program runs in, Name teacher; they appear under Teachers. Same for Supervisors and Recorders",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx",
+      "src/lib/programs/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-02",
+    "area": "Programs",
+    "feature": "A teacher or a recorder is given the groups they take attendance for",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Staff, Teachers, 'Groups' beside the teacher: tick Juz A, Save groups; the line under them reads 'Takes attendance for Juz A'. With no group it reads 'No groups yet: they see nothing.'",
+    "source": [
+      "src/components/programs/ProgramStaffTab.tsx",
+      "src/lib/programs/staff-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-03",
+    "area": "Programs",
+    "feature": "A teacher takes the roll of a group and the groups inside it, one tap for everyone present, one save",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Attendance, Roll call: choose Juz A, today; Mark everyone present; change one person to Absent; Save attendance; 'Saved: 3 marked, 0 corrected.' and the line 'Marked by Teacher'",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-04",
+    "area": "Programs",
+    "feature": "A suspended person is on today's roll with a flag and cannot be marked; an earlier day is not rewritten by it",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Suspend a typed-in person; today's roll shows 'Suspended' and their buttons are disabled; open an earlier day: no flag, the buttons work",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-05",
+    "area": "Programs",
+    "feature": "Two sessions on one day are told apart by a session name",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Session name 'Morning', mark and save; change it to 'After Asr', the roll is empty again; mark and save; This week lists both",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-validation.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-06",
+    "area": "Programs",
+    "feature": "If someone else changed a mark while you had the roll open, the save is refused and nothing is lost",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Two browsers on the same roll: save a change in one, then a different change in the other; 'was changed by someone else. Reload the roll.' with a Reload the roll link",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-07",
+    "area": "Programs",
+    "feature": "A mark is corrected with a reason, and the correction keeps what it replaced",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Roll of a day more than a week ago: change a mark; 'Why are you correcting a mark?' must be filled in; Save; History of the person shows the old status, the new one, who and why",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-08",
+    "area": "Programs",
+    "feature": "A teacher cannot mark a day older than a week or a day that has not come",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Pick a date 10 days ago: 'You can take attendance from ... onward.' and no buttons; the date picker stops at today",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/components/programs/attendance-model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-09",
+    "area": "Programs",
+    "feature": "A branch administrator sees only their own branch's people on a roll and cannot mark",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Attendance as the administrator of one branch: only that branch's people, 'You can read this roll but not change it.', no Save button",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-10",
+    "area": "Programs",
+    "feature": "The summary shows each person's percentage and flags the low ones",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Attendance, Summary: pick a group and a range; each person shows Present, Late, Absent, Excused and a percentage; under 75% reads 'Low'; lowest first",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-11",
+    "area": "Programs",
+    "feature": "This week lists the sessions held and opens any of them",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Attendance, This week: each session shows the group, the day and how many were marked each way; Open roll shows that roll",
+    "source": [
+      "src/components/programs/ProgramAttendanceTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-12",
+    "area": "Programs",
+    "feature": "A program admin turns attendance off for the program or changes the low-attendance percentage",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: untick 'Take attendance in this program', Save settings; the Attendance tab disappears and the state line says it is off for this program; set 60 and save",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/lib/programs/attendance-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-13",
+    "area": "Programs",
+    "feature": "The school and each branch have their own attendance switch, and a branch can only turn it off",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Programs, 'Attendance in programs': turn it off for a branch; that branch's people leave every roll while the other branches go on; a branch cannot turn it on when the school has it off",
+    "source": [
+      "src/components/programs/ProgramsSettingsPanel.tsx",
+      "src/lib/programs/settings-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAT-14",
+    "area": "Programs",
+    "feature": "A teacher with no group has no Attendance tab",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher named to the program but given no group opens it: Overview, Structure, People and Staff only; the roll of any group answers 'not found'",
+    "source": [
+      "src/components/programs/ProgramPage.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-01",
+    "area": "Programs",
+    "feature": "A program admin makes an assessment as a draft and opens it for scores",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Assessments, New assessment: title 'Recitation check', Out of 20, pass mark 10, tick Juz A; Make assessment; it is listed as Draft; Open it, Open for scores: it is Open",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-02",
+    "area": "Programs",
+    "feature": "A teacher enters scores and result codes for the people of their groups in one save",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Assessments, open the test: type 30.5 for one pupil, choose Absent for another, Add comment; Save scores: 'Saved: 2 entered, 0 changed.' with 'entered by <teacher>'",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-03",
+    "area": "Programs",
+    "feature": "A score above the maximum is refused next to its field and cannot be saved",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Type 41 for a test out of 40: 'A score can't be above the maximum of 40.' and Save scores stays disabled",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/components/programs/assessment-model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-04",
+    "area": "Programs",
+    "feature": "A suspended person is shown as not sitting and has no score field",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A suspended child on the sheet reads 'Not sitting (suspended)' with no score or result to enter",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-05",
+    "area": "Programs",
+    "feature": "Marking needs every score in, publishing needs a confirmation, and after marking a teacher can only read",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Mark as complete (refused while someone has no score); Publish results asks first; the teacher then sees the sheet without fields or Save",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-06",
+    "area": "Programs",
+    "feature": "A published score is corrected only with a reason, and its history keeps it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Change a score on a published assessment: 'Why is a published score being changed?' must be filled; Save; History shows 'changed 15 to 25 (Recounted the paper)'",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-07",
+    "area": "Programs",
+    "feature": "Results show each person's weighted average and grade over the published assessments",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Assessments, Results: 'Amina Musa 75% · Good'; an absent person counts 0, an excused one is left out",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-08",
+    "area": "Programs",
+    "feature": "A branch administrator reads the sheet of their own branch's people and cannot enter anything",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Open the test as the administrator of one branch: only that branch's people, no fields, no Save scores, no Mark as complete",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-09",
+    "area": "Programs",
+    "feature": "The program's own assessments switch and its grades are set in Settings, under the school's and the branch's",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: tick 'Use assessments', Add a grade twice (a repeated name is refused), Save; the Assessments tab appears. Settings, Programs: 'Assessments in programs' for the school and each branch",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/components/programs/ProgramsSettingsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-10",
+    "area": "Programs",
+    "feature": "A teacher with no group has no Assessments tab",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher named to the program with no group opens it: Overview, Structure, People and Staff only",
+    "source": [
+      "src/components/programs/ProgramPage.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-01",
+    "area": "Programs",
+    "feature": "A program admin makes a fee: its amount, how often, who it is for and who it is billed to",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Fees, Fees, New fee: 'Monthly fee', 5000, Every month, due on day 10; Make fee; it is listed with its audience",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-02",
+    "area": "Programs",
+    "feature": "The invoices of a period are previewed and then made in one step; making them again makes nothing new",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Fees, Make invoices: See who would get an invoice ('3 invoices would be made, ₦15,000.00 in all'); Make 3 invoices; again: '0 invoices would be made' with 'Already has an invoice for this period.'",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-03",
+    "area": "Programs",
+    "feature": "A payment is recorded with a receipt; the balance and status follow; nothing above the balance can be typed",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open an invoice: type 6000 on ₦5,000 ('That is more than is owed.'); record 2000 (Part paid, receipt RCP-...); Pay the full balance; Record payment: Paid",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-payments.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-04",
+    "area": "Programs",
+    "feature": "A discount needs a reason; an invoice can be marked pay in full only, and the school's part-payment rule applies",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Give a discount 1000 with 'Sibling discount': total ₦4,000; Pay in full only, then try 100: refused; Allow part payments",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-05",
+    "area": "Programs",
+    "feature": "The report shows billed, collected and owed by branch and by group, and who owes",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Fees, Report: 'Billed ₦15,000.00 · collected ₦5,000.00 · owed ₦10,000.00 · 33.3% collected', By branch, By group, Who owes",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-06",
+    "area": "Programs",
+    "feature": "A branch administrator sees only their branch's invoices and can take a payment there, not make fees or invoices",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As the administrator of one branch: two invoices, no Fees or Make invoices views; record a payment; the report covers only their branch",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-07",
+    "area": "Programs",
+    "feature": "A teacher or a supervisor has no Fees tab",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher opens the program: no Fees tab; the fees address answers that they may not see them",
+    "source": [
+      "src/components/programs/ProgramPage.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-08",
+    "area": "Programs",
+    "feature": "The program's own fees switch is set in Settings, under the school's and the branch's",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: tick 'Charge fees in this program', Save: the Fees tab appears. Settings, Programs: 'Fees in programs'",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/components/programs/ProgramsSettingsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-01",
+    "area": "Programs",
+    "feature": "A person's place is completed at any time and says when",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Completion: Complete Amina Musa, Complete place: 'Amina Musa is completed.' and 'completed <date>'",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-02",
+    "area": "Programs",
+    "feature": "A person who does not meet the completion rule is completed only with a reason, which is kept",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "With a rule of an average of 70%: 'Does not meet the rule: ...'; Complete needs 'Why complete them anyway?'; the reason is shown on the row",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-03",
+    "area": "Programs",
+    "feature": "A fixed-term program is completed after its end date, after seeing who is skipped",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Completion: 'The program has reached its end date.'; Complete the program lists '3 will be completed, 1 skipped.' with the reason; confirm: 'The program is completed: 3 places completed.'",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-04",
+    "area": "Programs",
+    "feature": "A certificate is issued and opens as a print-ready page with a QR code, on one page",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Certificates, Issue certificates for everyone completed; Open: the title, the wording, the signatories and a QR; Print gives one A4 page without the controls",
+    "source": [
+      "src/components/programs/CertificatePrint.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-05",
+    "area": "Programs",
+    "feature": "Anyone with the code can check a certificate and sees only the first name and the initial of the last",
+    "route": "/programs",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /verify/<code>: 'This certificate is genuine.' with the school, program, 'Amina P.' and the date - no marks, phone or guardian",
+    "source": [
+      "src/app/verify/[token]/page.tsx",
+      "src/lib/programs/certificate-verify.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-06",
+    "area": "Programs",
+    "feature": "A certificate is withdrawn with a reason; it stays on record and the public page says it was withdrawn",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Withdraw the certificate of Amina Musa with a reason: it reads 'withdrawn' with no Open link; the public page says it was withdrawn and gives no reason",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-07",
+    "area": "Programs",
+    "feature": "A super admin reopens a completed place with a reason",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Completion: Reopen the place of Amina Musa, give a reason: 'Amina Musa's place is open again.'",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-08",
+    "area": "Programs",
+    "feature": "The certificate wording, signatories and the completion rule are set in Settings; an unknown placeholder is refused",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: wording 'Well done {nme}.' says '{nme} is not a placeholder' and cannot be saved; fix it, add a signatory, set 55.5, Save",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/lib/programs/completion-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-09",
+    "area": "Programs",
+    "feature": "A branch administrator sees the certificates of their own branch only; a teacher has none",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "As the administrator of one branch: a Certificates tab with their branch's certificates, no Issue or Withdraw; a teacher has no such tab",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  }
+]

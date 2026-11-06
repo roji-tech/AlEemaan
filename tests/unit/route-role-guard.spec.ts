@@ -63,6 +63,8 @@ const ALLOWED: Record<string, string> = {
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/practice/sessions/route.ts":
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
+  "GET v1/portal/students/[studentId]/practice/sessions/[id]/route.ts":
+    "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/answers/route.ts":
     "portal practice: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/finish/route.ts":
@@ -269,6 +271,30 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query must be the caller's",
   "POST v1/forms/[id]/print/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/students/[id]/standing/route.ts":
+    "the branch is the PUPIL's, never the request's: the service reads the pupil, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown pupil and another branch's pupil are the same 404",
+  "GET v1/members/[id]/standing/route.ts":
+    "the branch is the MEMBERSHIP's (or the staff record's), never the request's: the service reads it, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown member and another branch's member are the same 404",
+  "POST v1/members/[id]/standing/route.ts":
+    "the branch is the MEMBERSHIP's (or the staff record's), never the request's: the service reads it, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown member and another branch's member are the same 404",
+  "POST v1/programs/[id]/branches/route.ts":
+    "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
+  "DELETE v1/programs/[id]/branches/[branchId]/route.ts":
+    "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
+  "GET v1/programs/[id]/people/route.ts":
+    "the branch is the PROGRAM's and the PERSON's, never the request's: the service reads the viewer's place in the program (a super admin, a program admin, or an administrator of a branch it runs in), and a branch administrator is limited to the people through their own branches; a person or program outside that reach is the same 404 as one that does not exist",
+  "GET v1/settings/programs/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-attendance/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-assessments/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-fees/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/standing/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/part-payment/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
 };
 
 /// Third assertion (ADR 0015): a handler that names a branch is wrapped by `withBranch` - the structure that makes the branch check impossible to forget -
@@ -281,6 +307,8 @@ const NOT_WRAPPED: Record<string, string> = {
   "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
     "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/practice/sessions/route.ts":
+    "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
+  "GET v1/portal/students/[studentId]/practice/sessions/[id]/route.ts":
     "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
   "POST v1/portal/students/[studentId]/practice/sessions/[id]/answers/route.ts":
     "portal practice: no staff login; branch resolved via student record and portal session limits which pupils",
@@ -493,6 +521,30 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query must be the caller's",
   "POST v1/forms/[id]/print/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/students/[id]/standing/route.ts":
+    "the branch is the PUPIL's, never the request's: the service reads the pupil, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown pupil and another branch's pupil are the same 404",
+  "GET v1/members/[id]/standing/route.ts":
+    "the branch is the MEMBERSHIP's (or the staff record's), never the request's: the service reads it, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown member and another branch's member are the same 404",
+  "POST v1/members/[id]/standing/route.ts":
+    "the branch is the MEMBERSHIP's (or the staff record's), never the request's: the service reads it, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown member and another branch's member are the same 404",
+  "POST v1/programs/[id]/branches/route.ts":
+    "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
+  "DELETE v1/programs/[id]/branches/[branchId]/route.ts":
+    "acts on a PROGRAM, not on a branch of the caller's: a super admin alone (change() at the super level in programs/service decides, inside the program's row lock); the branch is only the thing to link or unlink",
+  "GET v1/programs/[id]/people/route.ts":
+    "the branch is the PROGRAM's and the PERSON's, never the request's: the service reads the viewer's place in the program (a super admin, a program admin, or an administrator of a branch it runs in), and a branch administrator is limited to the people through their own branches; a person or program outside that reach is the same 404 as one that does not exist",
+  "GET v1/settings/programs/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-attendance/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-assessments/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-fees/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/standing/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/part-payment/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
 };
 
 function routeFiles(dir: string): string[] {

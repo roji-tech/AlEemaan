@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useSignOut } from "@/components/auth/useSignOut";
-import { ChevronDownIcon, LogOutIcon, SlidersIcon, UserIcon } from "@/components/ui/icons";
+import { ChevronDownIcon, LogOutIcon, MonitorIcon, SlidersIcon, UserIcon } from "@/components/ui/icons";
 import { SoonTag } from "./SoonTag";
 import { FOCUS_RING, initialsOf } from "./nav";
 
@@ -102,6 +102,10 @@ export function ProfileMenu({ name, email, roleLabel, isAdmin }: ProfileMenuProp
           <Link href="/account" className={`${ITEM} ${FOCUS_RING}`}>
             <UserIcon className="h-4 w-4" />
             Profile
+          </Link>
+          <Link href="/video-guide" className={`${ITEM} ${FOCUS_RING}`}>
+            <MonitorIcon className="h-4 w-4" />
+            Video guide
           </Link>
           {isAdmin && (
             <span className={`${ITEM} text-fg-muted hover:bg-transparent hover:text-fg-muted`}>

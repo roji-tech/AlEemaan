@@ -61,6 +61,8 @@ test.describe("GET /members", () => {
       "joinedAt",
       "name",
       "role",
+      "standing",
+      "standingUntil",
       "status",
       "userId",
     ]);

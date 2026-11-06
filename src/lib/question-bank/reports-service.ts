@@ -624,3 +624,38 @@ export async function getPupilReportHistory(params: {
     resolvedAt: r.resolvedAt,
   }));
 }
+
+/**
+ * Returns the reports a member of staff filed themselves, newest first, with where each stands and (once a reviewer has answered) the outcome and the reason. A person reads only their own:
+ * the filter is the signed-in person's id, never a parameter. The question's words are shown as the person may see them (a question they could report, they could read).
+ */
+export async function getTeacherReportHistory(params: { userId: string }) {
+  const reports = await prisma.questionReport.findMany({
+    where: { reporterUserId: params.userId },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      item: {
+        select: {
+          prompt: true,
+          subjectLabel: true,
+          topic: true,
+        },
+      },
+    },
+  });
+
+  return reports.map((r) => ({
+    id: r.id,
+    itemId: r.itemId,
+    questionPrompt: r.item.prompt,
+    subjectLabel: r.item.subjectLabel,
+    topic: r.item.topic,
+    reason: r.reason,
+    status: r.status,
+    outcome: r.outcome,
+    outcomeReason: r.outcomeReason,
+    createdAt: r.createdAt,
+    resolvedAt: r.resolvedAt,
+  }));
+}

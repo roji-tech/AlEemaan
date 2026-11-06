@@ -11,6 +11,10 @@ import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, getJson, sendJson } from "@
 import { initialsOf } from "@/components/shell/nav";
 import { ROLE_LABELS } from "@/lib/roles";
 import { DeactivateDialog } from "./DeactivateDialog";
+import { StandingBadge } from "@/components/standing/StandingBadge";
+import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
+import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
+import { KIND_TEXT, kindsFor, type StandingCan } from "@/components/standing/model";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { InvitationsList } from "./InvitationsList";
 import { InviteDialog } from "./InviteDialog";
@@ -40,12 +44,15 @@ export function UsersPanel({
   currentUserId,
   isSuperAdmin,
   hasMfa,
+  standingCan = {},
 }: {
   branches: BranchOption[];
   currentUserId: string;
   isSuperAdmin: boolean;
   /// The signed-in superadmin has two-step verification on, so a change that needs a fresh proof asks for a code and not the password.
   hasMfa: boolean;
+  /// What this person may do about a member's standing in each branch (display only: the API decides).
+  standingCan?: Record<string, StandingCan>;
 }) {
   const [searchText, setSearchText] = useState("");
   const [q, setQ] = useState("");
@@ -65,6 +72,8 @@ export function UsersPanel({
   const [inviteKey, setInviteKey] = useState(0);
   const [editing, setEditing] = useState<Member | null>(null);
   const [deactivating, setDeactivating] = useState<Member | null>(null);
+  const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
+  const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
   const [superAdminFor, setSuperAdminFor] = useState<Member | null>(null);
   const [busyUser, setBusyUser] = useState<string | null>(null);
   const [busyInvitation, setBusyInvitation] = useState<string | null>(null);
@@ -177,6 +186,15 @@ export function UsersPanel({
       setNotice({ variant: "error", text: failureText(reply.status, reply.message) });
     }
   }
+
+  const ask = (member: Member, kind: StandingAsk["kind"]) =>
+    setStandingAsk({
+      kind,
+      subject: "staff",
+      endpoint: `/api/v1/members/${member.id}/standing`,
+      name: displayName(member),
+      canSchoolWide: isSuperAdmin && !member.isSuperAdmin,
+    });
 
   const filtered = Boolean(q || role || branchId || access || status !== "active");
   const clearFilters = () => {
@@ -346,13 +364,17 @@ export function UsersPanel({
                       {member.isSuperAdmin ? "All branches" : member.branchName}
                     </p>
                     <p>
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${member.status === "active" ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"}`}
-                      >
-                        {member.status === "active" ? "Active" : "Deactivated"}
-                      </span>
+                      {member.standing !== "ACTIVE" ? (
+                        <StandingBadge standing={member.standing} until={member.standingUntil} />
+                      ) : (
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${member.status === "active" ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"}`}
+                        >
+                          {member.status === "active" ? "Active" : "Deactivated"}
+                        </span>
+                      )}
                     </p>
-                    <div className="flex gap-2 md:w-64 md:justify-end">
+                    <div className="flex flex-wrap gap-2 md:w-64 md:justify-end">
                       {self || locked ? null : member.status === "active" ? (
                         <>
                           <Button
@@ -371,6 +393,19 @@ export function UsersPanel({
                           >
                             Deactivate
                           </Button>
+                          {kindsFor("staff", member.standing, standingCan[member.branchId] ?? { suspend: false, remove: false }).map(
+                            (kind) => (
+                              <Button
+                                key={kind}
+                                variant="ghost"
+                                className="flex-1 md:flex-none"
+                                onClick={() => ask(member, kind)}
+                                aria-label={`${KIND_TEXT[kind]} ${name}`}
+                              >
+                                {KIND_TEXT[kind]}
+                              </Button>
+                            ),
+                          )}
                           {isSuperAdmin && (
                             <Button
                               variant="ghost"
@@ -382,7 +417,7 @@ export function UsersPanel({
                             </Button>
                           )}
                         </>
-                      ) : (
+                      ) : member.standing === "ACTIVE" ? (
                         <Button
                           variant="secondary"
                           className="flex-1 md:flex-none"
@@ -391,6 +426,33 @@ export function UsersPanel({
                           aria-label={`Reactivate ${name}`}
                         >
                           Reactivate
+                        </Button>
+                      ) : (
+                        // Suspended or terminated: it ends with the action that records why, not with a plain reactivation.
+                        kindsFor(
+                          "staff",
+                          member.standing === "SUSPENDED" ? "SUSPENDED" : "TERMINATED",
+                          standingCan[member.branchId] ?? { suspend: false, remove: false },
+                        ).map((kind) => (
+                          <Button
+                            key={kind}
+                            variant="secondary"
+                            className="flex-1 md:flex-none"
+                            onClick={() => ask(member, kind)}
+                            aria-label={`${KIND_TEXT[kind]} ${name}`}
+                          >
+                            {KIND_TEXT[kind]}
+                          </Button>
+                        ))
+                      )}
+                      {!self && !locked && (
+                        <Button
+                          variant="ghost"
+                          className="flex-1 md:flex-none"
+                          onClick={() => setHistoryOf({ endpoint: `/api/v1/members/${member.id}/standing`, name })}
+                          aria-label={`Standing history of ${name}`}
+                        >
+                          History
                         </Button>
                       )}
                     </div>
@@ -477,6 +539,16 @@ export function UsersPanel({
           void afterChange();
         }}
       />
+      <StandingDialog
+        ask={standingAsk}
+        onClose={() => setStandingAsk(null)}
+        onDone={(text) => {
+          flushSync(() => setStandingAsk(null));
+          setNotice({ variant: "success", text });
+          void afterChange();
+        }}
+      />
+      <StandingHistoryDialog endpoint={historyOf?.endpoint ?? null} name={historyOf?.name ?? ""} onClose={() => setHistoryOf(null)} />
       <DeactivateDialog
         member={deactivating}
         onClose={() => setDeactivating(null)}

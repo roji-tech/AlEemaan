@@ -12,6 +12,9 @@ enum EnrollmentStatus {
   WITHDRAWN
   TRANSFERRED
   ALUMNI
+  /// Set when a pupil is expelled (task 0045): every module that selects pupils by ACTIVE enrolment (attendance rolls, invoice generation, result sheets, the promotion rollover)
+  /// stops seeing them without being changed.
+  EXPELLED
 }
 
 /// A pupil/student. admissionNo is human-facing, generated as YYYY/NNNN or assigned by the school.
@@ -25,6 +28,9 @@ model StudentRecord {
   dateOfBirth DateTime  @db.Date
   admissionNo String    @unique
   archivedAt  DateTime?
+  /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`, or until lifted when null) or EXPELLED. Separate from archiving, which hides the record.
+  standing      StandingState @default(ACTIVE)
+  standingUntil DateTime?     @db.Date
 
   guardianName  String?
   guardianPhone String?
@@ -49,6 +55,7 @@ model StudentRecord {
   formResponses         FormResponse[]      @relation("StudentFormResponses")
   formTurnIns           FormTurnIn[]        @relation("StudentTurnIns")
   printLogs             QuestionBankPrintLog[] @relation("PrintLogStudent")
+  programPlaces         ProgramParticipant[]
   receivedPrintLogs     QuestionBankPrintLog[] @relation("PrintLogRecipient")
 
   @@unique([branchId, id])
