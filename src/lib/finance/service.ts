@@ -34,7 +34,7 @@ async function allocateInvoiceNo(tx: Prisma.TransactionClient, branchId: string,
   return generateInvoiceNumber(branchCode, year, rows[0].seq);
 }
 
-async function allocateReceiptNo(tx: Prisma.TransactionClient, branchId: string, branchCode: string, year: number): Promise<string> {
+export async function allocateReceiptNo(tx: Prisma.TransactionClient, branchId: string, branchCode: string, year: number): Promise<string> {
   const rows = await tx.$queryRaw<{ seq: number }[]>`
     INSERT INTO "ReceiptCounter" ("branchId", "year", "next") VALUES (${branchId}, ${year}::int, 2)
     ON CONFLICT ("branchId", "year") DO UPDATE SET "next" = "ReceiptCounter"."next" + 1
@@ -467,6 +467,11 @@ export async function recordManualPayment(
  * Atomically fulfills an online payment reference with concurrency locking.
  */
 export async function fulfillPayment(reference: string, verifiedAmountInKobo: number, channel?: string) {
+  // A payment of a program invoice (slice P4) carries a reference of its own kind; it is fulfilled in the program's tables. Loaded when needed: the program code imports this file.
+  if (reference.startsWith("prg_pay_")) {
+    const { fulfillProgramPayment } = await import("@/lib/programs/fees-payments");
+    return fulfillProgramPayment(reference, verifiedAmountInKobo, channel);
+  }
   return prisma.$transaction(async (tx) => {
     // 1. Concurrency lock: update status to SUCCESS only if currently PENDING
     const updated = await tx.payment.updateMany({

@@ -1,14 +1,14 @@
 import { withAuth } from "@/lib/auth/with-auth";
 import { validate } from "@/lib/api/validate";
 import { PROGRAM_ROUTE_ROLES, respond } from "@/lib/programs/http";
-import { updateProgramSettings } from "@/lib/programs/attendance-service";
-import { programSettingsSchema } from "@/lib/programs/attendance-validation";
+import { updateProgramSettings } from "@/lib/programs/program-settings-service";
+import { programSettingsSchema } from "@/lib/programs/program-settings-validation";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * PATCH /api/v1/programs/[id]/settings { attendanceEnabled?, lowAttendancePercent? }
- * The program's own attendance switch (the third level under the school's and the branch's: attendance is on only when all are) and the percentage under which a person is flagged.
+ * PATCH /api/v1/programs/[id]/settings { attendanceEnabled?, lowAttendancePercent?, assessmentsEnabled?, gradeBands? }
+ * The program's own switches (attendance, assessments) and numbers (the third level under the school's and the branch's: attendance is on only when all are) and the percentage under which a person is flagged.
  * A super admin or a program admin, while the program is a draft or active. Audited.
  */
 export const PATCH = withAuth(

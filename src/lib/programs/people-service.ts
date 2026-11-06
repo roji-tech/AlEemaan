@@ -203,6 +203,29 @@ export async function rollPeople(where: Prisma.ProgramParticipantWhereInput, day
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
+/// What billing needs of a place (slice P4): who, where, the state now, and the contact details on the record (a pupil's guardian, a member of staff's or a typed-in person's phone).
+export type BillingPerson = RollPerson & { ownPhone: string | null; guardianName: string | null; guardianPhone: string | null };
+
+export async function billingPeople(where: Prisma.ProgramParticipantWhereInput, day: string): Promise<BillingPerson[]> {
+  const rows = await prisma.programParticipant.findMany({ where, include, take: MAX_PARTICIPANTS });
+  return rows
+    .map((row) => ({
+      id: row.id,
+      name: nameOf(row),
+      kind: row.kind,
+      branchId: row.branchId,
+      groupId: row.groupId,
+      status: row.status,
+      joinedOn: row.joinedOn,
+      endedOn: row.endedOn,
+      state: stateOf(row, day),
+      ownPhone: row.staffRecord?.phone ?? row.phone ?? null,
+      guardianName: row.student?.guardianName ?? row.guardianName ?? null,
+      guardianPhone: row.student?.guardianPhone ?? row.guardianPhone ?? null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+}
+
 /// A search text as text: `%` and `_` are not wildcards here (Prisma does not escape them for `contains`).
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
 

@@ -781,7 +781,7 @@ test.describe("the three levels of the switch", () => {
 
     const set = await programSettings(progAdmin, { lowAttendancePercent: 60 });
     expect(set.status, set.text).toBe(200);
-    expect(set.json.data).toEqual({ attendanceEnabled: true, lowAttendancePercent: 60 });
+    expect(set.json.data).toMatchObject({ attendanceEnabled: true, lowAttendancePercent: 60 }); // the answer is every program setting (slices P3b to P5 added theirs)
     expect((await detail(progAdmin)).attendance.lowPercent).toBe(60);
     expect(await db.programAudit.count({ where: { programId: program, action: "PROGRAM_SETTINGS_CHANGED" } })).toBe(1);
     // the same values again write nothing

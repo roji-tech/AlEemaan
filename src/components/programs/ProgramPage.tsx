@@ -9,8 +9,11 @@ import { ArrowLeftIcon } from "@/components/ui/icons";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type Notice } from "@/components/academics/common";
 import { SectionTabs } from "@/components/forms/SectionTabs";
+import { ProgramAssessmentsTab } from "@/components/programs/ProgramAssessmentsTab";
 import { ProgramAttendanceTab } from "@/components/programs/ProgramAttendanceTab";
+import { ProgramFeesTab } from "@/components/programs/ProgramFeesTab";
 import { ProgramBadge } from "@/components/programs/ProgramBadge";
+import { ProgramCompletionTab } from "@/components/programs/ProgramCompletionTab";
 import { ProgramOverview } from "@/components/programs/ProgramOverview";
 import { ProgramPeopleTab } from "@/components/programs/ProgramPeopleTab";
 import { ProgramSettingsTab } from "@/components/programs/ProgramSettingsTab";
@@ -22,7 +25,7 @@ import { headlineText, type ProgramDetail } from "@/components/programs/model";
 // attendance switch, for a super admin and a program admin). A tab that would say "soon" is a dead end, so a tab appears only when it does something.
 // Presentation only: the API decides who sees the program and what each button may do (`can`), and checks again on every request.
 
-type SectionId = "overview" | "structure" | "people" | "staff" | "attendance" | "settings";
+type SectionId = "overview" | "structure" | "people" | "staff" | "attendance" | "assessments" | "fees" | "completion" | "settings";
 
 function sectionsFor(program: ProgramDetail): { id: SectionId; label: string }[] {
   const sections: { id: SectionId; label: string }[] = [
@@ -32,6 +35,10 @@ function sectionsFor(program: ProgramDetail): { id: SectionId; label: string }[]
     { id: "staff", label: "Staff" },
   ];
   if (program.attendance.on && program.attendance.readGroupIds.length > 0) sections.push({ id: "attendance", label: "Attendance" });
+  if (program.assessments.on && program.assessments.reach) sections.push({ id: "assessments", label: "Assessments" });
+  if (program.fees.on && program.fees.reach) sections.push({ id: "fees", label: "Fees" });
+  if (program.access === "SUPER" || program.access === "ADMIN") sections.push({ id: "completion", label: "Completion" });
+  else if (program.access === "BRANCH") sections.push({ id: "completion", label: "Certificates" });
   if (program.access === "SUPER" || program.access === "ADMIN") sections.push({ id: "settings", label: "Settings" });
   return sections;
 }
@@ -147,6 +154,9 @@ export function ProgramPage({ id, allBranches }: { id: string; allBranches: Bran
           {shown === "people" && <ProgramPeopleTab program={program} run={run} />}
           {shown === "staff" && <ProgramStaffTab program={program} run={run} />}
           {shown === "attendance" && <ProgramAttendanceTab program={program} />}
+          {shown === "assessments" && <ProgramAssessmentsTab program={program} />}
+          {shown === "fees" && <ProgramFeesTab program={program} />}
+          {shown === "completion" && <ProgramCompletionTab program={program} />}
           {shown === "settings" && <ProgramSettingsTab program={program} run={run} />}
         </div>
       </SectionTabs>

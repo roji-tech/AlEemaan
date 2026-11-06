@@ -1,7 +1,6 @@
 import { Prisma, ProgramPlaceStatus, ProgramStatus, type AttendanceStatus, type ParticipantKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { ErrorDetail } from "@/lib/api/envelope";
-import { effectiveSwitch } from "@/lib/settings/ceiling-switch";
 import { asDate, namesOf, today } from "@/lib/standing/common";
 import { MIN_REASON } from "@/lib/standing/rules";
 import { assignedGroupIds, isSupervisor, viewerOf, type ProgramViewer } from "./access";
@@ -29,6 +28,7 @@ import { change, done, refuse, writeAudit, NOT_FOUND, type Result } from "./comm
 import { groupAndInner, type PlaceState } from "./people-rules";
 import { rollPeople, type RollPerson } from "./people-service";
 import { groupPath, toIsoDate } from "./rules";
+import { featureStateOf, type FeatureState } from "./feature-switch";
 import { attendanceStored } from "./settings-service";
 
 // Programs, slice P3: attendance (task 0043, section 10). A session is one group on one day (with a label when there are two a day), opened by the first person who takes the roll.
@@ -51,35 +51,12 @@ export async function accessOf(userId: string, programId: string, viewer: Progra
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // The switch
 
-export type AttendanceStatusView = {
-  on: boolean;
-  /// Who decided it is off: the school, the program itself, or every branch of the program.
-  offBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
-  /// The branches whose own switch is off: their people are not on any roll.
-  branchesOff: { id: string; name: string }[];
-};
+export type AttendanceStatusView = Omit<FeatureState, "onBranchIds">;
 
 /// Attendance is on for a program only when the school, the program and at least one of its branches have it on; a branch that has it off simply has no roll (its people are not
 /// listed and cannot be marked) while the other branches go on. What was recorded stays readable whatever the switches say.
-export async function attendanceStateOf(
-  programId: string,
-  programFlag: boolean,
-): Promise<AttendanceStatusView & { onBranchIds: Set<string> }> {
-  const links = await prisma.programBranch.findMany({
-    where: { programId },
-    select: { branchId: true, branch: { select: { name: true } } },
-  });
-  const ids = links.map((link) => link.branchId);
-  const { school, branch } = await attendanceStored(ids);
-  const onBranchIds = new Set(ids.filter((id) => effectiveSwitch(school, branch.get(id))));
-  const offBy = school === false ? "SCHOOL" : !programFlag ? "PROGRAM" : onBranchIds.size === 0 ? "BRANCH" : null;
-  return {
-    on: offBy === null,
-    offBy,
-    onBranchIds,
-    branchesOff: links.filter((link) => !onBranchIds.has(link.branchId)).map((link) => ({ id: link.branchId, name: link.branch.name })),
-  };
-}
+export const attendanceStateOf = (programId: string, programFlag: boolean): Promise<FeatureState> =>
+  featureStateOf(attendanceStored, programId, programFlag);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Reading a roll
@@ -707,37 +684,5 @@ export async function personAttendance(
         })),
     })),
     truncated: rows.length > HISTORY_MAX,
-  });
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// The program's own settings
-
-export type ProgramSettingsInput = { attendanceEnabled?: boolean; lowAttendancePercent?: number };
-
-/// The program's own attendance switch and its low-attendance threshold: a super admin or a program admin. Saving what is stored already writes nothing.
-export async function updateProgramSettings(
-  actorUserId: string,
-  programId: string,
-  input: ProgramSettingsInput,
-): Promise<Result<{ attendanceEnabled: boolean; lowAttendancePercent: number }>> {
-  return change(actorUserId, programId, "manage", async ({ tx, program }) => {
-    const next = {
-      attendanceEnabled: input.attendanceEnabled ?? program.attendanceEnabled,
-      lowAttendancePercent: input.lowAttendancePercent ?? program.lowAttendancePercent,
-    };
-    const before = { attendanceEnabled: program.attendanceEnabled, lowAttendancePercent: program.lowAttendancePercent };
-    if (next.attendanceEnabled === before.attendanceEnabled && next.lowAttendancePercent === before.lowAttendancePercent) return done(next);
-    await tx.program.update({ where: { id: program.id }, data: next });
-    await writeAudit(tx, {
-      programId: program.id,
-      actorUserId,
-      action: "PROGRAM_SETTINGS_CHANGED",
-      targetType: "Program",
-      targetId: program.id,
-      before,
-      after: next,
-    });
-    return done(next);
   });
 }
