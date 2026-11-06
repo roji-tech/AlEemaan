@@ -11,6 +11,8 @@ import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
 import { PortalLmsTab, type PortalLms } from "@/components/portal/PortalLmsTab";
 import { PortalFormsTab } from "@/components/portal/PortalFormsTab";
 import { PortalPracticeTab } from "@/components/portal/PortalPracticeTab";
+import { PortalProgressTab } from "@/components/portal/PortalProgressTab";
+import type { FamilyOverview } from "@/lib/programs/progress-family";
 import { allowedTabs, type Access, type PortalTab } from "@/lib/portal/access";
 
 interface OverviewState {
@@ -89,7 +91,7 @@ interface InvoiceState {
 }
 
 // the sections of the portal: those the sign-in's access gives, Forms, which only a pupil has (the forms routes refuse a guardian), and Practice, for whoever has a practice level
-type PageTab = PortalTab | "forms" | "practice";
+type PageTab = PortalTab | "forms" | "practice" | "progress";
 
 function PortalContent() {
   const searchParams = useSearchParams();
@@ -100,6 +102,8 @@ function PortalContent() {
   const [students, setStudents] = useState<PortalStudentRecord[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<PageTab>("overview");
+  const [progress, setProgress] = useState<{ studentId: string; data: FamilyOverview } | null>(null);
+  const [progressVersion, setProgressVersion] = useState(0);
   // who signed in: a pupil or a guardian, from the server
   const [actor, setActor] = useState<string>("");
   // What this sign-in may do for each pupil (task 0040), from the server. The screens only decide what to show: every route checks again.
@@ -146,8 +150,34 @@ function PortalContent() {
   const tabs: PortalTab[] = currentAccess ? allowedTabs(currentAccess) : [];
   const mayForms = actor === "PUPIL" && Boolean(currentAccess?.overview);
   const mayPractice = Boolean(currentAccess?.overview) && currentAccess!.practice !== "NONE";
-  const allTabs: PageTab[] = [...tabs, ...(mayForms ? (["forms"] as const) : []), ...(mayPractice ? (["practice"] as const) : [])];
+  const progressData = authenticated && progress?.studentId === selectedStudentId ? progress.data : null;
+  const mayProgress = Boolean(currentAccess?.overview) && (progressData?.programs.length ?? 0) > 0;
+  const allTabs: PageTab[] = [
+    ...tabs,
+    ...(mayForms ? (["forms"] as const) : []),
+    ...(mayPractice ? (["practice"] as const) : []),
+    ...(mayProgress ? (["progress"] as const) : []),
+  ];
   const shownTab: PageTab = allTabs.includes(activeTab) ? activeTab : (allTabs[0] ?? activeTab);
+
+  // Whether this pupil has any progress record to show, so the section appears only when it has something in it (the API applies the switches and answers an empty list otherwise).
+  useEffect(() => {
+    if (!authenticated || !selectedStudentId || !currentAccess?.overview) return;
+    let alive = true;
+    const studentId = selectedStudentId;
+    void fetch(`/api/v1/portal/students/${encodeURIComponent(selectedStudentId)}/progress`, { credentials: "same-origin" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (alive) setProgress(json?.data ? { studentId, data: json.data } : null);
+      })
+      .catch(() => {
+        if (alive) setProgress(null);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `currentAccess` follows `accessByStudent`, which is listed
+  }, [authenticated, selectedStudentId, accessByStudent, progressVersion]);
 
   // Fetch data for selected student and the section on screen
   useEffect(() => {
@@ -352,6 +382,19 @@ function PortalContent() {
             Practice
           </button>
           )}
+          {mayProgress && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={shownTab === "progress"}
+            onClick={() => handleTabChange("progress")}
+            className={`flex-1 min-w-30 py-2.5 px-3 rounded-lg text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-2 focus-visible:outline-brand ${
+              shownTab === "progress" ? "bg-brand-strong text-white shadow-xs" : "text-fg-muted hover:text-fg hover:bg-surface-2"
+            }`}
+          >
+            Progress
+          </button>
+          )}
         </div>
 
         {/* Tab Body */}
@@ -389,6 +432,9 @@ function PortalContent() {
                 }}
               />}
             {shownTab === "forms" && mayForms && <PortalFormsTab studentId={selectedStudentId} />}
+            {shownTab === "progress" && mayProgress && progressData && (
+              <PortalProgressTab studentId={selectedStudentId} data={progressData} actor={actor} onChanged={() => setProgressVersion((v) => v + 1)} />
+            )}
             {shownTab === "practice" && mayPractice && (
               <PortalPracticeTab studentId={selectedStudentId} actor={actor} level={currentAccess!.practice === "FULL" ? "FULL" : "SUMMARY"} />
             )}

@@ -64,6 +64,27 @@ export async function assignedGroupIds(userId: string, programId: string): Promi
   return [...new Set(assigned.flatMap((row) => groupAndInner(groups, row.groupId)))];
 }
 
+/// The groups (and everything inside them) a teacher and a recorder are each assigned to, kept apart (progress records let the program choose which of the two write).
+export async function assignedGroupsByRole(userId: string, programId: string): Promise<{ TEACHER: string[]; RECORDER: string[] }> {
+  const [places, linked, groups] = await Promise.all([
+    liveStaffPlaces(userId, programId),
+    prisma.programBranch.findMany({ where: { programId }, select: { branchId: true } }),
+    prisma.programGroup.findMany({ where: { programId }, select: { id: true, parentId: true, name: true } }),
+  ]);
+  const branches = new Set(linked.map((link) => link.branchId));
+  const out = { TEACHER: [] as string[], RECORDER: [] as string[] };
+  for (const role of ["TEACHER", "RECORDER"] as const) {
+    const mine = places.filter((place) => place.role === role && branches.has(place.branchId));
+    if (mine.length === 0) continue;
+    const assigned = await prisma.programStaffGroup.findMany({
+      where: { programStaffId: { in: mine.map((place) => place.id) } },
+      select: { groupId: true },
+    });
+    out[role] = [...new Set(assigned.flatMap((row) => groupAndInner(groups, row.groupId)))];
+  }
+  return out;
+}
+
 /// Whether the person is an active supervisor of the program (reads and corrects every group).
 export async function isSupervisor(userId: string, programId: string): Promise<boolean> {
   const [places, linked] = await Promise.all([

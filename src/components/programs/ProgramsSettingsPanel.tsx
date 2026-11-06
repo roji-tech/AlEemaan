@@ -91,6 +91,72 @@ const FEES_COPY: SwitchCopy = {
   branchesTitle: "Branches using fees",
 };
 
+const PROGRESS_COPY: SwitchCopy = {
+  endpoint: "/api/v1/settings/programs-progress",
+  title: "Progress records in programs",
+  intro:
+    "A program can keep a running log for each person in it, with a teacher\'s dated entries. When this is off for the school, no program keeps progress records and what was recorded can only be read. A branch can turn it off for itself but never on when the school has it off, and each program has its own switch as well, which starts off.",
+  schoolOn: "Progress records is on for the school",
+  schoolOff: "Progress records is off for the school",
+  schoolDoneOn: "Progress records in programs is on for the school.",
+  schoolDoneOff: "Progress records in programs is off for the school.",
+  branchOn: "uses progress records",
+  branchOffBySchool: "off, set by the school",
+  branchOffByBranch: "off, set by the branch",
+  turnOffBranchLabel: (name) => `Turn off progress records for ${name}`,
+  turnOnBranchLabel: (name) => `Turn progress records back on for ${name}`,
+  branchDoneOff: (name) => `${name} no longer uses progress records in programs.`,
+  branchDoneOn: (name) => `${name} uses progress records in programs again.`,
+  idPrefix: "programs-progress",
+  turnOffSchool: "Turn off progress records for the school",
+  turnOnSchool: "Turn on progress records for the school",
+  branchesTitle: "Branches using progress records",
+};
+
+const PROGRESS_STUDENT_COPY: SwitchCopy = {
+  endpoint: "/api/v1/settings/programs-progress-student",
+  title: "Pupils seeing their progress record",
+  intro:
+    "Whether a pupil can see their own verified progress record in the portal. When this is off for the school, no pupil sees one. A branch can turn it off for itself but never on when the school has it off, and each program has its own switch as well, which starts on.",
+  schoolOn: "Pupil view is on for the school",
+  schoolOff: "Pupil view is off for the school",
+  schoolDoneOn: "Pupils seeing their progress record is on for the school.",
+  schoolDoneOff: "Pupils seeing their progress record is off for the school.",
+  branchOn: "shows pupils their progress",
+  branchOffBySchool: "off, set by the school",
+  branchOffByBranch: "off, set by the branch",
+  turnOffBranchLabel: (name) => `Turn off pupil view of progress for ${name}`,
+  turnOnBranchLabel: (name) => `Turn pupil view of progress back on for ${name}`,
+  branchDoneOff: (name) => `${name} no longer uses pupils seeing their progress record.`,
+  branchDoneOn: (name) => `${name} uses pupils seeing their progress record again.`,
+  idPrefix: "programs-progress-student",
+  turnOffSchool: "Turn off pupil view of progress for the school",
+  turnOnSchool: "Turn on pupil view of progress for the school",
+  branchesTitle: "Branches using pupil view of progress",
+};
+
+const PROGRESS_GUARDIAN_COPY: SwitchCopy = {
+  endpoint: "/api/v1/settings/programs-progress-guardian",
+  title: "Guardians seeing a child\'s progress record",
+  intro:
+    "Whether a guardian can see their child\'s verified progress record in the portal (a summary unless the program allows the full entries). When this is off for the school, no guardian sees one. A branch can turn it off for itself but never on when the school has it off, and each program has its own switch as well, which starts on.",
+  schoolOn: "Guardian view is on for the school",
+  schoolOff: "Guardian view is off for the school",
+  schoolDoneOn: "Guardians seeing a child\'s progress record is on for the school.",
+  schoolDoneOff: "Guardians seeing a child\'s progress record is off for the school.",
+  branchOn: "shows guardians progress",
+  branchOffBySchool: "off, set by the school",
+  branchOffByBranch: "off, set by the branch",
+  turnOffBranchLabel: (name) => `Turn off guardian view of progress for ${name}`,
+  turnOnBranchLabel: (name) => `Turn guardian view of progress back on for ${name}`,
+  branchDoneOff: (name) => `${name} no longer uses guardians seeing a child\'s progress record.`,
+  branchDoneOn: (name) => `${name} uses guardians seeing a child\'s progress record again.`,
+  idPrefix: "programs-progress-guardian",
+  turnOffSchool: "Turn off guardian view of progress for the school",
+  turnOnSchool: "Turn on guardian view of progress for the school",
+  branchesTitle: "Branches using guardian view of progress",
+};
+
 export function ProgramsSettingsPanel() {
   return (
     <div className="space-y-8">
@@ -98,6 +164,9 @@ export function ProgramsSettingsPanel() {
       <SwitchSettingsPanel copy={ATTENDANCE_COPY} />
       <SwitchSettingsPanel copy={ASSESSMENTS_COPY} />
       <SwitchSettingsPanel copy={FEES_COPY} />
+      <SwitchSettingsPanel copy={PROGRESS_COPY} />
+      <SwitchSettingsPanel copy={PROGRESS_STUDENT_COPY} />
+      <SwitchSettingsPanel copy={PROGRESS_GUARDIAN_COPY} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
+import { SelectField } from "@/components/ui/SelectField";
 import { TextAreaField } from "@/components/ui/TextAreaField";
 import { TextField } from "@/components/ui/TextField";
 import { sendJson } from "@/components/auth/postJson";
@@ -34,6 +35,42 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
   const [requirePassed, setRequirePassed] = useState(completion?.requirePassed ?? false);
   const [noCertOwing, setNoCertOwing] = useState(completion?.noCertWhileOwing ?? false);
   const [bands, setBands] = useState<BandText[]>(assessments.bands.map((b) => ({ name: b.name, from: String(b.from) })));
+  const progress = program.progress;
+  const ps = progress.settings;
+  const [useProgress, setUseProgress] = useState(progress.enabled);
+  const [template, setTemplate] = useState(progress.template ?? "");
+  const [writers, setWriters] = useState(ps?.writers ?? "BOTH");
+  const [requireVerification, setRequireVerification] = useState(ps?.requireVerification ?? false);
+  const [fourEyes, setFourEyes] = useState(ps?.fourEyes ?? true);
+  const [lockInactivity, setLockInactivity] = useState(String(ps?.lockInactivity ?? 300));
+  const [lockRelease, setLockRelease] = useState(String(ps?.lockRelease ?? 30));
+  const [studentView, setStudentView] = useState(ps?.studentView ?? true);
+  const [guardianView, setGuardianView] = useState(ps?.guardianView ?? true);
+  const [guardianDetail, setGuardianDetail] = useState(ps?.guardianDetail ?? "SUMMARY");
+  const inactivityNumber = Number(lockInactivity);
+  const releaseNumber = Number(lockRelease);
+  const inactivityProblem =
+    Number.isInteger(inactivityNumber) && inactivityNumber >= 60 && inactivityNumber <= 3600 ? null : "From 60 to 3600 seconds.";
+  const releaseProblem =
+    lockRelease.trim() !== "" && Number.isInteger(releaseNumber) && releaseNumber >= 0 && releaseNumber <= 300
+      ? null
+      : "From 0 to 300 seconds.";
+  const progressProblem = useProgress && !template ? "Choose a template before turning progress records on." : null;
+  const progressChanges = ps
+    ? {
+        ...(useProgress !== progress.enabled ? { progressEnabled: useProgress } : {}),
+        ...(template && template !== (progress.template ?? "") ? { progressTemplate: template } : {}),
+        ...(writers !== ps.writers ? { progressWriters: writers } : {}),
+        ...(requireVerification !== ps.requireVerification ? { progressRequireVerification: requireVerification } : {}),
+        ...(fourEyes !== ps.fourEyes ? { progressFourEyes: fourEyes } : {}),
+        ...(inactivityNumber !== ps.lockInactivity ? { progressLockInactivity: inactivityNumber } : {}),
+        ...(releaseNumber !== ps.lockRelease ? { progressLockRelease: releaseNumber } : {}),
+        ...(studentView !== ps.studentView ? { progressStudentView: studentView } : {}),
+        ...(guardianView !== ps.guardianView ? { progressGuardianView: guardianView } : {}),
+        ...(guardianDetail !== ps.guardianDetail ? { progressGuardianDetail: guardianDetail } : {}),
+      }
+    : {};
+  const sameProgress = Object.keys(progressChanges).length === 0;
   const [saving, setSaving] = useState(false);
   const number = Number(percent);
   const valid = Number.isInteger(number) && number >= 1 && number <= 100;
@@ -63,11 +100,12 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
     useAssessments === assessments.enabled &&
     useFees === fees.enabled &&
     sameBands &&
-    sameCompletion;
+    sameCompletion &&
+    sameProgress;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!valid || bandsText || unchanged || avgProblem || wordingText) return;
+    if (!valid || bandsText || unchanged || avgProblem || wordingText || inactivityProblem || releaseProblem || progressProblem) return;
     setSaving(true);
     await run(
       () =>
@@ -77,6 +115,7 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
           ...(useAssessments !== assessments.enabled ? { assessmentsEnabled: useAssessments } : {}),
           ...(!sameBands ? { gradeBands: parsedBands } : {}),
           ...(useFees !== fees.enabled ? { feesEnabled: useFees } : {}),
+          ...progressChanges,
           ...(completion && !sameCompletion
             ? {
                 certTitle: certTitle.trim(),
@@ -281,12 +320,135 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
           </fieldset>
         )}
 
+        {ps && (
+          <fieldset className="space-y-3">
+            <legend className="text-base font-semibold text-fg">Progress records</legend>
+            <p className="text-sm text-fg-muted">
+              A running log kept for each person, with a teacher&apos;s dated entries. It starts off: a program that does not use it shows
+              no tab. It is on only when the school, the branch and the program all have it on. Pupils and guardians see only what has been
+              verified.
+            </p>
+            <Alert variant={progress.on ? "success" : "info"}>
+              <span data-testid="progress-settings-state">{offText(progress, "Progress records are")}</span>
+            </Alert>
+            <CheckboxField
+              label="Keep progress records in this program"
+              checked={useProgress}
+              disabled={!may}
+              onChange={(e) => setUseProgress(e.target.checked)}
+            />
+            {progressProblem && <p className="text-xs text-danger-fg">{progressProblem}</p>}
+            <SelectField
+              label="Template"
+              value={template}
+              disabled={!may}
+              hint="Chosen once. It cannot be swapped after records have been started."
+              options={[
+                { value: "", label: "Choose a template" },
+                { value: "QURAN_BOOKLET", label: "Quran memorisation booklet" },
+                { value: "SIMPLE_LOG", label: "Simple daily log" },
+              ]}
+              onChange={(e) => setTemplate(e.target.value)}
+            />
+            <SelectField
+              label="Who writes entries"
+              value={writers}
+              disabled={!may}
+              options={[
+                { value: "BOTH", label: "Teachers and recorders of the group" },
+                { value: "TEACHERS", label: "Teachers of the group only" },
+                { value: "ASSIGNED", label: "Recorders of the group only" },
+              ]}
+              onChange={(e) => setWriters(e.target.value as typeof writers)}
+            />
+            <CheckboxField
+              label="Verify entries before families see them"
+              checked={requireVerification}
+              disabled={!may}
+              onChange={(e) => setRequireVerification(e.target.checked)}
+            />
+            <CheckboxField
+              label="Someone else has to verify an entry (not the person who wrote it)"
+              checked={fourEyes}
+              disabled={!may || !progress.canChangeFourEyes}
+              onChange={(e) => setFourEyes(e.target.checked)}
+            />
+            {!progress.canChangeFourEyes && <p className="text-xs text-fg-muted">Only a super admin can change that.</p>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                label="Lock ends after (seconds without activity)"
+                inputMode="numeric"
+                value={lockInactivity}
+                disabled={!may}
+                maxLength={4}
+                error={inactivityProblem}
+                onChange={(e) => setLockInactivity(e.target.value.replace(/\D/g, ""))}
+              />
+              <TextField
+                label="Lock is handed back after (seconds)"
+                inputMode="numeric"
+                value={lockRelease}
+                disabled={!may}
+                maxLength={3}
+                error={releaseProblem}
+                hint="When someone presses Viewing. 0 hands it back at once."
+                onChange={(e) => setLockRelease(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            <Alert variant={progress.studentViewOffBy === null ? "success" : "info"}>
+              <span data-testid="progress-student-state">
+                {progress.studentViewOffBy === null
+                  ? "Pupils can see their own verified record."
+                  : `Pupils cannot see it: switched off by the ${progress.studentViewOffBy === "SCHOOL" ? "school" : progress.studentViewOffBy === "BRANCH" ? "branches" : "program"}.`}
+              </span>
+            </Alert>
+            <CheckboxField
+              label="Pupils can see their own record"
+              checked={studentView}
+              disabled={!may}
+              onChange={(e) => setStudentView(e.target.checked)}
+            />
+            <Alert variant={progress.guardianViewOffBy === null ? "success" : "info"}>
+              <span data-testid="progress-guardian-state">
+                {progress.guardianViewOffBy === null
+                  ? "Guardians can see their child's verified record."
+                  : `Guardians cannot see it: switched off by the ${progress.guardianViewOffBy === "SCHOOL" ? "school" : progress.guardianViewOffBy === "BRANCH" ? "branches" : "program"}.`}
+              </span>
+            </Alert>
+            <CheckboxField
+              label="Guardians can see their child's record"
+              checked={guardianView}
+              disabled={!may}
+              onChange={(e) => setGuardianView(e.target.checked)}
+            />
+            <SelectField
+              label="What a guardian sees"
+              value={guardianDetail}
+              disabled={!may}
+              options={[
+                { value: "SUMMARY", label: "A summary (days, amount, ratings)" },
+                { value: "FULL", label: "Every verified entry" },
+              ]}
+              onChange={(e) => setGuardianDetail(e.target.value as typeof guardianDetail)}
+            />
+          </fieldset>
+        )}
+
         {may ? (
           <div className="flex justify-end">
             <Button
               type="submit"
               loading={saving}
-              disabled={!valid || Boolean(bandsText) || unchanged || Boolean(avgProblem) || Boolean(wordingText)}
+              disabled={
+                !valid ||
+                Boolean(bandsText) ||
+                unchanged ||
+                Boolean(avgProblem) ||
+                Boolean(wordingText) ||
+                Boolean(inactivityProblem) ||
+                Boolean(releaseProblem) ||
+                Boolean(progressProblem)
+              }
             >
               Save settings
             </Button>

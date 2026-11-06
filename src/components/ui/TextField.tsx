@@ -10,6 +10,8 @@ export type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> &
   /// Rendered at the right end of the label row (e.g. "Forgot password?").
   labelAction?: ReactNode;
   ref?: Ref<HTMLInputElement>;
+  /// Visually hide the label (it stays the accessible name) - for a row of a grid where the column heading says it.
+  hideLabel?: boolean;
 };
 
 /// A labelled text input with the accessibility wiring done once, correctly:
@@ -17,7 +19,18 @@ export type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> &
 /// aria-invalid when there is an error. Callers pass `autoComplete`,
 /// `inputMode` etc. straight through. The label is the artifact's small
 /// uppercase style (CSS only — the accessible name is the plain text).
-export function TextField({ label, id, hint, error, trailing, labelAction, className = "", ref, ...rest }: TextFieldProps) {
+export function TextField({
+  label,
+  id,
+  hint,
+  error,
+  trailing,
+  labelAction,
+  hideLabel = false,
+  className = "",
+  ref,
+  ...rest
+}: TextFieldProps) {
   const autoId = useId();
   const inputId = id ?? autoId;
   const hintId = `${inputId}-hint`;
@@ -26,7 +39,7 @@ export function TextField({ label, id, hint, error, trailing, labelAction, class
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between gap-3">
+      <div className={hideLabel ? "sr-only" : "mb-1.5 flex items-center justify-between gap-3"}>
         <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-fg-2 uppercase">
           {label}
         </label>

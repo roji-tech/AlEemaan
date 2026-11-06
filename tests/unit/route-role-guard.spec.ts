@@ -52,6 +52,10 @@ const ALLOWED: Record<string, string> = {
     "portal student overview: verified by HMAC portal session cookie and allowedStudentIds",
   "GET v1/portal/students/[studentId]/results/route.ts":
     "portal student results: verified by HMAC portal session cookie and allowedStudentIds",
+  "GET v1/portal/students/[studentId]/progress/route.ts":
+    "portal student progress records: verified by HMAC portal session cookie and allowedStudentIds, then the progress switches",
+  "POST v1/portal/students/[studentId]/progress/seen/route.ts":
+    "portal student progress 'seen': verified by HMAC portal session cookie and allowedStudentIds, then the progress switches",
   "GET v1/portal/students/[studentId]/invoices/route.ts":
     "portal student invoices: verified by HMAC portal session cookie and allowedStudentIds",
   "GET v1/portal/students/[studentId]/lms/route.ts": "portal student LMS: verified by HMAC portal session cookie and allowedStudentIds",
@@ -291,6 +295,12 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/programs-fees/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-progress/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-progress-student/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-progress-guardian/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/standing/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/part-payment/route.ts":
@@ -302,6 +312,10 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 /// join this list without someone writing why; the aim is for it to shrink.
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
+  "GET v1/portal/students/[studentId]/progress/route.ts":
+    "portal route: no staff login; the branch comes from the pupil's place in the program, and the portal session limits which pupils",
+  "POST v1/portal/students/[studentId]/progress/seen/route.ts":
+    "portal route: no staff login; the branch comes from the pupil's place in the program, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/assignments/[assignmentId]/submission/route.ts":
     "portal route: no staff login; the branch comes from the pupil's enrolment, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/quizzes/[quizId]/attempt/route.ts":
@@ -540,6 +554,12 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/settings/programs-assessments/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/programs-fees/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-progress/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-progress-student/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-progress-guardian/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/standing/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
