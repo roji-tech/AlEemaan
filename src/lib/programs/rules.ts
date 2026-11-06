@@ -106,5 +106,9 @@ export const PROGRAM_ATTENDANCE_KEY = "programs.attendance.enabled";
 /// Slices P3b and P4: assessments and fees, the same ceiling rule; a program's own flag for each defaults to OFF (a program that does not use them shows no tab).
 export const PROGRAM_ASSESSMENTS_KEY = "programs.assessments.enabled";
 export const PROGRAM_FEES_KEY = "programs.fees.enabled";
+/// Progress records (task 0044): the switch for the whole feature (a program's own flag defaults OFF) and the two for what families see (a program's own flags default ON).
+export const PROGRAM_PROGRESS_KEY = "programs.progress.enabled";
+export const PROGRAM_PROGRESS_STUDENT_KEY = "programs.progress.studentView";
+export const PROGRAM_PROGRESS_GUARDIAN_KEY = "programs.progress.guardianView";
 
 export { parseSwitch as parseEnabled, effectiveSwitch as effectiveEnabled } from "@/lib/settings/ceiling-rules";

@@ -58,6 +58,17 @@ model Program {
   completionRequirePassed Boolean @default(false)
   /// Do not issue a certificate to someone who still owes fees (default off: owing only warns).
   noCertWhileOwing        Boolean @default(false)
+  /// Slices R1 to R3 (progress records, task 0044): the program's own switch (default OFF), the preset it uses, who writes, verification, the locks and what families see.
+  progressEnabled             Boolean                @default(false)
+  progressTemplate            String?
+  progressWriters             ProgressWriters        @default(BOTH)
+  progressRequireVerification Boolean                @default(false)
+  progressFourEyes            Boolean                @default(true)
+  progressLockInactivity      Int                    @default(300)
+  progressLockRelease         Int                    @default(30)
+  progressStudentView         Boolean                @default(true)
+  progressGuardianView        Boolean                @default(true)
+  progressGuardianDetail      ProgressGuardianDetail @default(SUMMARY)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
 
@@ -68,6 +79,7 @@ model Program {
   staff       ProgramStaff[]
   audits      ProgramAudit[]
   participants ProgramParticipant[]
+  progressTemplates ProgressTemplate[]
   assessments  ProgramAssessment[]
   feeItems     ProgramFeeItem[]
 
@@ -234,6 +246,7 @@ model ProgramParticipant {
   invoices    ProgramInvoice[]
   feeExemptions ProgramFeeExemption[]
   certificates ProgramCertificate[]
+  progressRecord ProgressRecord?
   /// Why the place was completed although the person did not meet the program's completion rule.
   completionOverrideReason String?
 

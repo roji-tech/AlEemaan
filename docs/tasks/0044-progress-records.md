@@ -88,9 +88,9 @@ Computed from **verified** entries only, per week and month: days recorded, the 
 5. Every change is in the revision history with who and when.
 
 ## 5. Work breakdown (each slice: update this note, build, tests, docs, PR into `dev`)
-- [ ] **R1 Templates and entries:** the template schema and validation, the Quran pack (the surah list and the booklet's template with its Arabic wording), records, entries, quick add and the week grid, the staff pages, both themes and phone, tests, matrix rows
-- [ ] **R2 Verification and locks:** the settings, the Draft, Submitted and Verified states, verify the week, return with a comment, the lock with heartbeat and the manual switch, the version check
-- [ ] **R3 Family views:** the portal tab for a student and a guardian, the summary, the "seen" button, the switches and the ceiling
+- [x] **R1 Templates and entries:** the template schema and validation, the Quran pack (the surah list and the booklet's template with its Arabic wording), records, entries, quick add and the week grid, the staff pages, both themes and phone, tests, matrix rows
+- [x] **R2 Verification and locks:** the settings, the Draft, Submitted and Verified states, verify the week, return with a comment, the lock with heartbeat and the manual switch, the version check
+- [x] **R3 Family views:** the portal tab for a student and a guardian, the summary, the "seen" button, the switches and the ceiling
 - [ ] **R4 Languages:** Arabic, English and both side by side, Hijri and Gregorian, digits, the print view
 - [ ] **R5 Translation helper:** the interface, the draft, confirm, limits, the setting
 - [ ] Octalve Edu parity (its own task, after AlEemaan's slices land)
@@ -102,3 +102,54 @@ Offline entry, voice recording of recitation, uploading photos of the paper page
 - The Arabic wording of the two display names and of every label (reviewed before release).
 - The translation provider (the maintainer's choice and credentials).
 - Whether the "seen" acknowledgement should be required for a guardian before the next entry (default: no, it is only a record).
+
+## 8. Batch C1 (slices R1, R2 and R3): decisions written 2026-11-06 before any code
+Built together on one branch with one full run, as the 0043 batches were. R4 (Arabic, Hijri, digits, print) and R5 (translation) follow in their own batch. Where the design above left a choice, this is what is built (the safest option each time; any can be changed):
+
+**8.1 Templates.** Templates ship in code as presets, not as a designer: `QURAN_BOOKLET` (the Al-Mu'in booklet: a profile, the tracks "New text" and "Daily revision" with day, surah from and to with ayah numbers, notes and a rating, a "Follow-up" track with an overall grade, and the notes track "Recurring mistakes") and `SIMPLE_LOG` (a date, a topic, notes, a rating). A program turns progress records on by choosing a preset; its schema is copied into an immutable `ProgressTemplate` row (version 1; a trigger refuses UPDATE and DELETE). The preset cannot be changed once any record exists (409). Not built: a template designer, a second version.
+
+**8.2 Reference list.** The 114 surahs with their names in Arabic and English and their ayah counts are shipped in code (`progress-reference.ts`; a unit test checks 114 surahs and 6,236 ayat in all). A "range" column stores `{ fromSurah, fromAyah, toSurah, toAyah }` (numbers only, never text) and is checked: ayah 1 to the surah's count, and the end not before the start. Amount in ayat is worked out from the counts.
+
+**8.3 Records and profile.** One `ProgressRecord` per place (`ProgramParticipant`), made when the first entry or profile is saved, or by "Start the record". The profile holds only what the system does not already know (age band, neighbourhood, riwayah, recurring-mistake notes are entries); the name, class, guardian and phone are shown live from the person's own record and never copied.
+
+**8.4 Who may do what.**
+| Person | Reads | Writes entries | Verifies |
+| --- | --- | --- | --- |
+| Super admin, program admin | every record | yes (a correction after verification returns it to Submitted) | yes, but not their own entry while four-eyes is on |
+| Supervisor | every record | no | yes, not their own |
+| Teacher | records of people in their assigned groups | in those groups, when `writers` is TEACHERS or BOTH | no |
+| Recorder | records of people in their assigned groups | in those groups, when `writers` is ASSIGNED or BOTH | no |
+| Branch administrator | records of people through their branch | no | no |
+| Pupil, guardian | through the portal only (R3) | no | no |
+A suspended, expelled, withdrawn, ended or completed place cannot be written to (a completed place stays readable). A person with no reach sees nothing (404). Every write goes through the program guard (`change`), so it holds the program's row lock, honours the school's switch, and is refused when the program is archived or completed.
+
+**8.5 Entries.** A track says whether it is one row per day. A second row for the same day is refused with 409 `EXISTS` carrying the existing entry's id, so the screen opens it. The date may not be in the future and may not be before the place began. Values are checked on the server against the column types; unknown keys are refused; text is trimmed, at most 500 characters, and shown as text. `version` counts saves; a save carries the version it was opened at and a stale one is refused 409 `CHANGED` naming who changed it and when. Every create and change appends a `ProgressEntryRevision` (append-only by trigger). Entries are never deleted; a wrong entry is corrected, and its earlier values stay in the revisions. The week grid saves up to 30 rows all or nothing.
+
+**8.6 Verification (R2).** Off by default per program (`requireVerification`). When off, a saved entry is VERIFIED and published at once. When on: DRAFT (being written), SUBMITTED (the writer says it is done), VERIFIED (someone else confirms it; `publishedValues` is the copy families see). Four-eyes (the verifier is not the last editor) is on by default and only a super admin can switch it off. "Verify the week" verifies every SUBMITTED entry of a person in a week in one step, all or nothing. A verifier can return an entry with a comment (back to DRAFT, comment kept). Editing a VERIFIED entry sets it to SUBMITTED; families keep the last verified copy.
+
+**8.7 Locks (R2).** One lock per entry (unique). Taking it is part of opening an entry to edit; the holder's heartbeat extends it by `lockInactivitySeconds` (default 300, allowed 60 to 3600); another person sees the holder's name and "view only". "Viewing" releases it after `lockReleaseDelaySeconds` (default 30, allowed 0 to 300); an administrator can release at once. A write by anyone but the holder while an unexpired lock exists is refused 409 `LOCKED`. The version check stays the safety net. Locks are advisory against a stale page and never replace it.
+
+**8.8 Settings.** Ceiling switches (school, branch, then the program's own flag) for `programs.progress.enabled` (the program flag defaults off), `programs.progress.studentView` and `programs.progress.guardianView` (the program flags default on, as decided on 2026-11-03). Program columns: `progressTemplate`, `progressWriters`, `progressRequireVerification`, `progressFourEyes`, `progressLockInactivity`, `progressLockRelease`, `progressGuardianDetail` (`SUMMARY` by default, or `FULL`). The effective value is the strictest of school, branch and program. A guardian's detail can be narrowed by the program and never widened above what the program set.
+
+**8.9 Family views (R3).** Through the portal, with the same gate as the other portal routes (`portalGate`, capability `overview`), then the progress switches. Only a pupil who has a place that is a STUDENT participant is covered; people typed in (adults, children, guardians) have no portal sign-in, so their families cannot see anything yet (said on the staff screen). A pupil sees their own verified entries in full (when `studentView` is on); a guardian sees the summary of 4.3 or the full entries as the program's `progressGuardianDetail` says. The summary is computed from published (verified) values only and shows no day-by-day notes and no recurring mistakes. A suspended or expelled pupil's portal access is already narrowed by task 0045 and that gate is not bypassed. "Seen" is a record of a guardian (or pupil) pressing a button for a week; it is stored and shown to staff, and is not required for anything.
+
+**8.10 Work breakdown and tests.**
+- [x] Design decisions written (this section)
+- [x] R1: migration, presets and the reference list, pure rules, services, routes, staff screens (a Progress tab, a person's record, quick add, the week grid), matrix rows
+- [x] R2: migration, settings columns, verification states and actions, locks with heartbeat, the settings controls
+- [x] R3: migration (the "seen" table), the family summary and entries, the portal tab, the ceiling switches (two more), matrix rows
+- [x] Tests: unit (templates, the surah list, value validation, next-from, the week, the summary, the lock rules, the status moves), API (who may; each refusal; one row a day; stale version; locks; four-eyes; return; verify the week; families see only published values; a guardian never sees notes in SUMMARY; a pupil never sees another pupil), browser (desktop and phone, both themes, axe)
+
+**8.11 Not in batch C1.** Arabic and both-side-by-side display, Hijri dates, Arabic-Indic digits and the print view (R4); translation (R5); a template designer or second version; deleting an entry; a photo; offline entry; voice; charts; progress for people typed in on the portal; the Octalve Edu parity.
+
+## 9. Batch C1 results (2026-11-06)
+**Targeted runs on the final build.** Unit (progress rules, the surah list, the route-role guard): passed. API `tests/api/progress-records.spec.ts`: 40 tests passed. Browser `tests/e2e/progress-records.spec.ts`: passed on desktop and phone (teacher, supervisor, program admin, pupil, guardian; both themes with axe and a no-sideways-scroll check).
+
+**Real defects the tests found (all fixed).**
+- Saving an entry or a profile with the values it already held still raised its version and wrote a revision. The database returns JSON keys in its own order, so a plain string comparison never matched. A key-order-independent comparison (`sameJson`, `progress-rules.ts`) is now used by the service, and by the week grid and the profile form on screen (the week grid's "Save the week" stayed enabled after saving for the same reason).
+
+**Mistakes in my own tests (fixed).** The settings test counted a refused change as an audit row; the suspension test used the program's People route, which refuses school pupils (they are changed on the Students page); the lock test moved the release time before the heartbeat, which the database check forbids; the browser spec made entries for tomorrow (so nothing showed), made two records at once, and used wrong button and rating wording.
+
+**Full suite on the final build:** 3,662 tests = 3,609 passed / 46 skipped / 7 failed (3.6 h). None of the 7 is in the progress-records tests or in code this batch touches. All 7 were read and then re-run alone on the same build: all passed (14 of 14 across desktop and phone), so they are recorded as timing failures, not fixed, and the cause is not confirmed. They are: the MFA "code that confirmed it cannot immediately sign in" API test (a replay inside the same 30-second code window answered 200 instead of 401); five desktop light-theme colour-contrast checks on the Forms pages (marking tab, overview, questions, results, the Forms list), which ran one after another in the same stretch of the run; and the phone students "suspends with a reason" test (timed out waiting for the Suspend button), the same phone students test that failed once in batch B. If the contrast failures come back, look first at what is on screen when axe measures (a hover or a transition), then at the Forms colours.
+
+**Not run.** Mutation passes (deferred by the maintainer to the end of Phase 2); the hosted database; a real phone; Arabic and Hijri display, digits and print (R4); translation (R5).

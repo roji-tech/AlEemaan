@@ -6,6 +6,8 @@ import { branchesTakingPart } from "./settings-service";
 import { parseBands } from "./assessment-rules";
 import { parseSignatories } from "./completion-rules";
 import { assessmentsStateOf } from "./assessment-service";
+import { progressStateOf } from "./progress-service";
+import { guardianViewStateOf, studentViewStateOf } from "./progress-family";
 import { feesStateOf, reachOf as feesReach } from "./fees-service";
 import { mayReadGroup, readsEverything } from "./attendance-rules";
 import { accessOf, attendanceStateOf } from "./attendance-service";
@@ -104,6 +106,29 @@ export type ProgramDetail = {
     enabled: boolean;
     reach: boolean;
   };
+  /// Progress records (task 0044): the switch (school, branch, the program's own), the preset the program uses, whether this person can see any record, and - for the people who manage
+  /// the program - the settings and what the school's switches say about what pupils and guardians may see.
+  progress: {
+    on: boolean;
+    offBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
+    branchesOff: { id: string; name: string }[];
+    enabled: boolean;
+    template: string | null;
+    reach: boolean;
+    settings: {
+      writers: "TEACHERS" | "ASSIGNED" | "BOTH";
+      requireVerification: boolean;
+      fourEyes: boolean;
+      lockInactivity: number;
+      lockRelease: number;
+      studentView: boolean;
+      guardianView: boolean;
+      guardianDetail: "SUMMARY" | "FULL";
+    } | null;
+    studentViewOffBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
+    guardianViewOffBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
+    canChangeFourEyes: boolean;
+  };
   /// Slice P5: the wording of the certificates and the completion rule, for the people who manage the program (null for anyone else).
   completion: {
     certTitle: string;
@@ -172,11 +197,14 @@ export async function getProgram(userId: string, programId: string): Promise<Res
   const editable = manage && !switchedOff && isEditableStatus(program.status);
   const nodes = program.groups.map((group) => ({ id: group.id, parentId: group.parentId, name: group.name }));
   const headCounts = await peopleByGroup(viewer, programId, nodes);
-  const [attendance, access, assessments, fees] = await Promise.all([
+  const [attendance, access, assessments, fees, progress, studentView, guardianView] = await Promise.all([
     attendanceStateOf(programId, program.attendanceEnabled),
     accessOf(userId, programId, viewer),
     assessmentsStateOf(programId, program.assessmentsEnabled),
     feesStateOf(programId, program.feesEnabled),
+    progressStateOf(programId, program.progressEnabled),
+    studentViewStateOf(programId, program.progressStudentView),
+    guardianViewStateOf(programId, program.progressGuardianView),
   ]);
   const liveGroups = program.groups.filter((group) => group.archivedAt === null).map((group) => group.id);
 
@@ -242,6 +270,29 @@ export async function getProgram(userId: string, programId: string): Promise<Res
       branchesOff: fees.branchesOff,
       enabled: program.feesEnabled,
       reach: feesReach(viewer) !== null,
+    },
+    progress: {
+      on: progress.on,
+      offBy: progress.offBy,
+      branchesOff: progress.branchesOff,
+      enabled: program.progressEnabled,
+      template: program.progressTemplate,
+      reach: readsEverything(access) || access.groups.size > 0 || access.branchIds !== null,
+      settings: manage
+        ? {
+            writers: program.progressWriters,
+            requireVerification: program.progressRequireVerification,
+            fourEyes: program.progressFourEyes,
+            lockInactivity: program.progressLockInactivity,
+            lockRelease: program.progressLockRelease,
+            studentView: program.progressStudentView,
+            guardianView: program.progressGuardianView,
+            guardianDetail: program.progressGuardianDetail,
+          }
+        : null,
+      studentViewOffBy: manage ? studentView.offBy : null,
+      guardianViewOffBy: manage ? guardianView.offBy : null,
+      canChangeFourEyes: viewer.level === "SUPER",
     },
     completion: manage
       ? {
