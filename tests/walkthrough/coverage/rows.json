@@ -4606,5 +4606,444 @@
       "src/lib/programs/attendance-rules.ts"
     ],
     "status": "planned"
+  },
+  {
+    "id": "PAS-01",
+    "area": "Programs",
+    "feature": "A program admin makes an assessment as a draft and opens it for scores",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Assessments, New assessment: title 'Recitation check', Out of 20, pass mark 10, tick Juz A; Make assessment; it is listed as Draft; Open it, Open for scores: it is Open",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-02",
+    "area": "Programs",
+    "feature": "A teacher enters scores and result codes for the people of their groups in one save",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Assessments, open the test: type 30.5 for one pupil, choose Absent for another, Add comment; Save scores: 'Saved: 2 entered, 0 changed.' with 'entered by <teacher>'",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-03",
+    "area": "Programs",
+    "feature": "A score above the maximum is refused next to its field and cannot be saved",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Type 41 for a test out of 40: 'A score can't be above the maximum of 40.' and Save scores stays disabled",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/components/programs/assessment-model.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-04",
+    "area": "Programs",
+    "feature": "A suspended person is shown as not sitting and has no score field",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A suspended child on the sheet reads 'Not sitting (suspended)' with no score or result to enter",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/attendance-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-05",
+    "area": "Programs",
+    "feature": "Marking needs every score in, publishing needs a confirmation, and after marking a teacher can only read",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Mark as complete (refused while someone has no score); Publish results asks first; the teacher then sees the sheet without fields or Save",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-06",
+    "area": "Programs",
+    "feature": "A published score is corrected only with a reason, and its history keeps it",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Change a score on a published assessment: 'Why is a published score being changed?' must be filled; Save; History shows 'changed 15 to 25 (Recounted the paper)'",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-07",
+    "area": "Programs",
+    "feature": "Results show each person's weighted average and grade over the published assessments",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Assessments, Results: 'Amina Musa 75% · Good'; an absent person counts 0, an excused one is left out",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-08",
+    "area": "Programs",
+    "feature": "A branch administrator reads the sheet of their own branch's people and cannot enter anything",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "Open the test as the administrator of one branch: only that branch's people, no fields, no Save scores, no Mark as complete",
+    "source": [
+      "src/components/programs/ProgramAssessmentsTab.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-09",
+    "area": "Programs",
+    "feature": "The program's own assessments switch and its grades are set in Settings, under the school's and the branch's",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: tick 'Use assessments', Add a grade twice (a repeated name is refused), Save; the Assessments tab appears. Settings, Programs: 'Assessments in programs' for the school and each branch",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/components/programs/ProgramsSettingsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PAS-10",
+    "area": "Programs",
+    "feature": "A teacher with no group has no Assessments tab",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher named to the program with no group opens it: Overview, Structure, People and Staff only",
+    "source": [
+      "src/components/programs/ProgramPage.tsx",
+      "src/lib/programs/assessment-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-01",
+    "area": "Programs",
+    "feature": "A program admin makes a fee: its amount, how often, who it is for and who it is billed to",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Fees, Fees, New fee: 'Monthly fee', 5000, Every month, due on day 10; Make fee; it is listed with its audience",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-02",
+    "area": "Programs",
+    "feature": "The invoices of a period are previewed and then made in one step; making them again makes nothing new",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Fees, Make invoices: See who would get an invoice ('3 invoices would be made, ₦15,000.00 in all'); Make 3 invoices; again: '0 invoices would be made' with 'Already has an invoice for this period.'",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-03",
+    "area": "Programs",
+    "feature": "A payment is recorded with a receipt; the balance and status follow; nothing above the balance can be typed",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Open an invoice: type 6000 on ₦5,000 ('That is more than is owed.'); record 2000 (Part paid, receipt RCP-...); Pay the full balance; Record payment: Paid",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-payments.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-04",
+    "area": "Programs",
+    "feature": "A discount needs a reason; an invoice can be marked pay in full only, and the school's part-payment rule applies",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Give a discount 1000 with 'Sibling discount': total ₦4,000; Pay in full only, then try 100: refused; Allow part payments",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-05",
+    "area": "Programs",
+    "feature": "The report shows billed, collected and owed by branch and by group, and who owes",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Fees, Report: 'Billed ₦15,000.00 · collected ₦5,000.00 · owed ₦10,000.00 · 33.3% collected', By branch, By group, Who owes",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-06",
+    "area": "Programs",
+    "feature": "A branch administrator sees only their branch's invoices and can take a payment there, not make fees or invoices",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "As the administrator of one branch: two invoices, no Fees or Make invoices views; record a payment; the report covers only their branch",
+    "source": [
+      "src/components/programs/ProgramFeesTab.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-07",
+    "area": "Programs",
+    "feature": "A teacher or a supervisor has no Fees tab",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A teacher opens the program: no Fees tab; the fees address answers that they may not see them",
+    "source": [
+      "src/components/programs/ProgramPage.tsx",
+      "src/lib/programs/fees-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PFE-08",
+    "area": "Programs",
+    "feature": "The program's own fees switch is set in Settings, under the school's and the branch's",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Branch administrator"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: tick 'Charge fees in this program', Save: the Fees tab appears. Settings, Programs: 'Fees in programs'",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/components/programs/ProgramsSettingsPanel.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-01",
+    "area": "Programs",
+    "feature": "A person's place is completed at any time and says when",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Completion: Complete Amina Musa, Complete place: 'Amina Musa is completed.' and 'completed <date>'",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-02",
+    "area": "Programs",
+    "feature": "A person who does not meet the completion rule is completed only with a reason, which is kept",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "With a rule of an average of 70%: 'Does not meet the rule: ...'; Complete needs 'Why complete them anyway?'; the reason is shown on the row",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-03",
+    "area": "Programs",
+    "feature": "A fixed-term program is completed after its end date, after seeing who is skipped",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Completion: 'The program has reached its end date.'; Complete the program lists '3 will be completed, 1 skipped.' with the reason; confirm: 'The program is completed: 3 places completed.'",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-04",
+    "area": "Programs",
+    "feature": "A certificate is issued and opens as a print-ready page with a QR code, on one page",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Certificates, Issue certificates for everyone completed; Open: the title, the wording, the signatories and a QR; Print gives one A4 page without the controls",
+    "source": [
+      "src/components/programs/CertificatePrint.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-05",
+    "area": "Programs",
+    "feature": "Anyone with the code can check a certificate and sees only the first name and the initial of the last",
+    "route": "/programs",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /verify/<code>: 'This certificate is genuine.' with the school, program, 'Amina P.' and the date - no marks, phone or guardian",
+    "source": [
+      "src/app/verify/[token]/page.tsx",
+      "src/lib/programs/certificate-verify.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-06",
+    "area": "Programs",
+    "feature": "A certificate is withdrawn with a reason; it stays on record and the public page says it was withdrawn",
+    "route": "/programs",
+    "roles": [
+      "Superadmin",
+      "Visitor"
+    ],
+    "kind": "negative",
+    "proof": "Withdraw the certificate of Amina Musa with a reason: it reads 'withdrawn' with no Open link; the public page says it was withdrawn and gives no reason",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-07",
+    "area": "Programs",
+    "feature": "A super admin reopens a completed place with a reason",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Completion: Reopen the place of Amina Musa, give a reason: 'Amina Musa's place is open again.'",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-08",
+    "area": "Programs",
+    "feature": "The certificate wording, signatories and the completion rule are set in Settings; an unknown placeholder is refused",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Program, Settings: wording 'Well done {nme}.' says '{nme} is not a placeholder' and cannot be saved; fix it, add a signatory, set 55.5, Save",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/lib/programs/completion-rules.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PCM-09",
+    "area": "Programs",
+    "feature": "A branch administrator sees the certificates of their own branch only; a teacher has none",
+    "route": "/programs",
+    "roles": [
+      "Branch administrator",
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "As the administrator of one branch: a Certificates tab with their branch's certificates, no Issue or Withdraw; a teacher has no such tab",
+    "source": [
+      "src/components/programs/ProgramCompletionTab.tsx",
+      "src/lib/programs/completion-service.ts"
+    ],
+    "status": "planned"
   }
 ]
