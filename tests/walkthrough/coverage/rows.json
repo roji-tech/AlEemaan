@@ -5045,5 +5045,217 @@
       "src/lib/programs/completion-service.ts"
     ],
     "status": "planned"
+  },
+  {
+    "id": "PGR-01",
+    "area": "Programs",
+    "feature": "A teacher adds a dated entry to a person's progress record; a surah and ayah range is checked",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Program, Progress records, Open Amina Musa, Add to new text: surah 2, ayah 1 to 500 -> 'Surah 2 has ayat 1 to 286.'; ayah 5 -> 'The entry was added.' and the row 'Al-Baqarah 1 to 5'",
+    "source": [
+      "src/components/programs/ProgressRecordView.tsx",
+      "src/components/programs/ProgressEntryDialog.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-02",
+    "area": "Programs",
+    "feature": "The next range starts after the last ayah done",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Add to new text again: From surah 2 and From ayah 6 are already filled in",
+    "source": [
+      "src/components/programs/ProgressEntryDialog.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-03",
+    "area": "Programs",
+    "feature": "A second entry for the same day opens the first instead of making another",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Add to new text for the same day: the dialog 'Change new text' opens with the first entry's values",
+    "source": [
+      "src/components/programs/ProgressEntryDialog.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-04",
+    "area": "Programs",
+    "feature": "The week grid mirrors the paper booklet and saves several days at once",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "positive",
+    "proof": "Week grid: fill Saturday's New text and 'Save the week' -> '1 day was saved.' and the entry is in the list",
+    "source": [
+      "src/components/programs/ProgressWeekGrid.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-05",
+    "area": "Programs",
+    "feature": "A person who is not taking part, or outside the teacher's groups, cannot be written to",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "A withdrawn place: 'This place is not taking part, so its record can't be written to.' and no Add button",
+    "source": [
+      "src/components/programs/ProgressRecordView.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-06",
+    "area": "Programs",
+    "feature": "Every save is kept in the entry's history",
+    "route": "/programs",
+    "roles": [
+      "Teacher",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "History of an entry: 'create' and 'update' with who and when",
+    "source": [
+      "src/components/programs/ProgressRecordView.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-07",
+    "area": "Programs",
+    "feature": "When the program verifies, an entry is a draft, is handed in, and is verified by someone else",
+    "route": "/programs",
+    "roles": [
+      "Teacher",
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Teacher: 'Draft' -> 'Hand in' -> 'Handed in', no Verify button; supervisor: Verify -> 'The entry was verified.'",
+    "source": [
+      "src/components/programs/ProgressRecordView.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-08",
+    "area": "Programs",
+    "feature": "A verifier can return an entry with a comment, which the writer sees",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "negative",
+    "proof": "Return, comment 'ok' -> a few words are needed; a real comment -> 'The entry was returned.' and 'Returned: ...' on the row",
+    "source": [
+      "src/components/programs/ProgressRecordView.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-09",
+    "area": "Programs",
+    "feature": "Verify the whole week of a person in one step",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Week grid, 'Verify the week' -> 'entries were verified.'",
+    "source": [
+      "src/components/programs/ProgressWeekGrid.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-10",
+    "area": "Programs",
+    "feature": "A program admin turns progress records on by choosing a template; only a super admin changes four-eyes; lock times are checked",
+    "route": "/programs",
+    "roles": [
+      "Superadmin"
+    ],
+    "kind": "positive",
+    "proof": "Settings, Progress records: on without a template -> 'Choose a template before turning progress records on.'; with one -> saved and the tab appears; lock 20 -> 'From 60 to 3600 seconds.'",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/lib/programs/program-settings-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-11",
+    "area": "Programs",
+    "feature": "A pupil sees their own verified entries and marks a week as seen; nothing unverified shows",
+    "route": "/portal",
+    "roles": [
+      "Pupil"
+    ],
+    "kind": "positive",
+    "proof": "Portal, Progress: the entries 'Al-Baqarah 1 to 5', no draft; 'Mark as seen' -> 'You marked this week as seen.'",
+    "source": [
+      "src/components/portal/PortalProgressTab.tsx",
+      "src/lib/programs/progress-family.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-12",
+    "area": "Programs",
+    "feature": "A guardian sees a summary and no day-by-day notes, or every verified entry when the program allows",
+    "route": "/portal",
+    "roles": [
+      "Guardian"
+    ],
+    "kind": "negative",
+    "proof": "Portal, Progress as a guardian: '1 day recorded', '5 ayat', no notes and no recurring mistakes",
+    "source": [
+      "src/components/portal/PortalProgressTab.tsx",
+      "src/lib/programs/progress-family.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-13",
+    "area": "Programs",
+    "feature": "Only people who may see a record see it; a supervisor reads and verifies but cannot write",
+    "route": "/programs",
+    "roles": [
+      "Teacher",
+      "Branch administrator"
+    ],
+    "kind": "negative",
+    "proof": "A supervisor opens a record: no Add button and 'You are not named to write to this person's group.'",
+    "source": [
+      "src/components/programs/ProgramProgressTab.tsx",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
   }
 ]
