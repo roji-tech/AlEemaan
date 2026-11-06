@@ -3,7 +3,11 @@ import { prisma } from "@/lib/db";
 import { canManage, levelsOf, viewerOf, type ProgramViewer } from "./access";
 import { NOT_FOUND, change, done, refuse, schoolEnabled, writeAudit, type Result } from "./common";
 import { branchesTakingPart } from "./settings-service";
-import { mayReadGroup } from "./attendance-rules";
+import { parseBands } from "./assessment-rules";
+import { parseSignatories } from "./completion-rules";
+import { assessmentsStateOf } from "./assessment-service";
+import { feesStateOf, reachOf as feesReach } from "./fees-service";
+import { mayReadGroup, readsEverything } from "./attendance-rules";
 import { accessOf, attendanceStateOf } from "./attendance-service";
 import { peopleByGroup } from "./people-service";
 import { endDateFor, groupPath, isEditableStatus, parseIsoDate, statusAfter, toIsoDate, type StatusAction } from "./rules";
@@ -83,6 +87,32 @@ export type ProgramDetail = {
     readGroupIds: string[];
     markGroupIds: string[];
   };
+  /// Assessments (slice P3b): whether they are on for this program and who decided if not, the program's own switch, its grade bands, and whether this person has anything to see.
+  assessments: {
+    on: boolean;
+    offBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
+    branchesOff: { id: string; name: string }[];
+    enabled: boolean;
+    bands: { name: string; from: number }[];
+    reach: boolean;
+  };
+  /// Fees (slice P4): the same three-level switch, the program's own flag, and whether this person may see the fees at all (a super admin, a program admin, a branch administrator).
+  fees: {
+    on: boolean;
+    offBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
+    branchesOff: { id: string; name: string }[];
+    enabled: boolean;
+    reach: boolean;
+  };
+  /// Slice P5: the wording of the certificates and the completion rule, for the people who manage the program (null for anyone else).
+  completion: {
+    certTitle: string;
+    certBody: string;
+    certSignatories: { name: string; title: string }[];
+    minAverage: number | null;
+    requirePassed: boolean;
+    noCertWhileOwing: boolean;
+  } | null;
   /// Programs are switched off for the school: the program is read only.
   switchedOff: boolean;
   branches: { id: string; name: string; own: boolean; takingPart: boolean }[];
@@ -142,9 +172,11 @@ export async function getProgram(userId: string, programId: string): Promise<Res
   const editable = manage && !switchedOff && isEditableStatus(program.status);
   const nodes = program.groups.map((group) => ({ id: group.id, parentId: group.parentId, name: group.name }));
   const headCounts = await peopleByGroup(viewer, programId, nodes);
-  const [attendance, access] = await Promise.all([
+  const [attendance, access, assessments, fees] = await Promise.all([
     attendanceStateOf(programId, program.attendanceEnabled),
     accessOf(userId, programId, viewer),
+    assessmentsStateOf(programId, program.assessmentsEnabled),
+    feesStateOf(programId, program.feesEnabled),
   ]);
   const liveGroups = program.groups.filter((group) => group.archivedAt === null).map((group) => group.id);
 
@@ -196,6 +228,31 @@ export async function getProgram(userId: string, programId: string): Promise<Res
       readGroupIds: liveGroups.filter((id) => mayReadGroup(access, id)),
       markGroupIds: liveGroups.filter((id) => access.markAll || access.groups.has(id)),
     },
+    assessments: {
+      on: assessments.on,
+      offBy: assessments.offBy,
+      branchesOff: assessments.branchesOff,
+      enabled: program.assessmentsEnabled,
+      bands: parseBands(program.gradeBands),
+      reach: readsEverything(access) || access.groups.size > 0 || access.branchIds !== null,
+    },
+    fees: {
+      on: fees.on,
+      offBy: fees.offBy,
+      branchesOff: fees.branchesOff,
+      enabled: program.feesEnabled,
+      reach: feesReach(viewer) !== null,
+    },
+    completion: manage
+      ? {
+          certTitle: program.certTitle,
+          certBody: program.certBody,
+          certSignatories: parseSignatories(program.certSignatories),
+          minAverage: program.completionMinAverage === null ? null : Number(program.completionMinAverage),
+          requirePassed: program.completionRequirePassed,
+          noCertWhileOwing: program.noCertWhileOwing,
+        }
+      : null,
     switchedOff,
     branches: program.branches
       .map((link) => ({

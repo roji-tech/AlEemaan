@@ -1,5 +1,5 @@
 import type { Roll, RollRow } from "@/lib/programs/attendance-service";
-import { dayText, type ProgramDetail } from "@/components/programs/model";
+import { dayText } from "@/components/programs/model";
 
 // The words and the small decisions of the Attendance tab (task 0043, slice P3). Pure, so each is unit-tested without a browser. Presentation only: the API decides who may mark what.
 
@@ -57,11 +57,14 @@ export function allPresent(rows: readonly RollRow[], drafts: Draft): Draft {
 export const unmarkedCount = (rows: readonly RollRow[], drafts: Draft): number =>
   rows.filter((row) => row.canEdit && statusOf(row, drafts) === null).length;
 
-export function offText(attendance: Pick<ProgramDetail["attendance"], "on" | "offBy" | "branchesOff">): string {
-  if (attendance.offBy === "SCHOOL") return "Attendance is switched off for the school. A super admin can turn it on in Settings.";
+export function offText(
+  attendance: { on: boolean; offBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null; branchesOff: { id: string; name: string }[] },
+  subject = "Attendance is",
+): string {
+  if (attendance.offBy === "SCHOOL") return `${subject} switched off for the school. A super admin can turn it on in Settings.`;
   if (attendance.offBy === "PROGRAM")
-    return "Attendance is switched off for this program. A program admin can turn it on in the program's Settings.";
-  if (attendance.offBy === "BRANCH") return "Attendance is switched off in every branch this program runs in.";
+    return `${subject} switched off for this program. A program admin can turn it on in the program's Settings.`;
+  if (attendance.offBy === "BRANCH") return `${subject} switched off in every branch this program runs in.`;
   return attendance.branchesOff.length > 0
     ? `On, except in ${attendance.branchesOff.map((branch) => branch.name).join(", ")}, where it is switched off.`
     : "On.";

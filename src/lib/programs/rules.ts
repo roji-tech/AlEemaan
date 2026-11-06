@@ -103,5 +103,8 @@ export const isEditableStatus = (status: ProgramStatusName): boolean => status =
 export const PROGRAMS_ENABLED_KEY = "programs.enabled";
 /// Slice P3: the attendance switch, under the same ceiling rule (the school, then the branch, then the program's own flag; on only when all are on).
 export const PROGRAM_ATTENDANCE_KEY = "programs.attendance.enabled";
+/// Slices P3b and P4: assessments and fees, the same ceiling rule; a program's own flag for each defaults to OFF (a program that does not use them shows no tab).
+export const PROGRAM_ASSESSMENTS_KEY = "programs.assessments.enabled";
+export const PROGRAM_FEES_KEY = "programs.fees.enabled";
 
 export { parseSwitch as parseEnabled, effectiveSwitch as effectiveEnabled } from "@/lib/settings/ceiling-rules";

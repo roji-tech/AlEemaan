@@ -287,6 +287,10 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/programs-attendance/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-assessments/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-fees/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/standing/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/part-payment/route.ts":
@@ -532,6 +536,10 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/settings/programs/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/programs-attendance/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-assessments/route.ts":
+    "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/settings/programs-fees/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/standing/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",

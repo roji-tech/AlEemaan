@@ -63,16 +63,3 @@ const range = {
 export const sessionsQuery = z.object({ groupId: id("The group").optional(), ...range });
 export const summaryQuery = z.object({ groupId: id("The group").optional(), ...range });
 export const historyQuery = z.object({ from: range.from.optional(), to: range.to.optional() });
-
-export const programSettingsSchema = z
-  .object({
-    attendanceEnabled: z.boolean().optional(),
-    lowAttendancePercent: z
-      .number()
-      .int()
-      .min(1, "The threshold is a percentage from 1 to 100")
-      .max(100, "The threshold is a percentage from 1 to 100")
-      .optional(),
-  })
-  .strict()
-  .refine((value) => value.attendanceEnabled !== undefined || value.lowAttendancePercent !== undefined, "Change at least one setting");
