@@ -5257,5 +5257,77 @@
       "src/lib/programs/progress-service.ts"
     ],
     "status": "planned"
+  },
+  {
+    "id": "PGR-14",
+    "area": "Programs",
+    "feature": "A record can be read in English, Arabic or both side by side, with Gregorian, Hijri or both dates and Western or Arabic-Indic digits; the choice is kept on the device; words a teacher typed are never changed",
+    "route": "/programs",
+    "roles": [
+      "Teacher",
+      "Program admin",
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Open a record, choose Arabic then both: the track names, surahs, ratings, statuses and dates change, the note stays as typed; reload keeps the choice; the portal card does the same",
+    "source": [
+      "src/components/programs/ProgressDisplay.tsx",
+      "src/lib/programs/progress-display.ts",
+      "src/components/programs/ProgressRecordView.tsx",
+      "src/components/portal/PortalProgressTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-15",
+    "area": "Programs",
+    "feature": "A program admin moves the calculated Hijri date by up to two days either way",
+    "route": "/programs",
+    "roles": [
+      "Program admin"
+    ],
+    "kind": "negative",
+    "proof": "Settings, Progress records, Hijri date adjustment: -1 saves and shifts the Hijri date shown; 3 is refused with 'From -2 to 2 days.'",
+    "source": [
+      "src/components/programs/ProgramSettingsTab.tsx",
+      "src/lib/programs/program-settings-service.ts",
+      "prisma/migrations/20261113090000_progress_display/migration.sql"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-16",
+    "area": "Programs",
+    "feature": "Print a record as a sheet laid out like the paper booklet, in the chosen language, dates and digits",
+    "route": "/programs",
+    "roles": [
+      "Teacher",
+      "Supervisor",
+      "Program admin"
+    ],
+    "kind": "positive",
+    "proof": "Open a record, Print: the browser's print opens; in print view only the sheet shows, with a table per track, and the buttons, tabs and sidebar are gone",
+    "source": [
+      "src/components/programs/ProgressPrintSheet.tsx",
+      "src/components/programs/ProgressRecordView.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-17",
+    "area": "Programs",
+    "feature": "A pupil or guardian can print the progress card from the portal",
+    "route": "/portal",
+    "roles": [
+      "Pupil",
+      "Guardian"
+    ],
+    "kind": "positive",
+    "proof": "Portal, Progress, Print: the browser's print opens; in print view the controls are gone and the card stays",
+    "source": [
+      "src/components/portal/PortalProgressTab.tsx"
+    ],
+    "status": "planned"
   }
 ]
