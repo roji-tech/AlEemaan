@@ -118,7 +118,7 @@ export function ProgramPage({ id, allBranches }: { id: string; allBranches: Bran
   return (
     <div className="space-y-5">
       <BackLink />
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight break-words text-fg sm:text-3xl">{program.name}</h1>
           <p className="mt-1.5 text-sm text-fg-muted">{headlineText(program)}</p>
@@ -189,7 +189,7 @@ function BackLink() {
   return (
     <Link
       href="/programs"
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-md text-sm font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-md text-sm font-semibold text-brand-fg hover:underline print:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <ArrowLeftIcon className="h-4 w-4" />
       All programs

@@ -61,11 +61,18 @@ export type ProgressSettings = {
   fourEyes: boolean;
   lockInactivity: number;
   lockRelease: number;
+  /// Days the calculated Hijri date is moved for this program.
+  hijriAdjust: number;
 };
 export const progressSettingsOf = (
   program: Pick<
     Program,
-    "progressWriters" | "progressRequireVerification" | "progressFourEyes" | "progressLockInactivity" | "progressLockRelease"
+    | "progressWriters"
+    | "progressRequireVerification"
+    | "progressFourEyes"
+    | "progressLockInactivity"
+    | "progressLockRelease"
+    | "progressHijriAdjust"
   >,
 ): ProgressSettings => ({
   writers: program.progressWriters,
@@ -73,6 +80,7 @@ export const progressSettingsOf = (
   fourEyes: program.progressFourEyes,
   lockInactivity: program.progressLockInactivity,
   lockRelease: program.progressLockRelease,
+  hijriAdjust: program.progressHijriAdjust,
 });
 
 type TemplateRow = { id: string; key: string; version: number; schema: TemplateSchema };

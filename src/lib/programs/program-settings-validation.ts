@@ -58,6 +58,7 @@ export const programSettingsSchema = z
     progressStudentView: z.boolean().optional(),
     progressGuardianView: z.boolean().optional(),
     progressGuardianDetail: z.enum(["SUMMARY", "FULL"]).optional(),
+    progressHijriAdjust: z.number().int().min(-2, "From -2 to 2 days").max(2, "From -2 to 2 days").optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, "Change at least one setting");

@@ -29,6 +29,7 @@ export type ProgramSettings = {
   progressStudentView: boolean;
   progressGuardianView: boolean;
   progressGuardianDetail: ProgressGuardianDetail;
+  progressHijriAdjust: number;
 };
 export type ProgramSettingsInput = Partial<ProgramSettings>;
 
@@ -55,6 +56,7 @@ type Stored = Pick<
   | "progressStudentView"
   | "progressGuardianView"
   | "progressGuardianDetail"
+  | "progressHijriAdjust"
 >;
 
 export const settingsOf = (program: Stored): ProgramSettings => ({
@@ -79,6 +81,7 @@ export const settingsOf = (program: Stored): ProgramSettings => ({
   progressStudentView: program.progressStudentView,
   progressGuardianView: program.progressGuardianView,
   progressGuardianDetail: program.progressGuardianDetail,
+  progressHijriAdjust: program.progressHijriAdjust,
 });
 
 export async function updateProgramSettings(
@@ -144,6 +147,7 @@ export async function updateProgramSettings(
         progressStudentView: next.progressStudentView,
         progressGuardianView: next.progressGuardianView,
         progressGuardianDetail: next.progressGuardianDetail,
+        progressHijriAdjust: next.progressHijriAdjust,
       },
     });
     await writeAudit(tx, {

@@ -6,6 +6,7 @@ import { seedProgram, day } from "../support/programs-seed";
 import { expectAccessible, expectFits, openProgramTab, programTab } from "./program-helpers";
 import { signInThroughUi } from "./helpers";
 import { QURAN_BOOKLET } from "@/lib/programs/progress-templates";
+import { arabicText, dateBi } from "@/lib/programs/progress-display";
 
 // Progress records (task 0044, slices R1 to R3) as a person sees and uses them, on a desktop and a phone, in both themes. What the API allows is tested in
 // tests/api/progress-records.spec.ts; here is what the screens offer, say and do.
@@ -382,6 +383,41 @@ test.describe("a pupil and a guardian in the portal", () => {
     await portal(page, "2013-05-10");
     await expect(progressTab(page)).toHaveCount(0);
   });
+
+  test("a pupil can read the record in Arabic, with Hijri dates and Arabic-Indic digits, and the choice is kept; typed notes are never changed", async ({
+    page,
+  }) => {
+    const w = await world();
+    await w.entry(w.amina, -1, {
+      values: { range: { fromSurah: 2, fromAyah: 1, toSurah: 2, toAyah: 5 }, notes: "Steady, 12 lines", rating: 5 },
+    });
+    await portal(page, "2013-05-10");
+    await progressTab(page).click();
+    const card = page.getByRole("region", { name: "Progress in Quran memorisation" });
+    await expect(card.getByText("This month so far")).toBeVisible();
+    await page.getByLabel("Language").selectOption("ar");
+    await expect(card.getByText("هذا الشهر حتى الآن")).toBeVisible();
+    await expect(card.getByText("This month so far")).toHaveCount(0);
+    await expect(card.getByRole("heading", { level: 3, name: "الحفظ الجديد" })).toBeVisible();
+    await expect(card.getByRole("region", { name: "New text entries" })).toContainText("البقرة 1 إلى 5");
+    await expect(card.getByRole("region", { name: "New text entries" })).toContainText("ممتاز");
+    await expect(card.getByRole("region", { name: "New text entries" })).toContainText("Steady, 12 lines");
+    await page.getByLabel("Digits").selectOption("arabic");
+    await expect(card.getByRole("region", { name: "New text entries" })).toContainText("البقرة ١ إلى ٥");
+    await expect(card.getByRole("region", { name: "New text entries" })).toContainText("Steady, 12 lines"); // typed: still 12
+    await page.getByLabel("Dates").selectOption("hijri");
+    const hijri = arabicText(dateBi(day(-1), { calendar: "hijri" }).ar!, "arabic");
+    await expect(card.getByRole("region", { name: "New text entries" })).toContainText(hijri);
+    await page.reload();
+    await progressTab(page).click();
+    await expect(page.getByLabel("Language")).toHaveValue("ar");
+    await expect(page.getByLabel("Dates")).toHaveValue("hijri");
+    await expect(page.getByLabel("Digits")).toHaveValue("arabic");
+    await expect(page.getByRole("region", { name: "Progress in Quran memorisation" }).getByText("هذا الشهر حتى الآن")).toBeVisible();
+    await page.getByLabel("Language").selectOption("en");
+    await expect(page.getByLabel("Digits")).toHaveCount(0); // English always uses 0-9
+    await expect(page.getByRole("region", { name: "Progress in Quran memorisation" }).getByText("This month so far")).toBeVisible();
+  });
 });
 
 test.describe("accessible and fits the width, in both themes", () => {
@@ -432,6 +468,189 @@ test.describe("accessible and fits the width, in both themes", () => {
       await page.evaluate((t) => void (document.documentElement.dataset.theme = t), theme);
       await expectAccessible(page, `${theme} portal progress`);
       await expectFits(page, `${theme} portal progress`);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Slice R4 (task 0044, section 10): Arabic, Hijri, digits and the print sheet.
+
+const choose = async (page: Page, name: "Language" | "Dates" | "Digits", value: string) =>
+  page.getByRole("group", { name: "How this record is shown" }).getByLabel(name).selectOption(value);
+
+test.describe("display of a record (slice R4)", () => {
+  test("Arabic shows the headings, statuses, ratings, surahs and dates in Arabic; the notes a teacher typed are never changed; the choice is kept", async ({
+    page,
+  }) => {
+    const w = await world();
+    await w.entry(w.amina, -1, {
+      values: { range: { fromSurah: 2, fromAyah: 1, toSurah: 2, toAyah: 5 }, notes: "Smooth, 12 lines", rating: 4 },
+    });
+    await signInThroughUi(page, w.teacher);
+    await goToRecord(page, w.seed.program.id);
+    const row = entries(page, "New text").getByRole("listitem");
+    await expect(row).toContainText("Al-Baqarah 1 to 5");
+    await expect(page.getByRole("group", { name: "How this record is shown" }).getByLabel("Digits")).toHaveCount(0);
+    await choose(page, "Language", "ar");
+    await expect(page.getByRole("heading", { level: 3, name: "الحفظ الجديد" })).toBeVisible();
+    await expect(row).toContainText("البقرة 1 إلى 5");
+    await expect(row).toContainText("جيد جداً");
+    await expect(row).toContainText("موثَّق");
+    await expect(row).toContainText(dateBi(day(-1), { calendar: "gregorian" }).ar!);
+    await expect(row).toContainText("Smooth, 12 lines");
+    await expect(row).not.toContainText("Al-Baqarah");
+    await expect(page.locator('[lang="ar"][dir="rtl"]').first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add to new text" })).toBeVisible(); // the buttons stay English
+    await choose(page, "Digits", "arabic");
+    await expect(row).toContainText("البقرة ١ إلى ٥");
+    await expect(row).toContainText("Smooth, 12 lines");
+    await choose(page, "Dates", "hijri");
+    await expect(row).toContainText(arabicText(dateBi(day(-1), { calendar: "hijri" }).ar!, "arabic"));
+    await choose(page, "Dates", "both");
+    await expect(row).toContainText(arabicText(dateBi(day(-1), { calendar: "both" }).ar!, "arabic"));
+    await page.reload();
+    await goToRecord(page, w.seed.program.id);
+    await expect(page.getByRole("group", { name: "How this record is shown" }).getByLabel("Language")).toHaveValue("ar");
+    await expect(page.getByRole("heading", { level: 3, name: "الحفظ الجديد" })).toBeVisible();
+    await choose(page, "Language", "en");
+    await expect(row).toContainText("Al-Baqarah 1 to 5");
+    await expect(row).toContainText(dateBi(day(-1), { calendar: "both" }).en);
+  });
+
+  test("both languages sit side by side on a wide screen and stack on a phone", async ({ page }) => {
+    const w = await world();
+    await w.entry(w.amina, -1);
+    await signInThroughUi(page, w.teacher);
+    await goToRecord(page, w.seed.program.id);
+    await choose(page, "Language", "both");
+    const heading = page.getByRole("heading", { level: 3, name: /New text/ });
+    await expect(heading).toContainText("الحفظ الجديد");
+    const english = heading.locator("span", { hasText: /^New text$/ });
+    const arabic = heading.locator('[lang="ar"]');
+    const [e, a] = [await english.boundingBox(), await arabic.boundingBox()];
+    expect(e && a).toBeTruthy();
+    const wide = (page.viewportSize()?.width ?? 0) >= 640;
+    if (wide) {
+      expect(Math.abs(e!.y - a!.y)).toBeLessThan(6);
+      expect(a!.x).toBeGreaterThan(e!.x);
+    } else {
+      expect(a!.y).toBeGreaterThan(e!.y + 6);
+    }
+    await expect(arabic).toHaveAttribute("dir", "rtl");
+  });
+
+  test("a program admin moves the Hijri date by the program's adjustment, within -2 to 2", async ({ page }) => {
+    const w = await world();
+    await w.entry(w.amina, -1);
+    await signInThroughUi(page, w.sa);
+    await page.goto(`/programs/${w.seed.program.id}`);
+    await programTab(page, "Settings").click();
+    const fieldset = page.getByRole("group", { name: "Progress records" });
+    const field = fieldset.getByLabel("Hijri date adjustment (days)");
+    await expect(field).toHaveValue("0");
+    await field.fill("3");
+    await expect(fieldset.getByText("From -2 to 2 days.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save settings" })).toBeDisabled();
+    await field.fill("-1");
+    await page.getByRole("button", { name: "Save settings" }).click();
+    await expect(page.getByText("The settings were saved.")).toBeVisible();
+    expect((await db.program.findUniqueOrThrow({ where: { id: w.seed.program.id } })).progressHijriAdjust).toBe(-1);
+    await goToRecord(page, w.seed.program.id);
+    await choose(page, "Dates", "hijri");
+    await expect(entries(page, "New text").getByRole("listitem")).toContainText(dateBi(day(-1), { calendar: "hijri", adjust: -1 }).en);
+    expect(dateBi(day(-1), { calendar: "hijri", adjust: -1 }).en).not.toBe(dateBi(day(-1), { calendar: "hijri" }).en);
+  });
+});
+
+test.describe("print (slice R4)", () => {
+  test("Print opens the browser's print; the sheet shows only when printing, in the chosen language, dates and digits, without the app around it", async ({
+    page,
+  }) => {
+    const w = await world({ verify: true });
+    await w.entry(w.amina, -1, { values: { range: { fromSurah: 1, fromAyah: 1, toSurah: 1, toAyah: 7 }, notes: "Clear", rating: 5 } });
+    await w.entry(w.amina, -2, { status: "SUBMITTED" });
+    await w.entry(w.amina, -1, { trackKey: "mistakes", values: { note: "Rushes the last ayah" } });
+    await db.progressRecord.update({ where: { participantId: w.amina.id }, data: { profile: { age: "12", riwayah: "HAFS" } } });
+    await signInThroughUi(page, w.teacher);
+    await goToRecord(page, w.seed.program.id);
+    const sheet = page.getByRole("region", { name: "Printable record" });
+    await expect(sheet).toBeHidden(); // never on the screen
+    await page.evaluate(() => {
+      (window as unknown as { printed: number }).printed = 0;
+      window.print = () => {
+        (window as unknown as { printed: number }).printed += 1;
+      };
+    });
+    await page.getByRole("button", { name: "Print" }).click();
+    expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+
+    await choose(page, "Language", "both");
+    await choose(page, "Digits", "arabic");
+    await choose(page, "Dates", "both");
+    await page.emulateMedia({ media: "print" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByText("Amina Musa", { exact: true })).toBeVisible();
+    await expect(sheet.getByRole("heading", { level: 2, name: /New text/ })).toContainText("الحفظ الجديد");
+    await expect(sheet.getByRole("columnheader", { name: /Date/ }).first()).toContainText("التاريخ");
+    await expect(sheet.getByRole("row")).toHaveCount(5); // new text: the header and 2 days; mistakes: the header and 1; the empty tracks are left out
+    await expect(sheet).toContainText("الفاتحة ١ إلى ٧");
+    await expect(sheet).toContainText("ممتاز");
+    await expect(sheet).toContainText("Rushes the last ayah");
+    await expect(sheet).toContainText(arabicText(dateBi(day(-1), { calendar: "both", weekday: true }).ar!, "arabic"));
+    await expect(sheet).toContainText("Clear");
+    await expect(sheet.getByText("12", { exact: true })).toBeVisible(); // the profile's age, typed: not converted
+    await expect(page.getByRole("button", { name: "Add to new text" })).toBeHidden();
+    await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden();
+    await expect(page.getByRole("tablist", { name: "Program sections" })).toBeHidden();
+    await page.emulateMedia({ media: "screen" });
+    await expect(sheet).toBeHidden();
+    await expect(page.getByRole("button", { name: "Add to new text" })).toBeVisible();
+  });
+
+  test("a family can print the portal card, and the controls are not on the paper", async ({ page }) => {
+    const w = await world();
+    await w.entry(w.amina, -1);
+    await page.goto("/portal");
+    await page.fill("#admissionNo", "2026/0001");
+    await page.fill("#secret", "2013-05-10");
+    await page.click("button:has-text('Access Student Portal')");
+    await page.getByRole("tablist", { name: "Student Portal Sections" }).getByRole("tab", { name: "Progress" }).click();
+    await page.evaluate(() => {
+      (window as unknown as { printed: number }).printed = 0;
+      window.print = () => {
+        (window as unknown as { printed: number }).printed += 1;
+      };
+    });
+    await page.getByRole("button", { name: "Print" }).click();
+    expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+    await page.emulateMedia({ media: "print" });
+    await expect(page.getByLabel("Language")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
+    await expect(page.getByRole("region", { name: "Progress in Quran memorisation" })).toBeVisible();
+  });
+});
+
+test.describe("accessible and fits the width in Arabic and in both languages (slice R4)", () => {
+  for (const theme of ["light", "dark"] as const) {
+    test(`${theme} theme: the record in Arabic and in both languages`, async ({ page, context }) => {
+      const w = await world({ verify: true });
+      await w.entry(w.amina, -1, { status: "SUBMITTED" });
+      await w.entry(w.amina, -2, { status: "VERIFIED" });
+      await w.entry(w.amina, -2, { trackKey: "mistakes", status: "VERIFIED", values: { note: "Rushes the last ayah" } });
+      await db.progressRecord.update({ where: { participantId: w.amina.id }, data: { profile: { age: "12", riwayah: "HAFS" } } });
+      await context.addCookies([{ name: "theme", value: theme, url: HTTP_URL }]);
+      await signInThroughUi(page, w.sa);
+      await goToRecord(page, w.seed.program.id);
+      for (const [lang, calendar] of [
+        ["ar", "hijri"],
+        ["both", "both"],
+      ] as const) {
+        await choose(page, "Language", lang);
+        await choose(page, "Dates", calendar);
+        await choose(page, "Digits", "arabic");
+        await expectAccessible(page, `${theme} record in ${lang}`);
+        await expectFits(page, `${theme} record in ${lang}`);
+      }
     });
   }
 });
