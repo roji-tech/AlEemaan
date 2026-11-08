@@ -69,6 +69,8 @@ model Program {
   progressStudentView         Boolean                @default(true)
   progressGuardianView        Boolean                @default(true)
   progressGuardianDetail      ProgressGuardianDetail @default(SUMMARY)
+  /// Slice R4: days the calculated Hijri date is moved (-2 to 2; a database check holds the range).
+  progressHijriAdjust         Int                    @default(0)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
 

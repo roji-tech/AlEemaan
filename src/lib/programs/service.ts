@@ -124,6 +124,7 @@ export type ProgramDetail = {
       studentView: boolean;
       guardianView: boolean;
       guardianDetail: "SUMMARY" | "FULL";
+      hijriAdjust: number;
     } | null;
     studentViewOffBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
     guardianViewOffBy: "SCHOOL" | "PROGRAM" | "BRANCH" | null;
@@ -288,6 +289,7 @@ export async function getProgram(userId: string, programId: string): Promise<Res
             studentView: program.progressStudentView,
             guardianView: program.progressGuardianView,
             guardianDetail: program.progressGuardianDetail,
+            hijriAdjust: program.progressHijriAdjust,
           }
         : null,
       studentViewOffBy: manage ? studentView.offBy : null,

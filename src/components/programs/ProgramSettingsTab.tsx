@@ -47,6 +47,10 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
   const [studentView, setStudentView] = useState(ps?.studentView ?? true);
   const [guardianView, setGuardianView] = useState(ps?.guardianView ?? true);
   const [guardianDetail, setGuardianDetail] = useState(ps?.guardianDetail ?? "SUMMARY");
+  const [hijriAdjust, setHijriAdjust] = useState(String(ps?.hijriAdjust ?? 0));
+  const hijriNumber = Number(hijriAdjust);
+  const hijriProblem =
+    hijriAdjust.trim() !== "" && Number.isInteger(hijriNumber) && hijriNumber >= -2 && hijriNumber <= 2 ? null : "From -2 to 2 days.";
   const inactivityNumber = Number(lockInactivity);
   const releaseNumber = Number(lockRelease);
   const inactivityProblem =
@@ -68,6 +72,7 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
         ...(studentView !== ps.studentView ? { progressStudentView: studentView } : {}),
         ...(guardianView !== ps.guardianView ? { progressGuardianView: guardianView } : {}),
         ...(guardianDetail !== ps.guardianDetail ? { progressGuardianDetail: guardianDetail } : {}),
+        ...(hijriNumber !== ps.hijriAdjust ? { progressHijriAdjust: hijriNumber } : {}),
       }
     : {};
   const sameProgress = Object.keys(progressChanges).length === 0;
@@ -105,7 +110,18 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!valid || bandsText || unchanged || avgProblem || wordingText || inactivityProblem || releaseProblem || progressProblem) return;
+    if (
+      !valid ||
+      bandsText ||
+      unchanged ||
+      avgProblem ||
+      wordingText ||
+      inactivityProblem ||
+      releaseProblem ||
+      hijriProblem ||
+      progressProblem
+    )
+      return;
     setSaving(true);
     await run(
       () =>
@@ -431,6 +447,18 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
               ]}
               onChange={(e) => setGuardianDetail(e.target.value as typeof guardianDetail)}
             />
+            <TextField
+              label="Hijri date adjustment (days)"
+              type="number"
+              inputMode="numeric"
+              min={-2}
+              max={2}
+              value={hijriAdjust}
+              disabled={!may}
+              error={hijriProblem}
+              hint="The Hijri date is calculated (Umm al-Qura). Move it by up to two days where the moon is sighted on a different day."
+              onChange={(e) => setHijriAdjust(e.target.value)}
+            />
           </fieldset>
         )}
 
@@ -447,6 +475,7 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
                 Boolean(wordingText) ||
                 Boolean(inactivityProblem) ||
                 Boolean(releaseProblem) ||
+                Boolean(hijriProblem) ||
                 Boolean(progressProblem)
               }
             >

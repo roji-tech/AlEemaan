@@ -1,5 +1,6 @@
 import { SURAHS, surahOf } from "@/lib/programs/progress-reference";
 import type { Column, TemplateSchema, Track } from "@/lib/programs/progress-templates";
+import { bi, type Bi } from "@/lib/programs/progress-display";
 import { sameJson, type EntryStatus, type RangeValue, type Value, type Values } from "@/lib/programs/progress-rules";
 
 // Progress records: what the screens need that is not React - wording, how a value is shown, how a form's text becomes the values the API wants, and the other way round. Pure.
@@ -131,3 +132,55 @@ export const lockText = (holder: string, releasing: boolean): string =>
   releasing
     ? `${holder} is finishing up. You can edit in a moment.`
     : `${holder} is editing this entry. You can read it, and change it once they have finished.`;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// The same values in both languages (slice R4). The English is exactly what the functions above give; the Arabic is null for words somebody typed.
+
+export const surahBi = (n: number): Bi => {
+  const surah = surahOf(n);
+  return surah ? bi(`${surah.n}. ${surah.en}`, `${surah.n}. ${surah.ar}`) : bi(String(n), String(n));
+};
+
+export function rangeBiOf(range: RangeValue): Bi {
+  const from = surahOf(range.fromSurah);
+  const to = surahOf(range.toSurah);
+  const fromEn = from?.en ?? String(range.fromSurah);
+  const toEn = to?.en ?? String(range.toSurah);
+  const fromAr = from?.ar ?? String(range.fromSurah);
+  const toAr = to?.ar ?? String(range.toSurah);
+  return range.fromSurah === range.toSurah
+    ? bi(`${fromEn} ${range.fromAyah} to ${range.toAyah}`, `${fromAr} ${range.fromAyah} إلى ${range.toAyah}`)
+    : bi(`${fromEn} ${range.fromAyah} to ${toEn} ${range.toAyah}`, `${fromAr} ${range.fromAyah} إلى ${toAr} ${range.toAyah}`);
+}
+
+export const ratingBi = (schema: Pick<TemplateSchema, "ratings">, value: unknown): Bi => {
+  const level = schema.ratings.find((l) => l.value === value);
+  return level ? bi(level.en, level.ar) : bi(String(value));
+};
+
+export function valueBi(column: Column, value: Value | undefined, schema: Pick<TemplateSchema, "ratings">): Bi | null {
+  if (value === undefined) return null;
+  switch (column.type) {
+    case "range":
+      return typeof value === "object" ? rangeBiOf(value) : null;
+    case "surah":
+      return typeof value === "number" ? surahBi(value) : null;
+    case "rating":
+      return ratingBi(schema, value);
+    case "choice": {
+      const option = column.options?.find((o) => o.value === value);
+      return option ? bi(option.en, option.ar) : bi(String(value));
+    }
+    default:
+      return bi(String(value));
+  }
+}
+
+/// The row as "Label: value" pairs in both languages, leaving out what is empty.
+export const rowPartsBi = (track: Track, values: Values, schema: Pick<TemplateSchema, "ratings">): { key: string; label: Bi; text: Bi }[] =>
+  track.columns.flatMap((column) => {
+    const text = valueBi(column, values[column.key], schema);
+    return text === null || text.en === "" ? [] : [{ key: column.key, label: bi(column.label.en, column.label.ar), text }];
+  });
+
+export const trackLabelBi = (track: Pick<Track, "label">): Bi => bi(track.label.en, track.label.ar);
