@@ -9,15 +9,15 @@ const PAGE = "data:text/html,<title>t</title><label>Name <input id='a' value=''>
 const tempDir = () => fs.mkdtempSync(path.join(os.tmpdir(), "walk-spec-"));
 
 test.describe("The walk helpers do what the walkthrough rules say", () => {
-  test("a key press is 50 to 120 ms after the last, at both ends and always", () => {
+  test("a key press is 35 to 80 ms after the last, at both ends and always", () => {
     expect(keyDelay(() => 0)).toBe(KEY_DELAY_MIN_MS);
     expect(keyDelay(() => 0.9999999)).toBe(KEY_DELAY_MAX_MS);
-    expect(KEY_DELAY_MIN_MS).toBe(50);
-    expect(KEY_DELAY_MAX_MS).toBe(120);
+    expect(KEY_DELAY_MIN_MS).toBe(35);
+    expect(KEY_DELAY_MAX_MS).toBe(80);
     // Many draws, two assertions: each expect() is a reported step, so one per draw would take half a minute.
     const draws = Array.from({ length: 5000 }, () => keyDelay());
-    expect(Math.min(...draws)).toBeGreaterThanOrEqual(50);
-    expect(Math.max(...draws)).toBeLessThanOrEqual(120);
+    expect(Math.min(...draws)).toBeGreaterThanOrEqual(35);
+    expect(Math.max(...draws)).toBeLessThanOrEqual(80);
     expect(draws.every(Number.isInteger)).toBe(true);
   });
 
@@ -38,9 +38,9 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     const took = Date.now() - started;
     await expect(page.locator("#a")).toHaveValue("Amina");
     expect(pressed.filter((k) => k.length === 1).join("")).toBe("Amina");
-    expect(walk.typingMs()).toBeGreaterThanOrEqual(5 * 50);
-    expect(walk.typingMs()).toBeLessThanOrEqual(5 * 120);
-    expect(took).toBeGreaterThanOrEqual(5 * 50);
+    expect(walk.typingMs()).toBeGreaterThanOrEqual(5 * 35);
+    expect(walk.typingMs()).toBeLessThanOrEqual(5 * 80);
+    expect(took).toBeGreaterThanOrEqual(5 * 35);
   });
 
   test("the typing budget fails a run that types too long", async ({ page }) => {

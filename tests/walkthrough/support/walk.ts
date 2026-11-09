@@ -190,7 +190,7 @@ export class Walk {
   }
 
   /**
-   * Human-paced typing: glides cursor, clicks the field, clears it the way a person does (select all, delete) and presses one key at a time, 50 to 120 ms apart.
+   * Human-paced typing: glides cursor, clicks the field, clears it the way a person does (select all, delete) and presses one key at a time, 35 to 80 ms apart (a very fast typist).
    */
   async type(locator: Locator, text: string): Promise<void> {
     await this.click(locator);
