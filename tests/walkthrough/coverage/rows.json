@@ -4952,7 +4952,7 @@
     "id": "PCM-04",
     "area": "Programs",
     "feature": "A certificate is issued and opens as a print-ready page with a QR code, on one page",
-    "route": "/programs",
+    "route": "/programs/[id]/certificates/[certId]",
     "roles": [
       "Superadmin"
     ],
@@ -5265,7 +5265,7 @@
     "route": "/programs",
     "roles": [
       "Teacher",
-      "Program admin",
+      "Superadmin",
       "Pupil",
       "Guardian"
     ],
@@ -5285,7 +5285,7 @@
     "feature": "A program admin moves the calculated Hijri date by up to two days either way",
     "route": "/programs",
     "roles": [
-      "Program admin"
+      "Superadmin"
     ],
     "kind": "negative",
     "proof": "Settings, Progress records, Hijri date adjustment: -1 saves and shifts the Hijri date shown; 3 is refused with 'From -2 to 2 days.'",
@@ -5303,8 +5303,7 @@
     "route": "/programs",
     "roles": [
       "Teacher",
-      "Supervisor",
-      "Program admin"
+      "Superadmin"
     ],
     "kind": "positive",
     "proof": "Open a record, Print: the browser's print opens; in print view only the sheet shows, with a table per track, and the buttons, tabs and sidebar are gone",
