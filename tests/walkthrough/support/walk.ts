@@ -39,6 +39,24 @@ export interface TimelineEntry extends StepMeta {
   screenshotPath: string;
 }
 
+/// A place where the journey could not go on as a person would have gone on. Written by a recon run (section 6.6 of task 0033); a strict run throws instead.
+export interface Finding {
+  id: string;
+  chapter: string;
+  /// The id of the step that was running, or null when the chapter failed before its first step.
+  step: number | null;
+  route: string;
+  /// The failure as Playwright worded it (the expectation, the locator, the timeout): what a user would have met.
+  what: string;
+  /// The screenshot taken at the moment of failure.
+  evidence: string;
+  status: "Not fixed";
+}
+
+/// "recon" records a failed chapter as a finding and goes on to the next (never a deliverable); "strict" throws at the first failure. Strict unless the runner says recon.
+export type WalkMode = "recon" | "strict";
+export const walkMode = (): WalkMode => (process.env.WALKTHROUGH_MODE === "recon" ? "recon" : "strict");
+
 export class Walk {
   private page: Page;
   private currentX: number = 200;
@@ -50,6 +68,11 @@ export class Walk {
   private screenshotsDir: string;
   private currentRole: WalkRole = "Visitor";
   private typedMs: number = 0;
+  private findings: Finding[] = [];
+  /// Recon only: where the first page load went, and whether the last chapter stopped early (the next one then starts by typing that address again).
+  private startUrl: string | null = null;
+  private needsRecovery = false;
+  readonly mode: WalkMode = walkMode();
   /// Always on: console, page errors, failed requests, response statuses, requests that would leave the machine, and axe after every new page.
   readonly observers: Observers;
 
@@ -96,6 +119,7 @@ export class Walk {
       );
     }
     this.gotoCount++;
+    this.startUrl ??= url;
     await this.page.goto(url, { waitUntil: "domcontentloaded" });
     await this.injectOverlayNow();
   }
@@ -166,7 +190,7 @@ export class Walk {
   }
 
   /**
-   * Human-paced typing: glides cursor, clicks the field, clears it the way a person does (select all, delete) and presses one key at a time, 50 to 120 ms apart.
+   * Human-paced typing: glides cursor, clicks the field, clears it the way a person does (select all, delete) and presses one key at a time, 35 to 80 ms apart (a very fast typist).
    */
   async type(locator: Locator, text: string): Promise<void> {
     await this.click(locator);
@@ -205,6 +229,22 @@ export class Walk {
     }
     await locator.selectOption(value);
     await new Promise((r) => setTimeout(r, pace.afterClick));
+  }
+
+  /**
+   * Chooses the theme the way a person does: by clicking the toggle (it is on the sign-in and setup screens as well as in the shell). The app ignores the system colour scheme and starts
+   * dark, so a light pass has to click. Always clicks at least once, so that every pass shows the switch working, and stops when the page shows the wanted theme.
+   */
+  async chooseTheme(theme: "light" | "dark"): Promise<void> {
+    const toggle = this.page.getByRole("button", { name: /^Switch to (light|dark) theme$/ });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const before = await this.page.evaluate(() => document.documentElement.dataset.theme ?? "dark");
+      await this.click(toggle);
+      await this.page.waitForFunction((was) => (document.documentElement.dataset.theme ?? "dark") !== was, before);
+      const now = await this.page.evaluate(() => document.documentElement.dataset.theme ?? "dark");
+      if (now === theme) return;
+    }
+    throw new Error(`The theme toggle did not reach the ${theme} theme in two clicks.`);
   }
 
   /// Replaces the words in the caption bar (the step sets them at its start; a helper that does something a person would not see otherwise says so here).
@@ -329,6 +369,71 @@ export class Walk {
         .join("\n  ");
       throw new Error(`${blockers.length} blocking observation(s); the first:\n  ${first}`);
     }
+  }
+
+  /**
+   * A chapter of the journey: a run of steps that ends with the person signed out. In recon a failure is written down as a finding and the next chapter goes on (returns false);
+   * in strict it is thrown. A chapter that does not know where it left the page starts with recoverAt(), which only recon may use.
+   */
+  async chapter(name: string, run: () => Promise<void>): Promise<boolean> {
+    if (this.needsRecovery && this.startUrl) {
+      await this.recoverAt(this.startUrl);
+      this.needsRecovery = false;
+    }
+    try {
+      await run();
+      return true;
+    } catch (error) {
+      if (this.mode === "strict") throw error;
+      this.needsRecovery = true;
+      const route = /^https?:/.test(this.page.url()) ? new URL(this.page.url()).pathname : this.page.url().slice(0, 30);
+      const evidence = path.join(this.screenshotsDir, `failure_${String(this.findings.length + 1).padStart(2, "0")}.png`);
+      await this.page.screenshot({ path: evidence }).catch(() => undefined);
+      this.findings.push({
+        id: `F-${String(this.findings.length + 1).padStart(2, "0")}`,
+        chapter: name,
+        step: this.stepCount || null,
+        route,
+        what: (error instanceof Error ? error.message : String(error)).split("\n").slice(0, 12).join("\n"),
+        evidence,
+        status: "Not fixed",
+      });
+      return false;
+    }
+  }
+
+  /// Recon only: after a failed chapter the page may be anywhere, so the person types the site address again (a second counted page load, named in the findings). Strict runs never get here.
+  async recoverAt(url: string): Promise<void> {
+    if (this.mode === "strict") throw new Error("recoverAt is for recon runs: a strict run stops at the first failure.");
+    this.gotoCount = 0;
+    await this.goto(url);
+  }
+
+  /// The findings so far, as JSON for the report and as the markdown that findings.md is made of.
+  saveFindings(dir: string): void {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "findings.json"), JSON.stringify(this.findings, null, 2), "utf-8");
+    const lines = ["# Findings of this run", "", `${this.findings.length} chapter(s) stopped before their end.`, ""];
+    for (const f of this.findings) {
+      lines.push(
+        `## ${f.id} ${f.chapter}`,
+        "",
+        `- Step: ${f.step ?? "before the first"}`,
+        `- Route: ${f.route}`,
+        `- Status: ${f.status}`,
+        `- Evidence: ${f.evidence}`,
+        "",
+        "```",
+        f.what,
+        "```",
+        "",
+      );
+    }
+    fs.writeFileSync(path.join(dir, "findings.md"), lines.join("\n"), "utf-8");
+  }
+
+  getFindings(): Finding[] {
+    return this.findings;
   }
 
   getTimeline(): TimelineEntry[] {

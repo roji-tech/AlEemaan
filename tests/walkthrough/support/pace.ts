@@ -1,8 +1,9 @@
 /**
  * Pacing for the continuous product walkthrough.
  *
- * The pauses around a click (glide, hover, settle, dwell) can be shortened with WALKTHROUGH_SPEED_SCALE for a recon run. Typing cannot: a person types at 50 to 120 ms a key, and a
- * video that types faster is not showing what a person would do. The scale never touches key delays.
+ * The person in the video is a very fast human (decided 2026-11-06): quick, sure movements and a very fast typist, never a robot. The pauses around a click (glide, hover, settle,
+ * dwell) can be shortened further with WALKTHROUGH_SPEED_SCALE for a recon run. Typing cannot: it stays one real key press at a time, 35 to 80 ms apart (about 200 words a minute,
+ * with the unevenness of a hand), because a constant or near-zero delay is a script, not a person. The scale never touches key delays.
  */
 
 export interface PaceConfig {
@@ -19,8 +20,8 @@ export interface PaceConfig {
 }
 
 /** A person's gap between two key presses, in milliseconds. */
-export const KEY_DELAY_MIN_MS = 50;
-export const KEY_DELAY_MAX_MS = 120;
+export const KEY_DELAY_MIN_MS = 35;
+export const KEY_DELAY_MAX_MS = 80;
 
 /** `random` is injectable so that the bounds can be tested exactly. */
 export const keyDelay = (random: () => number = Math.random): number =>
@@ -32,9 +33,9 @@ export const TYPING_BUDGET_MINUTES = 12;
 const scale = Number(process.env.WALKTHROUGH_SPEED_SCALE ?? "1") || 1;
 
 export const pace: PaceConfig = {
-  glideSteps: Math.max(4, Math.round(10 * scale)),
-  beforeClick: Math.max(40, Math.round(120 * scale)),
-  afterClick: Math.max(50, Math.round(180 * scale)),
-  settle: Math.max(80, Math.round(300 * scale)),
-  dwell: Math.max(150, Math.round(600 * scale)),
+  glideSteps: Math.max(4, Math.round(7 * scale)),
+  beforeClick: Math.max(30, Math.round(70 * scale)),
+  afterClick: Math.max(40, Math.round(110 * scale)),
+  settle: Math.max(60, Math.round(200 * scale)),
+  dwell: Math.max(120, Math.round(400 * scale)),
 };

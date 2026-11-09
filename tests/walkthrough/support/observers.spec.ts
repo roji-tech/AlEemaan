@@ -71,6 +71,24 @@ test.describe("The observers see what a person would, and judge it", () => {
     );
   });
 
+  test("a cancelled page prefetch (?_rsc=) is the framework working, not a failed request; any other cancelled request still is listed", async ({
+    page,
+    context,
+  }) => {
+    const observers = new Observers(page);
+    await observers.start(context);
+    await context.route("http://localhost:3999/**", (route) => route.abort("aborted"));
+    await page.setContent("<title>t</title><main>hi</main>");
+    await page.evaluate(async () => {
+      await fetch("http://localhost:3999/finance?_rsc=abc123").catch(() => undefined);
+      await fetch("http://localhost:3999/api/data").catch(() => undefined);
+    });
+    await expect.poll(() => observers.observations.filter((o) => o.kind === "request-failed").length).toBeGreaterThan(0);
+    const failed = observers.observations.filter((o) => o.kind === "request-failed");
+    expect(failed).toHaveLength(1);
+    expect(failed[0]!.detail).toContain("/api/data");
+  });
+
   test("a request that would leave the machine is refused and is a blocker", async ({ page, context }) => {
     const observers = new Observers(page);
     await observers.start(context);

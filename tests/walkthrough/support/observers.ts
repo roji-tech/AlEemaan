@@ -77,9 +77,12 @@ export class Observers {
       } else if (message.type() === "warning") this.add("console-warning", "listed", text);
     });
     this.page.on("pageerror", (error) => this.add("page-error", "blocker", error.message));
-    this.page.on("requestfailed", (request: Request) =>
-      this.add("request-failed", "listed", `${request.method()} ${request.url()}: ${request.failure()?.errorText ?? "failed"}`),
-    );
+    this.page.on("requestfailed", (request: Request) => {
+      const reason = request.failure()?.errorText ?? "failed";
+      // Next.js cancels the prefetch of a page (`?_rsc=`) when the person has already moved on: a cancelled prefetch is the framework working, not a failed request.
+      if (reason === "net::ERR_ABORTED" && /[?&]_rsc=/.test(request.url())) return;
+      this.add("request-failed", "listed", `${request.method()} ${request.url()}: ${reason}`);
+    });
     this.page.on("response", (response) => {
       const status = response.status();
       if (status >= 400)
