@@ -46,6 +46,26 @@ export const test = base.extend<Fixtures>({
     },
     { auto: true },
   ],
+  /// Colour does not fade during a test. The accessibility scans measure colours, and a scan taken while a theme switch is still fading measures a colour between the two (the portal's tab
+  /// buttons have `transition-all`, 150 ms): the phone light-theme contrast checks failed now and then on a clean `dev`, about a third of the runs of the portal Forms tests, with axe
+  /// seeing #6c7c92 and #7a899f on text that settles at #5b6b82. The app drops every transition for a person who asks for less motion (globals.css), so the page asks for it: no test looks
+  /// at a transition, and the colour axe sees is the one the page settles on. (Set here because the `reducedMotion` option of the config did not reach these pages.)
+  page: async ({ page }, provide) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await provide(page);
+  },
+  /// A test that opens another person's browser (`browser.newContext()`: a guardian next to a pupil) gets the same: that context has none of the project's options, so its pages are
+  /// asked for reduced motion too. Patched once per worker.
+  browser: [
+    async ({ browser }, provide) => {
+      const original = browser.newContext.bind(browser);
+      browser.newContext = ((options?: Parameters<typeof original>[0]) =>
+        original({ reducedMotion: "reduce", ...options })) as typeof browser.newContext;
+      await provide(browser);
+      browser.newContext = original;
+    },
+    { scope: "worker" },
+  ],
   context: async ({ context, clientIp }, provide) => {
     await context.setExtraHTTPHeaders({ "x-real-ip": clientIp, "x-test-client-ip": clientIp });
     await provide(context);

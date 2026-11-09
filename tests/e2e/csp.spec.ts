@@ -1,4 +1,4 @@
-import { test, expect } from "../support/fixtures";
+import { test, expect, type CspViolation } from "../support/fixtures";
 import { seedInstance } from "../support/db";
 
 // A real browser enforcing the policy (domain-implementation-plan.md §0.5.B). Every OTHER browser test
@@ -22,6 +22,21 @@ async function withInjectedMarkup(page: import("@playwright/test").Page, payload
     await route.fulfill({ response, body: html });
   });
 }
+/// The violations the browser reports are carried to the test through a binding, a moment after the thing that caused them (a parse, a click). Reading them straight away raced it: the test
+/// failed about one run in five on a clean `dev`. This waits until at least one has arrived, and returns every one that did.
+async function reported(csp: { take(): CspViolation[] }): Promise<CspViolation[]> {
+  const seen: CspViolation[] = [];
+  await expect
+    .poll(
+      () => {
+        seen.push(...csp.take());
+        return seen.length;
+      },
+      { message: "the browser reported no Content-Security-Policy violation" },
+    )
+    .toBeGreaterThan(0);
+  return seen;
+}
 const pwned = (page: import("@playwright/test").Page) => page.evaluate(() => (window as unknown as Record<string, unknown>).__pwned);
 
 test.describe("the policy blocks what an XSS bug would inject", () => {
@@ -30,7 +45,7 @@ test.describe("the policy blocks what an XSS bug would inject", () => {
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: "Sign in to your dashboard" })).toBeVisible(); // the app still works
     expect(await pwned(page)).toBeUndefined();
-    expect(csp.take().map((v) => v.directive)).toContain("script-src-elem");
+    expect((await reported(csp)).map((v) => v.directive)).toContain("script-src-elem");
   });
 
   test("an injected inline event handler (onerror=…) does not run either", async ({ page, csp }) => {
@@ -38,14 +53,14 @@ test.describe("the policy blocks what an XSS bug would inject", () => {
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: "Sign in to your dashboard" })).toBeVisible();
     expect(await pwned(page)).toBeUndefined();
-    expect(csp.take().map((v) => v.directive)).toContain("script-src-attr");
+    expect((await reported(csp)).map((v) => v.directive)).toContain("script-src-attr");
   });
 
   test("an injected <script src> from another origin does not load", async ({ page, csp }) => {
     await withInjectedMarkup(page, `<script src="https://evil.example/x.js"></script>`);
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: "Sign in to your dashboard" })).toBeVisible();
-    expect(csp.take().map((v) => v.blocked)).toContain("https://evil.example/x.js");
+    expect((await reported(csp)).map((v) => v.blocked)).toContain("https://evil.example/x.js");
   });
 
   test("an injected javascript: link does not run", async ({ page, csp }) => {
@@ -53,7 +68,7 @@ test.describe("the policy blocks what an XSS bug would inject", () => {
     await page.goto("/login");
     await page.locator("#evil").click();
     expect(await pwned(page)).toBeUndefined();
-    expect(csp.take().length).toBeGreaterThan(0);
+    expect((await reported(csp)).length).toBeGreaterThan(0);
   });
 
   test("a <base> can't re-root the page's relative URLs (base-uri)", async ({ page, csp }) => {
