@@ -10,7 +10,10 @@ import { say } from "@/components/academics/common";
 import { dayText, when, type ProgramDetail } from "@/components/programs/model";
 import { ProgressEntryDialog } from "@/components/programs/ProgressEntryDialog";
 import { ProgressWeekGrid } from "@/components/programs/ProgressWeekGrid";
-import { PLACE_TEXT, STATUS_STYLE, STATUS_TEXT, rowParts } from "@/components/programs/progress-model";
+import { DisplayControls, Shown, useProgressDisplay } from "@/components/programs/ProgressDisplay";
+import { ProgressPrintSheet } from "@/components/programs/ProgressPrintSheet";
+import { STATUS_STYLE, rowPartsBi, trackLabelBi } from "@/components/programs/progress-model";
+import { MESSAGES, PLACE_BI, STATUS_BI, bi, dateBi } from "@/lib/programs/progress-display";
 import { addDays, sameJson } from "@/lib/programs/progress-rules";
 import type { EntryView, RecordView, RevisionView } from "@/lib/programs/progress-service";
 import type { Track } from "@/lib/programs/progress-templates";
@@ -35,6 +38,7 @@ export function ProgressRecordView({ program, personId, onBack }: Props) {
   const [history, setHistory] = useState<{ entry: EntryView; rows: RevisionView[] } | null>(null);
   const [returning, setReturning] = useState<EntryView | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [display, setDisplay] = useProgressDisplay();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,216 +86,250 @@ export function ProgressRecordView({ program, personId, onBack }: Props) {
   const schema = record.template?.schema;
   const today = new Date().toISOString().slice(0, 10);
   const hasGrid = !!schema?.tracks.some((track) => track.kind === "table" && track.oneRowPerDay);
+  const adjust = record.settings.hijriAdjust;
+  const dt = (iso: string) => dateBi(iso, { calendar: display.calendar, adjust });
+  const place = PLACE_BI[record.person.placeState] ?? bi(record.person.placeState);
+  const joined = dt(record.person.joinedOn);
+  const personLine = bi(
+    `${record.person.groupPath} · ${place.en} · joined ${joined.en}`,
+    `${record.person.groupPath} · ${place.ar ?? place.en} · انضم في ${joined.ar ?? joined.en}`,
+  );
+  const shownFrom = dt(record.from);
+  const shownTo = dt(record.to);
 
   return (
-    <section aria-labelledby="progress-person" className="space-y-4 rounded-2xl border border-line bg-surface p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id="progress-person" className="break-words text-lg font-semibold text-fg">
-            {record.person.name}
-          </h2>
-          <p className="break-words text-sm text-fg-muted">
-            {record.person.groupPath} · {PLACE_TEXT[record.person.placeState] ?? record.person.placeState} · joined{" "}
-            {dayText(record.person.joinedOn)}
-          </p>
-          {record.person.guardianName || record.person.guardianPhone ? (
-            <p className="break-words text-xs text-fg-muted">
-              Guardian: {[record.person.guardianName, record.person.guardianPhone].filter(Boolean).join(" · ")}
+    <>
+      <section aria-labelledby="progress-person" className="space-y-4 rounded-2xl border border-line bg-surface p-4 print:hidden">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="progress-person" className="break-words text-lg font-semibold text-fg">
+              {record.person.name}
+            </h2>
+            <p className="break-words text-sm text-fg-muted">
+              <Shown value={personLine} display={display} />
             </p>
-          ) : null}
-        </div>
-        <Button variant="ghost" onClick={onBack}>
-          Back to the people
-        </Button>
-      </div>
-      {failed && <Alert variant="error">{failed}</Alert>}
-      {notice && <Alert variant="success">{notice}</Alert>}
-      {!record.rights.write && record.rights.whyNot && <Alert variant="info">{record.rights.whyNot}</Alert>}
-      {schema && (
-        <>
-          {schema.profile.length > 0 && <ProfileForm base={base} record={record} onSaved={reload} />}
-          {hasGrid && (
-            <div className="flex justify-end">
-              <Button variant="secondary" onClick={() => setGrid((g) => !g)}>
-                {grid ? "Hide the week grid" : "Week grid"}
+            {record.person.guardianName || record.person.guardianPhone ? (
+              <p className="break-words text-xs text-fg-muted">
+                Guardian: {[record.person.guardianName, record.person.guardianPhone].filter(Boolean).join(" · ")}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {schema && (
+              <Button variant="secondary" onClick={() => window.print()}>
+                Print
               </Button>
-            </div>
-          )}
-          {grid && <ProgressWeekGrid base={base} record={record} today={today} onSaved={(m) => reload(m)} />}
-          {schema.tracks.map((track) => {
-            const entries = record.entries.filter((e) => e.trackKey === track.key);
-            return (
-              <section key={track.key} aria-label={track.label.en} className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-base font-semibold text-fg">{track.label.en}</h3>
-                  {record.rights.write && (
-                    <Button variant="secondary" onClick={() => setEditing({ track, entry: null })}>
-                      Add to {track.label.en.toLowerCase()}
-                    </Button>
-                  )}
-                </div>
-                {entries.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-line-strong p-4 text-center text-sm text-fg-muted">
-                    Nothing here yet.
-                  </p>
-                ) : (
-                  <ul className="space-y-2" aria-label={`${track.label.en} entries`}>
-                    {entries.map((entry) => (
-                      <li key={entry.id} className="space-y-1 rounded-xl border border-line px-3 py-3 text-sm">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <p className="font-semibold text-fg">{dayText(entry.entryDate)}</p>
-                          <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_STYLE[entry.status]}`}>
-                            {STATUS_TEXT[entry.status]}
-                          </span>
-                        </div>
-                        <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                          {rowParts(track, entry.values, schema).map((part) => (
-                            <div key={part.label} className="min-w-0">
-                              <dt className="text-xs text-fg-muted">{part.label}</dt>
-                              <dd className="break-words whitespace-pre-line text-fg">{part.text}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                        <p className="text-xs text-fg-muted">
-                          Last saved by {entry.lastEditedBy}, {when(entry.lastEditedAt)}
-                          {entry.verifiedBy ? ` · verified by ${entry.verifiedBy}` : ""}
-                          {entry.status !== "VERIFIED" && entry.published ? " · families still see the last verified copy" : ""}
-                        </p>
-                        {entry.returnComment && <p className="text-xs text-warn-fg">Returned: {entry.returnComment}</p>}
-                        {entry.lock && !entry.lock.mine && (
-                          <p className="text-xs text-fg-muted">{entry.lock.holder} is editing this entry.</p>
-                        )}
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {entry.canEdit && (
-                            <Button
-                              variant="secondary"
-                              aria-label={`Change the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
-                              onClick={() => setEditing({ track, entry })}
-                            >
-                              Change
-                            </Button>
-                          )}
-                          {entry.canEdit && record.settings.requireVerification && entry.status === "DRAFT" && (
-                            <Button
-                              variant="secondary"
-                              loading={busy === entry.id}
-                              aria-label={`Hand in the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
-                              onClick={() => void act(entry, { action: "submit" }, "The entry was handed in.")}
-                            >
-                              Hand in
-                            </Button>
-                          )}
-                          {entry.canVerify && (
-                            <>
-                              <Button
-                                loading={busy === entry.id}
-                                aria-label={`Verify the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
-                                onClick={() => void act(entry, { action: "verify" }, "The entry was verified.")}
-                              >
-                                Verify
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                aria-label={`Return the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
-                                onClick={() => setReturning(entry)}
-                              >
-                                Return
-                              </Button>
-                            </>
-                          )}
-                          <Button
-                            variant="ghost"
-                            aria-label={`History of the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
-                            onClick={() => void showHistory(entry)}
-                          >
-                            History
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
-            <span>
-              Showing {dayText(record.from)} to {dayText(record.to)}.
-              {record.truncated ? " Some entries are not shown; narrow the dates." : ""}
-            </span>
-            <Button variant="ghost" onClick={() => setFrom(addDays(record.from, -28))}>
-              Show 4 earlier weeks
+            )}
+            <Button variant="ghost" onClick={onBack}>
+              Back to the people
             </Button>
           </div>
-          {record.seen.length > 0 && (
-            <p className="text-xs text-fg-muted">
-              Seen by the family:{" "}
-              {record.seen
-                .slice(0, 4)
-                .map((s) => `${s.actor === "PUPIL" ? "pupil" : "guardian"}, week of ${dayText(s.weekStart)}`)
-                .join("; ")}
-              .
-            </p>
-          )}
-        </>
-      )}
-      {editing && schema && (
-        <ProgressEntryDialog
-          key={editing.entry?.id ?? `new-${editing.track.key}`}
-          base={base}
-          schema={schema}
-          track={editing.track}
-          entry={editing.entry}
-          next={record.next[editing.track.key] ?? null}
-          today={today}
-          requireVerification={record.settings.requireVerification}
-          onClose={() => reload()}
-          onSaved={(message) => reload(message)}
-          onOpenExisting={(id) => {
-            const found = record.entries.find((e) => e.id === id);
-            if (found) setEditing({ track: editing.track, entry: found });
-            else reload("That day already has an entry. It is in the list below.");
-          }}
-        />
-      )}
-      <ReturnDialog
-        entry={returning}
-        onClose={() => setReturning(null)}
-        onReturn={async (comment) => {
-          const target = returning!;
-          const reply = await sendJson(`${base}/entries/${encodeURIComponent(target.id)}`, "POST", {
-            action: "return",
-            version: target.version,
-            comment,
-          });
-          if (!reply.ok) return problemFor(reply, "comment") ?? say(reply, "That didn't work.");
-          setReturning(null);
-          reload("The entry was returned.");
-          return null;
-        }}
-      />
-      <Dialog open={history !== null} onClose={() => setHistory(null)} title="History of this entry" wide>
-        {history && (
-          <div className="space-y-3">
-            <ul className="space-y-2" aria-label="Changes">
-              {history.rows.map((row) => (
-                <li key={row.id} className="rounded-lg border border-line px-3 py-2 text-sm">
-                  <p className="font-medium text-fg">
-                    {row.action.toLowerCase()} · {row.by} · {when(row.at)}
-                  </p>
-                  {row.note && <p className="text-xs text-fg-muted">{row.note}</p>}
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-end">
-              <Button variant="ghost" data-initial-focus onClick={() => setHistory(null)}>
-                Close
+        </div>
+        {schema && <DisplayControls display={display} onChange={setDisplay} />}
+        {failed && <Alert variant="error">{failed}</Alert>}
+        {notice && <Alert variant="success">{notice}</Alert>}
+        {!record.rights.write && record.rights.whyNot && <Alert variant="info">{record.rights.whyNot}</Alert>}
+        {schema && (
+          <>
+            {schema.profile.length > 0 && <ProfileForm base={base} record={record} onSaved={reload} />}
+            {hasGrid && (
+              <div className="flex justify-end">
+                <Button variant="secondary" onClick={() => setGrid((g) => !g)}>
+                  {grid ? "Hide the week grid" : "Week grid"}
+                </Button>
+              </div>
+            )}
+            {grid && <ProgressWeekGrid base={base} record={record} today={today} onSaved={(m) => reload(m)} />}
+            {schema.tracks.map((track) => {
+              const entries = record.entries.filter((e) => e.trackKey === track.key);
+              return (
+                <section key={track.key} aria-label={track.label.en} className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-base font-semibold text-fg">
+                      <Shown value={trackLabelBi(track)} display={display} />
+                    </h3>
+                    {record.rights.write && (
+                      <Button variant="secondary" onClick={() => setEditing({ track, entry: null })}>
+                        Add to {track.label.en.toLowerCase()}
+                      </Button>
+                    )}
+                  </div>
+                  {entries.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-line-strong p-4 text-center text-sm text-fg-muted">
+                      <Shown value={MESSAGES.nothingYet} display={display} />
+                    </p>
+                  ) : (
+                    <ul className="space-y-2" aria-label={`${track.label.en} entries`}>
+                      {entries.map((entry) => (
+                        <li key={entry.id} className="space-y-1 rounded-xl border border-line px-3 py-3 text-sm">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 font-semibold text-fg">
+                              <Shown value={dt(entry.entryDate)} display={display} />
+                            </div>
+                            <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_STYLE[entry.status]}`}>
+                              <Shown value={STATUS_BI[entry.status]} display={display} />
+                            </span>
+                          </div>
+                          <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                            {rowPartsBi(track, entry.values, schema).map((part) => (
+                              <div key={part.key} className="min-w-0">
+                                <dt className="text-xs text-fg-muted">
+                                  <Shown value={part.label} display={display} />
+                                </dt>
+                                <dd className="break-words whitespace-pre-line text-fg">
+                                  <Shown value={part.text} display={display} />
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                          <p className="text-xs text-fg-muted">
+                            Last saved by {entry.lastEditedBy}, {when(entry.lastEditedAt)}
+                            {entry.verifiedBy ? ` · verified by ${entry.verifiedBy}` : ""}
+                            {entry.status !== "VERIFIED" && entry.published ? " · families still see the last verified copy" : ""}
+                          </p>
+                          {entry.returnComment && <p className="text-xs text-warn-fg">Returned: {entry.returnComment}</p>}
+                          {entry.lock && !entry.lock.mine && (
+                            <p className="text-xs text-fg-muted">{entry.lock.holder} is editing this entry.</p>
+                          )}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {entry.canEdit && (
+                              <Button
+                                variant="secondary"
+                                aria-label={`Change the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
+                                onClick={() => setEditing({ track, entry })}
+                              >
+                                Change
+                              </Button>
+                            )}
+                            {entry.canEdit && record.settings.requireVerification && entry.status === "DRAFT" && (
+                              <Button
+                                variant="secondary"
+                                loading={busy === entry.id}
+                                aria-label={`Hand in the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
+                                onClick={() => void act(entry, { action: "submit" }, "The entry was handed in.")}
+                              >
+                                Hand in
+                              </Button>
+                            )}
+                            {entry.canVerify && (
+                              <>
+                                <Button
+                                  loading={busy === entry.id}
+                                  aria-label={`Verify the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
+                                  onClick={() => void act(entry, { action: "verify" }, "The entry was verified.")}
+                                >
+                                  Verify
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  aria-label={`Return the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
+                                  onClick={() => setReturning(entry)}
+                                >
+                                  Return
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              aria-label={`History of the ${track.label.en.toLowerCase()} entry of ${dayText(entry.entryDate)}`}
+                              onClick={() => void showHistory(entry)}
+                            >
+                              History
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
+              <span>
+                <Shown
+                  value={bi(
+                    `Showing ${shownFrom.en} to ${shownTo.en}.`,
+                    `يُعرض من ${shownFrom.ar ?? shownFrom.en} إلى ${shownTo.ar ?? shownTo.en}.`,
+                  )}
+                  display={display}
+                />
+                {record.truncated ? " Some entries are not shown; narrow the dates." : ""}
+              </span>
+              <Button variant="ghost" onClick={() => setFrom(addDays(record.from, -28))}>
+                Show 4 earlier weeks
               </Button>
             </div>
-          </div>
+            {record.seen.length > 0 && (
+              <p className="text-xs text-fg-muted">
+                Seen by the family:{" "}
+                {record.seen
+                  .slice(0, 4)
+                  .map((s) => `${s.actor === "PUPIL" ? "pupil" : "guardian"}, week of ${dayText(s.weekStart)}`)
+                  .join("; ")}
+                .
+              </p>
+            )}
+          </>
         )}
-      </Dialog>
-    </section>
+        {editing && schema && (
+          <ProgressEntryDialog
+            key={editing.entry?.id ?? `new-${editing.track.key}`}
+            base={base}
+            schema={schema}
+            track={editing.track}
+            entry={editing.entry}
+            next={record.next[editing.track.key] ?? null}
+            today={today}
+            requireVerification={record.settings.requireVerification}
+            onClose={() => reload()}
+            onSaved={(message) => reload(message)}
+            onOpenExisting={(id) => {
+              const found = record.entries.find((e) => e.id === id);
+              if (found) setEditing({ track: editing.track, entry: found });
+              else reload("That day already has an entry. It is in the list below.");
+            }}
+          />
+        )}
+        <ReturnDialog
+          entry={returning}
+          onClose={() => setReturning(null)}
+          onReturn={async (comment) => {
+            const target = returning!;
+            const reply = await sendJson(`${base}/entries/${encodeURIComponent(target.id)}`, "POST", {
+              action: "return",
+              version: target.version,
+              comment,
+            });
+            if (!reply.ok) return problemFor(reply, "comment") ?? say(reply, "That didn't work.");
+            setReturning(null);
+            reload("The entry was returned.");
+            return null;
+          }}
+        />
+        <Dialog open={history !== null} onClose={() => setHistory(null)} title="History of this entry" wide>
+          {history && (
+            <div className="space-y-3">
+              <ul className="space-y-2" aria-label="Changes">
+                {history.rows.map((row) => (
+                  <li key={row.id} className="rounded-lg border border-line px-3 py-2 text-sm">
+                    <p className="font-medium text-fg">
+                      {row.action.toLowerCase()} · {row.by} · {when(row.at)}
+                    </p>
+                    {row.note && <p className="text-xs text-fg-muted">{row.note}</p>}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-end">
+                <Button variant="ghost" data-initial-focus onClick={() => setHistory(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </Dialog>
+      </section>
+      {schema && <ProgressPrintSheet programName={program.name} record={record} display={display} />}
+    </>
   );
 }
 

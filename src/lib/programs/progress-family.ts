@@ -37,6 +37,8 @@ export type FamilyProgram = {
     tracks: TemplateSchema["tracks"];
     profile: TemplateSchema["profile"];
     weekStart: number;
+    /// Days the calculated Hijri date is moved for this program.
+    hijriAdjust: number;
   };
   profile: Record<string, string> | null;
   summary: { weeks: Summary[]; month: Summary };
@@ -127,6 +129,7 @@ export async function familyProgress(studentId: string, actor: Actor): Promise<F
         tracks: template.schema.tracks,
         profile: template.schema.profile,
         weekStart: template.schema.weekStart,
+        hijriAdjust: program.progressHijriAdjust,
       },
       profile: detail === "FULL" && record ? (record.profile as Record<string, string>) : null,
       summary: periodSummaries(rows, template.schema, day),

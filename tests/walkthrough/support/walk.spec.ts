@@ -9,15 +9,15 @@ const PAGE = "data:text/html,<title>t</title><label>Name <input id='a' value=''>
 const tempDir = () => fs.mkdtempSync(path.join(os.tmpdir(), "walk-spec-"));
 
 test.describe("The walk helpers do what the walkthrough rules say", () => {
-  test("a key press is 50 to 120 ms after the last, at both ends and always", () => {
+  test("a key press is 35 to 80 ms after the last, at both ends and always", () => {
     expect(keyDelay(() => 0)).toBe(KEY_DELAY_MIN_MS);
     expect(keyDelay(() => 0.9999999)).toBe(KEY_DELAY_MAX_MS);
-    expect(KEY_DELAY_MIN_MS).toBe(50);
-    expect(KEY_DELAY_MAX_MS).toBe(120);
+    expect(KEY_DELAY_MIN_MS).toBe(35);
+    expect(KEY_DELAY_MAX_MS).toBe(80);
     // Many draws, two assertions: each expect() is a reported step, so one per draw would take half a minute.
     const draws = Array.from({ length: 5000 }, () => keyDelay());
-    expect(Math.min(...draws)).toBeGreaterThanOrEqual(50);
-    expect(Math.max(...draws)).toBeLessThanOrEqual(120);
+    expect(Math.min(...draws)).toBeGreaterThanOrEqual(35);
+    expect(Math.max(...draws)).toBeLessThanOrEqual(80);
     expect(draws.every(Number.isInteger)).toBe(true);
   });
 
@@ -38,9 +38,9 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     const took = Date.now() - started;
     await expect(page.locator("#a")).toHaveValue("Amina");
     expect(pressed.filter((k) => k.length === 1).join("")).toBe("Amina");
-    expect(walk.typingMs()).toBeGreaterThanOrEqual(5 * 50);
-    expect(walk.typingMs()).toBeLessThanOrEqual(5 * 120);
-    expect(took).toBeGreaterThanOrEqual(5 * 50);
+    expect(walk.typingMs()).toBeGreaterThanOrEqual(5 * 35);
+    expect(walk.typingMs()).toBeLessThanOrEqual(5 * 80);
+    expect(took).toBeGreaterThanOrEqual(5 * 35);
   });
 
   test("the typing budget fails a run that types too long", async ({ page }) => {
@@ -138,5 +138,86 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     expect(config).toMatch(/\bworkers:\s*1\b/);
     expect(config).toMatch(/\bfullyParallel:\s*false\b/);
     expect(config).toMatch(/width:\s*1280,\s*height:\s*720/);
+  });
+
+  test("in a recon run a chapter that fails is written down as a finding and the next chapter starts by typing the site address again; in a strict run it throws", async ({
+    page,
+  }) => {
+    const before = process.env.WALKTHROUGH_MODE;
+    process.env.WALKTHROUGH_MODE = "recon";
+    const dir = tempDir();
+    const walk = new Walk(page, dir);
+    process.env.WALKTHROUGH_MODE = before;
+    expect(walk.mode).toBe("recon");
+    await walk.init();
+    await walk.goto(PAGE);
+
+    const failed = await walk.chapter("C01 A chapter that breaks", async () => {
+      await walk.step({ id: 1, title: "t", role: "Visitor", caption: "c", covers: ["RTE-01"] }, async () => {
+        await expect(page.getByRole("heading", { name: "Nothing like this" })).toBeVisible({ timeout: 300 });
+      });
+    });
+    expect(failed).toBe(false);
+    expect(walk.getFindings()).toHaveLength(1);
+    expect(walk.getFindings()[0]).toMatchObject({ id: "F-01", chapter: "C01 A chapter that breaks", step: 1, status: "Not fixed" });
+    expect(walk.getFindings()[0]!.what).toContain("Nothing like this");
+    expect(fs.existsSync(walk.getFindings()[0]!.evidence)).toBe(true);
+
+    // the page may be anywhere after a failure: the next chapter begins by typing the first address again (a second counted page load), and goes on
+    await page.setContent("<title>elsewhere</title><p>somewhere else</p>");
+    const next = await walk.chapter("C02 The one after", async () => {
+      await expect(page.locator("#a")).toBeVisible();
+    });
+    expect(next).toBe(true);
+
+    walk.saveFindings(path.join(dir, "evidence"));
+    expect(fs.readFileSync(path.join(dir, "evidence", "findings.md"), "utf-8")).toContain("F-01 C01 A chapter that breaks");
+    expect(JSON.parse(fs.readFileSync(path.join(dir, "evidence", "findings.json"), "utf-8"))).toHaveLength(1);
+
+    process.env.WALKTHROUGH_MODE = "strict";
+    const strict = new Walk(page, tempDir());
+    process.env.WALKTHROUGH_MODE = before;
+    expect(strict.mode).toBe("strict");
+    await expect(
+      strict.chapter("C01 Strict", async () => {
+        throw new Error("a step failed");
+      }),
+    ).rejects.toThrow("a step failed");
+    await expect(strict.recoverAt("data:text/html,x")).rejects.toThrow(/recon/);
+  });
+
+  test("the caption bar and cursor are drawn on a page whose content security policy refuses inline styles, and the policy is left as it was", async ({
+    page,
+  }) => {
+    const walk = new Walk(page, tempDir());
+    await page.route("http://localhost:3999/", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        headers: { "content-security-policy": "default-src 'self'; style-src 'self'; script-src 'self'" },
+        body: "<!doctype html><title>t</title><main>hi</main>",
+      }),
+    );
+    await walk.init();
+    await walk.goto("http://localhost:3999/");
+    await expect(page.locator("#walkthrough-overlay-root")).toBeVisible();
+    expect(await page.locator("#walkthrough-overlay-root").evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
+    expect(await page.locator("#walkthrough-cursor").evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
+    // nothing of the harness is reported as the page's own violation
+    expect(walk.observers.observations.filter((o) => o.kind === "console-error" && /Content Security Policy/.test(o.detail))).toEqual([]);
+  });
+
+  test("walk.chooseTheme clicks the toggle at least once, stops on the wanted theme, and says so when it cannot get there", async ({
+    page,
+  }) => {
+    const toggle = `<button id="t" aria-label="Switch to light theme" onclick="const d=document.documentElement;d.dataset.theme=d.dataset.theme==='dark'?'light':'dark';this.setAttribute('aria-label',d.dataset.theme==='dark'?'Switch to light theme':'Switch to dark theme')">theme</button>`;
+    const walk = new Walk(page, tempDir());
+    await walk.init();
+    await walk.goto(`data:text/html,<html data-theme="dark"><title>t</title><body>${encodeURIComponent(toggle)}</body></html>`);
+    await walk.chooseTheme("light"); // dark -> light: one click
+    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("light");
+    await walk.chooseTheme("light"); // already light: still clicks (every pass shows the switch), and comes back
+    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("light");
+    await walk.chooseTheme("dark");
+    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
   });
 });

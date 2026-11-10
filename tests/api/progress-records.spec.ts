@@ -821,3 +821,44 @@ test.describe("the database's own checks", () => {
     ).rejects.toThrow();
   });
 });
+
+test.describe("the Hijri adjustment (slice R4)", () => {
+  const detail = async (who: Person) => (await get(`${PROGRAMS}/${w.program}`, who)).json.data.progress.settings;
+
+  test("it starts at 0, a program admin sets it from -2 to 2 and it reaches the program, the record and the portal", async () => {
+    expect((await detail(w.sa)).hijriAdjust).toBe(0);
+    const set = await setProgram(w.progAdmin, { progressHijriAdjust: -1 });
+    expect(set.status, set.text).toBe(200);
+    expect(set.json.data.progressHijriAdjust).toBe(-1);
+    expect((await detail(w.sa)).hijriAdjust).toBe(-1);
+    expect((await get(rec(w.amina), w.teacher)).json.data.settings.hijriAdjust).toBe(-1);
+    await made(w.teacher, w.amina, day(-1));
+    const studentId = (await db.programParticipant.findUniqueOrThrow({ where: { id: w.amina } })).studentId!;
+    const cookie = await portalCookie("2026/0001", PUPIL_DOB);
+    const seen = await api(`/api/v1/portal/students/${studentId}/progress`, { cookie });
+    expect(seen.json.data.programs[0].template.hijriAdjust).toBe(-1);
+    expect(await db.programAudit.count({ where: { programId: w.program, action: "PROGRAM_SETTINGS_CHANGED" } })).toBeGreaterThanOrEqual(1);
+  });
+
+  test("every value from -2 to 2 is accepted; 3, -3, a fraction, a word and nothing are refused, and the stored value is not touched", async () => {
+    for (const ok of [-2, -1, 0, 1, 2]) expect((await setProgram(w.sa, { progressHijriAdjust: ok })).status).toBe(200);
+    expect((await detail(w.sa)).hijriAdjust).toBe(2);
+    for (const bad of [3, -3, 1.5, "1", null, 100]) {
+      const res = await setProgram(w.sa, { progressHijriAdjust: bad });
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await detail(w.sa)).hijriAdjust).toBe(2);
+  });
+
+  test("only someone who may change the program's settings can set it", async () => {
+    expect((await setProgram(w.supervisor, { progressHijriAdjust: 1 })).status).toBe(403);
+    expect((await setProgram(w.teacher, { progressHijriAdjust: 1 })).status).toBe(403);
+    expect((await detail(w.sa)).hijriAdjust).toBe(0);
+  });
+
+  test("the database holds the range as well: a value outside it is refused even when written directly", async () => {
+    await expect(db.program.update({ where: { id: w.program }, data: { progressHijriAdjust: 3 } })).rejects.toThrow();
+    await expect(db.program.update({ where: { id: w.program }, data: { progressHijriAdjust: -3 } })).rejects.toThrow();
+    await db.program.update({ where: { id: w.program }, data: { progressHijriAdjust: 2 } });
+  });
+});

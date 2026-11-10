@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { dayText } from "@/components/programs/model";
-import { ratingText, rowParts, surahName } from "@/components/programs/progress-model";
+import { DisplayControls, Shown, useProgressDisplay } from "@/components/programs/ProgressDisplay";
+import { ratingBi, rowPartsBi, surahBi, trackLabelBi } from "@/components/programs/progress-model";
 import type { FamilyOverview, FamilyProgram } from "@/lib/programs/progress-family";
+import { MESSAGES, bi, dateBi, type Bi, type Display } from "@/lib/programs/progress-display";
 import type { Summary } from "@/lib/programs/progress-rules";
 
 // The Progress tab in the portal (task 0044, slice R3). Read only, and showing ONLY what has been verified: a pupil sees their own entries; a guardian sees the summary, or every entry when the
@@ -22,46 +24,85 @@ export function PortalProgressTab({
   actor: string;
   onChanged: () => void;
 }) {
+  const [display, setDisplay] = useProgressDisplay();
   return (
     <div className="space-y-6">
+      <div className="space-y-3 print:hidden">
+        <DisplayControls display={display} onChange={setDisplay} />
+        <div className="flex justify-end">
+          <Button variant="secondary" onClick={() => window.print()}>
+            Print
+          </Button>
+        </div>
+      </div>
       {data.programs.map((program) => (
-        <ProgramCard key={program.participantId} studentId={studentId} program={program} actor={actor} onChanged={onChanged} />
+        <ProgramCard
+          key={program.participantId}
+          studentId={studentId}
+          program={program}
+          actor={actor}
+          display={display}
+          onChanged={onChanged}
+        />
       ))}
     </div>
   );
 }
 
-function SummaryBlock({ summary, program, title }: { summary: Summary; program: FamilyProgram; title: string }) {
+function SummaryBlock({ summary, program, title, display }: { summary: Summary; program: FamilyProgram; title: Bi; display: Display }) {
   const empty = summary.daysRecorded === 0 && summary.latest.length === 0;
+  const day = (iso: string) => dateBi(iso, { calendar: display.calendar, adjust: program.template.hijriAdjust });
+  const place = (at: { surah: number; ayah: number }): Bi => {
+    const surah = surahBi(at.surah);
+    return bi(`${surah.en} ${at.ayah}`, `${surah.ar ?? surah.en} ${at.ayah}`);
+  };
   return (
     <div className="space-y-1 rounded-xl border border-line px-3 py-3 text-sm">
-      <p className="font-semibold text-fg">{title}</p>
+      <p className="font-semibold text-fg">
+        <Shown value={title} display={display} />
+      </p>
       {empty ? (
-        <p className="text-fg-muted">Nothing verified yet.</p>
+        <p className="text-fg-muted">
+          <Shown value={MESSAGES.nothingVerified} display={display} />
+        </p>
       ) : (
         <>
           <p className="text-fg-muted">
-            {summary.daysRecorded} {summary.daysRecorded === 1 ? "day" : "days"} recorded
+            <Shown value={MESSAGES.daysRecorded(summary.daysRecorded)} display={display} />
           </p>
           {summary.tracks.map((track) =>
             track.days === 0 ? null : (
               <p key={track.trackKey} className="break-words text-fg">
-                <span className="font-medium">{track.label.en}:</span> {track.days} {track.days === 1 ? "day" : "days"}
-                {track.ayat !== null ? `, ${track.ayat} ayat` : ""}
-                {track.from && track.to
-                  ? `, from ${surahName(track.from.surah)} ${track.from.ayah} to ${surahName(track.to.surah)} ${track.to.ayah}`
-                  : ""}
-                {track.average !== null ? `, average rating ${track.average} of 5` : ""}
+                <Shown
+                  value={MESSAGES.trackLine(trackLabelBi(track), {
+                    days: track.days,
+                    ayat: track.ayat,
+                    from: track.from ? place(track.from) : null,
+                    to: track.to ? place(track.to) : null,
+                    average: track.average,
+                  })}
+                  display={display}
+                />
               </p>
             ),
           )}
-          {summary.latest.map((latest) => (
-            <p key={latest.trackKey} className="break-words text-fg">
-              <span className="font-medium">{latest.label.en}</span> ({dayText(latest.date)})
-              {latest.grade !== null ? `: ${ratingText(program.template, latest.grade)}` : ""}
-              {latest.note ? ` · ${latest.note}` : ""}
-            </p>
-          ))}
+          {summary.latest.map((latest) => {
+            const date = day(latest.date);
+            const grade = latest.grade !== null ? ratingBi(program.template, latest.grade) : null;
+            const label = trackLabelBi(latest);
+            return (
+              <div key={latest.trackKey} className="break-words text-fg">
+                <Shown
+                  value={bi(
+                    `${label.en} (${date.en})${grade ? `: ${grade.en}` : ""}`,
+                    `${label.ar ?? label.en} (${date.ar ?? date.en})${grade ? `: ${grade.ar ?? grade.en}` : ""}`,
+                  )}
+                  display={display}
+                />
+                {latest.note ? <Shown value={bi(latest.note)} display={display} className="text-fg-muted" /> : null}
+              </div>
+            );
+          })}
         </>
       )}
     </div>
@@ -72,16 +113,19 @@ function ProgramCard({
   studentId,
   program,
   actor,
+  display,
   onChanged,
 }: {
   studentId: string;
   program: FamilyProgram;
   actor: string;
+  display: Display;
   onChanged: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const seen = new Set(program.seen);
+  const day = (iso: string) => dateBi(iso, { calendar: display.calendar, adjust: program.template.hijriAdjust });
   const weeks = program.summary.weeks.filter((w) => w.daysRecorded > 0 || w.latest.length > 0).slice(0, 4);
 
   async function markSeen(weekStart: string) {
@@ -107,16 +151,16 @@ function ProgramCard({
       <div>
         <h2 className="break-words text-lg font-semibold text-fg">{program.programName}</h2>
         <p className="break-words text-sm text-fg-muted">
-          {program.groupName} · {program.template.name.en}
+          {program.groupName} · <Shown value={bi(program.template.name.en, program.template.name.ar)} display={display} />
         </p>
       </div>
       {error && <Alert variant="error">{error}</Alert>}
-      <SummaryBlock summary={program.summary.month} program={program} title="This month so far" />
+      <SummaryBlock summary={program.summary.month} program={program} title={MESSAGES.thisMonth} display={display} />
       {weeks.length > 0 && (
         <ul className="space-y-2" aria-label="Weeks">
           {weeks.map((week) => (
             <li key={week.from} className="space-y-2">
-              <SummaryBlock summary={week} program={program} title={`Week of ${dayText(week.from)}`} />
+              <SummaryBlock summary={week} program={program} title={MESSAGES.weekOf(day(week.from))} display={display} />
               <div className="flex justify-end">
                 {seen.has(week.from) ? (
                   <span className="text-xs text-fg-muted">You marked this week as seen.</span>
@@ -145,11 +189,15 @@ function ProgramCard({
               {program.template.profile.flatMap((field) => {
                 const value = program.profile?.[field.key];
                 if (!value) return [];
-                const text = field.options?.find((o) => o.value === value)?.en ?? value;
+                const option = field.options?.find((o) => o.value === value);
                 return [
                   <div key={field.key}>
-                    <dt className="text-xs text-fg-muted">{field.label.en}</dt>
-                    <dd className="text-fg">{text}</dd>
+                    <dt className="text-xs text-fg-muted">
+                      <Shown value={bi(field.label.en, field.label.ar)} display={display} />
+                    </dt>
+                    <dd className="text-fg">
+                      <Shown value={option ? bi(option.en, option.ar) : bi(value)} display={display} />
+                    </dd>
                   </div>,
                 ];
               })}
@@ -160,16 +208,24 @@ function ProgramCard({
             if (rows.length === 0) return null;
             return (
               <section key={track.key} aria-label={`${track.label.en} entries`} className="space-y-2">
-                <h3 className="text-base font-semibold text-fg">{track.label.en}</h3>
+                <h3 className="text-base font-semibold text-fg">
+                  <Shown value={trackLabelBi(track)} display={display} />
+                </h3>
                 <ul className="space-y-2">
                   {rows.map((entry) => (
                     <li key={entry.id} className="rounded-xl border border-line px-3 py-2 text-sm">
-                      <p className="font-medium text-fg">{dayText(entry.entryDate)}</p>
+                      <div className="font-medium text-fg">
+                        <Shown value={day(entry.entryDate)} display={display} />
+                      </div>
                       <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                        {rowParts(track, entry.values, program.template).map((part) => (
-                          <div key={part.label}>
-                            <dt className="text-xs text-fg-muted">{part.label}</dt>
-                            <dd className="break-words whitespace-pre-line text-fg">{part.text}</dd>
+                        {rowPartsBi(track, entry.values, program.template).map((part) => (
+                          <div key={part.key}>
+                            <dt className="text-xs text-fg-muted">
+                              <Shown value={part.label} display={display} />
+                            </dt>
+                            <dd className="break-words whitespace-pre-line text-fg">
+                              <Shown value={part.text} display={display} />
+                            </dd>
                           </div>
                         ))}
                       </dl>
