@@ -58,16 +58,48 @@ test.describe("what a signed-out visitor sees", () => {
     await expect(page.getByRole("contentinfo")).toContainText(`© ${new Date().getFullYear()} ${brand.name}`);
   });
 
-  test("six things it covers and four kinds of people, each as a list item with its words, and no 'how it is run' section", async ({
+  test("the school's branches and the kinds of people, each as a list item with its words, and no 'how it is run' section", async ({
     page,
   }) => {
     await page.goto("/");
     const section = (name: string) => page.getByRole("region", { name });
-    await expect(section(landing.coversHeading).getByRole("listitem")).toHaveCount(6);
-    await expect(section(landing.peopleHeading).getByRole("listitem")).toHaveCount(4);
+    await expect(section(landing.coversHeading).getByRole("listitem")).toHaveCount(landing.covers.length);
+    await expect(section(landing.peopleHeading).getByRole("listitem")).toHaveCount(landing.people.length);
     for (const c of landing.covers) await expect(section(landing.coversHeading)).toContainText(c.text);
     for (const p of landing.people) await expect(section(landing.peopleHeading)).toContainText(p.text);
     await expect(page.getByRole("region")).toHaveCount(4); // the hero, what it covers, the people, the closing band
+  });
+
+  test("the page is about the school: its town and its four branches are on it, and none of the software features task 0048 listed is", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const main = page.getByRole("main");
+    await expect(main).toContainText("Ibadan, Nigeria");
+    for (const branch of ["Secondary (English)", "Primary (English)", "Secondary (Arabic)", "Primary (Arabic)"])
+      await expect(main.getByRole("heading", { level: 3, name: branch, exact: true })).toBeVisible();
+    for (const feature of ["Pupils and staff", "Attendance", "Marks", "Report cards", "Fees", "The end of the year", "What it covers"])
+      await expect(main.getByRole("heading", { name: feature, exact: true }), feature).toHaveCount(0);
+    // A branch card has no icon: nothing decorative stands in for it.
+    await expect(page.getByRole("region", { name: landing.coversHeading }).locator("svg")).toHaveCount(0);
+  });
+
+  test("the four branch cards sit two by two where there is room, and one to a row on a phone (no card is left alone on a row)", async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto("/");
+    const cards = page.getByRole("region", { name: landing.coversHeading }).getByRole("listitem");
+    await expect(cards).toHaveCount(4);
+    const spots = await cards.evaluateAll((items) =>
+      items.map((item) => {
+        const box = item.getBoundingClientRect();
+        return { x: Math.round(box.x), y: Math.round(box.y) };
+      }),
+    );
+    const columns = new Set(spots.map((spot) => spot.x)).size;
+    const rows = new Set(spots.map((spot) => spot.y)).size;
+    expect({ columns, rows }).toEqual(isMobile ? { columns: 1, rows: 4 } : { columns: 2, rows: 2 });
   });
 
   test("the way in and the brand's own extra link each lead to a page that works", async ({ page }) => {
@@ -209,7 +241,7 @@ test.describe("without a script", () => {
   test("the page and its links are all there: it is written on the server", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: landing.headline })).toBeVisible();
-    await expect(page.getByRole("region", { name: landing.coversHeading }).getByRole("listitem")).toHaveCount(6);
+    await expect(page.getByRole("region", { name: landing.coversHeading }).getByRole("listitem")).toHaveCount(landing.covers.length);
     await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).first().click();
     await expect(page).toHaveURL(/\/login$/);
   });
