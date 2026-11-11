@@ -46,11 +46,14 @@ test.describe("what the page may say", () => {
 });
 
 test.describe("the shape of the page", () => {
-  test("six things it covers, each with its own icon and title", () => {
-    expect(landing.covers).toHaveLength(6);
-    expect(new Set(landing.covers.map((c) => c.icon)).size).toBe(6);
-    expect(new Set(landing.covers.map((c) => c.title)).size).toBe(6);
-    expect(landing.covers.map((c) => c.icon).sort()).toEqual(["attendance", "fees", "people", "reportCards", "results", "yearEnd"]);
+  test("the school's four branches, named as the setup wizard seeds them, each once, in the school's order", () => {
+    expect(landing.covers.map((c) => c.title)).toEqual([
+      "Secondary (English)",
+      "Primary (English)",
+      "Secondary (Arabic)",
+      "Primary (Arabic)",
+    ]);
+    expect(landing.coversHeading).toBe("Our branches");
   });
 
   test("four kinds of people, each said once", () => {
@@ -76,7 +79,12 @@ test.describe("the shape of the page", () => {
     }
   });
 
-  test("the headline is the one the sign-in panel already uses, so the two never drift apart", () => {
-    expect(landing.headline).toBe(brand.login.headline);
+  test("the page speaks of the school and not of software: the town is named, and nothing calls the school a product, a system or a platform (task 0049)", () => {
+    expect(landing.eyebrow).toBe("Ibadan, Nigeria");
+    expect(landing.title).toContain("School");
+    expect(landing.description).toContain("Ibadan");
+    const text = [landing.title, landing.description, ...everyText()].join(" ").toLowerCase();
+    for (const word of ["software", "platform", "system", "product", "management", "feature"])
+      expect(text, `the copy must not mention "${word}"`).not.toContain(word);
   });
 });

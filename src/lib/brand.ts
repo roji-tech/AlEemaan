@@ -14,56 +14,33 @@ export const brand = {
     blurb: "Secondary & Primary, English & Arabic — every branch's records in one place.",
     points: ["Secondary & Primary, English & Arabic", "Branch-level academic terms", "One admin account, every branch"],
   },
-  /// The words of the landing page a signed-out visitor sees at `/` (task 0048). Only what the product does today: a claim here is a claim a school will test. This product is one school's own, so
-  /// there is no `howRun` (how it is installed is not the visitor's business) and the section is not drawn.
+  /// The words of the landing page a signed-out visitor sees at `/` (tasks 0048 and 0049). This product is one school's own, so the page is about the school and says only what the repository can vouch
+  /// for (docs/tasks/0049-landing-about-the-school.md, section 3a lists each claim and where it comes from). There is no `howRun`: how it is installed is not the visitor's business.
   landing: {
-    title: "AlEemaan: school management",
-    description: "AlEemaan keeps the pupils, attendance, results and fees of a school's branches in one place, with one login.",
-    eyebrow: "School management",
-    headline: "One school, four branches, one login.",
-    lead: "Pupils, attendance, results and fees for every branch in one place, and each person sees only what their role needs.",
-    coversHeading: "What it covers",
+    title: "AlEemaan School, Ibadan",
+    description: "AlEemaan School in Ibadan, Nigeria, has four branches: secondary and primary, in English and in Arabic.",
+    eyebrow: "Ibadan, Nigeria",
+    headline: "Secondary and primary education, in English and in Arabic.",
+    lead: "AlEemaan School has four branches. Parents and pupils sign in here to follow results, fees and attendance, and staff sign in to do their work.",
+    coversHeading: "Our branches",
     covers: [
-      {
-        icon: "people",
-        title: "Pupils and staff",
-        text: "The pupils of each branch, with search and a spreadsheet import, and the staff who work there with the roles they hold.",
-      },
-      {
-        icon: "attendance",
-        title: "Attendance",
-        text: "A daily roll for every class, taken by its teacher, with the permissions to take it managed by the branch's administrator.",
-      },
-      {
-        icon: "results",
-        title: "Marks",
-        text: "Teachers enter marks, administrators review them, and results are published to pupils and parents.",
-      },
-      {
-        icon: "reportCards",
-        title: "Report cards",
-        text: "Report cards for every pupil, and a public page that checks a mark against the school's own record.",
-      },
-      {
-        icon: "fees",
-        title: "Fees",
-        text: "Fee invoices for each branch, with part payments when the school allows them.",
-      },
-      {
-        icon: "yearEnd",
-        title: "The end of the year",
-        text: "Promote, repeat or graduate a class at the end of the session.",
-      },
+      { title: "Secondary (English)", text: "The secondary branch, in English." },
+      { title: "Primary (English)", text: "The primary branch, in English." },
+      { title: "Secondary (Arabic)", text: "The secondary branch, in Arabic." },
+      { title: "Primary (Arabic)", text: "The primary branch, in Arabic." },
     ],
-    peopleHeading: "Made for the people in a school",
+    peopleHeading: "For families and staff",
     people: [
-      { who: "The school's head", text: "One account sees every branch and sets the branches up." },
-      { who: "Branch administrators", text: "Run their own branch: classes, staff, fees and approvals." },
-      { who: "Teachers", text: "Take the roll and enter marks for their own classes." },
-      { who: "Pupils and parents", text: "Use the portal to read results, fees and learning." },
+      {
+        who: "Parents and guardians",
+        text: "Read your children's results, see their fees and payments, and follow their attendance in the portal.",
+      },
+      { who: "Pupils", text: "Read published results and learning materials in the portal." },
+      { who: "Teachers", text: "Take the roll and enter marks for your own classes." },
+      { who: "Branch administrators and the school's head", text: "Run a branch, or see every branch from one account." },
     ],
-    closingHeading: "Already part of AlEemaan?",
-    closingText: "Sign in to open your dashboard.",
+    closingHeading: "Part of the AlEemaan community?",
+    closingText: "Staff sign in to open their dashboard. Parents and pupils use the portal.",
     /// The public pages worth a link besides sign-in (a path on this site): the first is the hero's quiet button, and every one is in the footer. There is no sign-up page, so there is no sign-up link.
     links: [{ label: "Parent and pupil portal", href: "/portal" }],
   },

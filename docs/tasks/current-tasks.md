@@ -313,3 +313,12 @@
 - [x] Accessible by construction: one `h1`, landmarks, headings in order, focus rings, works without JavaScript; Axe in both themes, no sideways scrolling at 320 px, text on the deep brand band measured at 4.5:1 or better
 - [x] The specs that pinned the redirect (`sign-in`, `auth-logo`) say what is true now; `tests/support/theme.ts` copied from Octalve for the new screens spec
 - [x] Tests: unit, API and screens (x2 projects) new; mutation check in three rounds; whole unit and API projects and the related screens run (2,702 passed, 1 failed: a browser timeout that passed 3 of 3 on a rerun, 46 skipped)
+
+## TASK-0049: The landing page talks about the school
+
+[Task file](0049-landing-about-the-school.md). A correction to task 0048, asked for by the maintainer on 2026-11-11 ("the landing page is supposed to be talking about the school"); built on `claude/school-landing`. No migration; the shared `LandingPage.tsx` is Octalve Edu's after its task 0044.
+
+- [x] `brand.landing` speaks of the school: Ibadan, Nigeria; the four branches as cards (no icon); what each kind of person does after signing in; nothing the repository cannot vouch for (each claim and its source in the task file)
+- [x] The unit test of the words keeps its rules (no sign-up, price, trial or demo; no figure; sentences) and now holds the four branches and that the page does not describe software; the browser spec counts from the words and checks the town and the four branches are on the page and none of task 0048's feature titles is
+- [x] Open for the school: the spelling of its name, the language of each branch, admissions, contacts, history, ethos, term dates, photographs, the legal owner for the footer
+
