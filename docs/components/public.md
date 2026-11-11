@@ -1,7 +1,15 @@
 # Sign-in and account — Components
 
-`src/components/auth/` (the forms and panels of sign-in, account recovery, invitations, two-step verification and the account page) and the two forms that sit next to their
+`src/components/auth/` (the forms and panels of sign-in, account recovery, invitations, two-step verification and the account page), `src/components/landing/` (the landing page) and the two forms that sit next to their
 page (`/login`, `/setup`).
+
+## `src/components/landing/`
+
+The landing page a signed-out visitor sees at `/` (task 0048).
+
+| File | Description |
+| --- | --- |
+| `LandingPage.tsx` | Server component, no props: the landing page, built from `brand.landing` only (headline, lead, the six things it covers each with a decorative icon, the four kinds of people, an OPTIONAL "how it is run" pair that is not drawn when the brand has none (AlEemaan has none), and the closing band). Landmarks `header`, `main` and `footer`; one `h1`, an `h2` per section, an `h3` per item; the header has the product name, `ThemeToggle` and "Sign in"; the links are `/login` (four times: header, hero, closing band, footer) and the brand's `landing.links` (AlEemaan: "Parent and pupil portal", `/portal`; the first is the hero's quiet button and every one is in the footer). No image, script, font or storage of its own; written on the server, so it reads without JavaScript. The file is code-identical with Octalve Edu's. Rendered by `src/app/page.tsx` for a signed-out visitor. |
 
 ## Colocated with the page (`src/app/login/`)
 
@@ -23,7 +31,7 @@ The signed-out screens (sign-in step 2, reset, invitation, email confirmation), 
 | --- | --- |
 | `AcceptInviteForm.tsx` | Client component for `/accept-invite`. Reads the token from the URL fragment (`useFragmentToken`), asks `/api/v1/invitations/preview`, then shows one of: a dead link; "signed in as someone else" with a sign-out button; "an account exists, sign in first" with a link to `/login`; a one-button join for the signed-in invitee; or, for a new address, a name and password form (`checkName`, `checkNewPassword`) posting to `/api/v1/invitations/accept`. A new account is not signed in afterwards. |
 | `authChannel.ts` | `broadcastSignOut()` and `onSignOutElsewhere(callback)`: cross-tab sign-out over a same-origin `BroadcastChannel` named `aleemaan-auth`; both do nothing where `BroadcastChannel` does not exist. |
-| `AuthShell.tsx` | Layout for the signed-out screens (`/login`, `/setup`, `/forgot-password`, `/reset-password`, `/accept-invite`, `/confirm-email`, `/verify/[token]`): a brand panel (name and copy from `brand`) beside the form on large screens, a compact brand header on phones, and a `ThemeToggle`. The logo (the cap icon and the name), in the panel and in the compact header, is a link to `/` (the start page; a router, so a signed-out visitor ends on sign-in or set-up); the panel is `role="none"` with only its grid, headline and copyright `aria-hidden`, because a link cannot sit inside a hidden region. `size` ("sm" or "md") sets the form column width. No `use client` directive. |
+| `AuthShell.tsx` | Layout for the signed-out screens (`/login`, `/setup`, `/forgot-password`, `/reset-password`, `/accept-invite`, `/confirm-email`, `/verify/[token]`): a brand panel (name and copy from `brand`) beside the form on large screens, a compact brand header on phones, and a `ThemeToggle`. The logo (the cap icon and the name), in the panel and in the compact header, is a link to `/` (the start page: the landing page for a signed-out visitor, one press from sign-in; an instance still being set up goes on to the wizard); the panel is `role="none"` with only its grid, headline and copyright `aria-hidden`, because a link cannot sit inside a hidden region. `size` ("sm" or "md") sets the form column width. No `use client` directive. |
 | `ChangeEmailPanel.tsx` | Client component: the "Email address" card of `/account` (prop `email`). Three views: idle, a form (new address and current password) and "Check your inbox". Posts to `/api/v1/auth/email-change/request` and shows the same confirmation whether or not the address is taken; maps `INVALID_PASSWORD`, `SAME_EMAIL`, `VALIDATION`, 429 and 401 to messages. The "works once, for an hour" wording is typed in, not derived from a constant. |
 | `ChangePasswordForm.tsx` | Client component: the "Password" card of `/account`. Current, new and confirmation fields, the new one checked with `checkNewPassword` before posting to `/api/v1/auth/change-password`; success clears the fields and says the other devices were signed out. Maps `INVALID_CURRENT_PASSWORD`, `VALIDATION`, `SAME_PASSWORD`, 429 and 401. |
 | `ConfirmEmailForm.tsx` | Client component for `/confirm-email`. Reads the token from the URL fragment and waits for a click on "Confirm email address" before posting to `/api/v1/auth/email-change/confirm`: it does not act on arrival, because mail scanners open links and would spend the single-use token. Shows done, dead-link and incomplete-link states; success says the person was signed out everywhere. |

@@ -302,4 +302,14 @@
 
 - [x] `AuthShell`: the logo in the brand panel and in the phone header is a link to `/`; the panel is `role="none"` with its decorative parts `aria-hidden` (a link cannot sit inside an `aria-hidden` region)
 - [x] A browser spec on desktop and phone: one visible logo link to `/`, reachable by keyboard with a visible focus ring, the way back from another screen, the decorative parts still hidden from assistive technology, Axe in both themes
-- [ ] Open, the maintainer's: `/` is a router (signed in to the dashboard, set-up unfinished to set-up, otherwise to sign-in), so the logo reloads the sign-in page when you are already on it; a real landing page at `/` is a product decision, not built
+- [x] The open point (the logo reloaded the sign-in page, because `/` was a router): closed by task 0048, which gives `/` a real landing page; the logo now leads there
+
+## TASK-0048: The landing page
+
+[Task file](0048-landing-page.md). Closes the open point of task 0047 ("a real landing page at `/` is a product decision"), asked for by the maintainer on 2026-11-10; built on `claude/landing-page`. The same page is Octalve Edu's tasks 0041 and 0042, and the component is code-identical in both. No migration.
+
+- [x] `/` shows a landing page to a signed-out visitor instead of redirecting to `/login`; a signed-in person still goes to `/dashboard` and an instance whose setup is not finished to `/setup`, in that order
+- [x] The page says only what AlEemaan does today (each claim is listed in the task file with the screen it rests on; none of Octalve's PDF report cards, remarks, payment gate or mark import); no sign-up, price, trial or testimonial; two links, `/login` and the parent and pupil portal `/portal`; the words are `brand.landing`, the page is the shared server component
+- [x] Accessible by construction: one `h1`, landmarks, headings in order, focus rings, works without JavaScript; Axe in both themes, no sideways scrolling at 320 px, text on the deep brand band measured at 4.5:1 or better
+- [x] The specs that pinned the redirect (`sign-in`, `auth-logo`) say what is true now; `tests/support/theme.ts` copied from Octalve for the new screens spec
+- [x] Tests: unit, API and screens (x2 projects) new; mutation check in three rounds; whole unit and API projects and the related screens run (2,702 passed, 1 failed: a browser timeout that passed 3 of 3 on a rerun, 46 skipped)
