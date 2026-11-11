@@ -135,7 +135,7 @@ test.describe("what a signed-out visitor sees", () => {
   test("a keyboard goes through every control in the order of the page, and each shows a focus ring", async ({ page }) => {
     await page.goto("/");
     const stops: { name: string; ring: number; style: string }[] = [];
-    for (let presses = 0; presses < 8; presses += 1) {
+    for (let presses = 0; presses < 9; presses += 1) {
       await page.keyboard.press("Tab");
       stops.push(
         await page.evaluate(async () => {
@@ -156,8 +156,9 @@ test.describe("what a signed-out visitor sees", () => {
         }),
       );
     }
-    // The theme switch, the header's sign-in, the hero's two links, the closing band's, then the footer's two; then round to the top.
-    expect(stops.map((s) => s.name).slice(0, 7)).toEqual([
+    // The language link to the Arabic page (first in the header), the theme switch, the header's sign-in, the hero's two links, the closing band's, then the footer's two; then round to the top.
+    expect(stops.map((s) => s.name).slice(0, 8)).toEqual([
+      "العربية",
       "Switch to light theme",
       "Sign in",
       "Sign in",
@@ -166,7 +167,7 @@ test.describe("what a signed-out visitor sees", () => {
       "Sign in",
       extra.label,
     ]);
-    for (const stop of stops.slice(0, 7)) {
+    for (const stop of stops.slice(0, 8)) {
       expect(stop.style, stop.name).not.toBe("none");
       expect(stop.ring, stop.name).toBeGreaterThanOrEqual(2);
     }

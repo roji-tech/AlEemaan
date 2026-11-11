@@ -322,3 +322,13 @@
 - [x] The unit test of the words keeps its rules (no sign-up, price, trial or demo; no figure; sentences) and now holds the four branches and that the page does not describe software; the browser spec counts from the words and checks the town and the four branches are on the page and none of task 0048's feature titles is
 - [x] Open for the school: the spelling of its name, the language of each branch, admissions, contacts, history, ethos, term dates, photographs, the legal owner for the footer
 
+
+## TASK-0050: The landing page in Arabic, at `/ar`
+
+[Task file](0050-landing-in-arabic.md). The Arabic version of task 0049's page, the third item of the maintainer's "not built" list; built on `claude/arabic-landing`. No migration; the shared `LandingPage.tsx` is Octalve Edu's after its task 0044 and is unchanged.
+
+- [x] `/ar` shows the page right to left in Arabic (`src/lib/landing-ar.ts`: the same shape and claims as the English page, nothing more); `lang="ar" dir="rtl"` on the page's own element; Noto Naskh Arabic through `next/font`, for this page only; an Arabic tab title and description
+- [x] A quiet "العربية" link in the English header and "English" in the Arabic one, each marked with its language; no detection, no cookie, no stored choice
+- [x] `/` and `/ar` decide through one function, `leaveUnlessVisitor()`: signed in to `/dashboard`, set-up not finished to `/setup`, anyone else sees the page
+- [x] Tests: unit `landing-ar-copy` (new, 11), API `landing-router` extended (14), browser `landing-ar-screens` (new, 15, desktop and phone: direction, mirroring measured with boxes, the font loaded from this site, both links, keyboard, Axe and overflow in both themes at 320 px and with larger text, no script, signed in); mutation check of 12 changes, each run alone and each caught by tests of its own; regression: 2,412 passed, 0 failed (unit and API); 141 passed, 6 skipped by design, 0 failed (six browser specs)
+- [ ] Open for the maintainer: a reader of Arabic must go through every line before the page is public (the Arabic is AI-translated; the note at the top of `landing-ar.ts`); sign-in and everything after it stay English; no `hreflang` links in the head (they need `metadataBase`)
