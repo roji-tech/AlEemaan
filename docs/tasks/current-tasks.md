@@ -353,3 +353,13 @@
 - [x] Found: the walkthrough's own project was red on `dev` after the squash (a row named a deleted migration file; `/ar` had no row): fixed in PR #169, 34 of 34
 - [ ] Not done: any hosted database; the maintainer decides whether the remote database of HANDOVER section 3 is dropped or adopted
 
+## TASK-0053: The Communication senders fail closed: a missing provider key is a failed send that says so
+
+[Task file](0053-communication-fail-closed.md). The maintainer's "what's the current state of emailing?" and then "fix defect" (2026-11-12); built on `claude/email-fail-closed`. No migration.
+
+- [x] The defect found (reading the code and the variable names, never the values, of the hosted project): with no `RESEND_API_KEY` or `TERMII_API_KEY` the email, SMS and WhatsApp senders used an in-memory stand-in and answered success in every environment, so a broadcast on the hosted site was logged `SENT` and the screen said "successfully dispatched" while nothing left the server; the hosted project has neither key
+- [x] The fix: `standInAllowed(env)` (tests and the dev tools only, never production); without a key and without the stand-in a send fails with a sentence that names the variable; the dispatch is `FAILED` with it as `lastError` and Retry works once the key is set; the broadcast answer carries `sent`, `failed`, `firstError`; the composer says how many were sent, how many failed and why, and keeps the text
+- [x] Found on the way: after any server answer the panel switches to the log tab, so the old success message was never readable
+- [x] Tests: 49 passed, 0 failed on the changed and related specs (desktop and phone); 3 of the new unit tests fail on the old gateways. Four existing unit tests and two existing API tests had only passed because of the bug: they now run where the stand-in is allowed, assertions unchanged
+- [ ] Not done: real delivery (no key exists to try it with); the maintainer's setup (a Resend account and verified domain, then `RESEND_API_KEY`, `EMAIL_FROM` and `APP_URL` on the Vercel project; `TERMII_API_KEY` and `TERMII_SENDER_ID` for SMS and WhatsApp); mutation passes (deferred to the end of PHASE 2)
+

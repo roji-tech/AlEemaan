@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { notSetUp, standInAllowed } from "./stand-in";
 
 export interface SendEmailParams {
   to: string | string[];
@@ -65,6 +66,11 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   const apiKey = process.env.RESEND_API_KEY;
   const defaultFrom = process.env.EMAIL_FROM || "Al-Eemaan School <notifications@aleemaan.sch.ng>";
   const from = params.from || defaultFrom;
+
+  // No key: the stand-in only where nothing real is expected to leave (tests, dev tools on). Anywhere else, in production, a send with no key is a failed send that says so (task 0053).
+  if (!apiKey && !standInAllowed()) {
+    return { success: false, error: notSetUp("Email", "RESEND_API_KEY") };
+  }
 
   // Mock / Test mode fallback
   if (!apiKey || process.env.NODE_ENV === "test") {

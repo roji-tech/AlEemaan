@@ -58,9 +58,24 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
         return;
       }
 
+      // What happened, not only how many rows were made (task 0053): a message that failed, or could not be sent because the provider is not set up, is said so and its text is kept.
+      const sent: number = json.data?.sent ?? json.data?.count ?? 0;
+      const failed: number = json.data?.failed ?? 0;
+      const reason: string | null = json.data?.firstError ?? null;
+      if (failed > 0) {
+        setFeedback({
+          type: "error",
+          message:
+            (sent === 0 ? "The broadcast was not sent." : `Sent to ${sent}, failed for ${failed}.`) +
+            (reason ? ` ${reason}` : "") +
+            " Details are in Message Logs & Dispatches.",
+        });
+        // Stay here: the panel moves to the logs when the composer reports success, and this message (and the unsent text) would go with it.
+        return;
+      }
       setFeedback({
         type: "success",
-        message: `Broadcast successfully dispatched to ${json.data?.count || 0} recipient(s)!`,
+        message: `Broadcast successfully dispatched to ${sent} recipient(s)!`,
       });
       setSubject("");
       setBody("");
@@ -80,9 +95,7 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-4">
         <div>
           <h2 className="text-lg font-semibold text-fg">Compose Broadcast</h2>
-          <p className="text-sm text-fg-muted">
-            Send instant multi-channel broadcast notifications to parents, staff, or students.
-          </p>
+          <p className="text-sm text-fg-muted">Send instant multi-channel broadcast notifications to parents, staff, or students.</p>
         </div>
       </div>
 
