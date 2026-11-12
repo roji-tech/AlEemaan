@@ -459,3 +459,14 @@
 - [x] The quiz builder's question controls had no text colour class and measured 1.04:1 (near-white on a light field) in the light theme after a theme flip; they now have `text-fg`. The cause of the stale colour was not established (section 6 of the task file)
 - [x] New spec `lms-create-a11y.spec.ts` (the three create dialogs in both themes, desktop and phone); failed on the unfixed build (2 failed), 25 passed on the final tree with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); the thirteen raw-palette uses outside Finance and Coursework are not scanned
+
+
+## TASK-0063: A broadcast is sent in batches of ten, with progress, and carries on where it was cut off
+
+[Task file](0063-broadcast-in-batches.md). The maintainer's idea (2026-11-12): send a large broadcast from the screen ten at a time with a progress line, and carry on when Communication is opened; built on `claude/broadcast-batches`. No migration. Octalve's version is its task 0058.
+
+- [x] `broadcastMessage` writes every recipient's row at once, sends the first batch of ten before it answers and reports `queued`; a broadcast to ten or fewer is delivered before the answer, as before. It used to send them one after another in ONE request, which a large audience outran, leaving rows QUEUED with nothing to resume them
+- [x] `POST /communication/queue/next` sends the next batch (a row is claimed by one call only: two tabs cannot double-send; a stale PROCESSING row is taken back after 10 minutes) and `GET /communication/queue` says how many wait; answers are counts and the first failure's reason, with the address replaced by "the recipient"
+- [x] The Communication screen sends the rest in the background (`useQueuePump`), shows "Sending messages: 40 of 200" with a progress bar, pauses with Try again when the server cannot be reached, and resumes when the screen is opened; nothing is stored in the browser
+- [x] Tests: 111 passed, 0 failed (the new integration, API and end-to-end specs, the existing communication specs, the route guard); see the task file for the failures of the first runs
+- [ ] Not done: a cron route for AlEemaan (the hosting plan decides how often one may run); automatic retries of failed messages; the phone-width run; mutation passes (deferred)
