@@ -12,13 +12,13 @@ import { register, rowOf } from "./c06-students";
 const chapter = "C12 The portal";
 
 const sections = (page: Page) => page.getByRole("tablist", { name: "Student Portal Sections" });
-const section = (page: Page, name: string) => sections(page).getByRole("tab", { name, exact: true });
+export const section = (page: Page, name: string) => sections(page).getByRole("tab", { name, exact: true });
 const refusal = (page: Page) => page.getByRole("alert").filter({ hasText: /\w/ });
 // the sentence the portal gives for every failed sign-in (src/lib/portal/service.ts, PORTAL_SIGNIN_FAILED): it does not say which of the two things was wrong
 const SIGN_IN_FAILED = "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
 
 /// From the staff sign-in page to the portal's own sign-in card, the way a parent finds it: the logo leads to the front page, which has a link to the portal.
-async function findPortal(walk: Walk, page: Page): Promise<void> {
+export async function findPortal(walk: Walk, page: Page): Promise<void> {
   await walk.click(page.getByRole("link", { name: "AlEemaan", exact: true }));
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await walk.click(page.getByRole("link", { name: "Parent and pupil portal" }).first());
@@ -26,20 +26,20 @@ async function findPortal(walk: Walk, page: Page): Promise<void> {
 }
 
 /// The portal card asks for the admission number and ONE secret: the date of birth (a pupil) or the guardian's phone (a guardian).
-async function portalSignIn(walk: Walk, page: Page, admissionNo: string, secret: string): Promise<void> {
+export async function portalSignIn(walk: Walk, page: Page, admissionNo: string, secret: string): Promise<void> {
   await walk.type(page.getByLabel("Student Admission Number"), admissionNo);
   await walk.type(page.getByLabel("Date of Birth OR Guardian Phone"), secret);
   await walk.click(page.getByRole("button", { name: "Access Student Portal" }));
 }
 
-async function portalSignOut(walk: Walk, page: Page): Promise<void> {
+export async function portalSignOut(walk: Walk, page: Page): Promise<void> {
   await walk.click(page.getByRole("button", { name: "Sign Out" }));
   await expect(page.getByRole("heading", { level: 1, name: "AlEemaan Portal" })).toBeVisible();
   await expect(page.getByLabel("Student Admission Number")).toBeVisible();
 }
 
 /// The portal has no link to the staff sign-in, so a person who wants it presses the browser's Back button, which leads to the front page, and presses its Sign in.
-async function backToStaffSignIn(walk: Walk, page: Page): Promise<void> {
+export async function backToStaffSignIn(walk: Walk, page: Page): Promise<void> {
   await page.goBack();
   await expect(page.getByRole("link", { name: "Sign in" }).first()).toBeVisible();
   await walk.click(page.getByRole("link", { name: "Sign in" }).first());

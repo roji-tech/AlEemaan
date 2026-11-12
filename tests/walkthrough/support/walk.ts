@@ -1,7 +1,7 @@
 import type { Page, Locator } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
-import { pace, keyDelay, TYPING_BUDGET_MINUTES } from "./pace";
+import { pace, keyDelay, reconTypingScale, TYPING_BUDGET_MINUTES } from "./pace";
 import { getOverlayInitScript } from "./overlay";
 import { Observers } from "./observers";
 import rows from "../coverage/rows.json";
@@ -198,7 +198,7 @@ export class Walk {
     await this.page.keyboard.press("Backspace");
     for (const character of text) {
       await this.page.keyboard.type(character);
-      const delay = keyDelay();
+      const delay = this.mode === "recon" ? keyDelay() * reconTypingScale : keyDelay();
       this.typedMs += delay;
       await new Promise((r) => setTimeout(r, delay));
     }
