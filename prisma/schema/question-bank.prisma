@@ -357,13 +357,13 @@ model QuestionBankPrintLog {
   studentId          String?
   targetKind         PrintTargetKind
   targetId           String
-  title              String
+  title              String  @db.VarChar(255)
   watermark          String
   pageCount          Int             @default(1)
-  reason             String?
+  reason             String?  @db.VarChar(500)
   recipientStudentId String?
-  ipAddress          String?
-  userAgent          String?
+  ipAddress          String?  @db.VarChar(100)
+  userAgent          String?  @db.VarChar(500)
   createdAt          DateTime        @default(now())
 
   branch           Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
