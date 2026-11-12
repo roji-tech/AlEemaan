@@ -126,14 +126,31 @@ for (const place of PLACES) {
 
     // Scrolled into view FIRST: an icon below the fold (the composer's tags) is scrolled to by the hover or the tap, and a neighbour's box in window coordinates would then differ by the
     // scroll, which is not a layout shift.
-    await icon.scrollIntoViewIfNeeded();
+    // (to the centre of the window: on a phone "if needed" can leave it under the fixed bottom bar)
+    await icon.evaluate((el) => el.scrollIntoView({ block: "center" }));
 
-    // 16 px, with the invisible 44 px touch target around it (a pseudo-element: no box of its own to measure, so what is measured is the row it sits in)
+    // 16 px, with the invisible 24 px touch target around it (a pseudo-element: no box of its own to measure, so what is measured is the row it sits in)
     const size = await box(icon);
     expect(Math.round(size.width)).toBe(16);
     expect(Math.round(size.height)).toBe(16);
 
     const before = await box(place.neighbour(page));
+    // The invisible touch area around the icon must not overlap the control beside it. The area is the icon's box grown by the pseudo-element's inset (read from the computed style, so this
+    // follows the CSS), compared with the neighbour's box: an overlap is a part of the neighbour where a tap would reach the icon instead.
+    const grown = await icon.evaluate((el) => {
+      const after = getComputedStyle(el, "::after");
+      const rect = el.getBoundingClientRect();
+      const [top, right, bottom, left] = [after.top, after.right, after.bottom, after.left].map((value) => -parseFloat(value));
+      return { x: rect.x - left, y: rect.y - top, width: rect.width + left + right, height: rect.height + top + bottom };
+    });
+    expect(Math.round(grown.width), "the touch area is 24 px wide").toBe(24);
+    expect(Math.round(grown.height), "the touch area is 24 px high").toBe(24);
+    const overlapX = Math.min(grown.x + grown.width, before.x + before.width) - Math.max(grown.x, before.x);
+    const overlapY = Math.min(grown.y + grown.height, before.y + before.height) - Math.max(grown.y, before.y);
+    expect(
+      overlapX > 0.5 && overlapY > 0.5,
+      `the icon's touch area overlaps the neighbouring control by ${Math.round(overlapX)} x ${Math.round(overlapY)} px`,
+    ).toBe(false);
     // opening one must not make the page wider either (a phone widens the page to fit anything that sticks out, and the next clamp then reads the wrong edge)
     const scrollWidth = () => page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
     const widthBefore = await scrollWidth();

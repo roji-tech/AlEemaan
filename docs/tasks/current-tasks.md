@@ -387,3 +387,12 @@
 - [x] A bug in task 0054's `InfoTip` found by the new icon and fixed: opening a tip near the end of a long page made Chrome scroll the page up 227 px; measured parked off-screen now. Cause inside Chrome not known (bisected).
 - [x] Tests: final run 154 passed, 0 failed, 4 skipped; the new input check's unit tests fail 4 of 13 on the old code. Not run: the whole suite, mutation passes (deferred), real delivery, a real phone.
 - [ ] Not done: Octalve Edu (its own task: tags only, plus its In-App question); the walkthrough's C10 used In-App as its safe channel and must move to Email with the dev inbox; siblings who share a guardian's address still get one message.
+
+## TASK-0056: The info icon's invisible touch area covered the controls beside it
+
+[Task file](0056-infotip-touch-area.md). Looked at because of a failing phone run of Octalve's Broadcast Composer (its task 0056); built on `claude/infotip-hit-area`. No migration, no API.
+
+- [x] `InfoTip` touch target 24 px (`after:-inset-1`) instead of 44 px (WCAG 2.2 AA's minimum target size). The 44 px area reached 14 px beyond the icon and sat on top of any control closer than that.
+- [x] **A wrong reading corrected.** I first put Octalve's failing phone run (a token chip "intercepted by the info button") down to this area, and wrote that into task 0054. It was not the cause: the interception continued with the smaller area, and Octalve's real cause was a Communication page 16 px wider than the screen (fixed there). Task 0054's update now says so.
+- [x] The browser spec checks every icon geometrically: the icon's box grown by the pseudo-element's inset (asserted 24 px, so a parse failure cannot pass) must not overlap the neighbouring control's box. **The first version sampled `elementFromPoint` at the neighbour's corners and flagged only 2 of the 4 overlapping places against the old area, so it was replaced.** With the old 44 px put back at run time, the geometric check reports an 8 px overlap in four places on desktop and phone (the Attendance date field, the channel select, the status filter, the Students "Show" select) and none with 24 px.
+- [x] Tests: final run 36 passed, 0 failed, 4 skipped (the device-only ones); the earlier run with the first check, 74 passed, 0 failed, 4 skipped, also covered the composer, academics-structure, students-screen and attendance-permissions specs. Not run: the whole suite, the API project, mutation passes (deferred to the end of PHASE 2), a real phone or finger (a smaller target than 44 px is the maintainer's call).
