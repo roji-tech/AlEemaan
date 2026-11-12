@@ -66,6 +66,10 @@ export interface InvoiceDetailModalProps {
 export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true, onRefresh, onReloadInvoice }: InvoiceDetailModalProps) {
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  // The `key`s of the payment and the waiver dialogs: a new instance for every opening (task 0059). Their fields are `useState(...)` seeded once (the amount from the balance of that moment,
+  // an empty reference and note), and this dialog now stays open across a payment, so without a new instance the next payment would start from the last one's amount, reference and note.
+  const [payOpenings, setPayOpenings] = useState(0);
+  const [discountOpenings, setDiscountOpenings] = useState(0);
   const [payInFullBusy, setPayInFullBusy] = useState(false);
   const [payInFullError, setPayInFullError] = useState<string | null>(null);
 
@@ -267,14 +271,20 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
                 <>
                   <button
                     type="button"
-                    onClick={() => setDiscountModalOpen(true)}
+                    onClick={() => {
+                      setDiscountOpenings((n) => n + 1);
+                      setDiscountModalOpen(true);
+                    }}
                     className="rounded-xl border border-line px-3 py-2 text-xs font-medium text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     Waiver / Discount
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPayModalOpen(true)}
+                    onClick={() => {
+                      setPayOpenings((n) => n + 1);
+                      setPayModalOpen(true);
+                    }}
                     className="rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     Record Payment
@@ -288,6 +298,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
 
       {/* Record Payment Sub-modal */}
       <RecordPaymentModal
+        key={payOpenings}
         isOpen={payModalOpen}
         onClose={() => setPayModalOpen(false)}
         onSaved={onRefresh}
@@ -301,6 +312,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
 
       {/* Discount Sub-modal */}
       <DiscountModal
+        key={discountOpenings}
         isOpen={discountModalOpen}
         onClose={() => setDiscountModalOpen(false)}
         onSaved={onRefresh}
