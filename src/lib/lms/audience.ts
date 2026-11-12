@@ -25,3 +25,11 @@ export function hideAnswerKey<T extends WithQuestions>(quiz: T): T {
 export function hideSubmissions<T extends { submissions?: unknown }>(assignment: T): T {
   return "submissions" in assignment ? { ...assignment, submissions: [] } : assignment;
 }
+
+/// How many pupils have handed an assignment in is the teacher's to see (task 0069): the list sent `_count.submissions` to everyone, so a pupil's or a guardian's session learned how many
+/// classmates had handed in.
+export function hideSubmissionCount<T extends { _count?: unknown }>(assignment: T): T {
+  const copy = { ...assignment };
+  delete copy._count;
+  return copy;
+}

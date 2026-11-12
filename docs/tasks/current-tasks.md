@@ -511,3 +511,14 @@
 
 - [x] The paused state has a reason (`unreachable` or `elsewhere`) and the line says which; the test written first failed on the unfixed build (5 passed, 1 failed); 11 passed, 0 failed on the fixed build (desktop and phone)
 - [ ] Not done: the whole suite; mutation passes (deferred). Octalve's copy of the hook is fixed in its task 0059
+
+
+## TASK-0069: The assignment cards show the hand-ins and name their Speed Grader button; a pupil's list no longer carries the count
+
+[Task file](0069-coursework-card-details.md). Inconsistencies found while writing the walkthrough's chapter C13; built on `claude/coursework-card-details`. No migration.
+
+- [x] The card read a field the API never sent (`submissionsCount`), so a teacher never saw how many pupils had handed in: it shows "N hand-ins" now (staff only)
+- [x] "Speed Grader" is named after its assignment (`Speed Grader: <title>`), as every other button on the card is
+- [x] `GET /lms/assignments` sent `_count.submissions` to a pupil's and a guardian's session (how many classmates had handed in): it does not now
+- [x] New specs `lms-assignment-count.spec.ts` (API) and `lms-card-details.spec.ts` (end to end); 2 failed on the unfixed build, 41 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
+- [ ] Not done: the whole suite; mutation passes (deferred); an assignment still cannot carry resource links from the dialog (recorded for the maintainer)
