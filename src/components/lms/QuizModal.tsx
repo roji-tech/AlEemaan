@@ -17,7 +17,8 @@ interface QuestionDraft {
   questionType: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "SHORT_ANSWER";
   options: { id: string; text: string }[];
   correctAnswer: string;
-  points: number;
+  /// kept as typed: an empty field stays empty while it is being typed in (and counts as 1 point when the quiz is sent)
+  points: number | "";
 }
 
 export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups }: QuizModalProps) {
@@ -360,7 +361,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                     type="number"
                     min={1}
                     value={q.points}
-                    onChange={(e) => updateQuestion(idx, { points: Number(e.target.value) || 1 })}
+                    onChange={(e) => updateQuestion(idx, { points: e.target.value === "" ? "" : Number(e.target.value) })}
                     className="w-full rounded-md border border-line-strong bg-field px-2 py-1 text-fg shadow-sm"
                   />
                 </div>

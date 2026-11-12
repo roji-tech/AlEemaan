@@ -19,7 +19,8 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [totalPoints, setTotalPoints] = useState(100);
+  // kept as typed (a text value of the number field), so that clearing it and typing 20 shows 20: a number state turned an empty field into 0 at once and made "020" (task 0064)
+  const [totalPoints, setTotalPoints] = useState("100");
   const [allowLate, setAllowLate] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,7 +186,7 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
               min={1}
               max={1000}
               value={totalPoints}
-              onChange={(e) => setTotalPoints(Number(e.target.value))}
+              onChange={(e) => setTotalPoints(e.target.value)}
               className="mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand"
             />
           </div>

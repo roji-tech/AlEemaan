@@ -459,3 +459,12 @@
 - [x] The quiz builder's question controls had no text colour class and measured 1.04:1 (near-white on a light field) in the light theme after a theme flip; they now have `text-fg`. The cause of the stale colour was not established (section 6 of the task file)
 - [x] New spec `lms-create-a11y.spec.ts` (the three create dialogs in both themes, desktop and phone); failed on the unfixed build (2 failed), 25 passed on the final tree with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); the thirteen raw-palette uses outside Finance and Coursework are not scanned
+
+
+## TASK-0064: Two number fields of the Coursework dialogs rewrote what was typed
+
+[Task file](0064-lms-number-fields.md). Found by the product walkthrough's chapter C13 (task 0033): typing 20 over 100 in the assignment's Total Points showed "020"; built on `claude/lms-number-fields`. No migration, no API change.
+
+- [x] The assignment's Total Points and a quiz question's Points kept a number in state and turned an empty field into 0 (or 1) at once, so the next key landed after it. Both now keep what is typed and read the number when the form is sent (an empty question counts as 1 point, as before)
+- [x] New spec `lms-number-fields.spec.ts`; failed on the unfixed build (2 failed), 15 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
+- [ ] Not done: the whole suite; mutation passes (deferred); the other number fields of the app are not scanned
