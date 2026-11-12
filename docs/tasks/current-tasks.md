@@ -468,3 +468,14 @@
 - [x] The assignment's Total Points and a quiz question's Points kept a number in state and turned an empty field into 0 (or 1) at once, so the next key landed after it. Both now keep what is typed and read the number when the form is sent (an empty question counts as 1 point, as before)
 - [x] New spec `lms-number-fields.spec.ts`; failed on the unfixed build (2 failed), 15 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); the other number fields of the app are not scanned
+
+
+## TASK-0065: The link typed in "Add Material" was never saved, and a link that is not a web address was accepted
+
+[Task file](0065-material-link-saved.md). Found by the product walkthrough's chapter C13 (task 0033, recon run 21, step 110: after Publish Material the card said "In-app resource"); built on `claude/lms-number-fields` (second commit). No migration.
+
+- [x] The dialog posted `materialType`, `url` and `published`; the route takes `attachments` and Zod dropped the rest, so the link was lost, the type chip was empty and the card never offered the link. The link is now sent as one attachment named after the material; the card and the portal's material card show "Open <title> ↗" for each web link; the type select and the "Publish immediately" box are gone from the dialog (nothing stores them, and the box hid nothing from pupils)
+- [x] `attachmentSchema` took any URL with a scheme (`javascript:`, `data:`, `ftp:`) for materials, assignments and a pupil's hand-in; it is now `http:` or `https:` only, and the three screens that show a link show only web links (`src/lib/lms/attachments.ts`)
+- [x] New specs `lms-attachment-links.spec.ts` (API, 4 tests) and `lms-material-link.spec.ts` (end to end); 4 failed on the build without the fix, 27 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
+- [ ] Not done: the whole suite; mutation passes (deferred); whether a click on a `javascript:` link runs in the shipped build was not tested
+- [ ] **For the maintainer:** a material's type and a draft state need two columns (a type and a published flag) and a migration, which is yours to run; materials still cannot be edited, only added and deleted

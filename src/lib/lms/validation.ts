@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { AssignmentStatus, SubmissionStatus, QuestionType, QuizStatus } from "@prisma/client";
+import { isWebLink } from "./attachments";
 
 export const attachmentSchema = z.object({
   title: z.string().min(1, "Attachment title is required"),
-  url: z.string().url("Valid URL is required"),
+  url: z.string().url("Valid URL is required").refine(isWebLink, "The link must start with http:// or https://"),
 });
 
 export const createAssignmentSchema = z.object({
