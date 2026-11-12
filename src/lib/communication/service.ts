@@ -2,6 +2,7 @@ import { NotificationChannel, NotificationDispatchStatus, Prisma } from "@prisma
 import { prisma } from "@/lib/db";
 import { ensureSystemTemplates, interpolateTokens } from "./templates";
 import { defaultNotificationDispatcher } from "./gateways/dispatcher";
+import { summariseDispatches, type DispatchSummary } from "./summary";
 import type {
   BroadcastMessageInput,
   CreateTemplateInput,
@@ -338,7 +339,7 @@ export async function broadcastMessage(
   branchId: string,
   input: BroadcastMessageInput,
   actorUserId?: string,
-): Promise<{ count: number; dispatches: DispatchListItem[] }> {
+): Promise<DispatchSummary & { dispatches: DispatchListItem[] }> {
   const { channel, targetAudience, classGroupId, classArmId, subject, body, templateId, variables } = input;
 
   // 1. Resolve recipients
@@ -423,7 +424,7 @@ export async function broadcastMessage(
   const uniqueRecipients = Array.from(new Map(recipients.map((r) => [r.address.toLowerCase(), r])).values());
 
   if (uniqueRecipients.length === 0) {
-    return { count: 0, dispatches: [] };
+    return { ...summariseDispatches([]), dispatches: [] };
   }
 
   // 2. Create dispatch rows and execute
@@ -507,7 +508,7 @@ export async function broadcastMessage(
   });
 
   return {
-    count: createdDispatches.length,
+    ...summariseDispatches(createdDispatches),
     dispatches: createdDispatches,
   };
 }

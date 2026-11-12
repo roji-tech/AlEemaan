@@ -2,6 +2,7 @@ import "../support/env";
 import { test, expect } from "@playwright/test";
 import { Gender, NotificationChannel, NotificationDispatchStatus, Role } from "@prisma/client";
 import { createUser, db, seedInstance } from "../support/db";
+import { DEVTOOLS_URL } from "../support/env";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { clearMockEmails } from "@/lib/communication/gateways/email";
 import { clearMockTermiiMessages } from "@/lib/communication/gateways/termii";
@@ -21,10 +22,39 @@ test.beforeEach(async () => {
   await db.studentRecord.deleteMany();
 });
 
-const asRole = async (role: Role, branchId = home.id, superAdmin = false) => {
+// The servers under test are production-shaped, so a send with no provider key FAILS there (task 0053). The tests that need a send to succeed run on the staging-mode server, where the dev
+// tools are on and the in-memory stand-in is allowed; the tests below that need to see the failure stay on the production-shaped one.
+const asRole = async (role: Role, branchId = home.id, superAdmin = false, baseUrl?: string) => {
   const user = await createUser({ superAdmin });
   await db.membership.create({ data: { userId: user.id, branchId, role } });
-  return { user, cookie: cookieHeader((await loginAs(user)).token!) };
+  return { user, cookie: cookieHeader((await loginAs(user, { baseUrl })).token!) };
+};
+const onStaging = (path: string, opts: Parameters<typeof api>[1] = {}) => api(path, { baseUrl: DEVTOOLS_URL, ...opts });
+const seedParents = async () => {
+  await db.studentRecord.create({
+    data: {
+      branchId: home.id,
+      firstName: "Amina",
+      lastName: "Bello",
+      gender: Gender.FEMALE,
+      dateOfBirth: new Date("2012-05-10"),
+      admissionNo: "ADM-COMM-001",
+      guardianEmail: "amina.parent@example.com",
+      guardianPhone: "08012345678",
+    },
+  });
+  await db.studentRecord.create({
+    data: {
+      branchId: home.id,
+      firstName: "Ibrahim",
+      lastName: "Sani",
+      gender: Gender.MALE,
+      dateOfBirth: new Date("2011-08-20"),
+      admissionNo: "ADM-COMM-002",
+      guardianEmail: "ibrahim.parent@example.com",
+      guardianPhone: "08098765432",
+    },
+  });
 };
 
 test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => {
@@ -85,8 +115,8 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     expect(deleteRes.status).toBe(200);
   });
 
-  test("broadcast campaign: audience resolution and dispatch execution", async () => {
-    const admin = await asRole(Role.ADMIN, home.id);
+  test("broadcast campaign: audience resolution and dispatch execution (staging-mode server: the stand-in is allowed)", async () => {
+    const admin = await asRole(Role.ADMIN, home.id, false, DEVTOOLS_URL);
 
     // Seed students with parent phone & email contacts
     await db.studentRecord.create({
@@ -116,7 +146,7 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     });
 
     // Broadcast SMS to ALL_PARENTS
-    const broadcastRes = await api("/api/v1/communication/broadcast", {
+    const broadcastRes = await onStaging("/api/v1/communication/broadcast", {
       method: "POST",
       cookie: admin.cookie,
       body: {
@@ -130,6 +160,10 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     expect(broadcastRes.status).toBe(201);
     const data = broadcastRes.json.data;
     expect(data.count).toBe(2);
+    // the answer says what happened, not only how many rows were made (task 0053)
+    expect(data.sent).toBe(2);
+    expect(data.failed).toBe(0);
+    expect(data.firstError).toBeNull();
     expect(data.dispatches.length).toBe(2);
     expect(data.dispatches.every((d: { status: string }) => d.status === NotificationDispatchStatus.SENT)).toBe(true);
 
@@ -143,8 +177,8 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     expect(dispatchesData.items.length).toBe(2);
   });
 
-  test("retry dispatch: failed dispatch retry transitions state to SENT", async () => {
-    const admin = await asRole(Role.ADMIN, home.id);
+  test("retry dispatch: failed dispatch retry transitions state to SENT (staging-mode server: the stand-in is allowed)", async () => {
+    const admin = await asRole(Role.ADMIN, home.id, false, DEVTOOLS_URL);
 
     // Seed a failed dispatch manually
     const failedDispatch = await db.notificationDispatch.create({
@@ -160,7 +194,7 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     });
 
     // Retry the dispatch
-    const retryRes = await api(`/api/v1/communication/dispatches/${failedDispatch.id}/retry`, {
+    const retryRes = await onStaging(`/api/v1/communication/dispatches/${failedDispatch.id}/retry`, {
       method: "POST",
       cookie: admin.cookie,
       body: { branchId: home.id },
@@ -178,5 +212,82 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     expect(updated?.status).toBe(NotificationDispatchStatus.SENT);
     expect(updated?.attempts).toBe(2);
     expect(updated?.sentAt).not.toBeNull();
+  });
+
+  test("a production-shaped server with no provider key records the broadcast as FAILED with the reason, and the answer says so (task 0053)", async () => {
+    const admin = await asRole(Role.ADMIN, home.id);
+    await seedParents();
+
+    for (const [channel, variable] of [
+      [NotificationChannel.EMAIL, "RESEND_API_KEY"],
+      [NotificationChannel.SMS, "TERMII_API_KEY"],
+      [NotificationChannel.WHATSAPP, "TERMII_API_KEY"],
+    ] as const) {
+      await db.notificationDispatch.deleteMany();
+      const res = await api("/api/v1/communication/broadcast", {
+        method: "POST",
+        cookie: admin.cookie,
+        body: { branchId: home.id, channel, targetAudience: "ALL_PARENTS", subject: "Notice", body: "School closes early on Friday." },
+      });
+      expect(res.status, channel).toBe(201);
+      expect(res.json.data.count, channel).toBe(2);
+      expect(res.json.data.sent, channel).toBe(0);
+      expect(res.json.data.failed, channel).toBe(2);
+      expect(res.json.data.firstError, channel).toContain(variable);
+      expect(res.json.data.firstError, channel).toContain("is not set up on this server");
+      const rows = await db.notificationDispatch.findMany({ where: { branchId: home.id, channel } });
+      expect(rows, channel).toHaveLength(2);
+      for (const row of rows) {
+        expect(row.status, channel).toBe(NotificationDispatchStatus.FAILED);
+        expect(row.sentAt, channel).toBeNull();
+        expect(row.lastError, channel).toContain(variable);
+      }
+    }
+  });
+
+  test("on a production-shaped server with no provider key a retry stays FAILED and says why; the in-app channel needs no provider and is sent", async () => {
+    const admin = await asRole(Role.ADMIN, home.id);
+    const failed = await db.notificationDispatch.create({
+      data: {
+        branchId: home.id,
+        channel: NotificationChannel.EMAIL,
+        recipientAddress: "parent@example.com",
+        status: NotificationDispatchStatus.FAILED,
+        subject: "Notice",
+        body: "Retry test message",
+        attempts: 1,
+        lastError: "earlier failure",
+      },
+    });
+    const retry = await api(`/api/v1/communication/dispatches/${failed.id}/retry`, {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id },
+    });
+    expect(retry.status).toBe(200);
+    expect(retry.json.data.success).toBe(false);
+    expect(retry.json.data.status).toBe(NotificationDispatchStatus.FAILED);
+    expect(retry.json.data.error).toContain("RESEND_API_KEY");
+    const row = await db.notificationDispatch.findUnique({ where: { id: failed.id } });
+    expect(row?.status).toBe(NotificationDispatchStatus.FAILED);
+    expect(row?.attempts).toBe(2);
+    expect(row?.sentAt).toBeNull();
+    expect(row?.lastError).toContain("not set up");
+
+    await seedParents();
+    const inApp = await api("/api/v1/communication/broadcast", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: {
+        branchId: home.id,
+        channel: NotificationChannel.IN_APP,
+        targetAudience: "ALL_PARENTS",
+        subject: "Notice",
+        body: "In-app notice.",
+      },
+    });
+    expect(inApp.status).toBe(201);
+    expect(inApp.json.data.sent).toBe(inApp.json.data.count);
+    expect(inApp.json.data.failed).toBe(0);
   });
 });
