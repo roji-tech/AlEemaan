@@ -2,6 +2,8 @@ import * as path from "path";
 import { test } from "@playwright/test";
 import { Walk } from "./support/walk";
 import { c01Start } from "./chapters/c01-start";
+import { c02School } from "./chapters/c02-school";
+import { c03PeopleAccept, c03PeopleInvite, c03PeopleRoles } from "./chapters/c03-people";
 
 // The journey of one pass (task 0033). One browser context, one recording, chapters in the order the data is made (section 6.6). The pass is the project that runs it (desktop-light,
 // desktop-dark, phone); the chapters are the same in each. WALKTHROUGH_MODE=recon records a chapter that stops early as a finding and goes on; the default, strict, stops at the first failure.
@@ -19,6 +21,12 @@ test("the walkthrough", async ({ page }, testInfo) => {
   const theme = pass === "desktop-dark" ? "dark" : "light";
 
   await walk.chapter("C01 Start and sign in", () => c01Start(walk, page, theme));
+  await walk.chapter("C02 The school", () => c02School(walk, page));
+  await walk.chapter("C03 People", async () => {
+    await c03PeopleInvite(walk, page);
+    await c03PeopleAccept(walk, page);
+    await c03PeopleRoles(walk, page);
+  });
 
   walk.saveTimeline(path.join(passDir, "timeline.json"));
   walk.saveFindings(path.join(passDir, "evidence"));
