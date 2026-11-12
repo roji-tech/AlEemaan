@@ -500,7 +500,7 @@
 - [x] Assignments: "Save as Draft", Edit (the same dialog), Publish, Close and Reopen hand-ins, Archive and Restore from the cards; `CLOSED` is a stored status (a pupil still sees a closed assignment and their own hand-in; the server refuses a hand-in, on the staff route and the portal; the portal says the teacher closed it); the Status filter's four options all match stored statuses now
 - [x] Materials: a type (stored) and a draft state (stored), Edit, Publish and Unpublish from the cards; a draft never reaches a pupil's or guardian's membership (list and single read) or the portal. The list route had returned every material to a pupil's session
 - [x] New specs (API and end to end); 46 passed, 0 failed with the existing LMS and portal specs (desktop and phone)
-- [ ] Not done: the whole suite; mutation passes (deferred); the walkthrough chapter C13 covering the new actions; four unrelated tables whose column types differ from the schema (see the HANDOVER)
+- [ ] Not done: the whole suite; mutation passes (deferred); the walkthrough chapter C13 covering the new actions; four unrelated tables whose column types differ from the schema (fixed in task 0068)
 
 - [ ] **For the maintainer:** a material's type and a draft state need two columns (a type and a published flag) and a migration, which is yours to run; materials still cannot be edited, only added and deleted
 
@@ -512,6 +512,14 @@
 - [x] The paused state has a reason (`unreachable` or `elsewhere`) and the line says which; the test written first failed on the unfixed build (5 passed, 1 failed); 11 passed, 0 failed on the fixed build (desktop and phone)
 - [ ] Not done: the whole suite; mutation passes (deferred). Octalve's copy of the hook is fixed in its task 0059
 
+
+## TASK-0068: The Prisma schema and the migrations disagreed on nine columns; a test now fails when they drift
+
+[Task file](0068-schema-matches-migrations.md). Found with `prisma migrate diff` while checking task 0066's migration; built on `claude/schema-matches-migrations`. No migration, no code change.
+
+- [x] Nine columns (`FormMarkingAudit`, `FormTurnIn`, `FormTurnInAudit`, `QuestionBankPrintLog`) are `varchar(n)` with length checks in the migrations and were plain `String` in the schema, so `prisma migrate dev` would have proposed widening them to `text`; the schema now says `@db.VarChar(n)`
+- [x] New integration spec `schema-matches-migrations.spec.ts`: a diff from the migrated test database to the schema must be empty; it failed on the unfixed schema (naming the four tables) and passes on the fixed one (2 passed with the setup)
+- [ ] Not done: the whole suite; mutation passes (deferred)
 
 ## TASK-0069: The assignment cards show the hand-ins and name their Speed Grader button; a pupil's list no longer carries the count
 
