@@ -99,7 +99,7 @@ test("when the server cannot be reached the line says sending is paused, and Try
     return route.fulfill(json({ claimed: 12, sent: 11, failed: 1, remaining: 0, firstError: "Phone is not valid." }));
   });
   await page.goto("/communication");
-  await expect(bar(page)).toContainText("Sending is paused at 0 of 12", { timeout: 15_000 });
+  await expect(bar(page)).toContainText("Sending is paused at 0 of 12: the server could not be reached", { timeout: 15_000 });
   await scan(page, "the paused line");
   broken = false;
   await page.getByRole("button", { name: "Try again" }).click();
@@ -107,4 +107,23 @@ test("when the server cannot be reached the line says sending is paused, and Try
     "All 12 messages were handled: 11 sent, 1 failed. Phone is not valid. Details are in Message Logs & Dispatches.",
   );
   await scan(page, "the finished line with a failure");
+});
+
+test("when another screen is sending the rest, the line says so instead of blaming the server, and Try again checks again", async ({
+  page,
+}) => {
+  // the server answers every call "nothing claimed, 8 still waiting": another screen holds the rows (task 0067 fixes the wording: it said the server could not be reached)
+  let released = false;
+  await page.route(QUEUE, (route) => route.fulfill(json({ pending: 8 })));
+  await page.route(NEXT, async (route) => {
+    if (!released) return route.fulfill(json({ claimed: 0, sent: 0, failed: 0, remaining: 8, firstError: null }));
+    return route.fulfill(json({ claimed: 8, sent: 8, failed: 0, remaining: 0, firstError: null }));
+  });
+  await page.goto("/communication");
+  await expect(bar(page)).toContainText("Sending is paused at 0 of 8: another screen is sending the rest", { timeout: 30_000 });
+  await expect(bar(page)).not.toContainText("could not be reached");
+  await scan(page, "the paused line while another screen sends");
+  released = true;
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(bar(page)).toContainText("All 8 messages were sent.");
 });

@@ -501,3 +501,13 @@
 - [x] Materials: a type (stored) and a draft state (stored), Edit, Publish and Unpublish from the cards; a draft never reaches a pupil's or guardian's membership (list and single read) or the portal. The list route had returned every material to a pupil's session
 - [x] New specs (API and end to end); 46 passed, 0 failed with the existing LMS and portal specs (desktop and phone)
 - [ ] Not done: the whole suite; mutation passes (deferred); the walkthrough chapter C13 covering the new actions; four unrelated tables whose column types differ from the schema (see the HANDOVER)
+
+- [ ] **For the maintainer:** a material's type and a draft state need two columns (a type and a published flag) and a migration, which is yours to run; materials still cannot be edited, only added and deleted
+
+
+## TASK-0067: The sending line said "the server could not be reached" when another screen was sending the rest
+
+[Task file](0067-pump-pause-wording.md). A known flaw of task 0063; built on `claude/pump-pause-wording`. No migration.
+
+- [x] The paused state has a reason (`unreachable` or `elsewhere`) and the line says which; the test written first failed on the unfixed build (5 passed, 1 failed); 11 passed, 0 failed on the fixed build (desktop and phone)
+- [ ] Not done: the whole suite; mutation passes (deferred). Octalve's copy of the hook is fixed in its task 0059
