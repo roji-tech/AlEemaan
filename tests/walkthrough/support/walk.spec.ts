@@ -93,6 +93,36 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     await expect(secondWalk.goto(PAGE)).rejects.toThrow(/Forbidden/);
   });
 
+  test("a typed address opens a fresh tab, the walk follows it (caption, screenshot, observers) and closeTypedAddress brings the first tab back", async ({
+    page,
+  }) => {
+    const dir = tempDir();
+    const walk = new Walk(page, dir);
+    await walk.init();
+    await walk.goto(PAGE);
+    const typed = "data:text/html,<title>typed</title><main><h1>Typed page</h1></main><script>console.error('typed tab error')</script>";
+    const meta = { id: 7, title: "Typed address", role: "Visitor" as const, caption: "A address is typed.", covers: ["SET-01"] };
+    await walk.step(meta, async () => {
+      const tab = await walk.typedAddress(typed);
+      expect(tab).not.toBe(page);
+      expect(page.context().pages()).toHaveLength(2);
+      await expect(tab.getByRole("heading", { name: "Typed page" })).toBeVisible();
+      // the step's caption is on the tab the person is looking at
+      await expect(tab.locator("#wt-caption")).toHaveText("A address is typed.");
+      // one typed address at a time
+      await expect(walk.typedAddress(typed)).rejects.toThrow(/already open/);
+    });
+    // the step's screenshot was taken of the typed tab, and the tab's console error was heard
+    expect(fs.existsSync(path.join(dir, "step_007.png"))).toBe(true);
+    expect(walk.observers.observations.some((o) => o.kind === "console-error" && /typed tab error/.test(o.detail))).toBe(true);
+    await walk.closeTypedAddress();
+    expect(page.context().pages()).toHaveLength(1);
+    await expect(page.locator("#wt-caption")).toHaveText("A address is typed.");
+    // the first tab still has only its one landing
+    await expect(walk.goto(PAGE)).rejects.toThrow(/Forbidden/);
+    await expect(walk.closeTypedAddress()).rejects.toThrow(/No typed-address tab/);
+  });
+
   test("a step must cover real rows of the coverage matrix, and writes its screenshot and timeline entry", async ({ page }) => {
     const dir = tempDir();
     const walk = new Walk(page, dir);
