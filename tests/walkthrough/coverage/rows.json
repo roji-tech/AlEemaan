@@ -17,19 +17,54 @@
   {
     "id": "RTE-02",
     "area": "Start",
-    "feature": "The site address on a set-up instance sends a visitor to sign-in, and a signed-in person to the overview",
+    "feature": "The site address on a set-up instance shows a visitor the school's front page, and sends a signed-in person to the overview",
     "route": "/",
     "roles": [
       "Visitor",
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "In a new tab, type the site address once (one goto for that tab): signed out lands on sign-in; signed in lands on the overview",
+    "proof": "In a new tab, type the site address once (one goto for that tab): signed out shows the front page with its Sign in link; signed in lands on the overview",
     "source": [
-      "src/app/page.tsx"
+      "src/app/page.tsx",
+      "src/lib/landing/start.ts"
     ],
     "status": "planned",
     "typedAddress": true
+  },
+  {
+    "id": "RTE-03",
+    "area": "Start",
+    "feature": "The front page in Arabic, right to left, at /ar",
+    "route": "/ar",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "On the front page, the header's Arabic link opens the same page in Arabic and right to left; its English link comes back",
+    "source": [
+      "src/app/ar/page.tsx",
+      "src/lib/landing-ar.ts",
+      "src/components/landing/LandingPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LND-01",
+    "area": "Start",
+    "feature": "The front page shows a visitor what the school offers and every way in",
+    "route": "/",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Read the hero, each section, the closing and the footer; the Sign in entries (header, hero, closing, footer) lead to sign-in and the Parent and pupil portal links lead to the portal",
+    "source": [
+      "src/app/page.tsx",
+      "src/components/landing/LandingPage.tsx",
+      "src/lib/brand.ts"
+    ],
+    "status": "planned"
   },
   {
     "id": "SET-01",
@@ -5292,7 +5327,7 @@
     "source": [
       "src/components/programs/ProgramSettingsTab.tsx",
       "src/lib/programs/program-settings-service.ts",
-      "prisma/migrations/20261113090000_progress_display/migration.sql"
+      "prisma/schema/programs.prisma"
     ],
     "status": "planned"
   },
