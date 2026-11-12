@@ -448,3 +448,14 @@
 - [x] `handleSignOut` in `portal/page.tsx` cleared the pupils, access, overview, results and invoices but not the open section, the coursework, the results flags or the progress, so the next person on the same screen started on the section the last one left (when both may open it) and the page still held the last person's coursework in memory. It now puts all of it back to its first state
 - [x] Test: `portal-access.spec.ts`, "after a sign-out the next person starts on the Overview ... and none of the last one's coursework is there"; failed on the unfixed build (the Overview tab was not selected), passes after
 - [ ] Not done: mutation passes (deferred to the end of PHASE 2); a reload of the page (unchanged: the session cookie is read once at mount)
+
+
+## TASK-0062: Coursework's create dialogs: the quiz builder's controls had no names, and the assignment's Publish button was below AA contrast
+
+[Task file](0062-quiz-builder-labels.md). Found by reading the Coursework screens for the product walkthrough's chapter C13 (task 0033) and confirmed by a new spec; built on `claude/quiz-builder-labels`. No migration, no API change.
+
+- [x] The quiz builder: each question is `role="group"` named "Question N"; "Question Type", "Points" and "Expected exact keyword or phrase" are tied to their controls; the prompt and option fields have names; each correct-answer radio says which option ("Option 2 is the correct answer"); Remove says which question
+- [x] The assignment dialog's Publish button used the raw brand green with white text (4.25:1) and a hover class that names no token; it now uses `bg-brand-strong hover:bg-brand-strong-hover` like the material and quiz dialogs
+- [x] The quiz builder's question controls had no text colour class and measured 1.04:1 (near-white on a light field) in the light theme after a theme flip; they now have `text-fg`. The cause of the stale colour was not established (section 6 of the task file)
+- [x] New spec `lms-create-a11y.spec.ts` (the three create dialogs in both themes, desktop and phone); failed on the unfixed build (2 failed), 25 passed on the final tree with the existing LMS and portal specs
+- [ ] Not done: the whole suite; mutation passes (deferred); the thirteen raw-palette uses outside Finance and Coursework are not scanned

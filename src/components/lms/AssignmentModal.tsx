@@ -215,7 +215,7 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
           <button
             type="submit"
             disabled={loading}
-            className="min-h-11 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
+            className="min-h-11 rounded-md bg-brand-strong px-4 py-2 text-sm font-semibold text-white hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
           >
             {loading ? "Publishing..." : "Publish Assignment"}
           </button>
