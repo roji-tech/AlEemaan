@@ -91,10 +91,8 @@ const ALLOWED: Record<string, string> = {
     "portal practice sets: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "GET v1/portal/students/[studentId]/forms/practice-sets/[id]/responses/[responseId]/route.ts":
     "portal practice sets: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
-  "GET v1/forms/public/[token]/route.ts":
-    "public questionnaire: unauthenticated access via public shareToken; rate limited",
-  "POST v1/forms/public/[token]/submit/route.ts":
-    "public questionnaire: unauthenticated submission via public shareToken; rate limited",
+  "GET v1/forms/public/[token]/route.ts": "public questionnaire: unauthenticated access via public shareToken; rate limited",
+  "POST v1/forms/public/[token]/submit/route.ts": "public questionnaire: unauthenticated submission via public shareToken; rate limited",
   "GET v1/portal/students/[studentId]/forms/questionnaires/route.ts":
     "portal questionnaires: verified by HMAC portal session cookie and allowedStudentIds; gated by portalGate",
   "GET v1/portal/students/[studentId]/forms/questionnaires/[id]/route.ts":
@@ -157,6 +155,10 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/communication/dispatches/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/queue/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/queue/next/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/communication/templates/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/communication/templates/[id]/route.ts":
@@ -202,12 +204,18 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
   "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
-  "GET v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "PATCH v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "GET v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "PUT v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "POST v1/settings/results-approval/sections/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "PUT v1/settings/results-approval/approvers/[userId]/scopes/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "GET v1/settings/portal-access/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PATCH v1/settings/portal-access/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "GET v1/settings/results-approval/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "POST v1/settings/results-approval/sections/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/approvers/[userId]/scopes/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
   "POST v1/settings/self-approval/route.ts": "self-approval configured per branch with admin role check",
   "DELETE v1/settings/self-approval/route.ts": "self-approval deleted per branch with admin role check",
   "GET v1/settings/verification/route.ts": "verification settings queried by branchId",
@@ -237,12 +245,9 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/question-bank/reports/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided in reports-service)",
-  "GET v1/forms/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
-  "POST v1/forms/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
-  "GET v1/forms/[id]/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/forms/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/forms/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/forms/[id]/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/forms/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "POST v1/forms/[id]/close/route.ts":
@@ -273,8 +278,7 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/question-bank/print-logs/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query must be the caller's",
-  "POST v1/forms/[id]/print/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "POST v1/forms/[id]/print/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/students/[id]/standing/route.ts":
     "the branch is the PUPIL's, never the request's: the service reads the pupil, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown pupil and another branch's pupil are the same 404",
   "GET v1/members/[id]/standing/route.ts":
@@ -390,6 +394,10 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/communication/dispatches/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/communication/queue/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/communication/queue/next/route.ts":
+    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/communication/templates/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/communication/templates/[id]/route.ts":
@@ -447,12 +455,18 @@ const NOT_WRAPPED: Record<string, string> = {
   "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
-  "GET v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "PATCH v1/settings/portal-access/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "GET v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "PUT v1/settings/results-approval/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "POST v1/settings/results-approval/sections/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
-  "PUT v1/settings/results-approval/approvers/[userId]/scopes/route.ts": "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "GET v1/settings/portal-access/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PATCH v1/settings/portal-access/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "GET v1/settings/results-approval/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "POST v1/settings/results-approval/sections/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
+  "PUT v1/settings/results-approval/approvers/[userId]/scopes/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
   "POST v1/settings/self-approval/route.ts": "self-approval configured per branch with admin role check",
   "DELETE v1/settings/self-approval/route.ts": "self-approval deleted per branch with admin role check",
   "GET v1/settings/verification/route.ts": "verification settings queried by branchId",
@@ -497,12 +511,9 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/question-bank/reports/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's; with none named, the list is the caller's own branches' (decided in reports-service)",
-  "GET v1/forms/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
-  "POST v1/forms/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
-  "GET v1/forms/[id]/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "GET v1/forms/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
+  "POST v1/forms/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "GET v1/forms/[id]/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "PATCH v1/forms/[id]/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "POST v1/forms/[id]/close/route.ts":
@@ -533,8 +544,7 @@ const NOT_WRAPPED: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/question-bank/print-logs/route.ts":
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query must be the caller's",
-  "POST v1/forms/[id]/print/route.ts":
-    "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
+  "POST v1/forms/[id]/print/route.ts": "gated by withAuthGated (lib/auth/branch-gate): the branch named in the body must be the caller's",
   "GET v1/students/[id]/standing/route.ts":
     "the branch is the PUPIL's, never the request's: the service reads the pupil, then adminScope + mayAdminister decide (a super admin, or an administrator of that branch); an unknown pupil and another branch's pupil are the same 404",
   "GET v1/members/[id]/standing/route.ts":

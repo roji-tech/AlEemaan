@@ -9,9 +9,11 @@ import { tagsFor } from "@/lib/communication/tags";
 export interface BroadcastComposerProps {
   branchId: string;
   onSuccess?: () => void;
+  /// The broadcast was made and `total - done` messages are still waiting: the panel sends them in the background and shows the progress.
+  onQueued?: (progress: { total: number; done: number; sent: number; failed: number }) => void;
 }
 
-export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProps) {
+export function BroadcastComposer({ branchId, onSuccess, onQueued }: BroadcastComposerProps) {
   const [channel, setChannel] = useState<NotificationChannel>(NotificationChannel.SMS);
   const [targetAudience, setTargetAudience] = useState<string>("ALL_PARENTS");
   const [subject, setSubject] = useState("");
@@ -61,6 +63,22 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
       const sent: number = json.data?.sent ?? json.data?.count ?? 0;
       const failed: number = json.data?.failed ?? 0;
       const reason: string | null = json.data?.firstError ?? null;
+      const total: number = json.data?.count ?? sent + failed;
+      const queued: number = json.data?.queued ?? 0;
+      // A large broadcast is sent in batches (task 0063): the first went with this request, the panel sends the rest and shows the progress.
+      if (queued > 0) {
+        onQueued?.({ total, done: total - queued, sent, failed });
+        setFeedback({
+          type: failed > 0 ? "error" : "success",
+          message:
+            `Sending to ${total} recipients: ${total - queued} done so far, ${queued} still to go.` +
+            (failed > 0 ? ` ${failed} failed so far${reason ? `: ${reason}` : ""}.` : "") +
+            " The progress is shown above.",
+        });
+        setSubject("");
+        setBody("");
+        return;
+      }
       if (failed > 0) {
         setFeedback({
           type: "error",

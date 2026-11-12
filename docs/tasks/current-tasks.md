@@ -448,3 +448,14 @@
 - [x] `handleSignOut` in `portal/page.tsx` cleared the pupils, access, overview, results and invoices but not the open section, the coursework, the results flags or the progress, so the next person on the same screen started on the section the last one left (when both may open it) and the page still held the last person's coursework in memory. It now puts all of it back to its first state
 - [x] Test: `portal-access.spec.ts`, "after a sign-out the next person starts on the Overview ... and none of the last one's coursework is there"; failed on the unfixed build (the Overview tab was not selected), passes after
 - [ ] Not done: mutation passes (deferred to the end of PHASE 2); a reload of the page (unchanged: the session cookie is read once at mount)
+
+
+## TASK-0063: A broadcast is sent in batches of ten, with progress, and carries on where it was cut off
+
+[Task file](0063-broadcast-in-batches.md). The maintainer's idea (2026-11-12): send a large broadcast from the screen ten at a time with a progress line, and carry on when Communication is opened; built on `claude/broadcast-batches`. No migration. Octalve's version is its task 0058.
+
+- [x] `broadcastMessage` writes every recipient's row at once, sends the first batch of ten before it answers and reports `queued`; a broadcast to ten or fewer is delivered before the answer, as before. It used to send them one after another in ONE request, which a large audience outran, leaving rows QUEUED with nothing to resume them
+- [x] `POST /communication/queue/next` sends the next batch (a row is claimed by one call only: two tabs cannot double-send; a stale PROCESSING row is taken back after 10 minutes) and `GET /communication/queue` says how many wait; answers are counts and the first failure's reason, with the address replaced by "the recipient"
+- [x] The Communication screen sends the rest in the background (`useQueuePump`), shows "Sending messages: 40 of 200" with a progress bar, pauses with Try again when the server cannot be reached, and resumes when the screen is opened; nothing is stored in the browser
+- [x] Tests: 111 passed, 0 failed (the new integration, API and end-to-end specs, the existing communication specs, the route guard); see the task file for the failures of the first runs
+- [ ] Not done: a cron route for AlEemaan (the hosting plan decides how often one may run); automatic retries of failed messages; the phone-width run; mutation passes (deferred)

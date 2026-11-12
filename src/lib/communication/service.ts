@@ -4,6 +4,7 @@ import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
 import { getSchoolSettings } from "@/lib/settings/school-settings";
 import { ensureSystemTemplates, interpolateTokens } from "./templates";
 import { defaultNotificationDispatcher } from "./gateways/dispatcher";
+import { BATCH_SIZE, sendNextBatch } from "./queue";
 import { summariseDispatches, type DispatchSummary } from "./summary";
 import { messageDate } from "./tags";
 import type {
@@ -342,7 +343,7 @@ export async function broadcastMessage(
   branchId: string,
   input: BroadcastMessageInput,
   actorUserId?: string,
-): Promise<DispatchSummary & { dispatches: DispatchListItem[] }> {
+): Promise<DispatchSummary & { queued: number; dispatches: DispatchListItem[] }> {
   const { channel, targetAudience, classGroupId, classArmId, subject, body, templateId, variables } = input;
 
   // 1. Resolve recipients
@@ -449,77 +450,55 @@ export async function broadcastMessage(
   const uniqueRecipients = Array.from(new Map(recipients.map((r) => [r.address.toLowerCase(), r])).values());
 
   if (uniqueRecipients.length === 0) {
-    return { ...summariseDispatches([]), dispatches: [] };
+    return { ...summariseDispatches([]), queued: 0, dispatches: [] };
   }
 
-  // 2. Create dispatch rows and execute
-  const createdDispatches: DispatchListItem[] = [];
-  // The tags the composer offers (tags.ts): the school's name and today's date for everyone; the pupil's name and class for a guardian. They win over a same-named entry in `variables`.
+  // 2. One row per recipient, all at once, then the first batch is sent before this answers (task 0063): a small broadcast is delivered by the time the admin sees the result, a large one
+  // goes on in batches that the Communication screen asks for (queue.ts). Nothing is sent here that was not written first, so a call that is cut off leaves QUEUED rows, not lost ones.
+  // The tags the composer offers (tags.ts): the school's name and today's date for everyone; the pupil's name and class for a guardian. They win over a same-named entry of `variables`.
   const school = await getSchoolSettings();
   const today = messageDate(new Date(), resolveSchoolTimeZone());
 
-  for (const r of uniqueRecipients) {
-    const mergedVariables = {
-      ...variables,
-      school_name: school.name,
-      date: today,
-      ...(r.studentName ? { student_name: r.studentName, class_arm: r.classArm ?? "their class" } : {}),
-    };
-
-    const renderedBody = interpolateTokens(body, mergedVariables, channel);
-    const renderedSubject = subject ? interpolateTokens(subject, mergedVariables, channel) : null;
-
-    const row = await prisma.notificationDispatch.create({
-      data: {
+  const made = await prisma.notificationDispatch.createManyAndReturn({
+    data: uniqueRecipients.map((r) => {
+      const mergedVariables = {
+        ...variables,
+        school_name: school.name,
+        date: today,
+        ...(r.studentName ? { student_name: r.studentName, class_arm: r.classArm ?? "their class" } : {}),
+      };
+      return {
         branchId,
         templateId: templateId || null,
         channel,
         recipientAddress: r.address,
         recipientUserId: r.userId || null,
         status: NotificationDispatchStatus.QUEUED,
-        subject: renderedSubject,
-        body: renderedBody,
+        subject: subject ? interpolateTokens(subject, mergedVariables, channel) : null,
+        body: interpolateTokens(body, mergedVariables, channel),
         metadata: mergedVariables,
-        attempts: 1,
-      },
-    });
-
-    // Execute dispatch
-    const dispatchRes = await defaultNotificationDispatcher({
-      dispatchId: row.id,
-      branchId,
-      channel,
-      recipientAddress: r.address,
-      recipientUserId: r.userId || null,
-      subject: renderedSubject,
-      body: renderedBody,
-    });
-
-    const updated = await prisma.notificationDispatch.update({
-      where: { id: row.id },
-      data: {
-        status: dispatchRes.success ? NotificationDispatchStatus.SENT : NotificationDispatchStatus.FAILED,
-        sentAt: dispatchRes.success ? new Date() : null,
-        lastError: dispatchRes.success ? null : dispatchRes.error,
-      },
-    });
-
-    createdDispatches.push({
-      id: updated.id,
-      templateId: updated.templateId,
-      channel: updated.channel,
-      recipientAddress: updated.recipientAddress,
-      recipientUserId: updated.recipientUserId,
-      status: updated.status,
-      subject: updated.subject,
-      body: updated.body,
-      metadata: updated.metadata as Record<string, unknown> | null,
-      attempts: updated.attempts,
-      lastError: updated.lastError,
-      sentAt: updated.sentAt,
-      createdAt: updated.createdAt,
-    });
-  }
+        attempts: 0,
+      };
+    }),
+  });
+  const ids = made.map((row) => row.id);
+  await sendNextBatch(branchId, { onlyIds: ids.slice(0, BATCH_SIZE) });
+  const rows = await prisma.notificationDispatch.findMany({ where: { id: { in: ids } }, orderBy: { createdAt: "asc" } });
+  const createdDispatches: DispatchListItem[] = rows.map((updated) => ({
+    id: updated.id,
+    templateId: updated.templateId,
+    channel: updated.channel,
+    recipientAddress: updated.recipientAddress,
+    recipientUserId: updated.recipientUserId,
+    status: updated.status,
+    subject: updated.subject,
+    body: updated.body,
+    metadata: updated.metadata as Record<string, unknown> | null,
+    attempts: updated.attempts,
+    lastError: updated.lastError,
+    sentAt: updated.sentAt,
+    createdAt: updated.createdAt,
+  }));
 
   // 3. Log audit entry
   await prisma.notificationAuditLog.create({
@@ -539,6 +518,10 @@ export async function broadcastMessage(
 
   return {
     ...summariseDispatches(createdDispatches),
+    // how many are still waiting for the screen's next batches
+    queued: createdDispatches.filter(
+      (d) => d.status === NotificationDispatchStatus.QUEUED || d.status === NotificationDispatchStatus.PROCESSING,
+    ).length,
     dispatches: createdDispatches,
   };
 }
