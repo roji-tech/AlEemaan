@@ -2,6 +2,30 @@
 
 import { useState, useId, type FormEvent } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { attachmentLinks } from "@/lib/lms/attachments";
+
+export type MaterialType = "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER";
+
+export const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
+  DOCUMENT: "Document / PDF",
+  VIDEO_LINK: "Video Link / Recording",
+  PRESENTATION: "Slide Deck / Presentation",
+  NOTES: "Reading Notes",
+  OTHER: "Other Resource",
+};
+
+/// A material being edited (task 0066). The list mounts the dialog fresh for each open, so the fields start from these values.
+export interface MaterialToEdit {
+  id: string;
+  title: string;
+  subject: { id: string };
+  classGroup: { id: string } | null;
+  description: string | null;
+  content: string | null;
+  attachments: unknown;
+  materialType: MaterialType;
+  status: "DRAFT" | "PUBLISHED";
+}
 
 export interface MaterialModalProps {
   isOpen: boolean;
@@ -10,49 +34,59 @@ export interface MaterialModalProps {
   branchId: string;
   subjects: { id: string; name: string }[];
   classGroups: { id: string; name: string }[];
+  material?: MaterialToEdit | null;
 }
 
-export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups }: MaterialModalProps) {
-  const [title, setTitle] = useState("");
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
-  const [classGroupId, setClassGroupId] = useState("");
-  const [url, setUrl] = useState("");
-  const [content, setContent] = useState("");
-  const [description, setDescription] = useState("");
+export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups, material = null }: MaterialModalProps) {
+  // the dialog shows the first web link; any further links (a material made through the API can hold several) are kept as they are
+  const existingLinks = attachmentLinks(material?.attachments);
+  const [title, setTitle] = useState(material?.title ?? "");
+  const [subjectId, setSubjectId] = useState(material?.subject.id ?? subjects[0]?.id ?? "");
+  const [classGroupId, setClassGroupId] = useState(material?.classGroup?.id ?? "");
+  const [materialType, setMaterialType] = useState<MaterialType>(material?.materialType ?? "DOCUMENT");
+  const [url, setUrl] = useState(existingLinks[0]?.url ?? "");
+  const [content, setContent] = useState(material?.content ?? "");
+  const [description, setDescription] = useState(material?.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const titleId = useId();
+  const typeId = useId();
   const subjectFieldId = useId();
   const classGroupFieldId = useId();
   const urlId = useId();
   const contentId = useId();
   const descriptionId = useId();
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const editing = material !== null;
+  const isDraft = material === null || material.status === "DRAFT";
+
+  /// `status` is what the row becomes: a new material is published or kept as a draft; an edit keeps the status unless a draft is published.
+  const save = async (status: "DRAFT" | "PUBLISHED" | null) => {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch("/api/v1/lms/materials", {
-        method: "POST",
+      const res = await fetch(material ? `/api/v1/lms/materials/${material.id}` : "/api/v1/lms/materials", {
+        method: material ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           branchId,
           title,
           subjectId: subjectId || subjects[0]?.id,
           classGroupId: classGroupId || null,
+          materialType,
           // the API keeps a link as an attachment, named after the material
-          attachments: url.trim() ? [{ title, url: url.trim() }] : [],
+          attachments: [...(url.trim() ? [{ title, url: url.trim() }] : []), ...existingLinks.slice(1)],
           content: content || null,
           description: description || null,
+          ...(status ? { status } : {}),
         }),
       });
 
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.error?.message || "Failed to create learning material");
+        throw new Error(body.error?.message || (editing ? "Failed to save the material" : "Failed to create learning material"));
       }
 
       onSuccess();
@@ -63,8 +97,14 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
     }
   };
 
+  // Enter in a field does the primary action: publish a new one or a draft, save the changes of one already out
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    void save(isDraft ? "PUBLISHED" : null);
+  };
+
   return (
-    <Dialog open={isOpen} onClose={onClose} title="Add Learning Material">
+    <Dialog open={isOpen} onClose={onClose} title={editing ? "Edit Learning Material" : "Add Learning Material"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div role="alert" className="p-3 rounded-lg bg-danger-bg border border-danger-line text-danger-fg text-sm">
@@ -127,6 +167,24 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
         </div>
 
         <div>
+          <label htmlFor={typeId} className="block text-sm font-medium text-fg">
+            Type of Resource
+          </label>
+          <select
+            id={typeId}
+            value={materialType}
+            onChange={(e) => setMaterialType(e.target.value as MaterialType)}
+            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {(Object.keys(MATERIAL_TYPE_LABELS) as MaterialType[]).map((key) => (
+              <option key={key} value={key}>
+                {MATERIAL_TYPE_LABELS[key]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label htmlFor={urlId} className="block text-sm font-medium text-fg">
             Resource Link or Document URL
           </label>
@@ -177,12 +235,22 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
           >
             Cancel
           </button>
+          {isDraft && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void save("DRAFT")}
+              className="rounded-lg border border-line-strong bg-field px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
+            >
+              {editing ? "Save Draft" : "Save as Draft"}
+            </button>
+          )}
           <button
             type="submit"
             disabled={loading}
             className="inline-flex justify-center rounded-lg bg-brand-strong px-4 py-2 text-sm font-medium text-white shadow hover:bg-brand-strong-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
           >
-            {loading ? "Publishing..." : "Publish Material"}
+            {isDraft ? (loading ? "Publishing..." : "Publish Material") : loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </form>

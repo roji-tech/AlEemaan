@@ -3,6 +3,20 @@
 import { useState, useId, type FormEvent } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 
+/// An assignment being edited (task 0066). The list mounts the dialog fresh for each open, so the fields start from these values.
+export interface AssignmentToEdit {
+  id: string;
+  title: string;
+  subject: { id: string };
+  classGroup: { id: string } | null;
+  description: string | null;
+  instructions?: string | null;
+  dueDate: string | null;
+  totalPoints: number;
+  allowLate: boolean;
+  status: "DRAFT" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
+}
+
 export interface AssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -10,18 +24,27 @@ export interface AssignmentModalProps {
   branchId: string;
   subjects: { id: string; name: string }[];
   classGroups: { id: string; name: string }[];
+  assignment?: AssignmentToEdit | null;
 }
 
-export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups }: AssignmentModalProps) {
-  const [title, setTitle] = useState("");
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
-  const [classGroupId, setClassGroupId] = useState("");
-  const [description, setDescription] = useState("");
-  const [instructions, setInstructions] = useState("");
-  const [dueDate, setDueDate] = useState("");
+/// The value of a datetime-local field (local time, to the minute) for a stored instant.
+const toLocalInput = (iso: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects, classGroups, assignment = null }: AssignmentModalProps) {
+  const [title, setTitle] = useState(assignment?.title ?? "");
+  const [subjectId, setSubjectId] = useState(assignment?.subject.id ?? subjects[0]?.id ?? "");
+  const [classGroupId, setClassGroupId] = useState(assignment?.classGroup?.id ?? "");
+  const [description, setDescription] = useState(assignment?.description ?? "");
+  const [instructions, setInstructions] = useState(assignment?.instructions ?? "");
+  const [dueDate, setDueDate] = useState(toLocalInput(assignment?.dueDate ?? null));
   // kept as typed (a text value of the number field), so that clearing it and typing 20 shows 20: a number state turned an empty field into 0 at once and made "020" (task 0064)
-  const [totalPoints, setTotalPoints] = useState("100");
-  const [allowLate, setAllowLate] = useState(true);
+  const [totalPoints, setTotalPoints] = useState(String(assignment?.totalPoints ?? 100));
+  const [allowLate, setAllowLate] = useState(assignment?.allowLate ?? true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,14 +57,17 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
   const totalPointsId = useId();
   const allowLateId = useId();
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const editing = assignment !== null;
+  const isDraft = assignment === null || assignment.status === "DRAFT";
+
+  /// `status` is what the row becomes: a new assignment is published or kept as a draft; an edit keeps the status unless a draft is published.
+  const save = async (status: "DRAFT" | "PUBLISHED" | null) => {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch("/api/v1/lms/assignments", {
-        method: "POST",
+      const res = await fetch(assignment ? `/api/v1/lms/assignments/${assignment.id}` : "/api/v1/lms/assignments", {
+        method: assignment ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           branchId,
@@ -53,13 +79,13 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
           dueDate: dueDate ? new Date(dueDate).toISOString() : null,
           totalPoints: Number(totalPoints),
           allowLate,
-          status: "PUBLISHED",
+          ...(status ? { status } : {}),
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error?.message || "Failed to create assignment");
+        throw new Error(data.error?.message || (editing ? "Failed to save the assignment" : "Failed to create assignment"));
       }
 
       onSuccess();
@@ -71,8 +97,14 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
     }
   };
 
+  // Enter in a field does the primary action: publish a new one or a draft, save the changes of one already out
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    void save(isDraft ? "PUBLISHED" : null);
+  };
+
   return (
-    <Dialog open={isOpen} onClose={onClose} title="Create Coursework Assignment">
+    <Dialog open={isOpen} onClose={onClose} title={editing ? "Edit Coursework Assignment" : "Create Coursework Assignment"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div role="alert" className="rounded-md border border-line bg-surface-muted p-3 text-sm text-fg-muted">
@@ -213,12 +245,22 @@ export function AssignmentModal({ isOpen, onClose, onSuccess, branchId, subjects
           >
             Cancel
           </button>
+          {isDraft && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void save("DRAFT")}
+              className="min-h-11 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-fg hover:bg-surface-hover disabled:opacity-50"
+            >
+              {editing ? "Save Draft" : "Save as Draft"}
+            </button>
+          )}
           <button
             type="submit"
             disabled={loading}
             className="min-h-11 rounded-md bg-brand-strong px-4 py-2 text-sm font-semibold text-white hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
           >
-            {loading ? "Publishing..." : "Publish Assignment"}
+            {isDraft ? (loading ? "Publishing..." : "Publish Assignment") : loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </form>
