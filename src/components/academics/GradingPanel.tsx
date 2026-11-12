@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
@@ -94,9 +95,12 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
 
       <section aria-labelledby="schemes-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="schemes-heading" className="text-lg font-semibold tracking-tight text-fg">
-            Assessment schemes
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 id="schemes-heading" className="text-lg font-semibold tracking-tight text-fg">
+              Assessment schemes
+            </h2>
+            <InfoTip tip="academics.schemes" />
+          </div>
           {branch.canEdit && <Button onClick={() => setEditing({ kind: "scheme", item: null })}>New scheme</Button>}
         </div>
         <p className="mt-1 text-sm text-fg-muted">
@@ -157,9 +161,12 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
 
       <section aria-labelledby="scales-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="scales-heading" className="text-lg font-semibold tracking-tight text-fg">
-            Grade scales
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 id="scales-heading" className="text-lg font-semibold tracking-tight text-fg">
+              Grade scales
+            </h2>
+            <InfoTip tip="academics.scales" />
+          </div>
           {branch.canEdit && <Button onClick={() => setEditing({ kind: "scale", item: null })}>New grade scale</Button>}
         </div>
         <p className="mt-1 text-sm text-fg-muted">How a score becomes a letter. The branch uses its default scale.</p>
@@ -362,6 +369,7 @@ function SchemeDialog({
           {!item && (
             <SelectField
               label="Applies to"
+              info="scheme.applies"
               value={classGroupId}
               onChange={(e) => setClassGroupId(e.target.value)}
               options={[{ value: "", label: "Branch default (every class)" }, ...classes.map((c) => ({ value: c.id, label: c.name }))]}

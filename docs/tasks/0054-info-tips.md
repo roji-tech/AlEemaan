@@ -1,0 +1,89 @@
+# 0054: Info icons: a short explanation of an item or a section, on hover, in the same way everywhere
+
+- **Period / Focus:** 2026-11-12 (the maintainer: "in both apps, I want to add the info icon to many places such that when hovered on, it displays information for the user to understand that item or section of the App, but make sure the info icon does not disfigure the design")
+- **Status:** First placements built; PR into `dev` (later modules are their own PRs, P4)
+- **Priority:** Medium
+- **Assignee:** Claude
+- **Target Branch / PR:** `claude/info-tips` / PR into `dev`
+- **Started:** 2026-11-12
+
+> **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.
+
+---
+
+## 1. Objective
+
+A person who does not know what a field, a group of buttons, a status or a section of a page means can point at a small "i" beside it and read a short, plain explanation. The icon changes nothing else: no layout shift, no change to what a screen reader or a test calls the thing it sits beside, no new colours, no clutter where a sentence is already printed.
+
+## 2. Context
+
+- Octalve Edu gets the same component and the same rules (task 0055 there), so the two products look and behave alike.
+- What exists: `TextField`, `SelectField`, `CheckboxField` and `TextAreaField` take a `hint` (a permanent line under the field). `PageHeader` has a title, a one-line description and an actions slot. `icons.tsx` has an `InfoIcon` (a circle with an "i"), used by `Alert`. The info icon is for what a permanent line would clutter; it does not replace a hint that is already there.
+- **Most of this app already explains itself in print.** Every page header has a description, and most section headings have a line under them ("How a mark is built: continuous-assessment parts plus the exam. A scheme for one class wins over the branch default."). A tip that repeats that line is clutter. So the tips below carry what the printed line does NOT: a number on a card whose meaning is not said, a rule that only shows up as an error later, who may do what, what a status means.
+- **Everything that finds a thing on screen finds it by its accessible name**: the end-to-end tests, the axe scans and the walkthrough (task 0033) all say `getByRole("heading", { name: "Academics" })`, `getByLabel("Exam marks")`, `getByRole("button", { name: "Save" })`. An icon placed INSIDE a heading, a label or a button would become part of that name. So the placement rule below is not a style choice: it is what keeps hundreds of existing locators working.
+
+## 3. Decisions (mine; the maintainer may correct)
+
+- **D1. One component, `InfoTip`** (`src/components/ui/InfoTip.tsx`). Props: `tip` (a key into the registry, D2) and `className`. It carries `data-info-tip="<key>"` so a test can find it.
+- **D2. The words live in one registry**, `src/components/ui/info-tips.ts`: a typed object from a key to one or two short sentences. One place to read, correct and translate; a unit test over it (20 to 200 characters, starts with a capital and ends with a full stop, at most two sentences, no two keys say the same thing, no instruction or promise or jargon, no key unused and no screen naming a key that does not exist). A call site cannot invent text. (I first wrote "one sentence"; two short ones are sometimes the honest length, so the rule is "one or two".)
+- **D3. Placement rule: the icon is always a SIBLING of what it explains, never inside it.** Next to a label (not in it), next to a heading (not in it), next to a select (not in its label), never inside a `th`, a heading or another button. Accessible names, and so every existing test and walkthrough locator, are unchanged.
+- **D3b. The icon's own name is the fixed "More information", not "More about: <topic>".** Found while writing the browser spec: Playwright matches names by SUBSTRING, so a button named "More about: Show" would also match `getByLabel("Show")`, one named "More about: Subjects" would match `getByRole("button", { name: "Subjects" })`, and the walkthrough's locators would break the same way (strict-mode violations). A fixed name cannot collide with any topic. The cost is that a screen-reader user's list of buttons shows the same name several times; in reading order the icon follows the thing it explains, so its meaning is clear in place. A test finds an icon by its `data-info-tip` key.
+- **D4. Behaviour.** Opens on pointer hover (after 150 ms, and it stays open while the pointer moves onto the popover), on keyboard focus, and on click or tap (a toggle: a phone has no hover; a finger is told apart from a mouse by `pointerType`). Closes on Escape, on a click elsewhere, on blur, and 120 ms after the pointer leaves. One open at a time. The trigger is a real `<button type="button">` (reachable by Tab); the popover has `role="tooltip"` and the trigger points at it with `aria-describedby` while it is open. Closing never moves focus.
+- **D4b. Escape works wherever the focus is, and a dialog stays open for that press.** WCAG 1.4.13 asks that hover content can be dismissed without moving the pointer or the focus, and a tip opened by the mouse has no focus inside it. So while one is open the page listens for Escape in the capture phase, closes the tip, and cancels the key: the app's `Dialog` is a native `<dialog>`, which closes on an Escape nobody cancelled, so inside a dialog the first Escape closes the tip and the second closes the dialog.
+- **D5. No layout shift, and a hit area a finger can use.** The icon is a fixed 16px, inline, `align-middle`, `shrink-0`. The 44px touch target the rest of the app uses is made by an invisible extension (a pseudo-element with a negative inset), not by padding, so the row does not grow. The popover is `position: absolute` (it takes no space) and is placed below the icon, or above when that does not fit, centred and kept inside the window (measured when it opens), `max-w-64`, never wider than the screen on a phone.
+- **D6. Look.** The icon is `text-fg-muted`, `text-fg` on hover or focus, with the app's focus ring; the popover is `bg-surface`, `border border-line`, `shadow-lg`, `rounded-xl`, `text-xs text-fg-2`. Design tokens only, so light, dark and the axe colour-contrast rule hold. No animation.
+- **D7. Print and PDF.** `print:hidden`. Nothing here appears on a report card, an invoice or a printed page.
+- **D8. An `info` prop is added to a shared component only when its first screen uses it** (no unused code). `SelectField` has it now (the Students filter and the scheme dialog). `TextField`, `TextAreaField`, `CheckboxField` and `PageHeader` do not yet: no first placement needed them (`PageHeader` already prints a description on every page; a field whose label wraps its checkbox, `CheckboxField`, needs its own design). Where a heading is not shared, the tip is placed next to it in a small flex row by hand.
+- **D9. Copy rules.** Plain words, starting with what the thing IS or DOES. No jargon, no promise, no instruction that is already on the button, nothing that is only sometimes true, and nothing a printed line already says. **Every sentence is checked against what the screen really does (by reading its source)**, and the PR lists them all, each with the source it was checked against.
+- **D10. Not everywhere.** A tip goes where a first-time user would stop and wonder: a term of the school's own (arm, scheme), a number whose meaning is not obvious, a rule, a status. Not on a button called "Save", not on a field called "First name", and not under a heading that already prints the answer.
+- **D11. English only.** The app has no translation layer; the registry is where one would start.
+- **D12. A user setting to hide them is not built.** Said so, not silently skipped; it is cheap to add if it is asked for.
+- **D13. A tip is not shipped over a defect.** Two tips I meant to place were NOT placed because reading the code showed the screen does not do what the tip would have said (section 5). They go in after the defects are fixed.
+
+## 4. Work breakdown
+
+- [x] Design (this file).
+- [x] P1: `InfoTip` and the registry, with a unit spec (the registry rules) and a browser spec on the real pages: hover, focus, tap on a phone, Escape, click outside, one at a time, no layout shift (the neighbour's box is identical before and after), the popover inside the window, Escape inside a dialog, axe in light and dark with a tip open.
+- [x] P2: the `info` prop on `SelectField` (D8).
+- [x] P3: the first placements: nine, listed in section 6 with the source each was checked against.
+- [ ] P4, later and module by module, in their own PRs: Settings and Approvals (switches with consequences), Timetable, Announcements, Coursework, Results, Finance, Question bank, Forms, Programs, Users, Branches, the portal, the account and sign-in screens; and the two Communication tips of section 5 once their defects are fixed.
+- [ ] P5: the walkthrough shows one (a step that hovers an icon on a page, with new matrix rows), and the final video is made after this ships so that it shows them.
+- [x] Docs: this file, the component catalogue (`docs/components/shared.md`), the tracker.
+
+## 5. Findings while checking the words against the code (not fixed here; their own task)
+
+Reading `src/lib/communication/service.ts` and `templates.ts` to write the Communication tips showed two defects in the Broadcast Composer. Neither is changed by this task.
+
+1. **Four of the five "Insert Personalization Tags" do nothing.** The composer offers `{{student_name}}`, `{{class_arm}}`, `{{school_name}}`, `{{date}}` and `{{due_date}}`. `broadcastMessage` merges only `student_name` (and only when the audience is guardians); the composer never sends `variables`, and `interpolateTokens` leaves an unknown token as written. A guardian receives the text `{{class_arm}}` as it stands.
+2. **SMS and WhatsApp to staff or pupils are addressed to an email address.** For the Staff and Students audiences the recipient address is `membership.user.email` whatever the channel is; only the guardian audience picks the phone number for SMS and WhatsApp. With no provider key the sender now fails closed (task 0053), so the visible result is a failed dispatch; with a key the provider would be given an email address as a phone number.
+
+So the tips `communication.channel` and `communication.tags` were not written (D13). Both defects are fixed in their own task, next (in its own PR, so this one stays about the icons), and the two tips follow it.
+
+## 6. What was placed (nine tips), and what each was checked against
+
+Each sentence was read against the source of the screen it sits on. The words are in `src/components/ui/info-tips.ts`.
+
+| Key | Where | Checked against |
+| --- | --- | --- |
+| `academics.classes` | Beside the "Classes and arms" heading (Academics, Classes and subjects tab) | `ClassesPanel.tsx` prints an arm as `A · cap 40 · 12`; the last number is `_count.enrollments` of the arm (`lib/academics/structure.ts` `listClassGroups`), counted over ALL its enrolments, so the tip says "enrolments", not "pupils now" |
+| `academics.subjects` | Beside the "Subjects" heading (same tab) | each class has a "Subjects" button that opens the dialog "Subjects of <class>" (`ClassesPanel.tsx`) |
+| `academics.schemes` | Beside "Assessment schemes" (Assessment and grading tab) | `lib/academics/assessment.ts` refuses a second default ("This branch already has a default scheme.") and a second for a class ("That class already has a scheme."); `GradingPanel.tsx` has `total = 100` |
+| `academics.scales` | Beside "Grade scales" | the scale dialog says "Results already use this scale, so it can't change. Saving makes a new version."; `lib/academics/assessment.ts` refuses an edit of a locked scale (line 351) and a new version is a new row with `supersedesId` pointing at the old one, which is kept ("Nothing is deleted", line 10) |
+| `scheme.applies` | `SelectField` "Applies to" in the new-scheme dialog | its options are "Branch default (every class)" and the branch's classes |
+| `students.show` | `SelectField` "Show" on Students | options Current / Suspended / Expelled / Archived; the row button says "Restore" for an archived pupil (`StudentsPanel.tsx`) |
+| `attendance.window` | Beside the "Date" label (Attendance) | `lib/attendance/rules.ts` `canEditAttendance`: an administrator may edit any past day, staff within `TEACHER_EDIT_WINDOW_DAYS = 7`, a future day nobody; the screen's own notice says the same |
+| `communication.status` | Beside the "Filter by status" select (Message Logs) | `DispatchLogsView.tsx`: "View" opens "Dispatch Details" with the error message; "Retry" shows on a FAILED row |
+
+Not placed on purpose: a tip on a page header (every header already prints a description); the timetable clash (the form already prints "Schedule Conflict Detected" with the reason); `communication.channel` and `communication.tags` (section 5).
+
+## 7. Build record and tests
+
+**Static gates (on `claude/info-tips`, in the order tsc, lint, build, tests):** `tsc --noEmit` clean; eslint 0 errors and 0 warnings on every changed or new file; Prettier `--check` clean on the changed files; `pnpm build` succeeded (twice: after the first version and after the placement fix below).
+
+**Tests (one lane, AlEemaan's fixed ports): the final run passed 72, failed 0, skipped 4, in 3.6 minutes.** The 4 skipped are tests that belong to one device only (the phone test on the desktop project and the three mouse and keyboard tests on the phone project). What ran: the new unit spec (5 tests: the registry rules), the new browser spec `tests/e2e/info-tips.spec.ts` on the desktop project and the phone project, and, as the proof that no accessible name changed, the EXISTING specs of every page touched: `academics-structure`, `academics-grading-staff`, `students-screen`, `attendance-permissions`, `communication-a11y`, `communication-broadcast-result`, unchanged and all passing.
+
+**The new browser spec covers:** each of the seven on-page icons (and the dialog one): beside and not inside a heading, label, column head or button; named "More information"; 16 px; its popover says exactly the registry's words, is wired with `aria-expanded` and `aria-describedby`, stays inside the window, **and the neighbouring control's box is identical before and after it opens and the page is no wider**. Then: hover opens and leaving closes (and it stays open on the way onto the popover), the keyboard reaches it and Escape closes it with the focus where it was, a click elsewhere closes it, Escape closes one that the mouse opened, one at a time, a phone's tap toggles it and a tap elsewhere closes it, inside a dialog Escape closes the tip first and the dialog the next time, and axe (WCAG 2.2 A and AA) finds nothing with a tip open in the dark and the light theme.
+
+**What the first run found, and what was done.** The first run was 71 passed, 1 failed: on the phone project, the `communication.status` icon (the one near the right edge) put its popover 29 px past the right edge of the screen. Read on its own, with the screenshot and a diagnostic of the viewport numbers (the window was 412 px everywhere and the page had no overflow of its own), the cause was mine: the invisible measuring pass placed the popover at the icon's left edge, which beside a phone's right edge briefly pushed it past the edge of the page, and a phone then widens the page to fit it; the clamp read the widened window, clamped to the wrong edge, and the page stayed wider (the floating tools button was cut off in the screenshot). Fixed by measuring at the window's corner with `position: fixed` (adds nothing to the page's width) and clamping against the document's client box. The spec now also asserts that opening a tip leaves the page's scroll width unchanged. The failing run is the regression proof for it: that assertion and the in-window check failed on the old placement and pass on the new. I did not run the old placement against the new "page is no wider" assertion separately.
+
+**Not run, and not claimed.** The whole suite (only the specs listed above ran); the API project; mutation passes (deferred to the end of PHASE 2, the maintainer's call); a real phone or a real screen reader (the icon's fixed name "More information" is a trade-off, D3b, that a screen-reader user should be asked about); another browser than Chromium; the print path (`print:hidden` is a class, not tested); and the production site.

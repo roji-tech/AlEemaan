@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
@@ -91,9 +92,12 @@ export function ClassesPanel({ branches }: { branches: BranchChoice[] }) {
 
       <section aria-labelledby="classes-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="classes-heading" className="text-lg font-semibold tracking-tight text-fg">
-            Classes and arms
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 id="classes-heading" className="text-lg font-semibold tracking-tight text-fg">
+              Classes and arms
+            </h2>
+            <InfoTip tip="academics.classes" />
+          </div>
           {branch.canEdit && <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>}
         </div>
         {unmatched > 0 && (
@@ -175,9 +179,12 @@ export function ClassesPanel({ branches }: { branches: BranchChoice[] }) {
 
       <section aria-labelledby="subjects-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="subjects-heading" className="text-lg font-semibold tracking-tight text-fg">
-            Subjects
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 id="subjects-heading" className="text-lg font-semibold tracking-tight text-fg">
+              Subjects
+            </h2>
+            <InfoTip tip="academics.subjects" />
+          </div>
           {branch.canEdit && <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>}
         </div>
         {subjects === null ? (

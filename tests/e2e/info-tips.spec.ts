@@ -1,0 +1,248 @@
+import AxeBuilder from "@axe-core/playwright";
+import type { Locator, Page } from "@playwright/test";
+import { test, expect } from "../support/fixtures";
+import { Role, createUser, seedInstance } from "../support/db";
+import { signInThroughUi } from "./helpers";
+import { INFO_TIPS, type InfoTipKey } from "@/components/ui/info-tips";
+
+// The info icons (task 0054) in a real browser, on the real pages. What is held here: each icon sits BESIDE what it explains (never inside it), explains it in the registry's words,
+// is 16px, moves nothing around it when it opens, and keeps its popover inside the window (a phone included); it opens on hover and on keyboard focus (desktop) or on a tap (phone);
+// it closes on Escape (wherever the focus is), on a click elsewhere and when another opens; inside a dialog Escape closes the tip first; axe finds nothing with one open, in both themes.
+// That the NAMES of the headings, labels and buttons beside an icon are unchanged is held by every other spec of the app, which finds them by those names and still passes.
+
+const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
+test.beforeAll(async () => {
+  await seedInstance();
+});
+
+const tipButton = (page: Page, key: InfoTipKey) => page.locator(`[data-info-tip="${key}"]`);
+const tooltip = (page: Page) => page.getByRole("tooltip");
+
+async function academics(page: Page, tab: string) {
+  await page.goto("/academics");
+  await expect(page.getByRole("heading", { level: 1, name: "Academics" })).toBeVisible();
+  await page.getByRole("tab", { name: tab }).click();
+}
+
+type Place = { key: InfoTipKey; go: (page: Page) => Promise<void>; neighbour: (page: Page) => Locator };
+const PLACES: Place[] = [
+  {
+    key: "academics.classes",
+    go: (page) => academics(page, "Classes and subjects"),
+    neighbour: (page) => page.getByRole("button", { name: "New class" }),
+  },
+  {
+    key: "academics.subjects",
+    go: (page) => academics(page, "Classes and subjects"),
+    neighbour: (page) => page.getByRole("button", { name: "New subject" }),
+  },
+  {
+    key: "academics.schemes",
+    go: (page) => academics(page, "Assessment and grading"),
+    neighbour: (page) => page.getByRole("button", { name: "New scheme" }),
+  },
+  {
+    key: "academics.scales",
+    go: (page) => academics(page, "Assessment and grading"),
+    neighbour: (page) => page.getByRole("button", { name: "New grade scale" }),
+  },
+  {
+    key: "students.show",
+    go: async (page) => {
+      await page.goto("/students");
+      await expect(page.getByRole("heading", { level: 1, name: "Students" })).toBeVisible();
+    },
+    neighbour: (page) => page.getByLabel("Show", { exact: true }),
+  },
+  {
+    key: "attendance.window",
+    go: async (page) => {
+      await page.goto("/attendance");
+      await expect(page.getByRole("heading", { level: 1, name: "Attendance" })).toBeVisible();
+    },
+    neighbour: (page) => page.locator("#attendance-date"),
+  },
+  {
+    key: "communication.status",
+    go: async (page) => {
+      await page.goto("/communication");
+      await page.getByRole("tab", { name: "Message Logs & Dispatches" }).click();
+    },
+    neighbour: (page) => page.getByLabel("Filter by status"),
+  },
+];
+
+async function signedInAdmin(page: Page) {
+  const user = await createUser({ role: Role.ADMIN });
+  await signInThroughUi(page, user);
+}
+
+/// How a person opens one: a mouse points at it (after the short delay), a finger taps it.
+async function openIt(page: Page, icon: Locator, isMobile: boolean) {
+  if (isMobile) await icon.tap();
+  else await icon.hover();
+  await expect(tooltip(page)).toBeVisible();
+}
+
+async function box(locator: Locator) {
+  const b = await locator.boundingBox();
+  expect(b, "the element has a box").not.toBeNull();
+  return b!;
+}
+
+for (const place of PLACES) {
+  test(`the icon for ${place.key} sits beside what it explains, says what the registry says, and moves nothing`, async ({
+    page,
+    isMobile,
+  }) => {
+    await signedInAdmin(page);
+    await place.go(page);
+    const icon = tipButton(page, place.key);
+    await expect(icon).toHaveCount(1);
+    await expect(icon).toBeVisible();
+    await expect(icon).toHaveAccessibleName("More information");
+
+    // beside, never inside, a heading, a label, a column heading or another button
+    await expect(
+      icon.locator("xpath=ancestor::*[self::h1 or self::h2 or self::h3 or self::label or self::th or self::button][1]"),
+    ).toHaveCount(0);
+
+    // 16 px, with the invisible 44 px touch target around it (a pseudo-element: no box of its own to measure, so what is measured is the row it sits in)
+    const size = await box(icon);
+    expect(Math.round(size.width)).toBe(16);
+    expect(Math.round(size.height)).toBe(16);
+
+    const before = await box(place.neighbour(page));
+    // opening one must not make the page wider either (a phone widens the page to fit anything that sticks out, and the next clamp then reads the wrong edge)
+    const scrollWidth = () => page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+    const widthBefore = await scrollWidth();
+    await openIt(page, icon, isMobile);
+    expect(await scrollWidth(), "the page is no wider with the tip open").toEqual(widthBefore);
+    await expect(tooltip(page)).toHaveText(INFO_TIPS[place.key]);
+    await expect(icon).toHaveAttribute("aria-expanded", "true");
+    const tipId = await tooltip(page).getAttribute("id");
+    await expect(icon).toHaveAttribute("aria-describedby", tipId!);
+
+    // the popover is inside the window, and nothing near it moved
+    const view = page.viewportSize()!;
+    const pop = await box(tooltip(page));
+    expect(pop.x).toBeGreaterThanOrEqual(0);
+    expect(pop.y).toBeGreaterThanOrEqual(0);
+    expect(pop.x + pop.width).toBeLessThanOrEqual(view.width);
+    expect(pop.y + pop.height).toBeLessThanOrEqual(view.height);
+    const after = await box(place.neighbour(page));
+    expect(after).toEqual(before);
+
+    await page.keyboard.press("Escape");
+    await expect(tooltip(page)).toHaveCount(0);
+    await expect(icon).toHaveAttribute("aria-expanded", "false");
+  });
+}
+
+test("desktop: it opens when the mouse points at it and closes when the mouse leaves", async ({ page, isMobile }) => {
+  test.skip(isMobile, "a phone has no hover");
+  await signedInAdmin(page);
+  await academics(page, "Classes and subjects");
+  const icon = tipButton(page, "academics.classes");
+  await expect(tooltip(page)).toHaveCount(0);
+  await icon.hover();
+  await expect(tooltip(page)).toBeVisible();
+  // it stays open while the mouse moves from the icon onto the explanation
+  await tooltip(page).hover();
+  await expect(tooltip(page)).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(tooltip(page)).toHaveCount(0);
+});
+
+test("desktop: it opens when the keyboard reaches it, Escape closes it with the focus where it was, and a click elsewhere closes it too", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "the keyboard path is the desktop one");
+  await signedInAdmin(page);
+  await academics(page, "Classes and subjects");
+  const icon = tipButton(page, "academics.classes");
+  for (let i = 0; i < 80; i += 1) {
+    await page.keyboard.press("Tab");
+    if (await icon.evaluate((el) => el === document.activeElement)) break;
+  }
+  await expect(icon).toBeFocused();
+  await expect(tooltip(page)).toBeVisible();
+  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.classes"]);
+  await page.keyboard.press("Escape");
+  await expect(tooltip(page)).toHaveCount(0);
+  await expect(icon).toBeFocused();
+
+  // Enter or Space on the icon opens it again; a click on the page closes it
+  await page.keyboard.press("Enter");
+  await expect(tooltip(page)).toBeVisible();
+  await page.getByRole("heading", { level: 1, name: "Academics" }).click();
+  await expect(tooltip(page)).toHaveCount(0);
+});
+
+test("desktop: Escape closes a tip that was opened by the mouse, with the mouse still on it", async ({ page, isMobile }) => {
+  test.skip(isMobile, "a phone has no hover");
+  await signedInAdmin(page);
+  await academics(page, "Classes and subjects");
+  await tipButton(page, "academics.subjects").hover();
+  await expect(tooltip(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(tooltip(page)).toHaveCount(0);
+});
+
+test("only one is open at a time", async ({ page, isMobile }) => {
+  await signedInAdmin(page);
+  await academics(page, "Classes and subjects");
+  await openIt(page, tipButton(page, "academics.classes"), isMobile);
+  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.classes"]);
+  await openIt(page, tipButton(page, "academics.subjects"), isMobile);
+  await expect(tooltip(page)).toHaveCount(1);
+  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.subjects"]);
+});
+
+test("phone: a tap opens it, a second tap closes it, and a tap elsewhere closes it", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "a tap is the phone path");
+  await signedInAdmin(page);
+  await academics(page, "Classes and subjects");
+  const icon = tipButton(page, "academics.classes");
+  await icon.tap();
+  await expect(tooltip(page)).toBeVisible();
+  await icon.tap();
+  await expect(tooltip(page)).toHaveCount(0);
+  await icon.tap();
+  await expect(tooltip(page)).toBeVisible();
+  await page.getByRole("heading", { level: 1, name: "Academics" }).tap();
+  await expect(tooltip(page)).toHaveCount(0);
+});
+
+test("in a dialog, Escape closes the tip first and the dialog only the next time", async ({ page, isMobile }) => {
+  await signedInAdmin(page);
+  await academics(page, "Assessment and grading");
+  await page.getByRole("button", { name: "New scheme" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const icon = tipButton(page, "scheme.applies");
+  await expect(icon).toBeVisible();
+  await openIt(page, icon, isMobile);
+  await expect(tooltip(page)).toHaveText(INFO_TIPS["scheme.applies"]);
+  await page.keyboard.press("Escape");
+  await expect(tooltip(page)).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
+for (const theme of ["dark", "light"] as const) {
+  test(`axe finds nothing on a page with a tip open (${theme} theme)`, async ({ page, baseURL, isMobile }) => {
+    if (theme === "light") await page.context().addCookies([{ name: "theme", value: "light", url: baseURL! }]);
+    await signedInAdmin(page);
+    await academics(page, "Classes and subjects");
+    await openIt(page, tipButton(page, "academics.classes"), isMobile);
+    const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+    expect(
+      results.violations.map((v) => `${v.id} [${v.impact}] ${v.help}`),
+      `accessibility violations with a tip open (${theme})`,
+    ).toEqual([]);
+  });
+}
