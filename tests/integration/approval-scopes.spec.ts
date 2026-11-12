@@ -1,6 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { Permission, Role } from "@prisma/client";
 import { createUser, db, resetDatabase, seedInstance } from "../support/db";
 
@@ -30,17 +28,6 @@ const rejects = async (p: Promise<unknown>, message?: RegExp) => {
 };
 const section = (name = "Junior", branchId = home.id) => db.section.create({ data: { branchId, name } });
 const group = (branchId = home.id, name = `JSS ${Math.random()}`) => db.classGroup.create({ data: { branchId, name } });
-
-test("the migration is additive: tables, a type and a nullable column, and nothing else is touched", () => {
-  const sql = readFileSync(join(process.cwd(), "prisma", "migrations", "20261025120000_results_approval_scopes", "migration.sql"), "utf8");
-  const statements = sql
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
-    .join("\n");
-  expect(statements).not.toMatch(/\bDROP\b|\bDELETE\s+FROM\b|\bUPDATE\s+"|\bTRUNCATE\b/i);
-  expect(statements).not.toMatch(/INSERT INTO/i); // nobody gets a scope from the migration
-  expect(statements).toMatch(/ADD COLUMN\s+"sectionId" TEXT;/); // nullable
-});
 
 test.describe("sections", () => {
   test("a name is required, at most 80 characters, and a live name is unique in its branch whatever the case", async () => {

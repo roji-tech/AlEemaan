@@ -332,3 +332,13 @@
 - [x] `/` and `/ar` decide through one function, `leaveUnlessVisitor()`: signed in to `/dashboard`, set-up not finished to `/setup`, anyone else sees the page
 - [x] Tests: unit `landing-ar-copy` (new, 11), API `landing-router` extended (14), browser `landing-ar-screens` (new, 15, desktop and phone: direction, mirroring measured with boxes, the font loaded from this site, both links, keyboard, Axe and overflow in both themes at 320 px and with larger text, no script, signed in); mutation check of 12 changes, each run alone and each caught by tests of its own; regression: 2,412 passed, 0 failed (unit and API); 141 passed, 6 skipped by design, 0 failed (six browser specs)
 - [ ] Open for the maintainer: a reader of Arabic must go through every line before the page is public (the Arabic is AI-translated; the note at the top of `landing-ar.ts`); sign-in and everything after it stay English; no `hreflang` links in the head (they need `metadataBase`)
+
+## TASK-0051: The whole migration history becomes one baseline
+
+[Task file](0051-squash-migration-history.md). Asked by the maintainer on 2026-11-11 ("squash both"); built on `claude/aleemaan-squash-all`, for `dev` only. 52 migrations become one; no schema change.
+
+- [x] `20260928081559_baseline` is the final schema (`pg_dump --schema-only`, edited: psql-only lines and session settings removed, control characters written as escapes); the 52 folders are removed
+- [x] Same schema, compared as bytes: 8,521 of 8,528 lines identical, 7 CHECK lines differ only in AND bracketing, nothing else; a control differs; a reload is a fixed point
+- [x] A fresh test database migrated by `migrate deploy`: unit, integration and API 2,736 passed, 0 failed; five browser specs (desktop and phone) 111 passed, 0 failed
+- [x] Six integration specs read migration files by name: 9 tests about file content or legacy backfill removed, 1 ported to the catalog (mutation-checked 2 of 2)
+- [ ] Open for the maintainer: HANDOVER section 3 and Vercel say a live remote database exists (26 old migrations applied as of 2026-10-29): reset it or adopt the baseline (`migrate resolve --applied`, not tried) before the next `migrate deploy`; promoting this to `master` is your call (the build does not run migrations)

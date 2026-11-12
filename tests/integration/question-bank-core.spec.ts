@@ -1,6 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { STORE_NAMES } from "@/lib/storage/types";
 
@@ -45,31 +43,15 @@ const image = (itemId: string, over: Record<string, unknown> = {}) =>
 const inFuture = (ms = 3_600_000) => new Date(Date.now() + ms);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test.describe("the migration is additive", () => {
-  const sql = readFileSync(join(process.cwd(), "prisma", "migrations", "20261026090000_question_bank_core", "migration.sql"), "utf8");
-  const statements = sql
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
-    .join("\n");
-
-  test("it creates one table, and everything else it touches is a question bank table", () => {
-    expect(statements.match(/^CREATE TABLE /gm)).toHaveLength(1);
-    const touched = [
-      ...statements.matchAll(
-        /^(?:ALTER TABLE|CREATE (?:UNIQUE )?INDEX "[^"]+" ON|CREATE TRIGGER "[^"]+" [A-Z ]+(?: OF [^O]+)? ON)\s+"([^"]+)"/gm,
-      ),
-    ].map((m) => m[1]);
-    expect(touched.length).toBeGreaterThan(8);
-    for (const table of touched) expect(table, table).toMatch(/^QuestionBank/);
-  });
-
-  test("it never drops, updates, deletes or inserts anything", () => {
-    expect(statements).not.toMatch(/^\s*(DROP|DELETE|UPDATE|INSERT|TRUNCATE)\b/im);
-  });
-
-  test("the list of stores in the database check is exactly the list of stores the code knows", () => {
-    const listed = statements.match(/"store" IN \(([^)]*)\)/)?.[1] ?? "";
-    expect([...listed.matchAll(/'([a-z0-9]+)'/g)].map((m) => m[1]).sort()).toEqual([...STORE_NAMES].sort());
+test.describe("the schema as migrated", () => {
+  // This used to read the question-bank-core migration file; the migration history was squashed into one baseline (task 0051), so it now asks the database what it holds.
+  test("the list of stores in the database check is exactly the list of stores the code knows", async () => {
+    const defs = await db.$queryRawUnsafe<{ def: string }[]>(
+      `SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE contype = 'c' AND conrelid::regclass::text ~ 'Question' AND pg_get_constraintdef(oid) ~ '\\mstore\\M'`,
+    );
+    expect(defs.length, "one check names the stores").toBe(1);
+    const listed = [...defs[0].def.matchAll(/'([a-z0-9]+)'::text/g)].map((m) => m[1]);
+    expect([...new Set(listed)].sort()).toEqual([...STORE_NAMES].sort());
   });
 });
 
