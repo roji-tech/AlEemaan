@@ -147,3 +147,19 @@ export const messages = {
     variables: "student_name",
   },
 };
+
+/// The fees of C11, all for the English primary branch's first term (the pupils of C06 are in Primary 1, so each is invoiced for the Primary 1 tuition plus the levy for every class). The
+/// tuition is typed with a slip and a wrong amount, and corrected in the same chapter; a third fee is added only to be deleted. Amounts are typed as digits and read back as the app writes
+/// them (₦, thousands separators, two decimals).
+export const finance = {
+  term: "1st Term (2026/2027)",
+  tuition: { slip: "Tuiton", name: "Tuition", amountTyped: "50000", amountCorrected: "45000", shown: "₦45,000.00" },
+  levy: { name: "Development Levy", amountTyped: "10000", shown: "₦10,000.00" },
+  scrap: { name: "Trial levy", amountTyped: "5000" },
+  // 45,000 + 10,000 for each of the four pupils
+  invoiceTotal: "₦55,000.00",
+  allInvoiced: "₦220,000.00",
+  dueTyped: "12312026",
+  payment: { part: "20000", partShown: "₦20,000.00", balanceAfterPart: "₦35,000.00", ref: "POS-83921", note: "Deposited by Hauwa Bello" },
+  waiver: { amount: "5000", shown: "₦5,000.00", balanceAfter: "₦50,000.00", reason: "Approved by the Principal - hardship" },
+};
