@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { MaterialModal } from "./MaterialModal";
+import { attachmentLinks } from "@/lib/lms/attachments";
 
 interface MaterialItem {
   id: string;
   branchId: string;
   title: string;
   description: string | null;
-  materialType: "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER";
-  url: string | null;
   content: string | null;
-  published: boolean;
+  attachments: unknown;
   subject: { id: string; name: string };
   classGroup: { id: string; name: string } | null;
   createdAt: string;
@@ -87,14 +86,6 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
   });
 
   const canManage = ["ADMIN", "TEACHING_STAFF"].includes(userRole);
-
-  const typeLabels = {
-    DOCUMENT: "Document",
-    VIDEO_LINK: "Video Link",
-    PRESENTATION: "Presentation",
-    NOTES: "Reading Notes",
-    OTHER: "Resource",
-  };
 
   return (
     <div className="space-y-6">
@@ -177,12 +168,7 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
               className="flex flex-col justify-between rounded-xl border border-line bg-surface p-5 shadow-sm hover:shadow transition-shadow"
             >
               <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-brand-fg">{mat.subject.name}</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-fg-muted">
-                    {typeLabels[mat.materialType] || mat.materialType}
-                  </span>
-                </div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-brand-fg">{mat.subject.name}</span>
 
                 <div>
                   <h3 className="font-semibold text-fg text-base line-clamp-1">{mat.title}</h3>
@@ -197,15 +183,20 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
               </div>
 
               <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2">
-                {mat.url ? (
-                  <a
-                    href={mat.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-medium text-brand-fg hover:underline inline-flex items-center gap-1"
-                  >
-                    Open Resource ↗
-                  </a>
+                {attachmentLinks(mat.attachments).length > 0 ? (
+                  <div className="flex flex-col gap-1">
+                    {attachmentLinks(mat.attachments).map((link) => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-brand-fg hover:underline inline-flex items-center gap-1"
+                      >
+                        Open {link.title} ↗
+                      </a>
+                    ))}
+                  </div>
                 ) : (
                   <span className="text-xs text-fg-muted">In-app resource</span>
                 )}

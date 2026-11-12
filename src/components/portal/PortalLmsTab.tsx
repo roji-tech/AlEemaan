@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import type { PortalStudentRecord } from "./PortalLoginCard";
+import { attachmentLinks } from "@/lib/lms/attachments";
 
 interface AssignmentItem {
   id: string;
@@ -412,6 +413,17 @@ export function PortalLmsTab({ lms, student, canSubmit, canQuiz, onChanged }: Po
                   {m.content && (
                     <p className="text-xs text-fg-2 mt-2 line-clamp-3 bg-surface p-2.5 rounded-lg border border-line">{m.content}</p>
                   )}
+                  {attachmentLinks(m.attachments).map((link) => (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block text-xs font-medium text-brand-fg hover:underline"
+                    >
+                      Open {link.title} ↗
+                    </a>
+                  ))}
                 </div>
                 <div className="mt-3 pt-3 border-t border-line text-[11px] text-fg-muted flex items-center justify-between">
                   <span>

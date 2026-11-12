@@ -16,22 +16,18 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
   const [title, setTitle] = useState("");
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
   const [classGroupId, setClassGroupId] = useState("");
-  const [materialType, setMaterialType] = useState<"DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER">("DOCUMENT");
   const [url, setUrl] = useState("");
   const [content, setContent] = useState("");
   const [description, setDescription] = useState("");
-  const [published, setPublished] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const titleId = useId();
   const subjectFieldId = useId();
   const classGroupFieldId = useId();
-  const materialTypeId = useId();
   const urlId = useId();
   const contentId = useId();
   const descriptionId = useId();
-  const publishedId = useId();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,11 +43,10 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
           title,
           subjectId: subjectId || subjects[0]?.id,
           classGroupId: classGroupId || null,
-          materialType,
-          url: url ? url : null,
+          // the API keeps a link as an attachment, named after the material
+          attachments: url.trim() ? [{ title, url: url.trim() }] : [],
           content: content || null,
           description: description || null,
-          published,
         }),
       });
 
@@ -132,24 +127,6 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
         </div>
 
         <div>
-          <label htmlFor={materialTypeId} className="block text-sm font-medium text-fg">
-            Type of Resource
-          </label>
-          <select
-            id={materialTypeId}
-            value={materialType}
-            onChange={(e) => setMaterialType(e.target.value as "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER")}
-            className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-sm text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="DOCUMENT">Document / PDF</option>
-            <option value="VIDEO_LINK">Video Link / Recording</option>
-            <option value="PRESENTATION">Slide Deck / Presentation</option>
-            <option value="NOTES">Reading Notes</option>
-            <option value="OTHER">Other Resource</option>
-          </select>
-        </div>
-
-        <div>
           <label htmlFor={urlId} className="block text-sm font-medium text-fg">
             Resource Link or Document URL
           </label>
@@ -189,19 +166,6 @@ export function MaterialModal({ isOpen, onClose, onSuccess, branchId, subjects, 
             onChange={(e) => setContent(e.target.value)}
             className="mt-1 block w-full rounded-md border border-line-strong bg-field px-3 py-2 text-xs font-mono text-fg shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input
-            id={publishedId}
-            type="checkbox"
-            checked={published}
-            onChange={(e) => setPublished(e.target.checked)}
-            className="h-4 w-4 rounded border-line-strong text-brand-fg focus:ring-ring"
-          />
-          <label htmlFor={publishedId} className="text-sm font-medium text-fg">
-            Publish immediately (visible to students)
-          </label>
         </div>
 
         <div className="flex justify-end gap-3 pt-3 border-t border-line">
