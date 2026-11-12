@@ -45,7 +45,7 @@ A person who does not know what a field, a group of buttons, a status or a secti
 - [x] Design (this file).
 - [x] P1: `InfoTip` and the registry, with a unit spec (the registry rules) and a browser spec on the real pages: hover, focus, tap on a phone, Escape, click outside, one at a time, no layout shift (the neighbour's box is identical before and after), the popover inside the window, Escape inside a dialog, axe in light and dark with a tip open.
 - [x] P2: the `info` prop on `SelectField` (D8).
-- [x] P3: the first placements: nine, listed in section 6 with the source each was checked against.
+- [x] P3: the first placements: eight, listed in section 6 with the source each was checked against.
 - [ ] P4, later and module by module, in their own PRs: Settings and Approvals (switches with consequences), Timetable, Announcements, Coursework, Results, Finance, Question bank, Forms, Programs, Users, Branches, the portal, the account and sign-in screens; and the two Communication tips of section 5 once their defects are fixed.
 - [ ] P5: the walkthrough shows one (a step that hovers an icon on a page, with new matrix rows), and the final video is made after this ships so that it shows them.
 - [x] Docs: this file, the component catalogue (`docs/components/shared.md`), the tracker.
@@ -59,7 +59,7 @@ Reading `src/lib/communication/service.ts` and `templates.ts` to write the Commu
 
 So the tips `communication.channel` and `communication.tags` were not written (D13). Both defects are fixed in their own task, next (in its own PR, so this one stays about the icons), and the two tips follow it.
 
-## 6. What was placed (nine tips), and what each was checked against
+## 6. What was placed (eight tips), and what each was checked against
 
 Each sentence was read against the source of the screen it sits on. The words are in `src/components/ui/info-tips.ts`.
 
