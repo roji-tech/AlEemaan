@@ -855,7 +855,7 @@
   {
     "id": "ACA-04",
     "area": "Academics",
-    "feature": "Staff records: create, edit, search, filter by kind",
+    "feature": "Staff records: create (teaching or non-teaching), edit, search",
     "route": "/academics",
     "roles": [
       "Superadmin",
@@ -1735,14 +1735,14 @@
   {
     "id": "ANN-04",
     "area": "Announcements",
-    "feature": "Archive an announcement",
+    "feature": "Delete an announcement",
     "route": "/announcements",
     "roles": [
       "Branch administrator",
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "Archive; show Archived",
+    "proof": "Edit, then Delete; OK to the browser's 'Are you sure' question; the announcement leaves the feed. There is no Archive button: nothing in the app makes an announcement Archived, so that filter has nothing to show",
     "source": [
       "src/components/announcements/AnnouncementsFeed.tsx",
       "src/components/announcements/AnnouncementComposerModal.tsx",
@@ -1759,7 +1759,7 @@
       "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "The page lists announcements; Post Announcement is absent",
+    "proof": "The page lists the branch-wide announcement and not the one aimed at a class; Post Announcement is absent",
     "source": [
       "src/components/announcements/AnnouncementsFeed.tsx",
       "src/components/announcements/AnnouncementComposerModal.tsx",
@@ -1846,7 +1846,7 @@
       "src/components/communication/BroadcastComposer.tsx"
     ],
     "status": "not-demonstrable",
-    "reason": "Real delivery is out of scope (nothing may leave this machine). The in-app channel and the dev inbox are shown; the others are named in the PDF as not walked"
+    "reason": "Real delivery is out of scope (nothing may leave this machine). A broadcast by Email on the development server is kept in memory and listed as sent, which is what is shown; SMS and WhatsApp are named in the PDF as not walked, and the In-App channel was removed because no screen shows an In-App message (task 0055)"
   },
   {
     "id": "COM-05",

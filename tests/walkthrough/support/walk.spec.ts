@@ -67,6 +67,20 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     await expect(page.locator("#wt-caption")).toHaveText("The network is switched back on.");
   });
 
+  test("walk.acceptNextConfirm presses OK on the question it was told about and Cancel on any other", async ({ page }) => {
+    const walk = new Walk(page, tempDir());
+    await walk.init();
+    const html = "<title>t</title><button id='b' onclick=\"document.title = String(confirm('Delete it?'))\">Go</button>";
+    await walk.goto(`data:text/html,${encodeURIComponent(html)}`);
+    await walk.acceptNextConfirm("Delete it?");
+    await walk.click(page.locator("#b"));
+    await expect(page).toHaveTitle("true");
+    await walk.acceptNextConfirm("Something else?");
+    await walk.click(page.locator("#b"));
+    await expect(page).toHaveTitle("false");
+    await expect(page.locator("#wt-caption")).toHaveText('The browser asks: "Something else?" and OK is pressed.');
+  });
+
   test("a page is loaded once per tab; a second tab has its own first load", async ({ page, context }) => {
     const walk = new Walk(page, tempDir());
     await walk.init();

@@ -45,3 +45,105 @@ export const school = {
     shownDates: "2026-09-07 → 2027-07-16",
   },
 };
+
+/// What the branch administrator sets up in C04: classes with arms, subjects, and two staff records. Three names are typed with a slip on purpose ("Primry 2", "Mathematic") so that the
+/// chapter shows editing a name as well as creating one, and one class and one subject exist only to be archived.
+export const academics = {
+  classes: { first: "Primary 1", slip: "Primry 2", second: "Primary 2", toArchive: "Primary 3" },
+  arms: { a: "A", b: "B" },
+  subjects: { slip: "Mathematic", maths: "Mathematics", english: "English Language", toArchive: "Drawing" },
+  // The teacher's record matches the member who accepted the invitation in C03, so that the sign-in can be linked to it.
+  teacher: {
+    first: "Chidi",
+    last: "Okafor",
+    phone: "0803 000 0002",
+    phoneCorrected: "0803 000 0092",
+    email: "chidi.okafor@walkthrough.test",
+  },
+  office: { first: "Kemi", last: "Balogun", phone: "0803 000 0003", email: "kemi.balogun@walkthrough.test" },
+};
+
+/// What the branch administrator sets up in C05, and the superadministrator after them. One scheme is typed with a slip and corrected; the "Trial" ones exist only to be archived.
+export const grading = {
+  scheme: { slip: "Primry scheme", name: "Primary scheme", trial: "Trial scheme" },
+  scale: { name: "Primary scale", trial: "Trial scale" },
+  classScheme: "Primary 1 scheme",
+  schoolWide: "School scheme",
+};
+
+/// The pupils of C06, all in Primary 1. Dates of birth are typed as a person types into a date field (month, day, year) and shown the way the list shows them. The guardians' phone numbers are
+/// what the portal later signs them in with, so each is different. Aisha's admission number is left for the app to make; Yusuf's is typed, so the search by number has one to find.
+export const pupils = {
+  aisha: {
+    first: "Aisha",
+    last: "Bello",
+    gender: "Female",
+    dobTyped: "03152018",
+    dobShown: "2018-03-15",
+    arm: "A",
+    guardian: "Hauwa Bello",
+    phone: "0803 000 0101",
+    phoneCorrected: "0803 000 0191",
+    email: "hauwa.bello@walkthrough.test",
+    admissionNo: "",
+  },
+  yusuf: {
+    first: "Yusuf",
+    last: "Danjuma",
+    gender: "Male",
+    dobTyped: "07202017",
+    dobShown: "2017-07-20",
+    arm: "A",
+    guardian: "Sani Danjuma",
+    phone: "0803 000 0102",
+    phoneCorrected: "",
+    email: "sani.danjuma@walkthrough.test",
+    admissionNo: "AEM-0002",
+  },
+  zainab: {
+    first: "Zainab",
+    last: "Musa",
+    gender: "Female",
+    dobTyped: "11052018",
+    dobShown: "2018-11-05",
+    arm: "B",
+    guardian: "Rabi Musa",
+    phone: "0803 000 0103",
+    phoneCorrected: "",
+    email: "rabi.musa@walkthrough.test",
+    admissionNo: "",
+  },
+  ibrahim: {
+    first: "Ibrahim",
+    last: "Sani",
+    gender: "Male",
+    dobTyped: "01092017",
+    dobShown: "2017-01-09",
+    arm: "B",
+    guardian: "Lami Sani",
+    phone: "0803 000 0104",
+    phoneCorrected: "",
+    email: "lami.sani@walkthrough.test",
+    admissionNo: "",
+  },
+};
+
+/// The announcements of C08. The first goes to one arm of the branch and stays published; "Sports day" is saved as a draft, then published and pinned; the third is a draft that is deleted.
+export const notices = {
+  resumption: { title: "Resumption notice", body: "School resumes on Monday at 8 am." },
+  sports: { title: "Sports day", body: "Sports day is on Friday. Wear the house colours." },
+  scrap: { title: "Exam timetable draft", body: "To be confirmed." },
+};
+
+/// The communication of C10: one broadcast to the guardians, and one template made, previewed, edited and deleted.
+export const messages = {
+  broadcast: { subject: "Resumption", opening: "Dear Guardian, ", closing: "school resumes on Monday." },
+  template: {
+    name: "Fee reminder",
+    nameEdited: "Fee reminder (term)",
+    code: "FEE_REMINDER",
+    subject: "Fees for {{student_name}}",
+    body: "Dear Guardian, fees for {{student_name}} are due.",
+    variables: "student_name",
+  },
+};
