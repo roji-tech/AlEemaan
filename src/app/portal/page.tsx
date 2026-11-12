@@ -256,9 +256,16 @@ function PortalContent() {
     setAccessByStudent({});
     setActor("");
     setSelectedStudentId("");
+    // A sign-out puts the portal back to its first state (task 0061): the next person, on this same screen, starts on the Overview and holds nothing of the last one's coursework,
+    // results or progress.
+    setActiveTab("overview");
     setOverviewData(null);
     setResultsData([]);
+    setResultsBlocked(false);
+    setResultsBalance(undefined);
     setFinanceData([]);
+    setLmsData({ assignments: [], materials: [], quizzes: [] });
+    setProgress(null);
   };
 
   if (loading) {
