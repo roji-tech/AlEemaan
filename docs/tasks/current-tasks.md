@@ -439,3 +439,12 @@
 - [x] Tests: 23 passed, 0 failed on the new spec and the existing `finance-a11y`, `finance-fee-edit` and `finance-refresh` specs. Not run: the whole suite, mutation passes (deferred); not scanned: the thirteen raw-palette uses outside Finance.
 - [x] The "for the maintainer" items of TASK-0057 and TASK-0058 are closed: the maintainer says there is no production data yet.
 - [ ] **For the maintainer:** the Delete button reads as a pale pink in the dark theme (`text-danger-fg`, like the coursework Delete); `text-danger-text` would keep it red and also passes. Say if you prefer it.
+
+
+## TASK-0061: After a sign-out the portal kept the last person's section, and some of their data, in its state
+
+[Task file](0061-portal-sign-out-reset.md). Found by the product walkthrough's chapter C12 (task 0033): a guardian who signed in straight after a pupil landed on the pupil's Practice section instead of the Overview; built on `claude/portal-signout-reset`. No migration, no API change.
+
+- [x] `handleSignOut` in `portal/page.tsx` cleared the pupils, access, overview, results and invoices but not the open section, the coursework, the results flags or the progress, so the next person on the same screen started on the section the last one left (when both may open it) and the page still held the last person's coursework in memory. It now puts all of it back to its first state
+- [x] Test: `portal-access.spec.ts`, "after a sign-out the next person starts on the Overview ... and none of the last one's coursework is there"; failed on the unfixed build (the Overview tab was not selected), passes after
+- [ ] Not done: mutation passes (deferred to the end of PHASE 2); a reload of the page (unchanged: the session cookie is read once at mount)
