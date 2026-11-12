@@ -353,17 +353,18 @@
   {
     "id": "VER-01",
     "area": "Verification",
-    "feature": "A published report card is verified on a public page by its link",
+    "feature": "A published report card is verified on a public page by its address",
     "route": "/verify/[token]",
     "roles": [
       "Visitor",
       "Guardian"
     ],
     "kind": "positive",
-    "proof": "From a report card press 'Verify these results': the public page shows the school, pupil, term and that it is genuine",
+    "proof": "Type the address printed under 'Verify these results' into a fresh tab: the public page shows the school, pupil (first name and last initial), class, term, subject and that it is genuine, and no marks",
     "source": [
       "src/app/verify/[token]/page.tsx"
     ],
+    "typedAddress": true,
     "status": "planned"
   },
   {
@@ -1460,7 +1461,7 @@
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "Unlock, type the reason, confirm; the status returns to draft",
+    "proof": "Unlock, type the reason (a reason under five characters is refused), confirm; the status returns to approved and the verification codes stop working until it is published again",
     "source": [
       "src/components/results/ReviewPanel.tsx"
     ],
@@ -1494,7 +1495,7 @@
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "On a published card press 'Verify these results' (continues in VER-01)",
+    "proof": "On a published card read the 'Verify these results' address (printed as text, not a link; continues in VER-01)",
     "source": [
       "src/components/results/ReportCard.tsx"
     ],
