@@ -151,7 +151,7 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
           <p className="text-xs font-medium text-fg-muted animate-pulse">Loading finance records...</p>
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-center text-xs text-red-500">
+        <div className="rounded-2xl border border-danger-line bg-danger-bg p-6 text-center text-xs text-danger-fg">
           <p className="font-semibold">{error}</p>
           <button
             type="button"

@@ -182,7 +182,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
                     {invoice.payInFull ? "Allow part payments again" : "Pay in full only"}
                   </button>
                   {payInFullError && (
-                    <span role="alert" className="text-red-500">
+                    <span role="alert" className="text-danger-text">
                       {payInFullError}
                     </span>
                   )}

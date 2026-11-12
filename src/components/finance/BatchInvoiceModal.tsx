@@ -64,13 +64,13 @@ export function BatchInvoiceModal({ isOpen, onClose, onGenerated, branchId, peri
     <Dialog open={isOpen} onClose={onClose} title="Batch Generate Student Invoices">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500" role="alert">
+          <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-fg" role="alert">
             {error}
           </div>
         )}
 
         {result && (
-          <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-xs text-green-400" role="status">
+          <div className="rounded-xl border border-ok-line bg-ok-bg p-3 text-xs text-ok-fg" role="status">
             Invoicing Complete: <strong>{result.created}</strong> new invoices created, <strong>{result.skipped}</strong> existing invoices
             skipped.
           </div>
