@@ -64,6 +64,22 @@ const PLACES: Place[] = [
     neighbour: (page) => page.locator("#attendance-date"),
   },
   {
+    key: "communication.channel",
+    go: async (page) => {
+      await page.goto("/communication");
+      await expect(page.getByRole("heading", { level: 1, name: "Communication" })).toBeVisible();
+    },
+    neighbour: (page) => page.locator("#broadcast-channel"),
+  },
+  {
+    key: "communication.tags",
+    go: async (page) => {
+      await page.goto("/communication");
+      await expect(page.getByRole("heading", { level: 1, name: "Communication" })).toBeVisible();
+    },
+    neighbour: (page) => page.getByRole("button", { name: "+ Student Name" }),
+  },
+  {
     key: "communication.status",
     go: async (page) => {
       await page.goto("/communication");
@@ -108,6 +124,10 @@ for (const place of PLACES) {
       icon.locator("xpath=ancestor::*[self::h1 or self::h2 or self::h3 or self::label or self::th or self::button][1]"),
     ).toHaveCount(0);
 
+    // Scrolled into view FIRST: an icon below the fold (the composer's tags) is scrolled to by the hover or the tap, and a neighbour's box in window coordinates would then differ by the
+    // scroll, which is not a layout shift.
+    await icon.scrollIntoViewIfNeeded();
+
     // 16 px, with the invisible 44 px touch target around it (a pseudo-element: no box of its own to measure, so what is measured is the row it sits in)
     const size = await box(icon);
     expect(Math.round(size.width)).toBe(16);
@@ -117,8 +137,13 @@ for (const place of PLACES) {
     // opening one must not make the page wider either (a phone widens the page to fit anything that sticks out, and the next clamp then reads the wrong edge)
     const scrollWidth = () => page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
     const widthBefore = await scrollWidth();
+    const scrolledBefore = await page.evaluate(() => window.scrollY);
     await openIt(page, icon, isMobile);
     expect(await scrollWidth(), "the page is no wider with the tip open").toEqual(widthBefore);
+    // ...and must not scroll the page: with the page scrolled to its end, an earlier first-pass placement made Chrome scroll up 227 px a few milliseconds after the click, so it is read after
+    // two animation frames, not straight away
+    await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+    expect(await page.evaluate(() => window.scrollY), "opening the tip does not scroll the page").toBe(scrolledBefore);
     await expect(tooltip(page)).toHaveText(INFO_TIPS[place.key]);
     await expect(icon).toHaveAttribute("aria-expanded", "true");
     const tipId = await tooltip(page).getAttribute("id");
