@@ -4,10 +4,27 @@
 // Every table carries branchId and composite foreign keys on [branchId, id].
 // Follows ADR 0015 single-tenant multi-branch isolation.
 
+/// DRAFT: staff only. PUBLISHED: pupils see it and hand in. CLOSED: pupils still see it (and their own hand-in and mark) but hand-ins are refused.
+/// ARCHIVED: staff only, kept with its hand-ins.
 enum AssignmentStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+  CLOSED
+}
+
+/// A study material is visible to pupils only when PUBLISHED.
+enum MaterialStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum MaterialType {
+  DOCUMENT
+  VIDEO_LINK
+  PRESENTATION
+  NOTES
+  OTHER
 }
 
 enum SubmissionStatus {
@@ -99,11 +116,15 @@ model LearningMaterial {
   title        String
   description  String?
   content      String?
-  attachments  Json      @default("[]")
+  /// Rows written before the type existed are OTHER (the honest value); the form offers DOCUMENT first.
+  materialType MaterialType   @default(OTHER)
+  /// Rows written before the draft state existed were all visible to pupils, so they are PUBLISHED.
+  status       MaterialStatus @default(PUBLISHED)
+  attachments  Json           @default("[]")
   createdById  String?
   archivedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now()) @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @default(now()) @updatedAt
 
   branch     Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
   subject    Subject      @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
@@ -113,6 +134,7 @@ model LearningMaterial {
   @@unique([branchId, id])
   @@index([branchId, subjectId])
   @@index([branchId, classGroupId])
+  @@index([branchId, status])
 }
 
 model Quiz {

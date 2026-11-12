@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AssignmentStatus, SubmissionStatus, QuestionType, QuizStatus } from "@prisma/client";
+import { AssignmentStatus, MaterialStatus, MaterialType, SubmissionStatus, QuestionType, QuizStatus } from "@prisma/client";
 import { isWebLink } from "./attachments";
 
 export const attachmentSchema = z.object({
@@ -7,7 +7,10 @@ export const attachmentSchema = z.object({
   url: z.string().url("Valid URL is required").refine(isWebLink, "The link must start with http:// or https://"),
 });
 
-export const createAssignmentSchema = z.object({
+// The fields of each kind of coursework WITHOUT defaults. The create schema adds the defaults; the update schema is these fields, all optional. An update schema
+// made from the create schema with `.partial()` applied the defaults of every field the request did not send (Zod 4), so `PATCH { title }` unpublished an
+// assignment, set its points back to 100 and emptied its attachments (task 0066).
+const assignmentFields = z.object({
   branchId: z.string().min(1, "Branch is required"),
   subjectId: z.string().min(1, "Subject is required"),
   classGroupId: z.string().optional().nullable(),
@@ -16,13 +19,20 @@ export const createAssignmentSchema = z.object({
   description: z.string().optional().nullable(),
   instructions: z.string().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
-  totalPoints: z.number().int().min(1).max(1000).default(100),
-  allowLate: z.boolean().default(true),
-  status: z.nativeEnum(AssignmentStatus).default(AssignmentStatus.DRAFT),
-  attachments: z.array(attachmentSchema).default([]),
+  totalPoints: z.number().int().min(1).max(1000),
+  allowLate: z.boolean(),
+  status: z.nativeEnum(AssignmentStatus),
+  attachments: z.array(attachmentSchema),
 });
 
-export const updateAssignmentSchema = createAssignmentSchema.partial().omit({ branchId: true });
+export const createAssignmentSchema = assignmentFields.extend({
+  totalPoints: assignmentFields.shape.totalPoints.default(100),
+  allowLate: assignmentFields.shape.allowLate.default(true),
+  status: assignmentFields.shape.status.default(AssignmentStatus.DRAFT),
+  attachments: assignmentFields.shape.attachments.default([]),
+});
+
+export const updateAssignmentSchema = assignmentFields.partial().omit({ branchId: true });
 
 export const submitAssignmentSchema = z
   .object({
@@ -39,17 +49,25 @@ export const gradeSubmissionSchema = z.object({
   status: z.nativeEnum(SubmissionStatus).default(SubmissionStatus.GRADED),
 });
 
-export const createMaterialSchema = z.object({
+const materialFields = z.object({
   branchId: z.string().min(1, "Branch is required"),
   subjectId: z.string().min(1, "Subject is required"),
   classGroupId: z.string().optional().nullable(),
   title: z.string().min(1, "Title is required").max(200),
   description: z.string().optional().nullable(),
   content: z.string().optional().nullable(),
-  attachments: z.array(attachmentSchema).default([]),
+  materialType: z.nativeEnum(MaterialType),
+  status: z.nativeEnum(MaterialStatus),
+  attachments: z.array(attachmentSchema),
 });
 
-export const updateMaterialSchema = createMaterialSchema.partial().omit({ branchId: true });
+export const createMaterialSchema = materialFields.extend({
+  materialType: materialFields.shape.materialType.default(MaterialType.DOCUMENT),
+  status: materialFields.shape.status.default(MaterialStatus.PUBLISHED),
+  attachments: materialFields.shape.attachments.default([]),
+});
+
+export const updateMaterialSchema = materialFields.partial().omit({ branchId: true });
 
 export const quizQuestionSchema = z.object({
   id: z.string().optional(),
@@ -64,7 +82,7 @@ export const quizQuestionSchema = z.object({
   exposedToPractice: z.boolean().optional().default(false),
 });
 
-export const createQuizSchema = z.object({
+const quizFields = z.object({
   branchId: z.string().min(1, "Branch is required"),
   subjectId: z.string().min(1, "Subject is required"),
   classGroupId: z.string().optional().nullable(),
@@ -72,14 +90,19 @@ export const createQuizSchema = z.object({
   instructions: z.string().optional().nullable(),
   timeLimitMinutes: z.number().int().min(1).max(360).optional().nullable(),
   passingScore: z.number().min(0).max(100).optional().nullable(),
-  isExamTemplate: z.boolean().optional().default(false),
+  isExamTemplate: z.boolean(),
   examWindowStart: z.string().datetime().optional().nullable(),
   examWindowEnd: z.string().datetime().optional().nullable(),
-  status: z.nativeEnum(QuizStatus).default(QuizStatus.DRAFT),
+  status: z.nativeEnum(QuizStatus),
   questions: z.array(quizQuestionSchema).min(1, "At least one question is required"),
 });
 
-export const updateQuizSchema = createQuizSchema.partial().omit({ branchId: true });
+export const createQuizSchema = quizFields.extend({
+  isExamTemplate: quizFields.shape.isExamTemplate.optional().default(false),
+  status: quizFields.shape.status.default(QuizStatus.DRAFT),
+});
+
+export const updateQuizSchema = quizFields.partial().omit({ branchId: true });
 
 export const offerBackSchema = z.object({
   quizId: z.string().min(1, "Quiz ID is required"),
