@@ -1,13 +1,13 @@
 import { expect, type Page } from "@playwright/test";
 import type { Walk } from "../support/walk";
 import { PASSWORD, cast, devToolsToken, school } from "../cast";
+import { mainNav, signIn, signOut } from "./shared";
 
 // C03 People (task 0033, section 6.6), first part: the superadministrator opens Users, invites a branch administrator, a teacher and a member of the non-teaching staff, invites one
 // address that was mistyped and revokes it. The people accept in the second part (through the dev inbox), then the chapter signs in as each of them.
 
 const chapter = "C03 People";
 
-const mainNav = (page: Page) => page.getByRole("navigation", { name: "Main" });
 const pendingFor = (page: Page, email: string) => page.getByRole("button", { name: `Revoke the invitation to ${email}` });
 
 async function invite(walk: Walk, page: Page, email: string, role: string, branch: string): Promise<void> {
@@ -257,20 +257,6 @@ async function sweep(walk: Walk, page: Page, entries: readonly string[]): Promis
     await expect(mainNav(page).getByRole("link", { name: entry, exact: true })).toHaveAttribute("aria-current", "page");
   }
   await expect(mainNav(page).getByRole("link")).toHaveCount(entries.length + 1);
-}
-
-async function signIn(walk: Walk, page: Page, person: { name: string; email: string }): Promise<void> {
-  await walk.type(page.getByLabel("Email address"), person.email);
-  await walk.type(page.getByLabel("Password", { exact: true }), PASSWORD);
-  await walk.click(page.getByRole("button", { name: "Sign in" }));
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { level: 1, name: `Welcome, ${person.name.split(" ")[0]}` })).toBeVisible();
-}
-
-async function signOut(walk: Walk, page: Page): Promise<void> {
-  await walk.click(page.getByRole("button", { name: /^Account menu for/ }));
-  await walk.click(page.getByRole("button", { name: "Sign out" }));
-  await expect(page).toHaveURL(/\/login$/);
 }
 
 const ADMIN_ENTRIES = [

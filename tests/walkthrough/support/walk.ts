@@ -275,6 +275,18 @@ export class Walk {
   }
 
   /**
+   * The app asks "Are you sure?" with the browser's own confirmation box in a few places (removing a timetable period, deleting an announcement). A person answers by pressing OK, and this is
+   * that: it answers the NEXT confirmation, and only if it asks the question given; any other question is dismissed (Cancel), so the step's own check of the result fails. The recording
+   * does not show the browser's box, so the caption says what was asked.
+   */
+  async acceptNextConfirm(question: string): Promise<void> {
+    await this.caption(`The browser asks: "${question}" and OK is pressed.`);
+    this.page.once("dialog", (dialog) => {
+      void (dialog.type() === "confirm" && dialog.message() === question ? dialog.accept() : dialog.dismiss());
+    });
+  }
+
+  /**
    * Executes a formal walkthrough step: updates the in-page overlay, records timestamps,
    * runs the action, settles DOM, captures screenshot, and dwells.
    */

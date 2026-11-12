@@ -38,12 +38,16 @@ const journey = (name: string, use: object, size: { width: number; height: numbe
   name,
   testMatch: /^(?!.*[\\/]support[\\/]).*\.spec\.ts$/,
   outputDir: path.join(outputRoot, name, "raw-results"),
-  use: { baseURL, ...use, video: { mode: "on" as const, size } },
+  // actionTimeout: without one, a click or a scroll on a locator that never appears waits for the WHOLE four-hour test, so a wrong label hangs the run for hours and leaves no finding (the
+  // 2026-11-12 run sat on one step for 29 minutes). With it, the step fails in twenty seconds and the chapter's checkpoint and screenshot say which one.
+  use: { baseURL, actionTimeout: 20_000, navigationTimeout: 45_000, ...use, video: { mode: "on" as const, size } },
 });
 
 export default defineConfig({
   testDir: "./tests/walkthrough",
-  timeout: 1_800_000,
+  // The journey is ONE continuous test, and it grows with every chapter: four hours, not the thirty minutes it started with. The journey writes its timeline and findings after each chapter,
+  // so a run that is stopped early still leaves what it had.
+  timeout: 14_400_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
