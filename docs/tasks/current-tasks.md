@@ -489,4 +489,15 @@
 - [x] `attachmentSchema` took any URL with a scheme (`javascript:`, `data:`, `ftp:`) for materials, assignments and a pupil's hand-in; it is now `http:` or `https:` only, and the three screens that show a link show only web links (`src/lib/lms/attachments.ts`)
 - [x] New specs `lms-attachment-links.spec.ts` (API, 4 tests) and `lms-material-link.spec.ts` (end to end); 4 failed on the build without the fix, 27 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); whether a click on a `javascript:` link runs in the shipped build was not tested
-- [ ] **For the maintainer:** a material's type and a draft state need two columns (a type and a published flag) and a migration, which is yours to run; materials still cannot be edited, only added and deleted
+- [x] A material's type and a draft state, and materials that can be edited, were built afterwards in [task 0066](tasks/0066-coursework-drafts-edit-close.md) (one migration, the maintainer's to run on a hosted database)
+
+
+## TASK-0066: Coursework can be saved as a draft, edited, closed and archived; a PATCH no longer resets what it did not send
+
+[Task file](0066-coursework-drafts-edit-close.md). The maintainer's "fix the flaws and gaps" after the walkthrough's chapter C13; built on `claude/coursework-gaps`. **One migration, `20261112210000_coursework_states`, NOT run on any hosted database** (the maintainer's; it must run before this code is deployed there).
+
+- [x] **A defect found while designing the edit:** the update schemas were the create schemas made `.partial()`, and Zod 4 applies the defaults of fields not sent, so `PATCH { title }` unpublished an assignment, reset its points to 100 and emptied its attachments, wiped a material's link, and set a published quiz back to a draft. The update schemas are now the same fields without the defaults; 3 tests failed on the unfixed build
+- [x] Assignments: "Save as Draft", Edit (the same dialog), Publish, Close and Reopen hand-ins, Archive and Restore from the cards; `CLOSED` is a stored status (a pupil still sees a closed assignment and their own hand-in; the server refuses a hand-in, on the staff route and the portal; the portal says the teacher closed it); the Status filter's four options all match stored statuses now
+- [x] Materials: a type (stored) and a draft state (stored), Edit, Publish and Unpublish from the cards; a draft never reaches a pupil's or guardian's membership (list and single read) or the portal. The list route had returned every material to a pupil's session
+- [x] New specs (API and end to end); 46 passed, 0 failed with the existing LMS and portal specs (desktop and phone)
+- [ ] Not done: the whole suite; mutation passes (deferred); the walkthrough chapter C13 covering the new actions; four unrelated tables whose column types differ from the schema (see the HANDOVER)

@@ -14,6 +14,7 @@ interface AssignmentItem {
   dueDate: string | null;
   totalPoints: number;
   closed?: boolean;
+  closedBy?: "TEACHER" | "DEADLINE" | null;
   submission: {
     status: string;
     score: number | null;
@@ -337,7 +338,11 @@ export function PortalLmsTab({ lms, student, canSubmit, canQuiz, onChanged }: Po
 
                   <div className="mt-2">
                     {a.closed ? (
-                      <span className="text-xs text-fg-muted">The deadline has passed and late work is not accepted.</span>
+                      <span className="text-xs text-fg-muted">
+                        {a.closedBy === "TEACHER"
+                          ? "Your teacher has closed this assignment, so work can no longer be handed in."
+                          : "The deadline has passed and late work is not accepted."}
+                      </span>
                     ) : submission?.status === "GRADED" || !canSubmit ? null : (
                       <button type="button" onClick={() => setHanding(a)} className={linkButton} aria-label={`${submission ? "Hand in again" : "Hand in"}: ${a.title}`}>
                         {submission ? "Hand in again" : "Hand in"}

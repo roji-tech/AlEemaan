@@ -6,13 +6,14 @@ import { ok, fail } from "@/lib/api/envelope";
 import { createMaterialSchema } from "@/lib/lms/validation";
 import { listMaterials, createMaterial } from "@/lib/lms/service";
 import { readJsonBody } from "@/lib/api/validate";
+import { isBranchStaff } from "@/lib/lms/audience";
 
 /**
  * GET /api/v1/lms/materials?branchId=...&subjectId=...&classGroupId=...
  */
 export const GET = withAuthGated(
   "read-any",
-  async (req: NextRequest) => {
+  async (req: NextRequest, auth: AuthContext) => {
     try {
       const { searchParams } = new URL(req.url);
       const branchId = searchParams.get("branchId");
@@ -24,7 +25,8 @@ export const GET = withAuthGated(
       const subjectId = searchParams.get("subjectId") ?? undefined;
       const classGroupId = searchParams.get("classGroupId") ?? undefined;
 
-      const materials = await listMaterials(branchId, { subjectId, classGroupId });
+      // staff see drafts; a pupil or guardian gets published materials only
+      const materials = await listMaterials(branchId, { subjectId, classGroupId, publishedOnly: !(await isBranchStaff(auth.userId, branchId)) });
       return ok(materials);
     } catch (error) {
       console.error("[LMS_MATERIALS_LIST_ERROR]", error);

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { AssignmentStatus, SubmissionStatus, QuizStatus, Prisma } from "@prisma/client";
+import { AssignmentStatus, MaterialStatus, MaterialType, SubmissionStatus, QuizStatus, Prisma } from "@prisma/client";
 import { resolveSubmissionStatus, evaluateQuizAttempt, type QuizAnswerItem } from "./rules";
 import { isTemplateHidden, isExposedToPractice } from "@/lib/question-bank/assessments";
 
@@ -68,7 +68,13 @@ export async function createAssignment(params: CreateAssignmentParams) {
   });
 }
 
-export async function listAssignments(branchId: string, filter?: { subjectId?: string; classGroupId?: string; status?: AssignmentStatus }) {
+/// What a pupil or guardian may be shown: published work, and closed work (they still see it and their own hand-in; the form is shut).
+export const PUPIL_VISIBLE_ASSIGNMENT_STATUSES: AssignmentStatus[] = [AssignmentStatus.PUBLISHED, AssignmentStatus.CLOSED];
+
+export async function listAssignments(
+  branchId: string,
+  filter?: { subjectId?: string; classGroupId?: string; status?: AssignmentStatus; statuses?: AssignmentStatus[] },
+) {
   return prisma.assignment.findMany({
     where: {
       branchId,
@@ -76,6 +82,7 @@ export async function listAssignments(branchId: string, filter?: { subjectId?: s
       ...(filter?.subjectId ? { subjectId: filter.subjectId } : {}),
       ...(filter?.classGroupId ? { classGroupId: filter.classGroupId } : {}),
       ...(filter?.status ? { status: filter.status } : {}),
+      ...(filter?.statuses ? { status: { in: filter.statuses } } : {}),
     },
     include: {
       subject: { select: { id: true, name: true, code: true } },
@@ -148,6 +155,12 @@ export interface SubmitAssignmentParams {
 
 export async function submitAssignment(branchId: string, assignmentId: string, studentId: string, params: SubmitAssignmentParams) {
   const assignment = await getAssignmentById(branchId, assignmentId);
+  if (assignment.status === AssignmentStatus.CLOSED) {
+    throw new LmsError("This assignment is closed, so work can no longer be handed in", 400);
+  }
+  if (assignment.status !== AssignmentStatus.PUBLISHED) {
+    throw new LmsError("This assignment is not open for hand-ins", 400);
+  }
   const now = new Date();
 
   const resolution = resolveSubmissionStatus(assignment.dueDate, assignment.allowLate, now);
@@ -235,6 +248,8 @@ export interface CreateMaterialParams {
   title: string;
   description?: string | null;
   content?: string | null;
+  materialType?: MaterialType;
+  status?: MaterialStatus;
   attachments?: { title: string; url: string }[];
   createdById?: string | null;
 }
@@ -260,6 +275,8 @@ export async function createMaterial(params: CreateMaterialParams) {
       title: params.title,
       description: params.description,
       content: params.content,
+      materialType: params.materialType ?? MaterialType.DOCUMENT,
+      status: params.status ?? MaterialStatus.PUBLISHED,
       attachments: params.attachments ? (params.attachments as unknown as Prisma.InputJsonValue) : [],
       createdById: staffId,
     },
@@ -270,11 +287,13 @@ export async function createMaterial(params: CreateMaterialParams) {
   });
 }
 
-export async function listMaterials(branchId: string, filter?: { subjectId?: string; classGroupId?: string }) {
+/// `publishedOnly` is what a pupil or guardian gets: a draft material is for staff only.
+export async function listMaterials(branchId: string, filter?: { subjectId?: string; classGroupId?: string; publishedOnly?: boolean }) {
   return prisma.learningMaterial.findMany({
     where: {
       branchId,
       archivedAt: null,
+      ...(filter?.publishedOnly ? { status: MaterialStatus.PUBLISHED } : {}),
       ...(filter?.subjectId ? { subjectId: filter.subjectId } : {}),
       ...(filter?.classGroupId ? { classGroupId: filter.classGroupId } : {}),
     },
@@ -310,9 +329,15 @@ export async function updateMaterial(branchId: string, id: string, data: Partial
       ...(data.title !== undefined ? { title: data.title } : {}),
       ...(data.description !== undefined ? { description: data.description } : {}),
       ...(data.content !== undefined ? { content: data.content } : {}),
+      ...(data.materialType !== undefined ? { materialType: data.materialType } : {}),
+      ...(data.status !== undefined ? { status: data.status } : {}),
       ...(data.attachments !== undefined ? { attachments: data.attachments as unknown as Prisma.InputJsonValue } : {}),
       ...(data.classGroupId !== undefined ? { classGroupId: data.classGroupId } : {}),
       ...(data.subjectId !== undefined ? { subjectId: data.subjectId } : {}),
+    },
+    include: {
+      subject: { select: { id: true, name: true, code: true } },
+      classGroup: { select: { id: true, name: true } },
     },
   });
 }

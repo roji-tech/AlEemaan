@@ -9,8 +9,8 @@ import {
   signPortalSession,
   verifyPortalSession,
 } from "./auth";
-import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus, QuizStatus } from "@prisma/client";
-import { submitAssignment, attemptQuiz } from "@/lib/lms/service";
+import { ResultStatus, AttendanceStatus, InvoiceStatus, MaterialStatus, QuizStatus } from "@prisma/client";
+import { submitAssignment, attemptQuiz, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
 import { reportCardVisibleTo } from "@/lib/academics/report-card";
 import { accessFor, allowedTabs, type Access, type Actor } from "./access";
 import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
@@ -578,7 +578,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
   const assignments = await prisma.assignment.findMany({
     where: {
       branchId,
-      status: AssignmentStatus.PUBLISHED,
+      status: { in: PUPIL_VISIBLE_ASSIGNMENT_STATUSES },
       archivedAt: null,
       OR: [{ classArmId }, { classArmId: null, classGroupId: classGroupId }, { classArmId: null, classGroupId: null }],
     },
@@ -596,6 +596,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
   const materials = await prisma.learningMaterial.findMany({
     where: {
       branchId,
+      status: MaterialStatus.PUBLISHED,
       archivedAt: null,
       OR: [...(classGroupId ? [{ classGroupId }] : []), { classGroupId: null }],
     },
@@ -631,8 +632,9 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       subjectName: a.subject.name,
       dueDate: a.dueDate,
       totalPoints: a.totalPoints,
-      // Past the deadline with late work not allowed: the pupil sees it, but the form is closed (the server refuses it too).
-      closed: Boolean(a.dueDate && a.dueDate.getTime() < now && !a.allowLate),
+      // Closed by the teacher, or past the deadline with late work not allowed: the pupil sees it, but the form is closed (the server refuses it too).
+      closed: a.status === "CLOSED" || Boolean(a.dueDate && a.dueDate.getTime() < now && !a.allowLate),
+      closedBy: a.status === "CLOSED" ? "TEACHER" : a.dueDate && a.dueDate.getTime() < now && !a.allowLate ? "DEADLINE" : null,
       submission: a.submissions[0] || null,
     })),
     quizzes: quizzes.map((q) => ({
@@ -691,7 +693,7 @@ export async function submitPortalAssignment(
     where: {
       id: assignmentId,
       branchId: scope.branchId,
-      status: AssignmentStatus.PUBLISHED,
+      status: { in: PUPIL_VISIBLE_ASSIGNMENT_STATUSES },
       archivedAt: null,
       OR: [{ classArmId: scope.classArmId }, { classArmId: null, classGroupId: scope.classGroupId }, { classArmId: null, classGroupId: null }],
     },

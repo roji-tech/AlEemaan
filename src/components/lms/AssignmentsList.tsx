@@ -10,6 +10,7 @@ interface AssignmentItem {
   branchId: string;
   title: string;
   description: string | null;
+  instructions?: string | null;
   subject: { id: string; name: string; code?: string };
   classGroup: { id: string; name: string } | null;
   dueDate: string | null;
@@ -27,6 +28,9 @@ interface AssignmentsListProps {
   userRole?: string;
 }
 
+const actionButton =
+  "inline-flex items-center px-2.5 py-1 rounded bg-surface-2 text-fg text-xs font-medium hover:bg-line focus:outline-none focus:ring-1 focus:ring-ring transition-colors";
+
 export function AssignmentsList({ branchId, subjects, classGroups, userRole = "ADMIN" }: AssignmentsListProps) {
   const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +44,7 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedForGrading, setSelectedForGrading] = useState<AssignmentItem | null>(null);
+  const [editing, setEditing] = useState<AssignmentItem | null>(null);
 
   const subjectFilterId = useId();
   const statusFilterId = useId();
@@ -87,6 +92,24 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
       void fetchAssignments();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete assignment");
+    }
+  };
+
+  /// Moves an assignment between states (task 0066): publish a draft, close or reopen hand-ins, archive, restore (back to a draft, so a teacher looks before pupils see it).
+  const setStatus = async (id: string, status: AssignmentItem["status"]) => {
+    try {
+      const res = await fetch(`/api/v1/lms/assignments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId, status }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error?.message || "Failed to change the assignment");
+      }
+      void fetchAssignments();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to change the assignment");
     }
   };
 
@@ -258,7 +281,40 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
 
                 <div className="flex items-center gap-2">
                   {canManage && (
-                    <>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(assignment)}
+                        className={actionButton}
+                        aria-label={`Edit assignment ${assignment.title}`}
+                      >
+                        Edit
+                      </button>
+                      {assignment.status === "DRAFT" && (
+                        <button type="button" onClick={() => void setStatus(assignment.id, "PUBLISHED")} className={actionButton} aria-label={`Publish draft: ${assignment.title}`}>
+                          Publish
+                        </button>
+                      )}
+                      {assignment.status === "PUBLISHED" && (
+                        <button type="button" onClick={() => void setStatus(assignment.id, "CLOSED")} className={actionButton} aria-label={`Close hand-ins: ${assignment.title}`}>
+                          Close
+                        </button>
+                      )}
+                      {assignment.status === "CLOSED" && (
+                        <button type="button" onClick={() => void setStatus(assignment.id, "PUBLISHED")} className={actionButton} aria-label={`Reopen hand-ins: ${assignment.title}`}>
+                          Reopen
+                        </button>
+                      )}
+                      {(assignment.status === "PUBLISHED" || assignment.status === "CLOSED") && (
+                        <button type="button" onClick={() => void setStatus(assignment.id, "ARCHIVED")} className={actionButton} aria-label={`Archive assignment ${assignment.title}`}>
+                          Archive
+                        </button>
+                      )}
+                      {assignment.status === "ARCHIVED" && (
+                        <button type="button" onClick={() => void setStatus(assignment.id, "DRAFT")} className={actionButton} aria-label={`Restore assignment ${assignment.title} as a draft`}>
+                          Restore
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setSelectedForGrading(assignment)}
@@ -274,7 +330,7 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
                       >
                         Delete
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -295,6 +351,22 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
           branchId={branchId}
           subjects={subjects}
           classGroups={classGroups}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editing && (
+        <AssignmentModal
+          isOpen={Boolean(editing)}
+          onClose={() => setEditing(null)}
+          onSuccess={() => {
+            setEditing(null);
+            void fetchAssignments();
+          }}
+          branchId={branchId}
+          subjects={subjects}
+          classGroups={classGroups}
+          assignment={editing}
         />
       )}
 
