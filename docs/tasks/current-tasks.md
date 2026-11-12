@@ -490,3 +490,11 @@
 - [x] New specs `lms-attachment-links.spec.ts` (API, 4 tests) and `lms-material-link.spec.ts` (end to end); 4 failed on the build without the fix, 27 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); whether a click on a `javascript:` link runs in the shipped build was not tested
 - [ ] **For the maintainer:** a material's type and a draft state need two columns (a type and a published flag) and a migration, which is yours to run; materials still cannot be edited, only added and deleted
+
+
+## TASK-0067: The sending line said "the server could not be reached" when another screen was sending the rest
+
+[Task file](0067-pump-pause-wording.md). A known flaw of task 0063; built on `claude/pump-pause-wording`. No migration.
+
+- [x] The paused state has a reason (`unreachable` or `elsewhere`) and the line says which; the test written first failed on the unfixed build (5 passed, 1 failed); 11 passed, 0 failed on the fixed build (desktop and phone)
+- [ ] Not done: the whole suite; mutation passes (deferred). Octalve's copy of the hook is fixed in its task 0059

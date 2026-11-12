@@ -10,7 +10,8 @@ export type Progress = { total: number; done: number; sent: number; failed: numb
 export type PumpState =
   | { phase: "idle" }
   | ({ phase: "sending" } & Progress)
-  | ({ phase: "paused" } & Progress)
+  /// `unreachable`: the server did not answer (or refused). `elsewhere`: it answered, but every call found nothing to claim, because another screen is sending the rest.
+  | ({ phase: "paused"; reason: "unreachable" | "elsewhere" } & Progress)
   | ({ phase: "done"; firstError: string | null } & Progress);
 
 const PAUSE_MS = 200;
@@ -73,7 +74,7 @@ export function useQueuePump(branchId: string) {
       if (!batch) {
         failures += 1;
         if (failures >= GIVE_UP_AFTER) {
-          setState({ phase: "paused", ...totals });
+          setState({ phase: "paused", reason: "unreachable", ...totals });
           break;
         }
         await sleep(RETRY_MS);
@@ -92,7 +93,7 @@ export function useQueuePump(branchId: string) {
       // another screen is sending the rest: look again a few times, then stop
       idle = batch.claimed === 0 ? idle + 1 : 0;
       if (idle >= 5) {
-        setState({ phase: "paused", ...totals });
+        setState({ phase: "paused", reason: "elsewhere", ...totals });
         break;
       }
       setState({ phase: "sending", ...totals });
