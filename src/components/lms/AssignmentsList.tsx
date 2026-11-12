@@ -17,7 +17,7 @@ interface AssignmentItem {
   totalPoints: number;
   status: "DRAFT" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
   allowLate: boolean;
-  submissionsCount?: number;
+  _count?: { submissions: number };
   createdAt: string;
 }
 
@@ -267,6 +267,10 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
                     </span>
                   </div>
                 </div>
+
+                {canManage && (
+                  <p className="text-xs text-fg-muted">{`${assignment._count?.submissions ?? 0} hand-in${assignment._count?.submissions === 1 ? "" : "s"}`}</p>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -318,6 +322,7 @@ export function AssignmentsList({ branchId, subjects, classGroups, userRole = "A
                       <button
                         type="button"
                         onClick={() => setSelectedForGrading(assignment)}
+                        aria-label={`Speed Grader: ${assignment.title}`}
                         className="inline-flex items-center px-2.5 py-1 rounded bg-surface-2 text-fg text-xs font-medium hover:bg-line focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
                       >
                         Speed Grader

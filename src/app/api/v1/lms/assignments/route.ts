@@ -4,7 +4,7 @@ import { withAuthGated } from "@/lib/auth/branch-gate";
 import { type AuthContext } from "@/lib/auth/with-auth";
 import { ok, fail } from "@/lib/api/envelope";
 import { createAssignmentSchema } from "@/lib/lms/validation";
-import { isBranchStaff } from "@/lib/lms/audience";
+import { isBranchStaff, hideSubmissionCount } from "@/lib/lms/audience";
 import { listAssignments, createAssignment, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
 import { readJsonBody } from "@/lib/api/validate";
 
@@ -35,7 +35,7 @@ export const GET = withAuthGated(
           : { statuses: PUPIL_VISIBLE_ASSIGNMENT_STATUSES }),
       });
 
-      return ok(assignments);
+      return ok(staff ? assignments : assignments.map((assignment) => hideSubmissionCount(assignment)));
     } catch (error) {
       console.error("[LMS_ASSIGNMENT_LIST_ERROR]", error);
       return fail("Unable to retrieve assignments", 500, "INTERNAL");
