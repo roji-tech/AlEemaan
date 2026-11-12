@@ -394,7 +394,7 @@
       "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "Click each sidebar entry in turn: Superadmin 16, administrator 13, teacher 9, non-teaching staff 2; each lands on its page with the right heading and crumb",
+    "proof": "Click each sidebar entry in turn: Superadmin 16, administrator 14, teacher 9, non-teaching staff 3 (Programs, Announcements, Forms); each lands on its page with the right heading and the entry marked as the current page",
     "source": [
       "src/components/shell/AppShell.tsx",
       "src/components/shell/SidebarNav.tsx",
@@ -414,7 +414,7 @@
       "Non-teaching staff"
     ],
     "kind": "negative",
-    "proof": "Look at the sidebar of an administrator (no Branches, Settings), a teacher (no Academics, Communication, Finance, Approvals, Users) and non-teaching staff (Overview and Announcements only)",
+    "proof": "Look at the sidebar of an administrator (no Branches, Settings), a teacher (no Academics, Communication, Finance, Approvals, Users) and non-teaching staff (no Students, Results, Finance, Users)",
     "source": [
       "src/components/shell/AppShell.tsx",
       "src/components/shell/SidebarNav.tsx",
@@ -579,7 +579,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Read the Totals, Branches and People-with-a-role figures; they equal what the Branches and Users pages show",
+    "proof": "Read the Totals (Branches, People with a role) and the viewer's own role, and the branch cards; the figures equal what the Branches and Users pages show",
     "source": [
       "src/app/(app)/dashboard/page.tsx"
     ],
@@ -598,7 +598,8 @@
     "source": [
       "src/app/(app)/dashboard/page.tsx"
     ],
-    "status": "planned"
+    "status": "not-demonstrable",
+    "reason": "The first-run wizard seeds the four branches (Primary and Secondary, English and Arabic), so no school the real flow can reach is ever without a branch; the empty message is exercised by the browser specs, which start from a database made for them"
   },
   {
     "id": "DSH-03",
@@ -658,7 +659,8 @@
     "source": [
       "src/app/(app)/branches/BranchesView.tsx"
     ],
-    "status": "planned"
+    "status": "not-demonstrable",
+    "reason": "The first-run wizard seeds the four branches (Primary and Secondary, English and Arabic), so no school the real flow can reach is ever without a branch; the empty message is exercised by the browser specs, which start from a database made for them"
   },
   {
     "id": "BRN-04",
