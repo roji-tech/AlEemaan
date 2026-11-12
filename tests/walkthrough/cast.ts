@@ -177,3 +177,48 @@ export const finance = {
   payment: { part: "20000", partShown: "₦20,000.00", balanceAfterPart: "₦35,000.00", ref: "POS-83921", note: "Deposited by Hauwa Bello" },
   waiver: { amount: "5000", shown: "₦5,000.00", balanceAfter: "₦50,000.00", reason: "Approved by the Principal - hardship" },
 };
+
+/// The coursework of C13: an assignment that is handed in and graded, one that exists only to be deleted, study materials (one to be deleted), and quizzes (one to be deleted). The due date is typed
+/// as a person types into a date-and-time field: month, day, year (Tab: a year takes up to six digits, so the field does not move on by itself), then hour, minute and the letter of AM or PM.
+export const coursework = {
+  essay: {
+    title: "Essay on honesty",
+    description: "Five sentences on why honesty matters.",
+    descriptionEdited: "Five sentences on why honesty matters, with one example.",
+    instructions: "Write five sentences and give one example from school.",
+    dueDateTyped: "12312026",
+    dueTimeTyped: "0900A",
+    points: "20",
+    pointsShown: "20 pts",
+  },
+  scrap: { title: "Fractions worksheet", points: "10" },
+  closed: { title: "Spelling test", points: "10" },
+  handIn: {
+    answer: "Honesty means telling the truth even when it is hard. I told my teacher when I broke a pencil.",
+    linkTitle: "My drawing",
+    linkUrl: "https://school.walkthrough.test/work/honesty",
+  },
+  grade: { score: "17", shown: "17/20", feedback: "Well done. Add one more example next time." },
+  material: {
+    title: "Reading notes: honesty",
+    summary: "Short notes for the week.",
+    content: "Honesty means telling the truth and keeping promises.",
+    url: "https://school.walkthrough.test/notes/honesty.pdf",
+    notAWebAddress: "javascript:alert(1)",
+    notAWebAddressReason: "The link must start with http:// or https://",
+    linkName: "Open Reading notes: honesty ↗",
+    typeLabel: "Reading Notes",
+  },
+  draftMaterial: { title: "Term 2 plan", typeLabel: "Slide Deck / Presentation", summary: "Not ready for the pupils yet." },
+  scrapMaterial: { title: "Old syllabus" },
+  quiz: {
+    title: "Honesty quiz",
+    instructions: "Answer every question.",
+    minutes: "10",
+    pass: "60",
+    choice: { prompt: "What is honesty?", right: "Telling the truth", wrong: "Telling a lie" },
+    trueFalse: { prompt: "Honesty is a good habit." },
+    short: { prompt: "Which word means telling the truth?", answer: "honesty" },
+  },
+  scrapQuiz: { title: "Trial quiz", prompt: "Is this a trial?", right: "Yes", wrong: "No" },
+};

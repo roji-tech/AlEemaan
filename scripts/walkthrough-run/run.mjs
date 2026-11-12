@@ -23,6 +23,7 @@ import {
   generateSetupToken,
 } from "./safety.mjs";
 import { outputRoot } from "./paths.mjs";
+import { clearStaleEvidence } from "./stale.mjs";
 
 try {
   process.loadEnvFile(".env");
@@ -203,6 +204,9 @@ async function main() {
   console.log("Web server is healthy and responding!");
 
   // 3. Execute Continuous Walkthrough Suite
+  // The previous run's findings and timeline go first: a run that fails before the tests write anything must not show them as its own result.
+  const removed = clearStaleEvidence(outputRoot(), process.env.WALKTHROUGH_PASS || "desktop-light");
+  console.log(`Removed ${removed} file(s) of the previous run's verdict (findings, observations, timeline, failure screenshots).`);
   console.log("\n[3/4] Launching Playwright Continuous Walkthrough recording...");
   try {
     await runCmd(
