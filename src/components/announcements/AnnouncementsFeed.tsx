@@ -229,7 +229,10 @@ export function AnnouncementsFeed({
       </div>
 
       {/* Composer Modal */}
+      {/* keyed so that every opening starts from the announcement it is opened for (or blank): the form's fields are `useState(initial...)`, which only reads its props on the first render,
+          so a modal mounted once showed whatever it held before (task 0057). BatchSlotsModal does the same. */}
       <AnnouncementComposerModal
+        key={composerOpen ? (editingItem?.id ?? "new") : "closed"}
         isOpen={composerOpen}
         onClose={() => setComposerOpen(false)}
         onSaved={onRefresh}

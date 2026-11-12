@@ -70,7 +70,9 @@ export function AnnouncementComposerModal({
     setTargetRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  // `nextStatus` is passed by the button that knows it. Setting the status in state and saving in the same click does not work: `status` here is the value of the render the person was
+  // looking at, so "Save as Draft" used to send PUBLISHED (task 0057). The form's own submit (Publish, or Enter in a field) uses the state, which has been rendered by then.
+  const handleSave = async (e: React.SyntheticEvent, nextStatus: AnnouncementStatus = status) => {
     e.preventDefault();
     if (!title.trim() || !body.trim()) {
       setError("Please provide both a title and content body.");
@@ -87,7 +89,7 @@ export function AnnouncementComposerModal({
         targetRoles,
         branchId: branchId ? branchId : null,
         classArmId: classArmId ? classArmId : null,
-        status,
+        status: nextStatus,
         isPinned,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       };
@@ -317,7 +319,7 @@ export function AnnouncementComposerModal({
                 type="button"
                 onClick={(e) => {
                   setStatus(AnnouncementStatus.DRAFT);
-                  handleSave(e);
+                  handleSave(e, AnnouncementStatus.DRAFT);
                 }}
                 disabled={saving || deleting}
                 className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs font-medium text-fg hover:bg-surface focus-visible:outline-2 focus-visible:outline-ring"
