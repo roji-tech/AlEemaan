@@ -342,3 +342,14 @@
 - [x] A fresh test database migrated by `migrate deploy`: unit, integration and API 2,736 passed, 0 failed; five browser specs (desktop and phone) 111 passed, 0 failed
 - [x] Six integration specs read migration files by name: 9 tests about file content or legacy backfill removed, 1 ported to the catalog (mutation-checked 2 of 2)
 - [ ] Open for the maintainer: HANDOVER section 3 and Vercel say a live remote database exists (26 old migrations applied as of 2026-10-29): reset it or adopt the baseline (`migrate resolve --applied`, not tried) before the next `migrate deploy`; promoting this to `master` is your call (the build does not run migrations)
+
+## TASK-0052: The one baseline, checked further: adopting it on a database that has data, and the browser projects
+
+[Task file](0052-baseline-adoption-verified.md). The maintainer's "and we need to resolve the weak spots" (2026-11-12), after the baseline of task 0051; built on `claude/alo-verify-after-squash`. Documentation only.
+
+- [x] The adoption path (`prisma migrate resolve --applied`), tried on local throwaway databases: from the full old history and from the October shape brought up first; `status` up to date, `deploy` no pending migrations, schema equal to a fresh baseline database's (7 CHECK lines differ only in AND bracketing), data kept
+- [x] Negative control: `migrate deploy` without adopting fails, changes nothing, but leaves a failed row that blocks later runs (`P3009`); the same steps recover it; the variant that keeps the old rows also works
+- [x] The `https` project and the 57 e2e files on the baseline: 1,061 tests, 1,012 passed, 48 skipped (viewport conditions), 1 failed: an intermittent axe `color-contrast` scan in `question-bank-screens.spec.ts:196`, 3 of 3 passed alone, cause not found
+- [x] Found: the walkthrough's own project was red on `dev` after the squash (a row named a deleted migration file; `/ar` had no row): fixed in PR #169, 34 of 34
+- [ ] Not done: any hosted database; the maintainer decides whether the remote database of HANDOVER section 3 is dropped or adopted
+
