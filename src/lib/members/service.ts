@@ -1,4 +1,4 @@
-import { Permission, type Prisma, type Role } from "@prisma/client";
+import { Permission, type Prisma, type Role, type StandingState } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 
@@ -30,6 +30,9 @@ export type PublicMember = {
   /// Holds CAN_VIEW_FORM_RESULTS in this branch: reads the results, answers and turn-ins of the branch's forms (never the answer key, never writes). Given by an administrator of the branch.
   canViewFormResults: boolean;
   status: MemberStatus;
+  /// Why the membership is not active, if it was suspended or terminated rather than just deactivated (task 0045): the stored standing, and the last day of a suspension.
+  standing: StandingState;
+  standingUntil: string | null;
   joinedAt: Date;
 };
 
@@ -40,6 +43,8 @@ const MEMBER_SELECT = {
   branchId: true,
   permissions: true,
   deactivatedAt: true,
+  standing: true,
+  standingUntil: true,
   createdAt: true,
   user: { select: { name: true, email: true, isSuperAdmin: true } },
   branch: { select: { name: true } },
@@ -59,6 +64,8 @@ const toPublic = (row: MemberRow): PublicMember => ({
   canApproveResults: row.permissions.includes(Permission.CAN_APPROVE_RESULTS),
   canViewFormResults: row.permissions.includes(Permission.CAN_VIEW_FORM_RESULTS),
   status: row.deactivatedAt ? "deactivated" : "active",
+  standing: row.standing,
+  standingUntil: row.standingUntil ? row.standingUntil.toISOString().slice(0, 10) : null,
   joinedAt: row.createdAt,
 });
 
@@ -119,6 +126,8 @@ export type MemberFailure =
   | "BRANCH_TAKEN"
   /// A deactivated member must be reactivated before anything else about them changes.
   | "DEACTIVATED"
+  /// The membership is suspended or terminated (task 0045): it is lifted or reinstated on the standing route, which records why, not reactivated here.
+  | "UNDER_STANDING"
   /// Only a superadmin says who may approve results (task 0039, decision 2).
   | "SUPERADMIN_ONLY"
   /// Only teaching and non-teaching staff are given the right to approve results; an administrator already can, and a pupil or a parent never.
@@ -134,7 +143,7 @@ const find = (tx: Tx, membershipId: string) => tx.membership.findUnique({ where:
 /// superadmin's `User` row for the rest of the transaction. Counted by person, not by row. Two superadmins removing each other at the same
 /// instant would each see "the other is still one" without the lock; with it the second waits for the first to commit, then COUNTS AGAIN in
 /// a new statement (READ COMMITTED: the new statement sees what the first committed) and finds itself the last.
-async function hasAnotherActiveSuperAdmin(tx: Tx, exceptUserId: string): Promise<boolean> {
+export async function hasAnotherActiveSuperAdmin(tx: Tx, exceptUserId: string): Promise<boolean> {
   await tx.$queryRaw`SELECT id FROM "User" WHERE "isSuperAdmin" = true FOR UPDATE`;
   const others = await tx.$queryRaw<{ userId: string }[]>`
     SELECT DISTINCT m."userId" FROM "Membership" m JOIN "User" u ON u.id = m."userId"
@@ -357,6 +366,7 @@ export async function reactivateMember(actorUserId: string, membershipId: string
     if (refused) return { ok: false, reason: refused };
     if (current.userId === actorUserId) return { ok: false, reason: "SELF" };
     if (!current.deactivatedAt) return { ok: true, member: toPublic(current), changed: false };
+    if (current.standing !== "ACTIVE") return { ok: false, reason: "UNDER_STANDING" };
 
     const updated = await tx.membership.update({ where: { id: current.id }, data: { deactivatedAt: null }, select: MEMBER_SELECT });
     await tx.auditLog.create({

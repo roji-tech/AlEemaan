@@ -3,6 +3,7 @@ import { sanitizePathParams } from "@/lib/api/ids";
 import { getClientIp, reserveAttempt } from "@/lib/auth/rate-limit";
 import { getPublicQuestionnaireByToken } from "@/lib/forms/questionnaires-service";
 import { FormsServiceError } from "@/lib/forms/forms-service";
+import { answeredHere } from "@/lib/forms/public-answered";
 
 type Context = { params: Promise<{ token: string }> };
 
@@ -20,7 +21,8 @@ export async function GET(req: Request, context: Context) {
 
   try {
     const questionnaire = await getPublicQuestionnaireByToken(token);
-    return noStore(ok({ questionnaire }));
+    // `answeredHere` lets the page say so instead of offering the form again (this browser only: see public-answered.ts)
+    return noStore(ok({ questionnaire, answeredHere: answeredHere(req, token) }));
   } catch (err) {
     if (err instanceof FormsServiceError) {
       return noStore(fail(err.message, err.statusCode, err.code));

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { resolveArmId } from "@/lib/academics/structure";
 import { prisma } from "@/lib/db";
-import { Gender, EnrollmentStatus, SessionStatus, Prisma } from "@prisma/client";
+import { Gender, EnrollmentStatus, SessionStatus, StandingState, Prisma } from "@prisma/client";
+import { dayOf, studentStandingNow } from "@/lib/standing/rules";
 
 export const studentInputSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
@@ -356,17 +357,28 @@ export async function listStudents(filters: {
   visible: "all" | string[];
   branchId?: string;
   status?: "live" | "archived" | "all";
+  /// Only pupils whose standing applies today: "suspended" (a suspension that has not ended) or "expelled" (task 0045).
+  standing?: "suspended" | "expelled";
   q?: string;
   page?: number;
   limit?: number;
 }) {
-  const { visible, branchId, status = "live", q, page = 1, limit = 25 } = filters;
+  const { visible, branchId, status = "live", standing, q, page = 1, limit = 25 } = filters;
+  const todayDay = dayOf(new Date());
   const skip = (page - 1) * limit;
 
   const where: Prisma.StudentRecordWhereInput = {
     ...(branchId ? { branchId } : {}),
     ...(visible === "all" ? {} : { branchId: branchId && visible.includes(branchId) ? branchId : { in: visible } }),
     ...(status === "live" ? { archivedAt: null } : status === "archived" ? { archivedAt: { not: null } } : {}),
+    ...(standing === "expelled"
+      ? { standing: StandingState.EXPELLED }
+      : standing === "suspended"
+        ? {
+            standing: StandingState.SUSPENDED,
+            OR: [{ standingUntil: null }, { standingUntil: { gte: new Date(`${todayDay}T00:00:00Z`) } }],
+          }
+        : {}),
   };
 
   if (q && q.trim()) {
@@ -408,6 +420,8 @@ export async function listStudents(filters: {
       dateOfBirth: s.dateOfBirth.toISOString().split("T")[0],
       admissionNo: s.admissionNo,
       archived: s.archivedAt !== null,
+      standing: studentStandingNow(s, todayDay),
+      standingUntil: s.standingUntil && studentStandingNow(s, todayDay) === "SUSPENDED" ? dayOf(s.standingUntil) : null,
       guardianName: s.guardianName,
       guardianPhone: s.guardianPhone,
       guardianEmail: s.guardianEmail,
@@ -445,5 +459,8 @@ export async function getStudent(id: string, visible: "all" | string[] = []) {
     ...student,
     dateOfBirth: student.dateOfBirth.toISOString().split("T")[0],
     archived: student.archivedAt !== null,
+    // What applies today (an ended suspension reads as in good standing), not the stored value.
+    standing: studentStandingNow(student, dayOf(new Date())),
+    standingUntil: student.standingUntil ? dayOf(student.standingUntil) : null,
   };
 }

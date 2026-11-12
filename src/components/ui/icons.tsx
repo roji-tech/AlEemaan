@@ -199,6 +199,22 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
 export function XIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -359,6 +375,16 @@ export function BookOpenIcon(props: IconProps) {
     <svg {...base(props)}>
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
+export function LayersIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 2 9 4.5-9 4.5-9-4.5z" />
+      <path d="m3 12 9 4.5 9-4.5" />
+      <path d="m3 17.5 9 4.5 9-4.5" />
     </svg>
   );
 }

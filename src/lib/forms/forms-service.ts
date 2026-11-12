@@ -432,6 +432,8 @@ export async function listAvailablePracticeSetsForPupil(params: {
       _count: { select: { questions: true } },
       responses: {
         where: { studentId: params.studentId },
+        // Newest first: the list shows the pupil's latest attempt, not whichever the database returns first.
+        orderBy: { createdAt: "desc" },
         select: { id: true, status: true, score: true, maxScore: true, submittedAt: true },
       },
     },
@@ -549,6 +551,15 @@ export async function startPracticeSetForPupil(params: {
     const audience = form.audiences[0];
     if (audience && !isPupilAudienceEligible(audience, pupilClassGroupId)) {
       throw new FormsServiceError("You are not eligible for this practice set.", 403, "FORBIDDEN");
+    }
+
+    // A practice set is answered once: a pupil who has finished it sees their result, they do not start it again (the screen offers "See result", and the API agrees).
+    const finished = await tx.formResponse.findFirst({
+      where: { formId: form.id, branchId: params.branchId, studentId: params.studentId, status: FormResponseStatus.COMPLETED },
+      select: { id: true },
+    });
+    if (finished) {
+      throw new FormsServiceError("You have already finished this practice set.", 400, "ALREADY_COMPLETED");
     }
 
     const open = await tx.formResponse.findMany({

@@ -329,6 +329,96 @@ export async function startPracticeSession(params: {
 }
 
 /**
+ * Opens a session the pupil started and did not finish, to carry on with: the questions not yet answered, in the order they were drawn, without keys. Only the pupil's own session (any other is
+ * "not found"), and one that is not finished. The same switches that stop an answer stop this (practice closed, the pupil's level lowered), and a question the school has withdrawn since (no longer
+ * approved, no longer for practice, no longer for the pupil's class) is not offered again; the pupil can finish the session, which gives what is left back to today's allowance.
+ */
+export async function getPracticeSessionToResume(params: {
+  studentId: string;
+  branchId: string;
+  actor: Actor;
+  sessionId: string;
+  now?: Date;
+}) {
+  const now = params.now ?? new Date();
+  if (params.actor !== "PUPIL") {
+    throw new PracticeError("Your sign-in does not include this.", 403, "PORTAL_ACCESS");
+  }
+
+  const [settings, portalAccess] = await Promise.all([getEffectiveBankSettings(params.branchId), getPortalAccess(params.branchId)]);
+  if (!settings["bank.access.pupils"]) {
+    throw new PracticeError("Practice is currently closed.", 403, "PRACTICE_CLOSED");
+  }
+  if (accessFor(portalAccess, params.actor).practice !== "FULL") {
+    throw new PracticeError("Practice access is not permitted.", 403, "PORTAL_ACCESS");
+  }
+
+  const session = await prisma.practiceSession.findUnique({
+    where: { branchId_id: { branchId: params.branchId, id: params.sessionId } },
+    include: { attempts: { select: { bankItemId: true } } },
+  });
+  if (!session || session.studentId !== params.studentId) {
+    throw new PracticeError("Practice session not found", 404, "NOT_FOUND");
+  }
+  if (session.finishedAt) {
+    throw new PracticeError("This practice session has already been completed.", 400, "SESSION_FINISHED");
+  }
+
+  const answered = new Set(session.attempts.map((a) => a.bankItemId));
+  const itemIds = session.itemIds as string[];
+  const remainingIds = itemIds.filter((id) => !answered.has(id));
+
+  const { classKey } = await getStudentClassGroup(params.studentId);
+  const where: Prisma.QuestionBankItemWhereInput = {
+    id: { in: remainingIds },
+    bank: "ASSESSMENT",
+    status: "APPROVED",
+    OR: [{ branchId: params.branchId }, { branchId: null }],
+    AND: [
+      { OR: [{ visibility: "PRACTICE" }, { visibility: "TEACHERS_ONLY_UNTIL", visibleFrom: { lte: now } }] },
+      classKey
+        ? { OR: [{ classTags: { none: {} } }, { classTags: { some: { labelKey: classKey } } }] }
+        : { classTags: { none: {} } },
+    ],
+  };
+  const items = await prisma.questionBankItem.findMany({
+    where,
+    select: {
+      id: true,
+      bank: true,
+      status: true,
+      type: true,
+      prompt: true,
+      explanation: true,
+      points: true,
+      difficulty: true,
+      topic: true,
+      options: true,
+      correctAnswer: true,
+      subjectLabel: true,
+      subjectKey: true,
+      visibility: true,
+      visibleFrom: true,
+    },
+  });
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const questions = remainingIds.flatMap((id) => (byId.has(id) ? [scrubQuestionForPupil(byId.get(id)!)] : []));
+
+  return {
+    session: {
+      id: session.id,
+      size: session.size,
+      feedbackMode: session.feedbackMode,
+      startedAt: session.startedAt,
+      subjectLabel: session.subjectLabel,
+      topic: session.topic,
+    },
+    answeredCount: answered.size,
+    questions,
+  };
+}
+
+/**
  * Submits an answer for a question in a practice session.
  */
 export async function submitPracticeAnswer(params: {
@@ -474,6 +564,9 @@ export async function finishPracticeSession(params: {
       id: att.id,
       bankItemId: att.bankItemId,
       prompt: q?.prompt ?? "",
+      // The kind and the options of the question let a screen show the answer in the option's words; the pupil was shown both when the question was asked.
+      type: q?.type ?? null,
+      options: Array.isArray(q?.options) ? q.options : [],
       answer: att.answer,
       correct: att.correct,
       correctAnswer: q?.correctAnswer ?? null,
@@ -575,6 +668,8 @@ export async function getPracticeHistory(params: {
         id: a.id,
         bankItemId: a.bankItemId,
         prompt: a.bankItem.prompt,
+        type: a.bankItem.type,
+        options: Array.isArray(a.bankItem.options) ? a.bankItem.options : [],
         answer: a.answer,
         correct: a.correct,
         correctAnswer: a.bankItem.correctAnswer,

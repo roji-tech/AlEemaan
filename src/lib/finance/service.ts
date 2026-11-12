@@ -12,6 +12,8 @@ import {
 } from "./rules";
 import { verifyPaystackSignature, computePayloadHash } from "./crypto";
 import { getPaystackGateway } from "./paystack";
+import { checkPart } from "./part-payment";
+import { loadEffectivePolicy } from "./part-payment-service";
 
 export class FinanceError extends Error {
   public code?: string;
@@ -32,7 +34,7 @@ async function allocateInvoiceNo(tx: Prisma.TransactionClient, branchId: string,
   return generateInvoiceNumber(branchCode, year, rows[0].seq);
 }
 
-async function allocateReceiptNo(tx: Prisma.TransactionClient, branchId: string, branchCode: string, year: number): Promise<string> {
+export async function allocateReceiptNo(tx: Prisma.TransactionClient, branchId: string, branchCode: string, year: number): Promise<string> {
   const rows = await tx.$queryRaw<{ seq: number }[]>`
     INSERT INTO "ReceiptCounter" ("branchId", "year", "next") VALUES (${branchId}, ${year}::int, 2)
     ON CONFLICT ("branchId", "year") DO UPDATE SET "next" = "ReceiptCounter"."next" + 1
@@ -301,11 +303,26 @@ export async function getInvoice(branchId: string, id: string) {
 
 // --- Payments & Concurrency Fulfilment ---
 
+/// The part-payment rule (task 0046) for a payment being STARTED or RECORDED, read inside the caller's transaction. It is not applied to a payment that has already been taken
+/// (`fulfillPayment`, the webhook): money that was accepted when it was started is never refused afterwards, even if the rule changed in between.
+async function enforcePartPayment(
+  tx: Prisma.TransactionClient,
+  branchId: string,
+  invoice: { totalAmount: Prisma.Decimal; amountPaid: Prisma.Decimal; payInFull: boolean },
+  amount: Prisma.Decimal,
+) {
+  const policy = await loadEffectivePolicy(tx, branchId);
+  const check = checkPart({ total: invoice.totalAmount, paid: invoice.amountPaid, amount, policy, payInFull: invoice.payInFull });
+  if (!check.ok) throw new FinanceError(check.message, check.code);
+}
+
 export async function initializeGatewayPayment(
   branchId: string,
   params: { invoiceId: string; email: string; amount?: number; callbackUrl?: string },
 ) {
   return prisma.$transaction(async (tx) => {
+    // One payment at a time on an invoice: the balance and the part-payment rule are read under this lock, so two payments racing cannot both slip under the rule (task 0046).
+    await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${params.invoiceId} AND "branchId" = ${branchId} FOR UPDATE`;
     const invoice = await tx.invoice.findFirstOrThrow({
       where: { branchId, id: params.invoiceId },
     });
@@ -326,6 +343,7 @@ export async function initializeGatewayPayment(
     if (amountToPay.gt(balanceDue)) {
       throw new FinanceError("Payment amount cannot exceed the balance due");
     }
+    await enforcePartPayment(tx, branchId, invoice, amountToPay);
 
     const amountInKobo = toKobo(amountToPay);
     const reference = generatePaymentReference(PaymentProvider.PAYSTACK);
@@ -384,6 +402,7 @@ export async function recordManualPayment(
   },
 ) {
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} AND "branchId" = ${branchId} FOR UPDATE`;
     const invoice = await tx.invoice.findFirstOrThrow({
       where: { branchId, id: invoiceId },
       include: { branch: true },
@@ -405,6 +424,7 @@ export async function recordManualPayment(
     if (amountDecimal.gt(balanceDue)) {
       throw new FinanceError("Payment amount cannot exceed the balance due");
     }
+    await enforcePartPayment(tx, branchId, invoice, amountDecimal);
 
     const year = new Date().getFullYear();
     const branchCode = invoice.branch.name.slice(0, 4).toUpperCase();
@@ -447,6 +467,11 @@ export async function recordManualPayment(
  * Atomically fulfills an online payment reference with concurrency locking.
  */
 export async function fulfillPayment(reference: string, verifiedAmountInKobo: number, channel?: string) {
+  // A payment of a program invoice (slice P4) carries a reference of its own kind; it is fulfilled in the program's tables. Loaded when needed: the program code imports this file.
+  if (reference.startsWith("prg_pay_")) {
+    const { fulfillProgramPayment } = await import("@/lib/programs/fees-payments");
+    return fulfillProgramPayment(reference, verifiedAmountInKobo, channel);
+  }
   return prisma.$transaction(async (tx) => {
     // 1. Concurrency lock: update status to SUCCESS only if currently PENDING
     const updated = await tx.payment.updateMany({

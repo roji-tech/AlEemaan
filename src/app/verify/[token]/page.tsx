@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { verifyToken } from "@/lib/academics/report-card";
+import { verifyCertificate } from "@/lib/programs/certificate-verify";
+import { longDate } from "@/lib/programs/completion-rules";
 
 // Public. Shows only what verifyToken returns: that a published result is genuine, for which class and term, and the pupil as first name and last initial - no scores,
 // no admission number. `no-referrer` and `noindex`: the address carries the bearer code, and a search engine has no business holding it.
@@ -8,7 +10,43 @@ export const metadata: Metadata = { title: "Verify a result", referrer: "no-refe
 export const dynamic = "force-dynamic";
 
 export default async function VerifyPage({ params }: { params: Promise<{ token: string }> }) {
-  const v = await verifyToken((await params).token);
+  const { token } = await params;
+  const v = await verifyToken(token);
+  // Not a report card: the code may be a program certificate (slice P5).
+  const cert = v ? null : await verifyCertificate(token);
+  if (cert) {
+    return (
+      <AuthShell>
+        <main>
+          <h1 className="text-2xl font-bold tracking-tight text-fg">Verify a certificate</h1>
+          {cert.withdrawn ? (
+            <p role="alert" className="mt-4 rounded-2xl border border-danger-line bg-danger-bg p-4 text-sm text-danger-fg">
+              This certificate was withdrawn by the school and is no longer valid. Do not rely on it; contact the school.
+            </p>
+          ) : (
+            <div role="status" className="mt-4 space-y-3 rounded-2xl border border-line bg-surface p-4">
+              <p className="font-semibold text-fg">This certificate is genuine.</p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <dt className="text-fg-muted">School</dt>
+                <dd className="text-fg">{cert.school}</dd>
+                <dt className="text-fg-muted">Program</dt>
+                <dd className="text-fg">{cert.program}</dd>
+                <dt className="text-fg-muted">Awarded to</dt>
+                <dd className="text-fg">{cert.person}</dd>
+                <dt className="text-fg-muted">Completed</dt>
+                <dd className="text-fg">{longDate(cert.completedOn)}</dd>
+                <dt className="text-fg-muted">Number</dt>
+                <dd className="text-fg">{cert.serialNo}</dd>
+              </dl>
+              <p className="text-xs text-fg-muted">
+                This page confirms the certificate was issued by the school. It does not show marks or any personal details.
+              </p>
+            </div>
+          )}
+        </main>
+      </AuthShell>
+    );
+  }
   return (
     <AuthShell>
       <main>

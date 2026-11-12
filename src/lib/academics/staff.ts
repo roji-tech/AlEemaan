@@ -82,6 +82,9 @@ function toStaff(row: Row) {
     phone: row.phone,
     email: row.email,
     archived: row.archivedAt !== null,
+    /// Suspended (until a date, or until lifted) or terminated, as stored (task 0045); a lifted or reinstated person is ACTIVE.
+    standing: row.standing,
+    standingUntil: row.standingUntil ? row.standingUntil.toISOString().slice(0, 10) : null,
     account,
     assignmentCount: row._count.assignments,
   };
@@ -199,6 +202,9 @@ export async function setStaffArchived(actorUserId: string, id: string, archived
   const before = await find(id);
   if (!before) return null;
   if (archived === (before.archivedAt !== null)) return toStaff(before);
+  // A terminated record is archived by the termination; it comes back by reinstating, which records why (task 0045), not by a plain restore.
+  if (!archived && before.standing === "TERMINATED")
+    throw new ConflictError("This person was terminated. Reinstate them instead: that records why and gives their access back.");
   if (archived && before._count.assignments > 0) throw new ConflictError("Remove this person's subject assignments before archiving them.");
   try {
     const row = await prisma.staffRecord.update({ where: { id }, data: { archivedAt: archived ? new Date() : null }, include: INCLUDE });

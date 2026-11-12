@@ -1,0 +1,61 @@
+// --- Standing: suspension, expulsion and termination (task 0045) ---
+//
+// The state itself lives on the record it is about (StudentRecord, StaffRecord, Membership: `standing` and `standingUntil`). This file holds the shared enum and the history.
+
+enum StandingState {
+  ACTIVE
+  SUSPENDED
+  /// A pupil only (a check constraint in the migration refuses it elsewhere).
+  EXPELLED
+  /// A member of staff only.
+  TERMINATED
+}
+
+enum StandingSubject {
+  STUDENT
+  STAFF
+  /// A person in a program who has no school record (task 0043, slice P2).
+  PARTICIPANT
+}
+
+enum StandingEventAction {
+  SUSPENDED
+  EXPELLED
+  TERMINATED
+  LIFTED
+  REINSTATED
+}
+
+enum StandingScope {
+  BRANCH
+  SCHOOL
+}
+
+/// Append-only history of every change of standing: who decided, why, when, and until when. No foreign keys on purpose (the history must outlive anything it points at), and a
+/// trigger in the migration refuses every UPDATE and DELETE, so "append-only" is the database's rule and not only the code's.
+model StandingEvent {
+  id              String              @id @default(cuid())
+  subject         StandingSubject
+  studentId       String?
+  staffRecordId   String?
+  membershipId    String?
+  /// A standalone person of a program (subject PARTICIPANT); no foreign key, like the other ids.
+  participantId   String?
+  /// The person's account, for a member of staff who has one.
+  userId          String?
+  branchId        String
+  action          StandingEventAction
+  scope           StandingScope       @default(BRANCH)
+  reason          String
+  startsOn        DateTime            @db.Date
+  endsOn          DateTime?           @db.Date
+  /// The account that decided, or "system" for a suspension lifted by the passing of its end date.
+  decidedByUserId String
+  createdAt       DateTime            @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([staffRecordId, createdAt])
+  @@index([membershipId, createdAt])
+  @@index([participantId, createdAt])
+  @@index([branchId, createdAt])
+}

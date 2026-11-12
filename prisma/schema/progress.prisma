@@ -1,0 +1,135 @@
+// Progress records (task 0044, slices R1 to R3): a running log a teacher keeps for each person in a program. Design: docs/tasks/0044-progress-records.md.
+
+enum ProgressEntryStatus {
+  DRAFT
+  SUBMITTED
+  VERIFIED
+}
+
+enum ProgressWriters {
+  TEACHERS
+  ASSIGNED
+  BOTH
+}
+
+enum ProgressGuardianDetail {
+  SUMMARY
+  FULL
+}
+
+/// The template a program uses, copied from a preset shipped in code when the program starts using progress records. Immutable (a trigger refuses UPDATE and DELETE).
+model ProgressTemplate {
+  id              String   @id @default(cuid())
+  programId       String
+  key             String
+  version         Int      @default(1)
+  schema          Json
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  program Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  records ProgressRecord[]
+
+  @@unique([programId, key, version])
+  @@unique([programId, id])
+}
+
+/// One per place in the program. Holds only what the system does not already know; the name, class and guardian are read live from the person's own record.
+model ProgressRecord {
+  id              String   @id @default(cuid())
+  programId       String
+  participantId   String
+  templateId      String
+  profile         Json     @default("{}")
+  version         Int      @default(1)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  participant ProgramParticipant @relation(fields: [programId, participantId], references: [programId, id], onDelete: Restrict)
+  template    ProgressTemplate   @relation(fields: [programId, templateId], references: [programId, id], onDelete: Restrict)
+  entries     ProgressEntry[]
+  seen        ProgressSeen[]
+
+  @@unique([participantId])
+  @@unique([programId, participantId])
+  @@unique([programId, id])
+  @@index([programId])
+}
+
+/// One dated row of one track. `values` is what the writer typed; `publishedValues` is the last verified copy, the only thing a family sees.
+model ProgressEntry {
+  id                 String              @id @default(cuid())
+  programId          String
+  recordId           String
+  trackKey           String
+  entryDate          DateTime            @db.Date
+  values             Json
+  status             ProgressEntryStatus @default(DRAFT)
+  version            Int                 @default(1)
+  createdByUserId    String
+  lastEditedByUserId String
+  submittedAt        DateTime?
+  verifiedByUserId   String?
+  verifiedAt         DateTime?
+  returnComment      String?
+  publishedValues    Json?
+  publishedAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @default(now()) @updatedAt
+
+  record ProgressRecord @relation(fields: [programId, recordId], references: [programId, id], onDelete: Restrict)
+  lock   ProgressLock?
+
+  @@unique([programId, id])
+  @@index([recordId, trackKey, entryDate])
+  @@index([programId, status])
+}
+
+/// Every create and change of an entry, append-only (a trigger refuses UPDATE and DELETE). No foreign keys: the history outlives what it is about.
+model ProgressEntryRevision {
+  id           String   @id @default(cuid())
+  programId    String
+  entryId      String
+  recordId     String
+  version      Int
+  action       String
+  userId       String
+  beforeValues Json?
+  afterValues  Json?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  @@index([entryId, createdAt])
+  @@index([programId, createdAt])
+}
+
+/// Slice R2: one lock per entry. Advisory against a stale page; the version check is the safety net.
+model ProgressLock {
+  entryId      String    @id
+  programId    String
+  holderUserId String
+  heartbeatAt  DateTime
+  expiresAt    DateTime
+  releaseAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  entry ProgressEntry @relation(fields: [programId, entryId], references: [programId, id], onDelete: Cascade)
+
+  @@unique([programId, entryId])
+  @@index([expiresAt])
+}
+
+/// Slice R3: a pupil or a guardian pressed "seen" for a week of a person's record. A record of that, required for nothing.
+model ProgressSeen {
+  id            String   @id @default(cuid())
+  programId     String
+  recordId      String
+  actor         String
+  weekStart     DateTime @db.Date
+  seenAt        DateTime @default(now())
+
+  record ProgressRecord @relation(fields: [programId, recordId], references: [programId, id], onDelete: Cascade)
+
+  @@unique([recordId, actor, weekStart])
+}

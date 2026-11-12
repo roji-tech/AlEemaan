@@ -215,7 +215,7 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
                         </span>
                       )}
                       {inv.status === InvoiceStatus.UNPAID && (
-                        <span className="rounded-full bg-red-500/20 border border-red-500/30 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                        <span className="rounded-full bg-danger-bg border border-danger-line px-2 py-0.5 text-[10px] font-bold text-danger-fg">
                           UNPAID
                         </span>
                       )}
@@ -260,6 +260,9 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
         onRefresh={() => {
           onRefresh();
           if (selectedInvoice) handleViewInvoice(selectedInvoice.id);
+        }}
+        onReloadInvoice={() => {
+          if (selectedInvoice) void handleViewInvoice(selectedInvoice.id);
         }}
       />
     </div>

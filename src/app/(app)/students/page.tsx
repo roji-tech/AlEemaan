@@ -4,6 +4,7 @@ import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { StudentsPanel } from "@/components/students/StudentsPanel";
+import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
 
 export const metadata: Metadata = { title: "Students" };
 export const dynamic = "force-dynamic";
@@ -20,6 +21,20 @@ export default async function StudentsPage() {
     select: { id: true, name: true },
   });
 
+  // What this person may do about a pupil's standing in each branch (display only; the API decides): a super admin everything, an administrator of the branch suspend and lift while
+  // the school allows it, never expel.
+  const standingCan = Object.fromEntries(
+    await Promise.all(
+      branches.map(async (b) => {
+        const administers = mayAdminister(scope, b.id);
+        return [
+          b.id,
+          { suspend: administers && (scope.superAdmin || (await branchAdminMaySuspend(b.id))), remove: administers && scope.superAdmin },
+        ] as const;
+      }),
+    ),
+  );
+
   return (
     <div>
       <PageHeader
@@ -35,7 +50,10 @@ export default async function StudentsPage() {
           You don&apos;t belong to a branch with staff access yet.
         </p>
       ) : (
-        <StudentsPanel branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))} />
+        <StudentsPanel
+          standingCan={standingCan}
+          branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
+        />
       )}
     </div>
   );

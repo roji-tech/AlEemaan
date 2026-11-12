@@ -4,7 +4,7 @@ import { ok, fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
 import { getClientIp, refundAttempt, reserveAttempt } from "@/lib/auth/rate-limit";
 import { PORTAL_COOKIE_NAME, setPortalCookie, clearPortalCookie } from "@/lib/portal/auth";
-import { authenticatePortalViaToken, authenticatePortalViaAdmission, portalAccessFor, resolvePortalSessionData } from "@/lib/portal/service";
+import { authenticatePortalViaToken, authenticatePortalViaAdmission, hasAnyAccess, portalAccessFor, resolvePortalSessionData, withStandingShown } from "@/lib/portal/service";
 import { readJsonBody } from "@/lib/api/validate";
 
 // Input is bounded and clean BEFORE anything reaches the database. Found by the bug hunt of 2026-10-19: there was no length limit (a 5 MB admission number went to
@@ -112,12 +112,15 @@ export async function GET(req: NextRequest) {
 
   // The pupil signed in as comes first. Whether the others are shown is the setting of THAT pupil's branch for this actor, read now.
   const everyone = await portalAccessFor(data.students, data.session.actor);
-  const students = everyone[data.students[0].id].siblings ? data.students : data.students.slice(0, 1);
+  // A pupil whose standing leaves nothing to open (task 0045) is not part of the session; when that is the pupil signed in as, the session is over.
+  const reachable = data.students.filter((student) => hasAnyAccess(everyone[student.id]!));
+  if (!reachable.some((student) => student.id === data.session.primaryStudentId)) return noStore(fail("Portal session expired or invalid", 401));
+  const students = everyone[data.session.primaryStudentId]!.siblings ? reachable : reachable.filter((student) => student.id === data.session.primaryStudentId);
 
   return noStore(
     ok({
       session: data.session,
-      students,
+      students: students.map(withStandingShown),
       // What this sign-in may do for each pupil, by the settings of the pupil's branch RIGHT NOW (the screens only decide what to show; every route checks again).
       actor: data.session.actor,
       access: Object.fromEntries(students.map((student) => [student.id, everyone[student.id]])),

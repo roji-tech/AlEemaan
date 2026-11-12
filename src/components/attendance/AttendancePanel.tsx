@@ -10,6 +10,7 @@ import { AttendanceStatus } from "@/lib/attendance/rules";
 import type { StudentRollCallEntry } from "@/lib/attendance/service";
 import type { AuthorizedAttendanceArm } from "@/lib/attendance/access";
 import { AttendanceGrantModal } from "./AttendanceGrantModal";
+import { StandingBadge } from "@/components/standing/StandingBadge";
 
 export type BranchOption = { id: string; name: string };
 
@@ -19,6 +20,8 @@ type StudentEntry = {
   firstName: string;
   middleName: string | null;
   lastName: string;
+  suspended: boolean;
+  suspendedUntil: string | null;
   status: AttendanceStatus;
   remarks: string;
 };
@@ -129,6 +132,8 @@ export function AttendancePanel({
         firstName: s.firstName,
         middleName: s.middleName,
         lastName: s.lastName,
+        suspended: s.suspended,
+        suspendedUntil: s.suspendedUntil,
         status: override?.status ?? s.status ?? AttendanceStatus.PRESENT,
         remarks: override?.remarks ?? s.remarks ?? "",
       };
@@ -503,6 +508,7 @@ export function AttendancePanel({
                   <span className="font-semibold text-fg">
                     {student.lastName}, {student.firstName} {student.middleName ?? ""}
                   </span>
+                  {student.suspended && <StandingBadge standing="SUSPENDED" until={student.suspendedUntil} />}
                 </div>
                 <div className="text-xs font-mono text-fg-muted mt-0.5">Admission: {student.admissionNo}</div>
               </div>
