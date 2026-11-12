@@ -52,6 +52,8 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
   const timeLimitId = useId();
   const passingScoreId = useId();
   const statusId = useId();
+  // the ids of a question's own controls are made from this and the question's position, so each label can be tied to its control
+  const questionsId = useId();
 
   const handleAddQuestion = () => {
     setQuestions((prev) => [
@@ -275,11 +277,21 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
           </div>
 
           {questions.map((q, idx) => (
-            <div key={idx} className="p-4 rounded-xl border border-line bg-surface space-y-3">
+            <div
+              key={idx}
+              role="group"
+              aria-label={`Question ${idx + 1}`}
+              className="p-4 rounded-xl border border-line bg-surface space-y-3"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-fg-muted">Question #{idx + 1}</span>
                 {questions.length > 1 && (
-                  <button type="button" onClick={() => handleRemoveQuestion(idx)} className="text-xs text-danger-fg hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveQuestion(idx)}
+                    aria-label={`Remove question ${idx + 1}`}
+                    className="text-xs text-danger-fg hover:underline"
+                  >
                     Remove
                   </button>
                 )}
@@ -289,6 +301,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                 <input
                   type="text"
                   required
+                  aria-label="Question prompt"
                   placeholder={`Question prompt (e.g. How many pillars of Islam are there?)`}
                   value={q.prompt}
                   onChange={(e) => updateQuestion(idx, { prompt: e.target.value })}
@@ -298,8 +311,11 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="block text-fg-muted mb-1">Question Type</label>
+                  <label htmlFor={`${questionsId}-${idx}-type`} className="block text-fg-muted mb-1">
+                    Question Type
+                  </label>
                   <select
+                    id={`${questionsId}-${idx}-type`}
                     value={q.questionType}
                     onChange={(e) => {
                       const type = e.target.value as QuestionDraft["questionType"];
@@ -327,7 +343,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                         correctAnswer: correct,
                       });
                     }}
-                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 shadow-sm"
+                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 text-fg shadow-sm"
                   >
                     <option value="MULTIPLE_CHOICE">Multiple Choice</option>
                     <option value="TRUE_FALSE">True / False</option>
@@ -336,13 +352,16 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                 </div>
 
                 <div>
-                  <label className="block text-fg-muted mb-1">Points</label>
+                  <label htmlFor={`${questionsId}-${idx}-points`} className="block text-fg-muted mb-1">
+                    Points
+                  </label>
                   <input
+                    id={`${questionsId}-${idx}-points`}
                     type="number"
                     min={1}
                     value={q.points}
                     onChange={(e) => updateQuestion(idx, { points: Number(e.target.value) || 1 })}
-                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 shadow-sm"
+                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 text-fg shadow-sm"
                   />
                 </div>
               </div>
@@ -359,10 +378,12 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                         checked={q.correctAnswer === opt.id}
                         onChange={() => updateQuestion(idx, { correctAnswer: opt.id })}
                         title="Mark as correct answer"
+                        aria-label={`Option ${oIdx + 1} is the correct answer`}
                         className="text-brand-fg focus:ring-ring h-4 w-4"
                       />
                       <input
                         type="text"
+                        aria-label={`Option ${oIdx + 1}`}
                         placeholder={`Option ${oIdx + 1}`}
                         value={opt.text}
                         onChange={(e) => {
@@ -370,7 +391,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                           newOpts[oIdx] = { ...opt, text: e.target.value };
                           updateQuestion(idx, { options: newOpts });
                         }}
-                        className="flex-1 rounded-md border border-line-strong bg-field px-2 py-1 text-xs"
+                        className="flex-1 rounded-md border border-line-strong bg-field px-2 py-1 text-xs text-fg"
                       />
                     </div>
                   ))}
@@ -392,7 +413,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
               {/* Options for TRUE_FALSE */}
               {q.questionType === "TRUE_FALSE" && (
                 <div className="flex items-center gap-4 pt-2">
-                  <label className="inline-flex items-center gap-1.5 text-xs">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-fg">
                     <input
                       type="radio"
                       name={`tf-${idx}`}
@@ -402,7 +423,7 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
                     />
                     <span>True</span>
                   </label>
-                  <label className="inline-flex items-center gap-1.5 text-xs">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-fg">
                     <input
                       type="radio"
                       name={`tf-${idx}`}
@@ -418,14 +439,17 @@ export function QuizModal({ isOpen, onClose, onSuccess, branchId, subjects, clas
               {/* Input for SHORT_ANSWER */}
               {q.questionType === "SHORT_ANSWER" && (
                 <div className="pt-1">
-                  <label className="block text-xs text-fg-muted mb-1">Expected exact keyword or phrase</label>
+                  <label htmlFor={`${questionsId}-${idx}-answer`} className="block text-xs text-fg-muted mb-1">
+                    Expected exact keyword or phrase
+                  </label>
                   <input
+                    id={`${questionsId}-${idx}-answer`}
                     type="text"
                     required
                     placeholder="Correct keyword"
                     value={q.correctAnswer}
                     onChange={(e) => updateQuestion(idx, { correctAnswer: e.target.value })}
-                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 text-xs"
+                    className="w-full rounded-md border border-line-strong bg-field px-2 py-1 text-xs text-fg"
                   />
                 </div>
               )}
