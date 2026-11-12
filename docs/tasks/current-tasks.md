@@ -407,3 +407,14 @@
 - [x] The component catalogue had named the first two as "two traps" but nothing fixed or tested them, and no test edited an announcement or a period. Two new browser specs, each run first against the UNFIXED build (5 of 5 failed, each for the right reason) and then against the fixed one.
 - [x] Tests: 49 passed, 0 failed on the new and the existing announcement and timetable specs (unit, api, desktop and phone). Not run: the whole suite, mutation passes (deferred), an audit of the app's other modals for the same pattern.
 - [ ] **For the maintainer:** if the school has used these screens, announcements saved "as a draft" may be live, and edited periods may have lost their subject, teacher or end time. The code cannot say which.
+
+## TASK-0058: The fee "Edit" dialog opened blank and could move a fee to every class; its term select did nothing
+
+[Task file](0058-fee-edit-dialog.md). Found by the product walkthrough's first run of chapter C11 Finance (task 0033); built on `claude/fix-fee-edit-dialog`. No migration, no API change.
+
+- [x] **"Edit" on a fee opened the form blank** (empty name and amount, the first term, "All Classes"): `FeeStructuresPanel` keeps `FeeStructureModal` mounted and its fields read `initialItem` only at mount. A second opening showed the first one's leftovers (proved: "Sports levy (half typed)" in the dialog of "Library fee"). Fixed: the panel gives the dialog a `key` per opening (a counter), the codebase's own answer (`BatchSlotsModal`, and 0057's dialogs).
+- [x] **Retyping the name and the amount stored the fee for every class**: the form sends `classGroupId: null` for "All Classes" and the service stores a `null` it is sent. Proved on the stored row on the unfixed build (`classGroupId` null where the Primary 1 id was expected), desktop and phone.
+- [x] **The term select did nothing on Edit**: the update schema has no `periodId`, so a changed term was dropped while the dialog said saved (the catalogue had noted it). Now `disabled` for an existing fee, with a sentence saying why; enabled for a new one. An earlier draft of the task file wrongly said an edit could move a fee to another term; corrected.
+- [x] No browser test had opened this dialog. Five new browser tests, run first against the UNFIXED build (10 of 10 failed, each for the right reason; one first draft failed too early to prove its claim and was reordered) and then against the fixed one.
+- [x] Tests: 33 passed, 0 failed on the new spec and the existing `finance-a11y` and `program-fees` specs (desktop and phone). Not run: the whole suite, the API finance specs (no server code changed), an axe scan of the Edit dialog, mutation passes (deferred). Not changed on a guess: `RecordPaymentModal`, `DiscountModal`, `BatchInvoiceModal`, `SpeedGraderModal`.
+- [ ] **For the maintainer:** if the school has edited fees by retyping them, some may now be "Universal / All Classes" when they were meant for one class. The code cannot say which.

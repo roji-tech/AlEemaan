@@ -17,6 +17,9 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeeStructureItem | null>(null);
+  // How many times the dialog has been opened: the dialog's `key`, so that every opening is a fresh instance (task 0058). Its fields are `useState(initialItem...)`, which read the item only on
+  // the first render; the panel keeps the dialog mounted, so without this "Edit" opened with an empty name, the first term and "All Classes", and a second opening showed the first one's leftovers.
+  const [openings, setOpenings] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filteredItems = selectedPeriodId === "ALL" ? items : items.filter((item) => item.periodId === selectedPeriodId);
@@ -25,11 +28,13 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
 
   function handleCreate() {
     setEditingItem(null);
+    setOpenings((n) => n + 1);
     setModalOpen(true);
   }
 
   function handleEdit(item: FeeStructureItem) {
     setEditingItem(item);
+    setOpenings((n) => n + 1);
     setModalOpen(true);
   }
 
@@ -156,6 +161,7 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
       </div>
 
       <FeeStructureModal
+        key={openings}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSaved={onRefresh}
