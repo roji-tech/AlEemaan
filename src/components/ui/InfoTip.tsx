@@ -91,12 +91,15 @@ export function InfoTip({ tip, className = "" }: { tip: InfoTipKey; className?: 
     setPlace({ left: clamped - icon.left, above });
   }, [open]);
 
-  // Until it is placed it is measured out of sight at the window's corner with `position: fixed`. NOT at the icon: beside a phone's right edge that put it, for an instant, past the edge of the
-  // page, and a phone then widens the page to fit it (the window reads wider, the clamp above clamps to the wrong edge, and the page stays wider: the floating button was cut off). A fixed box
-  // adds nothing to the page's scrollable width. Once placed it is `absolute` (the class) beside the icon.
+  // Until it is placed it is measured parked far outside the window with `position: fixed`, hidden. Two places were tried first and both were wrong (found by the browser tests, task 0054 and 0055):
+  //  - beside the icon: near a phone's right edge it stuck out past the edge of the page for an instant, a phone then widens the page to fit it, the window reads wider, the clamp above clamps
+  //    to the wrong edge and the page stays wider (the floating button was cut off);
+  //  - at the window's corner (0, 0): no width problem, but with the page scrolled to its end, Chrome then scrolled the page UP by 227 px the moment the popover mounted (the page lurched and
+  //    the popover, placed for the old scroll position, ended below the screen). Parked at -9999 nothing scrolls. Why the other two do is not known: it was found by bisecting, not explained.
+  // Once placed it is `absolute` (the class) beside the icon.
   const style: CSSProperties = place
     ? { left: place.left, ...(place.above ? { bottom: `calc(100% + ${GAP}px)` } : { top: `calc(100% + ${GAP}px)` }) }
-    : { position: "fixed", left: 0, top: 0, visibility: "hidden" };
+    : { position: "fixed", left: -9999, top: -9999, visibility: "hidden" };
 
   return (
     <span

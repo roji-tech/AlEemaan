@@ -26,6 +26,10 @@ export const INFO_TIPS = {
     "Staff can change a saved day for 7 days after it. After that only an administrator can, and a day that has not come yet cannot be recorded.",
 
   // Communication
+  "communication.channel":
+    "Email goes to the email address on file and SMS or WhatsApp to the phone number on file. A person with none for that channel is left out, and pupils can be sent Email only.",
+  "communication.tags":
+    "A tag is replaced with the real value in each message: the school's name and today's date for everyone, and for guardians the pupil's name and class.",
   "communication.status":
     "Sent means the provider accepted the message, not that it was read. A failed one shows its reason under View and can be tried again with Retry.",
 } as const;

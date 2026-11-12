@@ -245,7 +245,7 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     }
   });
 
-  test("on a production-shaped server with no provider key a retry stays FAILED and says why; the in-app channel needs no provider and is sent", async () => {
+  test("on a production-shaped server with no provider key a retry stays FAILED and says why; an In-App broadcast is refused (task 0055)", async () => {
     const admin = await asRole(Role.ADMIN, home.id);
     const failed = await db.notificationDispatch.create({
       data: {
@@ -274,7 +274,10 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
     expect(row?.sentAt).toBeNull();
     expect(row?.lastError).toContain("not set up");
 
+    // The In-App channel used to need no provider and was recorded as sent, but no screen shows an In-App message to anyone (Announcements do), so it is refused before anything is
+    // created (task 0055; the rules of the check are in tests/unit/communication-tags.spec.ts).
     await seedParents();
+    const before = await db.notificationDispatch.count({ where: { branchId: home.id } });
     const inApp = await api("/api/v1/communication/broadcast", {
       method: "POST",
       cookie: admin.cookie,
@@ -286,8 +289,8 @@ test.describe("Slice P6 — Multi-Channel Communication & Messaging API", () => 
         body: "In-app notice.",
       },
     });
-    expect(inApp.status).toBe(201);
-    expect(inApp.json.data.sent).toBe(inApp.json.data.count);
-    expect(inApp.json.data.failed).toBe(0);
+    expect(inApp.status).toBe(400);
+    expect(inApp.json.error.message).toContain("Announcements");
+    expect(await db.notificationDispatch.count({ where: { branchId: home.id } })).toBe(before);
   });
 });

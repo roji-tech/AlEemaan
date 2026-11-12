@@ -375,3 +375,15 @@
 - [x] Tests: final run 72 passed, 0 failed, 4 skipped (the device-only ones): the new unit spec (registry rules), the new browser spec on desktop and phone, and the existing specs of every touched page. Not run: the whole suite, mutation passes (deferred), a real phone or screen reader.
 - [x] Found on the way, NOT fixed here (own task, next): four of the five "Insert Personalization Tags" in the Broadcast Composer are never filled in (a guardian gets the literal `{{class_arm}}`), and SMS or WhatsApp to the Staff or Students audience is addressed to an email address. The two tips these would need are not written until they are fixed.
 - [ ] Later, module by module, in their own PRs: Settings and Approvals, Timetable, Announcements, Coursework, Results, Finance, Question bank, Forms, Programs, Users, Branches, the portal; Octalve Edu (its task 0055); the walkthrough shows one icon and the final video is made after this ships.
+
+## TASK-0055: The Broadcast Composer's tags are filled in, a phone number is used only where one exists, and a message nobody can read is not recorded as sent
+
+[Task file](0055-broadcast-tags-and-recipients.md). Found while checking the words of the info icons (task 0054) and fixed on the maintainer's standing instruction; built on `claude/communication-tags-recipients`. No migration.
+
+- [x] Defect 1, fixed: four of the five message tags were never filled in (a guardian received the text `{{class_arm}}`). `tags.ts` (pure) says which tags exist for whom; `broadcastMessage` fills `school_name`, `date` (school time zone) and, for a guardian, `student_name` and `class_arm` (the active session's class, or "their class"); a tag nobody would fill is refused with a 400 naming it. The "Due Date" chip is gone (no source).
+- [x] Defect 2, fixed: SMS and WhatsApp to staff were addressed to an email. They use the staff record's phone; staff with none are left out. SMS and WhatsApp to pupils (a login has no phone number) are refused, and the composer turns them off with the reason.
+- [x] Defect 3, fixed as a decision the maintainer may reverse: In-App recorded "Sent" for a message no screen shows (no reader exists; Announcements are the in-app feed). It is refused and the chip is gone. Open item added.
+- [x] The two info icons held back in task 0054 (`communication.channel`, `communication.tags`) are added.
+- [x] A bug in task 0054's `InfoTip` found by the new icon and fixed: opening a tip near the end of a long page made Chrome scroll the page up 227 px; measured parked off-screen now. Cause inside Chrome not known (bisected).
+- [x] Tests: final run 154 passed, 0 failed, 4 skipped; the new input check's unit tests fail 4 of 13 on the old code. Not run: the whole suite, mutation passes (deferred), real delivery, a real phone.
+- [ ] Not done: Octalve Edu (its own task: tags only, plus its In-App question); the walkthrough's C10 used In-App as its safe channel and must move to Email with the dev inbox; siblings who share a guardian's address still get one message.
