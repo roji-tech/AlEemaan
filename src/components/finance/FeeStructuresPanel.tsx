@@ -146,7 +146,7 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
                           type="button"
                           disabled={deletingId === item.id}
                           onClick={() => handleDelete(item.id)}
-                          className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-500 border border-red-500/20 hover:bg-red-500/10 focus-visible:outline-2 focus-visible:outline-ring"
+                          className="rounded-lg px-2.5 py-1 text-xs font-medium text-danger-fg border border-danger-line hover:bg-danger-bg focus-visible:outline-2 focus-visible:outline-ring"
                         >
                           {deletingId === item.id ? "..." : "Delete"}
                         </button>

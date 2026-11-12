@@ -406,7 +406,7 @@
 - [x] **Editing a period opened the form on the first arm, subject and teacher and 09:00, and "Update" overwrote the period with them** (a Mathematics period for another arm became English with the first teacher). Silent data corruption. Same mechanism, same fix in `TimetableCanvas`, which already did it for `BatchSlotsModal`.
 - [x] The component catalogue had named the first two as "two traps" but nothing fixed or tested them, and no test edited an announcement or a period. Two new browser specs, each run first against the UNFIXED build (5 of 5 failed, each for the right reason) and then against the fixed one.
 - [x] Tests: 49 passed, 0 failed on the new and the existing announcement and timetable specs (unit, api, desktop and phone). Not run: the whole suite, mutation passes (deferred), an audit of the app's other modals for the same pattern.
-- [ ] **For the maintainer:** if the school has used these screens, announcements saved "as a draft" may be live, and edited periods may have lost their subject, teacher or end time. The code cannot say which.
+- [x] **For the maintainer (closed 2026-11-12: the maintainer says there is no production data yet, so there is nothing to check):** if the school has used these screens, announcements saved "as a draft" may be live, and edited periods may have lost their subject, teacher or end time. The code cannot say which.
 
 ## TASK-0058: The fee "Edit" dialog opened blank and could move a fee to every class; its term select did nothing
 
@@ -417,7 +417,7 @@
 - [x] **The term select did nothing on Edit**: the update schema has no `periodId`, so a changed term was dropped while the dialog said saved (the catalogue had noted it). Now `disabled` for an existing fee, with a sentence saying why; enabled for a new one. An earlier draft of the task file wrongly said an edit could move a fee to another term; corrected.
 - [x] No browser test had opened this dialog. Five new browser tests, run first against the UNFIXED build (10 of 10 failed, each for the right reason; one first draft failed too early to prove its claim and was reordered) and then against the fixed one.
 - [x] Tests: 33 passed, 0 failed on the new spec and the existing `finance-a11y` and `program-fees` specs (desktop and phone). Not run: the whole suite, the API finance specs (no server code changed), an axe scan of the Edit dialog, mutation passes (deferred). Not changed on a guess: `RecordPaymentModal`, `DiscountModal`, `BatchInvoiceModal`, `SpeedGraderModal`.
-- [ ] **For the maintainer:** if the school has edited fees by retyping them, some may now be "Universal / All Classes" when they were meant for one class. The code cannot say which.
+- [x] **For the maintainer (closed 2026-11-12: the maintainer says there is no production data yet, so there is nothing to check):** if the school has edited fees by retyping them, some may now be "Universal / All Classes" when they were meant for one class. The code cannot say which.
 
 ## TASK-0059: A refresh after a save blanked the whole Finance screen: the batch result never showed, and the invoice closed after every payment
 
@@ -428,3 +428,14 @@
 - [x] **Consequence handled: the three always-mounted dialogs now start fresh per opening** (`key` counters in `InvoicesDashboard` and `InvoiceDetailModal`), because without the remount they showed the last result and the last payment's amount. Proved with a variant build that has the quiet refresh but not the keys (4 of 4 failed on the reopen checks). **Task 0058's D3 ("they are safe because a save remounts them") was wrong and is corrected in that file.**
 - [x] No test had generated invoices or paid one from the browser. Two new browser tests, run first against the UNFIXED build (4 of 4 failed, each for the right reason), then fixed.
 - [x] Tests: 37 passed, 0 failed on the new spec and the existing `finance-a11y`, `finance-fee-edit` and `program-fees` specs (desktop and phone). Not run: the whole suite, the API finance specs (no server change), an axe scan of the stay-open state, mutation passes (deferred). Not tested: `DiscountModal`'s key (no test opens the waiver dialog twice), the filters surviving a save, a failed quiet refresh.
+
+## TASK-0060: The Finance screens used raw red and green, below the contrast WCAG AA asks for
+
+[Task file](0060-finance-colour-contrast.md). Found by the product walkthrough's chapter C11 (task 0033): the axe observer logged one `color-contrast` blocker at `/finance`, step 85, light theme; built on `claude/fix-finance-contrast`. No migration, no API change.
+
+- [x] **Eight places hard-coded `red-500` (six error boxes and the fee row's Delete) or `green-400` (the batch result)**, where the rest of the app uses the `danger-*` and `ok-*` tokens. Measured on the unfixed build, light theme: errors 3.30:1, the loading-error card 3.14:1, Delete 3.67 and 3.17:1, **the batch result 1.63:1**; dark theme: errors 4.37:1, Delete 4.37 and 4.08:1 (AA asks 4.5:1). Fixed: the tokens, as the other 50+ uses do.
+- [x] **Why no test saw it:** the existing finance a11y spec scans the dark theme only and hovers nothing; the walkthrough's pointer rests on the fee row, which is where the Delete failed.
+- [x] New spec `finance-contrast.spec.ts`: every state of Finance (dashboard with a hovered row, an invoice with a receipt and a discount, the payment, waiver and fee dialogs with their errors, the batch result, the fee schedule with Delete hovered, the loading-error card) in both themes, desktop and phone, listing every violation before it asserts. Run first against the UNFIXED build (4 of 4 failed, each listing its violations), then fixed.
+- [x] Tests: 23 passed, 0 failed on the new spec and the existing `finance-a11y`, `finance-fee-edit` and `finance-refresh` specs. Not run: the whole suite, mutation passes (deferred); not scanned: the thirteen raw-palette uses outside Finance.
+- [x] The "for the maintainer" items of TASK-0057 and TASK-0058 are closed: the maintainer says there is no production data yet.
+- [ ] **For the maintainer:** the Delete button reads as a pale pink in the dark theme (`text-danger-fg`, like the coursework Delete); `text-danger-text` would keep it red and also passes. Say if you prefer it.
