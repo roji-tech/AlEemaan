@@ -71,7 +71,7 @@ export function AppShell({
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <ProfileMenu name={user.name} email={user.email} roleLabel={user.roleLabel} isAdmin={user.isAdmin} />
+            <ProfileMenu name={user.name} email={user.email} roleLabel={user.roleLabel} isSuperAdmin={user.isSuperAdmin} />
           </div>
         </header>
 
