@@ -126,6 +126,20 @@ export const pupils = {
     email: "lami.sani@walkthrough.test",
     admissionNo: "",
   },
+  // Registered in C12, after the portal chapter's first step: Aisha's sister, with the same guardian and the phone number as C06 corrected it, so that one guardian's sign-in opens two children.
+  hafsa: {
+    first: "Hafsa",
+    last: "Bello",
+    gender: "Female",
+    dobTyped: "09222019",
+    dobShown: "2019-09-22",
+    arm: "B",
+    guardian: "Hauwa Bello",
+    phone: "0803 000 0191",
+    phoneCorrected: "",
+    email: "hauwa.bello@walkthrough.test",
+    admissionNo: "",
+  },
 };
 
 /// The announcements of C08. The first goes to one arm of the branch and stays published; "Sports day" is saved as a draft, then published and pinned; the third is a draft that is deleted.

@@ -9,11 +9,11 @@ import { mainNav, openPage, signIn, signOut } from "./shared";
 const chapter = "C06 Students";
 
 type Pupil = (typeof pupils)[keyof typeof pupils];
-const fullName = (p: Pupil) => `${p.first} ${p.last}`;
-const pupilRows = (page: Page) => page.getByRole("listitem").filter({ hasText: "· born" });
-const rowOf = (page: Page, p: Pupil) => pupilRows(page).filter({ hasText: fullName(p) });
+export const fullName = (p: Pupil) => `${p.first} ${p.last}`;
+export const pupilRows = (page: Page) => page.getByRole("listitem").filter({ hasText: "· born" });
+export const rowOf = (page: Page, p: Pupil) => pupilRows(page).filter({ hasText: fullName(p) });
 
-async function register(walk: Walk, page: Page, p: Pupil): Promise<void> {
+export async function register(walk: Walk, page: Page, p: Pupil): Promise<void> {
   await walk.click(page.getByRole("button", { name: "New student", exact: true }));
   const dialog = page.getByRole("dialog", { name: "New student" });
   await walk.type(dialog.getByLabel("First name"), p.first);
