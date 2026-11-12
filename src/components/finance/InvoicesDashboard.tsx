@@ -38,6 +38,9 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
   const [periodFilter, setPeriodFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
+  // The batch dialog's `key`: a new instance for every opening (task 0059). Its fields are `useState(...)` and it is kept mounted, and since a save no longer remounts this screen (FinancePanel
+  // refreshes quietly), a second opening would otherwise start from the first one's term, class, date and result.
+  const [batchOpenings, setBatchOpenings] = useState(0);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetail | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -164,7 +167,10 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
           {canManage && (
             <button
               type="button"
-              onClick={() => setBatchModalOpen(true)}
+              onClick={() => {
+                setBatchOpenings((n) => n + 1);
+                setBatchModalOpen(true);
+              }}
               className="flex items-center gap-1.5 rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-ring"
             >
               <span>+</span> Batch Generate Invoices
@@ -244,6 +250,7 @@ export function InvoicesDashboard({ branchId, invoices, periods, classGroups, ca
       </div>
 
       <BatchInvoiceModal
+        key={batchOpenings}
         isOpen={batchModalOpen}
         onClose={() => setBatchModalOpen(false)}
         onGenerated={onRefresh}

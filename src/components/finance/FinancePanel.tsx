@@ -24,9 +24,12 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async (branchId: string) => {
+  // `quiet` is the refresh a tab asks for AFTER a save (task 0059): the screen stays as it is and the new data replaces the old when it arrives. While `loading` is true the content below is
+  // replaced by "Loading finance records...", which unmounts the dashboard and every dialog open in it; that closed the invoice after every payment and destroyed the batch dialog's result
+  // (how many invoices were made, how many skipped) before anyone could read it. The first load and a change of branch are not quiet: there is nothing to keep.
+  const loadData = useCallback(async (branchId: string, quiet = false) => {
     if (!branchId) return;
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setError(null);
 
     try {
@@ -165,7 +168,7 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
           periods={periods}
           classGroups={classGroups}
           canManage={canManage}
-          onRefresh={() => loadData(selectedBranchId)}
+          onRefresh={() => loadData(selectedBranchId, true)}
         />
       ) : (
         <FeeStructuresPanel
@@ -174,7 +177,7 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
           periods={periods}
           classGroups={classGroups}
           canManage={canManage}
-          onRefresh={() => loadData(selectedBranchId)}
+          onRefresh={() => loadData(selectedBranchId, true)}
         />
       )}
     </div>
