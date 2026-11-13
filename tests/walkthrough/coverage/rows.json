@@ -1025,7 +1025,7 @@
       "Non-teaching staff"
     ],
     "kind": "negative",
-    "proof": "No Academics entry; a typed address shows 'Only administrators can open this page'",
+    "proof": "Sign in as a teacher: no Academics entry in the sidebar; a typed address opens Academics to read, and says 'Only an administrator of a branch can change them.'",
     "source": [
       "src/app/(app)/academics/page.tsx"
     ],
@@ -1152,7 +1152,7 @@
       "Non-teaching staff"
     ],
     "kind": "negative",
-    "proof": "The sidebar has no Students; a typed address is refused with a sentence",
+    "proof": "Sign in as a member of the non-teaching staff: no Students entry in the sidebar; a typed address opens the Students page, which says only an administrator of a branch can change the pupils",
     "source": [
       "src/components/students/StudentsPanel.tsx"
     ],
