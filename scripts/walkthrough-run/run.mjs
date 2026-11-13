@@ -24,6 +24,7 @@ import {
 } from "./safety.mjs";
 import { outputRoot } from "./paths.mjs";
 import { clearStaleEvidence } from "./stale.mjs";
+import { checkpointFile, clearCheckpoints, dumpArgs, mfaKeyFor, parseResume, restoreArgs, startCheckpointServer } from "./checkpoint.mjs";
 
 try {
   process.loadEnvFile(".env");
@@ -107,6 +108,23 @@ async function main() {
   console.log(`Port: ${PORT}`);
   console.log(`Database: ${DB_NAME} on ${DB_HOST}:${DB_PORT}`);
 
+  // A recon saves the database at the end of every chapter and a later recon can resume from one (section 6.16 of task 0033). Never a strict run, which is the whole journey.
+  const MODE = process.env.WALKTHROUGH_MODE || "strict";
+  const PASS = process.env.WALKTHROUGH_PASS || "desktop-light";
+  const passDir = path.join(outputRoot(), PASS);
+  const resume = parseResume(process.env, MODE); // throws for a strict run, or when only one of the two settings is given
+  const checkpointing = MODE === "recon";
+  const resumeFile = resume.after ? checkpointFile(passDir, resume.after) : null;
+  if (resumeFile && !fs.existsSync(resumeFile)) {
+    throw new Error(
+      `No checkpoint after "${resume.after}" at ${resumeFile}: run a whole recon first (it saves one after every chapter that ends without stopping).`,
+    );
+  }
+  if (resume.after) console.log(`Resuming after "${resume.after}", running: ${resume.only.join(", ")}`);
+  // a whole recon starts the saves again (and makes the key their two-step secrets are encrypted with); a resumed one reads that key
+  if (checkpointing && !resume.after) clearCheckpoints(passDir);
+  const mfaKey = checkpointing ? mfaKeyFor(passDir, { create: !resume.after }) : null;
+
   // 0. This script drops and recreates a database: be certain which one, before anything is touched.
   assertWalkthroughDbName(DB_NAME);
   assertLocalDatabaseHost(DATABASE_URL);
@@ -132,6 +150,11 @@ async function main() {
   // The first write is the migration: confirm what the connection really points at, with no seed and nothing else in the database.
   assertCurrentDatabase(DB_NAME, await captureCmd("psql", [DATABASE_URL, "-tAc", "select current_database()"]));
 
+  if (resumeFile) {
+    console.log(`Restoring the checkpoint after "${resume.after}"...`);
+    await runCmd("pg_restore", restoreArgs({ host: DB_HOST, port: DB_PORT, user: DB_USER, db: DB_NAME, file: resumeFile }));
+  }
+  // after a restore this only applies a migration that dev gained since the save, and does nothing otherwise
   console.log("Deploying migrations to walkthrough database...");
   await runCmd("pnpm", ["exec", "prisma", "migrate", "deploy"], {
     DATABASE_URL,
@@ -161,7 +184,7 @@ async function main() {
     CLIENT_IP_HEADER: "x-real-ip",
     TRUSTED_PROXY_HOPS: "1",
     SESSION_SECRET: crypto.randomBytes(32).toString("hex"),
-    MFA_ENCRYPTION_KEY: crypto.randomBytes(32).toString("base64"),
+    MFA_ENCRYPTION_KEY: mfaKey ?? crypto.randomBytes(32).toString("base64"),
     FORCE_MOCK_PAYSTACK: "true",
     ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: "true",
     PAYSTACK_SECRET_KEY: `sk_test_walkthrough_${crypto.randomBytes(12).toString("hex")}`,
@@ -205,34 +228,41 @@ async function main() {
 
   // 3. Execute Continuous Walkthrough Suite
   // The previous run's findings and timeline go first: a run that fails before the tests write anything must not show them as its own result.
-  const removed = clearStaleEvidence(outputRoot(), process.env.WALKTHROUGH_PASS || "desktop-light");
+  const removed = clearStaleEvidence(outputRoot(), PASS);
   console.log(`Removed ${removed} file(s) of the previous run's verdict (findings, observations, timeline, failure screenshots).`);
   console.log("\n[3/4] Launching Playwright Continuous Walkthrough recording...");
+  // While the tests run, answer the walk's requests to save the database at the end of a chapter (a recon only: a strict run asks for nothing).
+  const checkpoints = checkpointing
+    ? startCheckpointServer(passDir, async (chapter) => {
+        const file = checkpointFile(passDir, chapter);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        const partial = `${file}.partial`;
+        await runCmd("pg_dump", dumpArgs({ host: DB_HOST, port: DB_PORT, user: DB_USER, db: DB_NAME, file: partial }));
+        fs.renameSync(partial, file);
+        fs.writeFileSync(
+          file.replace(/\.dump$/, ".json"),
+          JSON.stringify({ chapter, savedAt: new Date().toISOString(), database: DB_NAME }, null, 2),
+        );
+        console.log(`Checkpoint saved after "${chapter}".`);
+      })
+    : null;
   try {
-    await runCmd(
-      "pnpm",
-      [
-        "exec",
-        "playwright",
-        "test",
-        "--config=playwright.walkthrough.config.ts",
-        `--project=${process.env.WALKTHROUGH_PASS || "desktop-light"}`,
-      ],
-      {
-        WALKTHROUGH_OUTPUT_ROOT: outputRoot(),
-        WALKTHROUGH_SETUP_TOKEN: SETUP_TOKEN,
-        WALKTHROUGH_DEV_TOOLS_TOKEN: DEV_TOOLS_TOKEN,
-        WALKTHROUGH_MODE: process.env.WALKTHROUGH_MODE || "strict",
-        WALKTHROUGH_PORT: PORT,
-        WALKTHROUGH_BASE_URL: `http://localhost:${PORT}`,
-      },
-    );
+    await runCmd("pnpm", ["exec", "playwright", "test", "--config=playwright.walkthrough.config.ts", `--project=${PASS}`], {
+      WALKTHROUGH_OUTPUT_ROOT: outputRoot(),
+      WALKTHROUGH_SETUP_TOKEN: SETUP_TOKEN,
+      WALKTHROUGH_DEV_TOOLS_TOKEN: DEV_TOOLS_TOKEN,
+      WALKTHROUGH_MODE: MODE,
+      WALKTHROUGH_CHECKPOINTS: checkpointing ? "save" : "",
+      WALKTHROUGH_PORT: PORT,
+      WALKTHROUGH_BASE_URL: `http://localhost:${PORT}`,
+    });
   } finally {
+    checkpoints?.stop();
     cleanup();
   }
 
   // 4. Deliverables. Only a strict run produces them; a recon run's evidence is what the tests wrote (findings, observations, screenshots).
-  if ((process.env.WALKTHROUGH_MODE || "strict") === "strict") {
+  if (MODE === "strict") {
     console.log("\n[4/4] Generating deliverables...");
     await runCmd("node", ["scripts/walkthrough-run/report.mjs"]);
   } else {
