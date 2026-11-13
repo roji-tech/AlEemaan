@@ -265,3 +265,19 @@ export const approvals = {
     standard: "First name and the first letter of the last name (Amina Y.)",
   },
 };
+
+/// What is typed in C16 Users (section 6.15): a password that is not anyone's, the reasons that go with each change of standing, the last day of a suspension as it is typed into a date field
+/// (month, day, year) and as the list then shows it.
+export const users = {
+  wrongPassword: "Not-the-password-9",
+  // a search that finds no one
+  nobody: "nobody by that name",
+  tooShortReason: "No",
+  suspendReason: "Away without leave for two weeks; the school is looking into it.",
+  lastDayTyped: "12312026",
+  lastDayShown: "31 Dec 2026",
+  terminateReason: "The contract ended after the review.",
+  reinstateReason: "The review found in their favour; they are back.",
+  branchAdminSuspendReason: "Missed the morning registration twice.",
+  branchAdminLiftReason: "Explained, and agreed a new routine.",
+};
