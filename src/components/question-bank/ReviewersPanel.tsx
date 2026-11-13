@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useEffect, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -190,9 +191,12 @@ export function ReviewersPanel({ branches, isSuperAdmin }: { branches: BranchCho
       </div>
 
       <section aria-labelledby="reviewers-heading" className="space-y-3">
-        <h2 id="reviewers-heading" className="text-lg font-semibold text-fg">
-          Current reviewers
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 id="reviewers-heading" className="text-lg font-semibold text-fg">
+            Current reviewers
+          </h2>
+          <InfoTip tip="bank.reviewers" />
+        </div>
         {reviewers === null ? (
           <p className="text-sm text-fg-muted" aria-busy="true">
             Loading…

@@ -59,7 +59,7 @@ Reading `src/lib/communication/service.ts` and `templates.ts` to write the Commu
 
 So the tips `communication.channel` and `communication.tags` were not written (D13). Both defects are fixed in their own task, next (in its own PR, so this one stays about the icons), and the two tips follow it.
 
-## 6. What was placed (eight tips), and what each was checked against
+## 6. What was placed (eight tips, and five more in task 0073), and what each was checked against
 
 Each sentence was read against the source of the screen it sits on. The words are in `src/components/ui/info-tips.ts`.
 

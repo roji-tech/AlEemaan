@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
@@ -83,7 +84,10 @@ export function MarkingQueue({ branchId, formId }: { branchId: string; formId?: 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold text-fg">Marking</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-fg">Marking</h2>
+          <InfoTip tip="forms.marking" />
+        </div>
         <div className="w-full max-w-xs">
           <SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)} options={FILTERS} />
         </div>

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextAreaField } from "@/components/ui/TextAreaField";
 import { TextField } from "@/components/ui/TextField";
@@ -377,12 +378,15 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
               ]}
               onChange={(e) => setWriters(e.target.value as typeof writers)}
             />
-            <CheckboxField
-              label="Verify entries before families see them"
-              checked={requireVerification}
-              disabled={!may}
-              onChange={(e) => setRequireVerification(e.target.checked)}
-            />
+            <div className="flex items-center gap-1.5">
+              <CheckboxField
+                label="Verify entries before families see them"
+                checked={requireVerification}
+                disabled={!may}
+                onChange={(e) => setRequireVerification(e.target.checked)}
+              />
+              <InfoTip tip="programs.verify" />
+            </div>
             <CheckboxField
               label="Someone else has to verify an entry (not the person who wrote it)"
               checked={fourEyes}
@@ -402,6 +406,7 @@ export function ProgramSettingsTab({ program, run }: { program: ProgramDetail; r
               />
               <TextField
                 label="Lock is handed back after (seconds)"
+                info="programs.lockRelease"
                 inputMode="numeric"
                 value={lockRelease}
                 disabled={!may}

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useEffect, useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -99,7 +100,10 @@ export function ProgressWeekGrid({ base, record, today, onSaved }: Props) {
   return (
     <section aria-label="Week grid" className="space-y-4 rounded-xl border border-line p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-fg">Week of {label(weekStart)}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold text-fg">Week of {label(weekStart)}</h3>
+          <InfoTip tip="programs.weekGrid" />
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={() => setWeekStart((w) => addDays(w, -7))}>
             Earlier week

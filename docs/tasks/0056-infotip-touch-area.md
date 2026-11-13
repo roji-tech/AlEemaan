@@ -54,6 +54,6 @@ Filled in from the logs of 2026-11-12 (the AlEemaan test stack on :5434, one run
 
 **Run 2 (the real spec, the geometric check, 24 px): 36 passed, 0 failed, 4 skipped, 1.1 minutes.** Unit `info-tips` 5, e2e `info-tips` 30 (desktop 16, phone 14), setup 1.
 
-**Not run:** the whole suite; the API project; mutation passes (deferred to the end of PHASE 2); a real phone or a real finger (a 24 px target is a smaller target than 44 px: the maintainer's call, D1); Octalve's own run of this check against the old area (the component and the check are the same; it ran there against the new area and passed).
+**Not run:** the whole suite; the API project; mutation passes (deferred to the end of PHASE 2); a real phone or a real finger (a 24 px target is a smaller target than 44 px: approved by the maintainer on 2026-11-12, D1); Octalve's own run of this check against the old area (the component and the check are the same; it ran there against the new area and passed).
 
 **Found and not mine to fix here:** Octalve's Communication page was 16 px wider than a phone's screen; fixed in Octalve's task 0056.
