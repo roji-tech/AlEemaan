@@ -303,3 +303,25 @@ export const account = {
   nobody: "nobody.at.all@walkthrough.test",
   resetPassword: "Quartz-Maple-Heron-2028",
 };
+
+/// What is written in C20 Forms (section 6.21): a practice set of two questions, a questionnaire for staff, a public anonymous one, and paper work.
+export const forms = {
+  practice: {
+    title: "Fractions drill",
+    editedTitle: "Fractions drill, week 3",
+    instructions: "Answer every question.",
+    minutes: "15",
+    editedMinutes: "20",
+    q1: { prompt: "What is 1/2 + 1/4?", a: "1/4", b: "3/4", points: "2" },
+    q2: { prompt: "2/4 is the same as 1/2." },
+    printReason: "A copy for the form teacher's file.",
+  },
+  staffPulse: {
+    title: "Staff pulse",
+    prompt: "What would help you most?",
+    answer: "More planning time, please.",
+    answerStaff: "A quieter staff room.",
+  },
+  lunch: { title: "Lunch survey", prompt: "How was lunch?" },
+  paper: { title: "Holiday project" },
+};
