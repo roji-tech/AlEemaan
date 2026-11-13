@@ -4524,10 +4524,11 @@
     "feature": "A mark is corrected with a reason, and the correction keeps what it replaced",
     "route": "/programs",
     "roles": [
-      "Superadmin"
+      "Superadmin",
+      "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "Roll of a day more than a week ago: change a mark; 'Why are you correcting a mark?' must be filled in; Save; History of the person shows the old status, the new one, who and why",
+    "proof": "A correction needs a reason from a supervisor (always) and from an administrator for a day more than a week back; a teacher corrects within the week without one. The walkthrough proves it through a supervisor on today's roll: 'Why are you correcting a mark?' must be filled in, Save stays disabled until it is, and the person's history shows the old status, the new one, who and why (an administrator's correction of an old day needs a mark more than a week old, which a walkthrough cannot make)",
     "source": [
       "src/components/programs/ProgramAttendanceTab.tsx",
       "src/lib/programs/attendance-service.ts"
