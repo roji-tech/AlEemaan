@@ -7,7 +7,7 @@ import { useSignOut } from "@/components/auth/useSignOut";
 import { Button } from "@/components/ui/Button";
 import { LogOutIcon, MoreIcon, UserIcon, XIcon } from "@/components/ui/icons";
 import { SoonTag } from "./SoonTag";
-import { FOCUS_RING, groupNav, initialsOf, isActive, navFor } from "./nav";
+import { FOCUS_RING, groupNav, initialsOf, isActive, navFor, type PageOverrides } from "./nav";
 
 type MobileNavProps = {
   name: string | null;
@@ -17,6 +17,7 @@ type MobileNavProps = {
   isSuperAdmin: boolean;
   isTeacher: boolean;
   isStaff: boolean;
+  pages: PageOverrides;
 };
 
 const TAB =
@@ -29,13 +30,13 @@ const SHEET_ROW =
 /// desktop sidebar (a section of one has no heading), pages that aren't built yet, Profile, and
 /// Sign out. The sheet is a native modal `<dialog>`, so the focus trap, Escape, an inert page
 /// behind it and focus returning to "More" come from the platform rather than hand-rolled code.
-export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTeacher, isStaff }: MobileNavProps) {
+export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTeacher, isStaff, pages }: MobileNavProps) {
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { signOut, pending, error } = useSignOut();
 
-  const items = navFor(isAdmin, isSuperAdmin, isTeacher, isStaff);
+  const items = navFor(isAdmin, isSuperAdmin, isTeacher, isStaff, pages);
   const tabs = items.filter((item) => item.href && !item.inMore);
   const moreGroups = groupNav(items.filter((item) => item.href && item.inMore));
   const soon = items.filter((item) => !item.href);

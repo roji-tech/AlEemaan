@@ -29,7 +29,20 @@ const EMPTY: Record<QuestionsView, string> = {
   queue: "Nothing is waiting for you.",
 };
 
-export function QuestionsPanel({ view, writeBranches }: { view: QuestionsView; writeBranches: { id: string; name: string }[] }) {
+type BranchOption = { id: string; name: string };
+
+/// `writeBranches`: the branches the person is staff of (what a problem report or the print log may name). `authorBranches`: the ones they may WRITE a question for, by the very
+/// rule the route applies (an administrator or teacher of it, or a reviewer who is staff there), so a member of non-teaching staff with no reviewer assignment is not offered
+/// a "Write a question" that the route would refuse.
+export function QuestionsPanel({
+  view,
+  writeBranches,
+  authorBranches,
+}: {
+  view: QuestionsView;
+  writeBranches: BranchOption[];
+  authorBranches: BranchOption[];
+}) {
   const [items, setItems] = useState<ApiItem[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,9 +135,11 @@ export function QuestionsPanel({ view, writeBranches }: { view: QuestionsView; w
               options={[{ value: "", label: "Any state" }, ...(Object.keys(STATUS_LABEL) as ItemStatus[]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))]}
             />
           </div>
-          <Button onClick={() => setWriting(true)} className="sm:shrink-0">
-            Write a question
-          </Button>
+          {authorBranches.length > 0 && (
+            <Button onClick={() => setWriting(true)} className="sm:shrink-0">
+              Write a question
+            </Button>
+          )}
         </div>
       )}
 
@@ -150,7 +165,11 @@ export function QuestionsPanel({ view, writeBranches }: { view: QuestionsView; w
         )
       ) : items.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-          {filtering ? "No question matches. Try fewer words, or clear the filters." : EMPTY[view]}
+          {filtering
+            ? "No question matches. Try fewer words, or clear the filters."
+            : view === "mine" && authorBranches.length === 0
+              ? "You have not written a question."
+              : EMPTY[view]}
         </p>
       ) : (
         <>
@@ -201,7 +220,7 @@ export function QuestionsPanel({ view, writeBranches }: { view: QuestionsView; w
       <QuestionForm
         open={writing || editing !== null}
         item={editing}
-        writeBranches={writeBranches}
+        writeBranches={authorBranches}
         onClose={() => {
           setWriting(false);
           setEditing(null);

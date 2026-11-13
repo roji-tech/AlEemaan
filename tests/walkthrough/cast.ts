@@ -325,3 +325,9 @@ export const forms = {
   lunch: { title: "Lunch survey", prompt: "How was lunch?" },
   paper: { title: "Holiday project" },
 };
+
+/// What is written in C22 Question bank (section 6.22): a reviewer, a question of the teacher's, and the sentences of the review.
+export const bank = {
+  subject: "Mathematics",
+  question: { prompt: "Which of these fractions is the same as one half?", a: "2/4", b: "1/3", classTag: "Primary 1" },
+};

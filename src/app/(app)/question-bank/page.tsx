@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
 import { loadViewer } from "@/lib/question-bank/viewer";
+import { mayAuthorIn } from "@/lib/question-bank/rules";
+import { QUESTION_BANK_HREF } from "@/components/shell/nav";
+import { pageExcluded } from "@/lib/shell-pages";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { QuestionBankSections } from "@/components/question-bank/QuestionBankSections";
 
@@ -15,12 +18,13 @@ const STAFF = new Set(["ADMIN", "TEACHING_STAFF", "NON_TEACHING_STAFF"]);
 // branch, a branch administrator may only make them stricter for theirs). Display only: the APIs behind it decide who may do what.
 export default async function QuestionBankPage() {
   const { session, memberships, isAdmin, isSuperAdmin } = await requirePageSession();
-  if (!isSuperAdmin && !memberships.some((m) => STAFF.has(m.role))) {
+  const notStaff = !isSuperAdmin && !memberships.some((m) => STAFF.has(m.role));
+  if (notStaff || pageExcluded(session.user.pages, QUESTION_BANK_HREF)) {
     return (
       <div>
         <PageHeader title="Question bank" />
         <p role="alert" className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-          Only staff can open this page.
+          {notStaff ? "Only staff can open this page." : "This page is not available to you."}
         </p>
       </div>
     );
@@ -50,6 +54,7 @@ export default async function QuestionBankPage() {
       <QuestionBankSections
         branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
         writeBranches={writeBranches}
+        authorBranches={writeBranches.filter((b) => mayAuthorIn(viewer, b.id))}
         isAdmin={isAdmin}
         isSuperAdmin={isSuperAdmin}
         canReview={canReview}

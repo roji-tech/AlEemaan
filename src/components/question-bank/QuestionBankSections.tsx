@@ -14,12 +14,15 @@ import { ReportsPanel } from "@/components/question-bank/ReportsPanel";
 export function QuestionBankSections({
   branches,
   writeBranches,
+  authorBranches,
   isAdmin,
   isSuperAdmin,
   canReview,
 }: {
   branches: BranchChoice[];
   writeBranches: { id: string; name: string }[];
+  /// The branches the person may write a question for (a subset of `writeBranches`): without any, the page offers no "Write a question".
+  authorBranches: { id: string; name: string }[];
   isAdmin: boolean;
   isSuperAdmin: boolean;
   canReview: boolean;
@@ -83,7 +86,7 @@ export function QuestionBankSections({
         ))}
       </div>
       <div role="tabpanel" id={`qpanel-${active}`} aria-labelledby={`qtab-${active}`}>
-        {(active === "browse" || active === "mine" || active === "queue") && <QuestionsPanel key={active} view={active} writeBranches={writeBranches} />}
+        {(active === "browse" || active === "mine" || active === "queue") && <QuestionsPanel key={active} view={active} writeBranches={writeBranches} authorBranches={authorBranches} />}
         {active === "reports" && <ReportsPanel writeBranches={writeBranches} />}
         {active === "myreports" && <MyReportsPanel />}
         {active === "prints" && <PrintLogPanel branches={isAdmin ? branches.map((b) => ({ id: b.id, name: b.name })) : writeBranches} />}

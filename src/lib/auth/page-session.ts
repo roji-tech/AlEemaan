@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ROLE_LABELS } from "@/lib/roles";
+import { loadPageOverrides } from "@/lib/shell-pages";
 import { getUserMemberships } from "./memberships";
 import { getSession } from "./session";
 
@@ -13,6 +14,8 @@ const ROLE_PRECEDENCE: readonly Role[] = [Role.ADMIN, Role.TEACHING_STAFF, Role.
 /// `cache`, so the layout that draws the shell and the page inside it ask in the same request and
 /// the database is hit once. **Every page must call this itself**: a layout doesn't re-render on a
 /// client-side navigation between its pages, so it is display, never the guard.
+///
+/// `session.user.pages` is what the shell is told to show or hide for this person on top of their role.
 ///
 /// `isAdmin` follows the API's rule (`withAuth({ roles: [ADMIN] })`): the person administers at least one branch (an ADMIN membership) or is
 /// a superadmin. `isSuperAdmin` is school-wide authority (branches, school settings, other administrators); see ADR 0012 and the
@@ -29,11 +32,15 @@ export const requirePageSession = cache(async () => {
 
   // A superadmin counts only while they hold an active membership (as in the API); a person with none has no role and no access here.
   const isSuperAdmin = Boolean(user?.isSuperAdmin) && memberships.length > 0;
+  const isAdmin = primary === Role.ADMIN || isSuperAdmin;
+
+  // `session.user.pages`: the pages shown or hidden for this person on top of their role (display only; see `lib/shell-pages.ts`). Here and not in `getSession`, so only pages ask.
+  const pages = await loadPageOverrides({ userId: session.userId, memberships, isAdmin });
 
   return {
-    session,
+    session: { ...session, user: { ...session.user, pages } },
     memberships,
-    isAdmin: primary === Role.ADMIN || isSuperAdmin,
+    isAdmin,
     isSuperAdmin,
     roleLabel: primary ? ROLE_LABELS[primary] : "No role yet",
   };
