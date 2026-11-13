@@ -506,3 +506,6 @@ export const formsPortal = {
   pulse: { title: "Class pulse", prompt: "How was the week?", comment: "Quiet and good." },
   record: { title: "Reading record", instructions: "Bring the log on Monday.", note: "Neat work." },
 };
+
+/// What is written in C36 Shell (section 6.36): a note on the scratchpad.
+export const shell = { note: "Ring the bursar about the bus fees on Monday." };
