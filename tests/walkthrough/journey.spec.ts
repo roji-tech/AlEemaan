@@ -46,7 +46,7 @@ import { c40FormsMore } from "./chapters/c40-forms-more";
 // The journey of one pass (task 0033). One browser context, one recording, chapters in the order the data is made (section 6.6). The pass is the project that runs it (desktop-light,
 // desktop-dark, phone); the chapters are the same in each. WALKTHROUGH_MODE=recon records a chapter that stops early as a finding and goes on; the default, strict, stops at the first failure.
 
-const outputRoot = process.env.WALKTHROUGH_OUTPUT_ROOT ?? path.resolve("out", "walkthrough", "aleemaan");
+const outputRoot = process.env.WALKTHROUGH_OUTPUT_ROOT ?? path.resolve("out", "walkthrough");
 
 test("the walkthrough", async ({ page }, testInfo) => {
   const pass = testInfo.project.name;

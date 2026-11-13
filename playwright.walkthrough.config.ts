@@ -20,7 +20,7 @@ import * as path from "path";
 const port = process.env.WALKTHROUGH_PORT ?? "3320";
 const baseURL = process.env.WALKTHROUGH_BASE_URL ?? `http://localhost:${port}`;
 
-// The deliverables go to the MAIN checkout's git-ignored out/walkthrough/aleemaan/, never into a worktree (a worktree can be removed). `git rev-parse --git-common-dir` is the
+// The deliverables go to the MAIN checkout's git-ignored out/walkthrough/, never into a worktree (a worktree can be removed). `git rev-parse --git-common-dir` is the
 // main checkout's .git folder from the main checkout and from any worktree alike.
 const outputRoot =
   process.env.WALKTHROUGH_OUTPUT_ROOT ??
@@ -28,7 +28,6 @@ const outputRoot =
     path.dirname(execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf-8" }).trim()),
     "out",
     "walkthrough",
-    "aleemaan",
   );
 
 const DESKTOP = { width: 1280, height: 720 };
