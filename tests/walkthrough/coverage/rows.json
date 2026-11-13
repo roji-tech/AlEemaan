@@ -2455,7 +2455,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Print: tick 'Include the answer key', give a reason, 'Download PDF'; a watermarked PDF is saved and the print is logged",
+    "proof": "Overview, Print: tick 'Include the answer key', give a reason (the field says 'Reason (optional)'), 'Download PDF'; a watermarked PDF is saved and the print is logged",
     "source": [
       "src/components/forms/FormPrintDialog.tsx"
     ],
