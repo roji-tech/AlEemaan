@@ -51,6 +51,21 @@ test.describe("School Settings API (/api/v1/settings/school)", () => {
     expect(res.json.error.code).toBe("VALIDATION");
   });
 
+  test("PATCH /api/v1/settings/school refuses a website that is not an http or https address (it is a link on the public landing page, task 0070)", async () => {
+    const { cookie } = await asRole(Role.ADMIN);
+    for (const website of ["javascript:alert(1)", "data:text/html,<b>x</b>", "ftp://school.example/files"]) {
+      const res = await api(SETTINGS_ROUTE, { method: "PATCH", cookie, body: { name: "Al-Eemaan Schools", website } });
+      expect(res.status, website).toBe(400);
+      expect(res.json.error.code, website).toBe("VALIDATION");
+    }
+    const ok = await api(SETTINGS_ROUTE, {
+      method: "PATCH",
+      cookie,
+      body: { name: "Al-Eemaan Schools", website: "https://school.example" },
+    });
+    expect(ok.status).toBe(200);
+  });
+
   test("PATCH /api/v1/settings/school updates info and writes AuditLog", async () => {
     const { user, cookie } = await asRole(Role.ADMIN);
     const updatePayload = {
