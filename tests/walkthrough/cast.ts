@@ -490,3 +490,19 @@ export const practice = {
     { prompt: "Is five plus six equal to eleven?", right: "Yes", wrong: "No", explanation: "Five and six make eleven." },
   ],
 };
+
+/// What is written in C34 Forms in the portal and marking (section 6.34): a second practice set with a question that is marked by hand, the pupil's answers, the teacher's marks, a questionnaire for the pupils and paper work.
+export const formsPortal = {
+  quiz: {
+    title: "Reading quiz",
+    instructions: "Read, then answer.",
+    q1: { prompt: "Which word is a verb?", a: "Run", b: "Table", points: "1" },
+    q2: { prompt: "Why do plants need light?", model: "to make food", points: "3" },
+    pupilAnswer: "to make their food",
+    tooMuch: "5",
+    score: "3",
+    feedback: "Well said.",
+  },
+  pulse: { title: "Class pulse", prompt: "How was the week?", comment: "Quiet and good." },
+  record: { title: "Reading record", instructions: "Bring the log on Monday.", note: "Neat work." },
+};
