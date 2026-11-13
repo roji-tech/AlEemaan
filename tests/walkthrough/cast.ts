@@ -515,3 +515,9 @@ export const paymentRules = { schoolMinimum: "10000", branchTooLow: "5000", bran
 
 /// What is written in C38 Settings, results approval (section 6.38): a section of classes, a wrong password, and the section's new name.
 export const sections = { name: "Junior", renamed: "Lower school", wrongPassword: "not-the-password-1" };
+
+/// What is written in C40 Forms, leftovers (section 6.40): an address of a form that does not exist, and a short practice set whose attempt is started, left and continued.
+export const formsMore = {
+  unknownId: "no-such-form",
+  quiz: { title: "Quick check", minutes: "10", q: { prompt: "Which number is even?", a: "4", b: "5" } },
+};
