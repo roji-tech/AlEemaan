@@ -7,6 +7,7 @@ import { PortalHeader } from "@/components/portal/PortalHeader";
 import { PortalStandingNotice } from "@/components/portal/PortalStandingNotice";
 import { PortalOverviewTab } from "@/components/portal/PortalOverviewTab";
 import { PortalResultsTab } from "@/components/portal/PortalResultsTab";
+import type { Card } from "@/components/results/ReportCard";
 import { PortalFinanceTab } from "@/components/portal/PortalFinanceTab";
 import { PortalLmsTab, type PortalLms } from "@/components/portal/PortalLmsTab";
 import { PortalFormsTab } from "@/components/portal/PortalFormsTab";
@@ -66,6 +67,7 @@ interface ReportCardState {
   totalScore: number;
   average: number;
   subjectCount: number;
+  card: Card | null;
 }
 
 interface InvoiceState {
@@ -421,7 +423,6 @@ function PortalContent() {
             {shownTab === "results" && (
               <PortalResultsTab
                 reportCards={resultsData}
-                student={currentStudent}
                 blockedByUnpaidFees={resultsBlocked}
                 outstandingBalance={resultsBalance}
                 onNavigateToBilling={tabs.includes("finance") ? () => handleTabChange("finance") : undefined}
