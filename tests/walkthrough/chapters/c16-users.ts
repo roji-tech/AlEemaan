@@ -21,7 +21,7 @@ async function openUsers(walk: Walk, page: Page): Promise<void> {
 }
 
 /// Opens the dialog that changes a member's access, from the row's Edit button.
-async function openEdit(walk: Walk, page: Page, name: string): Promise<Locator> {
+export async function openEdit(walk: Walk, page: Page, name: string): Promise<Locator> {
   await walk.click(page.getByRole("button", { name: `Change role or branch for ${name}` }));
   const dialog = editDialog(page, name);
   await expect(dialog).toBeVisible();
@@ -29,7 +29,7 @@ async function openEdit(walk: Walk, page: Page, name: string): Promise<Locator> 
 }
 
 /// Saves the open edit dialog and reads that it closed.
-async function saveEdit(walk: Walk, dialog: Locator): Promise<void> {
+export async function saveEdit(walk: Walk, dialog: Locator): Promise<void> {
   await walk.click(dialog.getByRole("button", { name: "Save changes" }));
   await expect(dialog).toBeHidden();
 }

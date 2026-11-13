@@ -509,3 +509,9 @@ export const formsPortal = {
 
 /// What is written in C36 Shell (section 6.36): a note on the scratchpad.
 export const shell = { note: "Ring the bursar about the bus fees on Monday." };
+
+/// What is written in C37 Finance payment rules (section 6.37): the school's smallest part, a branch rule that is too low and one that is higher, and a part that is too small.
+export const paymentRules = { schoolMinimum: "10000", branchTooLow: "5000", branchHigher: "15000", tooSmall: "2500", partOfFull: "1000" };
+
+/// What is written in C38 Settings, results approval (section 6.38): a section of classes, a wrong password, and the section's new name.
+export const sections = { name: "Junior", renamed: "Lower school", wrongPassword: "not-the-password-1" };
