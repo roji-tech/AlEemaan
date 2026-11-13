@@ -16,6 +16,13 @@ const everyText = (): string[] => [
   ...landingAr.covers.flatMap((c) => [c.title, c.text]),
   landingAr.peopleHeading,
   ...landingAr.people.flatMap((p) => [p.who, p.text]),
+  landingAr.about.programsHeading,
+  ...landingAr.about.programs.flatMap((x) => [x.title, x.text]),
+  landingAr.about.valuesHeading,
+  ...landingAr.about.values.flatMap((x) => [x.title, x.text]),
+  landingAr.about.contactHeading,
+  landingAr.about.contactText,
+  ...Object.values(landingAr.about.contactLabels),
   landingAr.closingHeading,
   landingAr.closingText,
 ];
@@ -27,6 +34,12 @@ test.describe("the same page as the English one", () => {
   test("the same number of branches and of kinds of people, the same links, and no 'how it is run' section", () => {
     expect(landingAr.covers).toHaveLength(english.covers.length);
     expect(landingAr.people).toHaveLength(english.people.length);
+    // the school's own sections (task 0070) have the English page's shape
+    expect(landingAr.about.programs).toHaveLength(english.about.programs.length);
+    expect(landingAr.about.values).toHaveLength(english.about.values.length);
+    expect(Object.keys(landingAr.about.contactLabels).sort()).toEqual(Object.keys(english.about.contactLabels).sort());
+    expect(new Set(landingAr.about.programs.map((x) => x.title)).size).toBe(landingAr.about.programs.length);
+    expect(new Set(landingAr.about.values.map((x) => x.title)).size).toBe(landingAr.about.values.length);
     expect(landingAr.links.map((l) => l.href)).toEqual(english.links.map((l) => l.href));
     expect("howRun" in landingAr).toBe(false);
   });
@@ -84,8 +97,11 @@ test.describe("what the words may be", () => {
     for (const text of [
       landingAr.lead,
       landingAr.closingText,
+      landingAr.about.contactText,
       ...landingAr.covers.map((c) => c.text),
       ...landingAr.people.map((p) => p.text),
+      ...landingAr.about.programs.map((x) => x.text),
+      ...landingAr.about.values.map((x) => x.text),
     ])
       expect(text, text).toMatch(/[.]$/);
   });

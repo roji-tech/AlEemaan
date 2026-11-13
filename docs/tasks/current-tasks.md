@@ -530,3 +530,14 @@
 - [x] `GET /lms/assignments` sent `_count.submissions` to a pupil's and a guardian's session (how many classmates had handed in): it does not now
 - [x] New specs `lms-assignment-count.spec.ts` (API) and `lms-card-details.spec.ts` (end to end); 2 failed on the unfixed build, 41 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); an assignment still cannot carry resource links from the dialog (recorded for the maintainer)
+
+## TASK-0070: The landing page says what the school teaches, how to ask for a place and how to reach it
+
+[Task file](0070-landing-programs-admissions-contact.md). The maintainer said "port" the old static marketing page, adapted to what the application is; built on `claude/landing-school-content`. No migration. Octalve Edu's twin change (the `children` slot) is its task 0061.
+
+- [x] Programs (three) and values (four) on `/` and `/ar`, and "Admissions and contact" while the school profile has a contact detail; the profile's motto in the hero. Contact details and motto are READ from the school profile in Settings (the old page held two contradictory sets), never written into the page; every value is a link only when safe (`mailto:`, `tel:`, http or https)
+- [x] Left out on purpose and said why: testimonials, counters, newsletter, dated session, links to pages that do not exist, SS/JSS class names (`docs/tasks/0070`, section 3)
+- [x] The settings schema refuses a website that is not `http:` or `https:` (the old rule accepted `javascript:`); the test fails on the old rule
+- [x] 200 passed and 5 failed on the first run (old tests that counted sections; rewritten to name them), 79 passed and 0 failed on the second
+- [ ] **For the maintainer:** fill in the school profile in Settings (telephone, e-mail, address, motto, website) or the page shows none; check the programs' claims (`docs/tasks/0070`, 3a) and have the new Arabic lines read by a reader of Arabic
+- [ ] Not done: the whole suites; mutation passes (deferred)
