@@ -25,6 +25,22 @@ export const INFO_TIPS = {
   "attendance.window":
     "Staff can change a saved day for 7 days after it. After that only an administrator can, and a day that has not come yet cannot be recorded.",
 
+  // Programs
+  "programs.lockRelease":
+    "While someone is editing an entry, others can read it but not change it. Closing the entry starts this countdown, and 0 hands it back at once.",
+  "programs.verify":
+    "Entries stay drafts until the writer hands them in and a verifier approves them. Families see only verified entries, and a returned entry goes back to its writer with a comment.",
+  "programs.weekGrid":
+    "One row for each day the booklet covers, for each kind of entry. A day before the person's place began, and a day still to come, cannot be filled in.",
+
+  // Forms
+  "forms.marking":
+    "Short answers marked by hand wait here. An attempt can be marked in more than one sitting, only what changed is saved, and each mark is kept in the marking history.",
+
+  // Question bank
+  "bank.reviewers":
+    "A reviewer reads and approves the questions of their subject. They can write questions of their own too, but never approve one of their own.",
+
   // Communication
   "communication.channel":
     "Email goes to the email address on file and SMS or WhatsApp to the phone number on file. A person with none for that channel is left out, and pupils can be sent Email only.",

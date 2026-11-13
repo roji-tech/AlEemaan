@@ -80,6 +80,22 @@ const PLACES: Place[] = [
     neighbour: (page) => page.getByRole("button", { name: "+ Student Name" }),
   },
   {
+    key: "forms.marking",
+    go: async (page) => {
+      await page.goto("/forms");
+      await page.getByRole("tab", { name: "Marking", exact: true }).click();
+    },
+    neighbour: (page) => page.getByLabel("Show", { exact: true }),
+  },
+  {
+    key: "bank.reviewers",
+    go: async (page) => {
+      await page.goto("/question-bank");
+      await page.getByRole("tab", { name: "Reviewers", exact: true }).click();
+    },
+    neighbour: (page) => page.getByRole("heading", { name: "Add a reviewer" }),
+  },
+  {
     key: "communication.status",
     go: async (page) => {
       await page.goto("/communication");
