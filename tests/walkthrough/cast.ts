@@ -451,3 +451,25 @@ export const programCompletion = {
   withdraw: "Issued before the final result was checked",
   reopen: "Had not finished the last unit",
 };
+
+/// What is written in C31 Program progress records (section 6.31): ranges of the Quran booklet (surah and ayah), a note, a rating, and what a supervisor says when an entry is returned.
+export const progress = {
+  template: "QURAN_BOOKLET",
+  surah: "2",
+  surahName: "Al-Baqarah",
+  fromAyah: "1",
+  tooFar: "500",
+  toAyah: "5",
+  note: "Smooth, no prompting",
+  rating: "4",
+  ratingShown: "Very good",
+  nextFrom: "6",
+  nextTo: "9",
+  changedTo: "8",
+  gridSurah: "1",
+  gridFrom: "1",
+  gridTo: "7",
+  gridRating: "5",
+  tooShort: "ok",
+  comment: "Check the last ayah again",
+};

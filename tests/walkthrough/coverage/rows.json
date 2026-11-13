@@ -5369,5 +5369,22 @@
       "src/components/portal/PortalProgressTab.tsx"
     ],
     "status": "planned"
+  },
+  {
+    "id": "PGR-18",
+    "area": "Programs",
+    "feature": "The week grid refuses a day before the person's place began",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Week grid for a place that began today: fill a day of an earlier week and 'Save the week' -> \"That is before this person's place began.\" and nothing is added to the list",
+    "source": [
+      "src/components/programs/ProgressWeekGrid.tsx",
+      "src/lib/programs/progress-rules.ts",
+      "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
   }
 ]
