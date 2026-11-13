@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { NAV, SECTIONS, groupNav, navFor, sectionOfPath } from "@/components/shell/nav";
+import { NAV, QUESTION_BANK_HREF, SECTIONS, groupNav, navFor, sectionOfPath, type PageOverrides } from "@/components/shell/nav";
 import {
   SIDEBAR_COOKIE,
   parseFoldedSections,
@@ -18,6 +18,8 @@ const admin = () => navFor(true, false);
 const superAdmin = () => navFor(true, true);
 const teacher = () => navFor(false, false, true, true);
 const otherStaff = () => navFor(false, false, false, true);
+const pagesOf = (over: Partial<PageOverrides>): PageOverrides => ({ included: {}, excluded: {}, ...over });
+const otherStaffReviewer = () => navFor(false, false, false, true, pagesOf({ included: { [QUESTION_BANK_HREF]: true } }));
 
 test.describe("groupNav: sections for each kind of person", () => {
   test("a school-wide administrator sees Overview on its own, then four sections with every page in its section", () => {
@@ -54,8 +56,62 @@ test.describe("groupNav: sections for each kind of person", () => {
     expect(labels(groups.flatMap((group) => group.items))).toEqual(["Overview", "Programs", "Forms", "Announcements"]);
   });
 
+  test("a member of non-teaching staff who is a question bank reviewer is also offered the Question bank, which makes Assessment a section of two (Question bank, Forms)", () => {
+    const groups = groupNav(otherStaffReviewer());
+    expect(groups.map((group) => group.section?.label ?? null)).toEqual([null, null, "Assessment", null]);
+    expect(labels(groups.flatMap((group) => group.items))).toEqual(["Overview", "Programs", "Question bank", "Forms", "Announcements"]);
+  });
+
+  test("`pages` is applied on top of the role: included adds an entry the role does not give, excluded removes one it does, and excluded wins", () => {
+    const offered = (items: { label: string }[], label: string) => labels(items).includes(label);
+    // included: a member of non-teaching staff gets the Question bank, and nothing else changes
+    expect(offered(otherStaff(), "Question bank")).toBe(false);
+    expect(offered(otherStaffReviewer(), "Question bank")).toBe(true);
+    expect(labels(otherStaffReviewer()).filter((label) => !labels(otherStaff()).includes(label))).toEqual(["Question bank"]);
+    // excluded: a teacher, an administrator and a superadmin each lose exactly the page named
+    for (const [who, items] of [
+      ["teacher", navFor(false, false, true, true, pagesOf({ excluded: { [QUESTION_BANK_HREF]: true } }))],
+      ["administrator", navFor(true, false, false, false, pagesOf({ excluded: { [QUESTION_BANK_HREF]: true } }))],
+      ["superadmin", navFor(true, true, false, false, pagesOf({ excluded: { [QUESTION_BANK_HREF]: true } }))],
+    ] as const) {
+      expect(offered(items, "Question bank"), who).toBe(false);
+      expect(items.length, who).toBe({ teacher, administrator: admin, superadmin: superAdmin }[who]().length - 1);
+    }
+    // both: excluded wins
+    const both = navFor(
+      false,
+      false,
+      false,
+      true,
+      pagesOf({ included: { [QUESTION_BANK_HREF]: true }, excluded: { [QUESTION_BANK_HREF]: true } }),
+    );
+    expect(offered(both, "Question bank")).toBe(false);
+  });
+
+  test("`pages` is display only: it can never offer an administrators' or a superadmin's page to someone who is not one, nor a page that is not built yet", () => {
+    const everything = Object.fromEntries(NAV.flatMap((item) => (item.href ? [[item.href, true as const]] : []))) as Record<string, true>;
+    for (const items of [
+      navFor(false, false, true, true, pagesOf({ included: everything })),
+      navFor(false, false, false, true, pagesOf({ included: everything })),
+    ]) {
+      for (const adminsOnly of ["Branches", "Settings", "Academics", "Communication", "Finance", "Approvals", "Users"]) {
+        expect(labels(items), adminsOnly).not.toContain(adminsOnly);
+      }
+    }
+    // a branch administrator who is not a superadmin is still not offered the school-wide pages
+    expect(labels(navFor(true, false, false, false, pagesOf({ included: everything })))).not.toContain("Settings");
+    // a key that matches no entry, or the odd key of an object, changes nothing
+    const noise = { "/nowhere": true, "": true, constructor: true } as Record<string, true>;
+    expect(labels(navFor(false, false, false, true, pagesOf({ included: noise, excluded: noise })))).toEqual(labels(otherStaff()));
+    expect(labels(navFor(false, false, true, true, pagesOf({ included: noise, excluded: noise })))).toEqual(labels(teacher()));
+    // the list itself is never changed by an override
+    const before = JSON.stringify(NAV.map((item) => item.href));
+    navFor(false, false, false, true, pagesOf({ excluded: everything }));
+    expect(JSON.stringify(NAV.map((item) => item.href))).toBe(before);
+  });
+
   test("nothing is lost or repeated: the groups hold exactly the visible entries", () => {
-    for (const items of [superAdmin(), admin(), teacher(), otherStaff(), navFor(false, false)]) {
+    for (const items of [superAdmin(), admin(), teacher(), otherStaff(), otherStaffReviewer(), navFor(false, false)]) {
       expect(labels(groupNav(items).flatMap((group) => group.items)).sort()).toEqual(labels(items).sort());
     }
   });

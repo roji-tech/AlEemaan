@@ -40,15 +40,24 @@ export type BankItemFacts = {
 
 export type DecisionAction = "approve" | "reject" | "edit" | "retire";
 
-const staffIn = (viewer: BankViewer, branchId: string) =>
+/// The parts of a viewer the reviewer rules read, so the sidebar (which loads only these two lists) asks the very same code as the pages and routes.
+type ReviewerFacts<Row extends { branchId: string | null }> = { memberships: BankViewer["memberships"]; reviewerRows: ReadonlyArray<Row> };
+
+const staffIn = (viewer: Pick<BankViewer, "memberships">, branchId: string) =>
   viewer.memberships.some((m) => m.branchId === branchId && STAFF_ROLES.includes(m.role));
-const anyStaff = (viewer: BankViewer) => viewer.memberships.some((m) => STAFF_ROLES.includes(m.role));
+const anyStaff = (viewer: Pick<BankViewer, "memberships">) => viewer.memberships.some((m) => STAFF_ROLES.includes(m.role));
 const adminOf = (viewer: BankViewer, branchId: string) => viewer.memberships.some((m) => m.branchId === branchId && m.role === Role.ADMIN);
 const anyAdmin = (viewer: BankViewer) => viewer.memberships.some((m) => m.role === Role.ADMIN);
 
 /// The reviewer rows that still count: the person is active staff where the row says (anywhere, for an every-branch row).
-function liveReviewerRows(viewer: BankViewer) {
+function liveReviewerRows<Row extends { branchId: string | null }>(viewer: ReviewerFacts<Row>): Row[] {
   return viewer.reviewerRows.filter((row) => (row.branchId === null ? anyStaff(viewer) : staffIn(viewer, row.branchId)));
+}
+
+/// Whether the person holds at least one reviewer assignment that still counts. This is what makes a member of NON-teaching staff a person the question bank has work for
+/// (they may write and review through it), so the sidebar offers them the entry only then; an administrator or teacher is offered it anyway.
+export function hasLiveReviewerRow<Row extends { branchId: string | null }>(viewer: ReviewerFacts<Row>): boolean {
+  return liveReviewerRows(viewer).length > 0;
 }
 
 export type ReviewPower = {

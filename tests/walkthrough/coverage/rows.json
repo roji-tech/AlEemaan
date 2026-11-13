@@ -2275,16 +2275,18 @@
   {
     "id": "QBK-11",
     "area": "Question bank",
-    "feature": "Non-teaching staff and pupils cannot open the question bank",
+    "feature": "The question bank is offered to staff who have work there: a non-teaching member sees the sidebar entry only once they are a reviewer; until then the page opens by its address without Write a question, Review queue, Reviewers or Settings; a pupil cannot open it",
     "route": "/question-bank",
     "roles": [
       "Non-teaching staff",
       "Pupil"
     ],
     "kind": "negative",
-    "proof": "No entry; a typed address shows 'Only staff can open this page'",
+    "proof": "A member of the non-teaching staff before being named a reviewer: no Question bank entry in the sidebar; a typed address opens Browse, My questions and My reports, My questions says nothing has been written, and there is no Write a question. After an administrator names them a reviewer (QBK-07) the sidebar offers the entry, with Write a question and the Review queue (step 224). A pupil's typed address says 'Only staff can open this page' (a pupil has no staff sign-in in the walkthrough, so that half is the browser tests')",
     "source": [
-      "src/app/(app)/question-bank/page.tsx"
+      "src/app/(app)/question-bank/page.tsx",
+      "src/components/shell/nav.ts",
+      "src/components/question-bank/QuestionsPanel.tsx"
     ],
     "status": "planned",
     "typedAddress": true

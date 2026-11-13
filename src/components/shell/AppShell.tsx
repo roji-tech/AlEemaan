@@ -8,7 +8,7 @@ import { MobileNav } from "./MobileNav";
 import { ProfileMenu } from "./ProfileMenu";
 import { SidebarFrame, SidebarProvider } from "./SidebarFrame";
 import { SidebarNav } from "./SidebarNav";
-import type { SectionId } from "./nav";
+import type { PageOverrides, SectionId } from "./nav";
 import { QuickToolsTrigger } from "@/components/tools/QuickToolsTrigger";
 
 export type ShellUser = {
@@ -21,6 +21,8 @@ export type ShellUser = {
   /// Holds a teaching-staff role in some branch (shows the Results item to a teacher who is not an administrator).
   isTeacher: boolean;
   isStaff: boolean;
+  /// `session.user.pages`: pages shown or hidden for this person on top of their role (display only).
+  pages: PageOverrides;
 };
 
 /// The signed-in admin app's frame, from the design artifact ("same shell, one brand tweak"):
@@ -56,7 +58,13 @@ export function AppShell({
       </a>
 
       <SidebarFrame person={{ name: user.name, email: user.email, roleLabel: user.roleLabel }}>
-        <SidebarNav isAdmin={user.isAdmin} isSuperAdmin={user.isSuperAdmin} isTeacher={user.isTeacher} isStaff={user.isStaff} />
+        <SidebarNav
+          isAdmin={user.isAdmin}
+          isSuperAdmin={user.isSuperAdmin}
+          isTeacher={user.isTeacher}
+          isStaff={user.isStaff}
+          pages={user.pages}
+        />
       </SidebarFrame>
 
       <div className="transition-[padding] duration-200 motion-reduce:transition-none lg:pl-62 lg:group-data-[sidebar=collapsed]/shell:pl-16 print:pl-0">
@@ -90,6 +98,7 @@ export function AppShell({
         isSuperAdmin={user.isSuperAdmin}
         isTeacher={user.isTeacher}
         isStaff={user.isStaff}
+        pages={user.pages}
       />
 
       <QuickToolsTrigger />
