@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { HTTP_URL } from "../support/env";
 import { Role, createUser, db, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
+import { readProfile, setProfile } from "../support/school-profile";
 import { brand } from "@/lib/brand";
 import { landingAr } from "@/lib/landing-ar";
 
@@ -53,9 +54,38 @@ test.describe("signed out", () => {
     expect(link).toContain('hrefLang="ar"');
   });
 
-  test("this product is one school's own: there is no 'how it is run' section", async () => {
-    const res = await api("/");
-    expect((res.text.match(/<h2[\s>]/g) ?? []).length).toBe(3); // what it covers, the people, the closing band
+  test("this product is one school's own: its sections are the branches, the people, the programs, what it stands for and the closing band, and there is no 'how it is run' section (task 0070)", async () => {
+    const before = await readProfile();
+    await setProfile({}); // no contact detail in the school profile, so no contact section
+    try {
+      const res = await api("/");
+      const h2 = [...res.text.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
+      const { landing } = brand;
+      expect(h2).toEqual([
+        landing.coversHeading,
+        landing.peopleHeading,
+        landing.about.programsHeading,
+        landing.about.valuesHeading,
+        landing.closingHeading,
+      ]);
+    } finally {
+      await setProfile(before);
+    }
+  });
+
+  test("the school profile reaches the page on the server: its contact section is in the HTML, and the page still sets nothing and writes nothing (task 0070)", async () => {
+    const before = await readProfile();
+    await setProfile({ phone: "+234 815 300 5393", motto: "Second To None" });
+    try {
+      const res = await api("/");
+      expect(res.status).toBe(200);
+      expect(res.text).toContain(brand.landing.about.contactHeading);
+      expect(res.text).toContain('href="tel:+2348153005393"');
+      expect(res.text).toContain("Second To None");
+      expect(res.headers.get("set-cookie")).toBeNull();
+    } finally {
+      await setProfile(before);
+    }
   });
 
   test("the tab and the description are the page's own, and it is open to search engines", async () => {

@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, seedInstance } from "../support/db";
+import { EMPTY_PROFILE, readProfile, setProfile, type Profile } from "../support/school-profile";
 import { currentTheme, setTheme } from "../support/theme";
 import { signInThroughUi } from "./helpers";
 import { brand } from "@/lib/brand";
@@ -34,8 +35,17 @@ const landing = brand.landing;
 const extra = landing.links[0]; // the one public page besides sign-in that the brand names
 const headings = (page: Page, level: number) => page.getByRole("heading", { level }).allInnerTexts();
 
+// The pages read the motto and the contact details from the school profile (task 0070). The profile starts empty for every test here, and is put back as it was found.
+let profileBefore: Profile = EMPTY_PROFILE;
 test.beforeAll(async () => {
   await seedInstance();
+  profileBefore = await readProfile();
+});
+test.beforeEach(async () => {
+  await setProfile({});
+});
+test.afterAll(async () => {
+  await setProfile(profileBefore);
 });
 
 test.describe("what a signed-out visitor sees", () => {
@@ -46,8 +56,20 @@ test.describe("what a signed-out visitor sees", () => {
     await expect(page).toHaveTitle(landing.title);
 
     expect(await headings(page, 1)).toEqual([landing.headline]);
-    expect(await headings(page, 2)).toEqual([landing.coversHeading, landing.peopleHeading, landing.closingHeading]);
-    expect(await headings(page, 3)).toEqual([...landing.covers.map((c) => c.title), ...landing.people.map((p) => p.who)]);
+    // no contact detail in the profile, so no contact section
+    expect(await headings(page, 2)).toEqual([
+      landing.coversHeading,
+      landing.peopleHeading,
+      landing.about.programsHeading,
+      landing.about.valuesHeading,
+      landing.closingHeading,
+    ]);
+    expect(await headings(page, 3)).toEqual([
+      ...landing.covers.map((c) => c.title),
+      ...landing.people.map((p) => p.who),
+      ...landing.about.programs.map((x) => x.title),
+      ...landing.about.values.map((x) => x.title),
+    ]);
 
     await expect(page.getByRole("banner")).toHaveCount(1);
     await expect(page.getByRole("main")).toHaveCount(1);
@@ -67,7 +89,8 @@ test.describe("what a signed-out visitor sees", () => {
     await expect(section(landing.peopleHeading).getByRole("listitem")).toHaveCount(landing.people.length);
     for (const c of landing.covers) await expect(section(landing.coversHeading)).toContainText(c.text);
     for (const p of landing.people) await expect(section(landing.peopleHeading)).toContainText(p.text);
-    await expect(page.getByRole("region")).toHaveCount(4); // the hero, what it covers, the people, the closing band
+    // the hero, the branches, the people, the programs, what the school stands for and the closing band: six, and no contact section while the profile has no contact detail
+    await expect(page.getByRole("region")).toHaveCount(6);
   });
 
   test("the page is about the school: its town and its four branches are on it, and none of the software features task 0048 listed is", async ({
@@ -171,6 +194,60 @@ test.describe("what a signed-out visitor sees", () => {
       expect(stop.style, stop.name).not.toBe("none");
       expect(stop.ring, stop.name).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  test("the school's programs and what it stands for are on the page, each as a list item with its words (task 0070)", async ({ page }) => {
+    await page.goto("/");
+    const programs = page.getByRole("region", { name: landing.about.programsHeading });
+    await expect(programs.getByRole("listitem")).toHaveCount(landing.about.programs.length);
+    for (const item of landing.about.programs) await expect(programs).toContainText(item.text);
+    const values = page.getByRole("region", { name: landing.about.valuesHeading });
+    await expect(values.getByRole("listitem")).toHaveCount(landing.about.values.length);
+    for (const item of landing.about.values) await expect(values).toContainText(item.text);
+    // the old marketing page's counters, testimonials and newsletter are not carried over
+    await expect(page.getByText(/testimonial|newsletter|subscribe/i)).toHaveCount(0);
+  });
+
+  test("the school profile fills the hero's motto and the contact section, each value as a safe link (task 0070)", async ({ page }) => {
+    await setProfile({
+      motto: "Second To None",
+      phone: "+234 815 300 5393",
+      email: "office@school.example",
+      address: "12 Example Road, Ibadan",
+      website: "https://school.example/home",
+    });
+    await page.goto("/");
+    await expect(
+      page
+        .getByRole("main")
+        .getByText(/Ibadan, Nigeria/)
+        .first(),
+    ).toContainText("\u201CSecond To None\u201D");
+    const contact = page.getByRole("region", { name: landing.about.contactHeading });
+    await expect(contact).toContainText(landing.about.contactText);
+    await expect(contact.getByRole("link", { name: "+234 815 300 5393" })).toHaveAttribute("href", "tel:+2348153005393");
+    await expect(contact.getByRole("link", { name: "office@school.example" })).toHaveAttribute("href", "mailto:office@school.example");
+    await expect(contact.getByRole("link", { name: "https://school.example/home" })).toHaveAttribute("href", "https://school.example/home");
+    await expect(contact).toContainText("12 Example Road, Ibadan");
+    await expect(contact.getByRole("link")).toHaveCount(3);
+    expect(await headings(page, 2)).toContain(landing.about.contactHeading);
+    await checkBothThemes(page, "the landing page with the school profile filled in");
+  });
+
+  test("a website that is not an http or https address is shown as text and is never a link, and a profile with nothing in it draws no contact section (task 0070)", async ({
+    page,
+  }) => {
+    // written straight into the row, as a row from before the settings schema refused such a value would be
+    await setProfile({ website: "javascript:alert(1)" });
+    await page.goto("/");
+    const contact = page.getByRole("region", { name: landing.about.contactHeading });
+    await expect(contact).toContainText("javascript:alert(1)");
+    await expect(contact.getByRole("link")).toHaveCount(0);
+    await expect(page.locator('a[href^="javascript:"]')).toHaveCount(0);
+    await setProfile({});
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: landing.about.contactHeading })).toHaveCount(0);
+    await expect(page.getByRole("main").getByText("Ibadan, Nigeria", { exact: true })).toBeVisible();
   });
 
   test("Axe and horizontal overflow in both themes, and at 320 px wide", async ({ page }) => {

@@ -15,6 +15,13 @@ const everyText = (): string[] => [
   ...landing.covers.flatMap((c) => [c.title, c.text]),
   landing.peopleHeading,
   ...landing.people.flatMap((p) => [p.who, p.text]),
+  landing.about.programsHeading,
+  ...landing.about.programs.flatMap((x) => [x.title, x.text]),
+  landing.about.valuesHeading,
+  ...landing.about.values.flatMap((x) => [x.title, x.text]),
+  landing.about.contactHeading,
+  landing.about.contactText,
+  ...Object.values(landing.about.contactLabels),
   landing.closingHeading,
   landing.closingText,
 ];
@@ -40,7 +47,15 @@ test.describe("what the page may say", () => {
   });
 
   test("an item's text is a sentence that ends with a full stop", () => {
-    for (const text of [landing.lead, landing.closingText, ...landing.covers.map((c) => c.text), ...landing.people.map((p) => p.text)])
+    for (const text of [
+      landing.lead,
+      landing.closingText,
+      landing.about.contactText,
+      ...landing.covers.map((c) => c.text),
+      ...landing.people.map((p) => p.text),
+      ...landing.about.programs.map((x) => x.text),
+      ...landing.about.values.map((x) => x.text),
+    ])
       expect(text, text).toMatch(/[.]$/);
   });
 });
@@ -86,5 +101,35 @@ test.describe("the shape of the page", () => {
     const text = [landing.title, landing.description, ...everyText()].join(" ").toLowerCase();
     for (const word of ["software", "platform", "system", "product", "management", "feature"])
       expect(text, `the copy must not mention "${word}"`).not.toContain(word);
+  });
+});
+
+test.describe("the school's own sections (task 0070)", () => {
+  test("three programs and four things the school stands for, each said once, and four contact labels", () => {
+    expect(landing.about.programs).toHaveLength(3);
+    expect(new Set(landing.about.programs.map((x) => x.title)).size).toBe(3);
+    expect(landing.about.values).toHaveLength(4);
+    expect(new Set(landing.about.values.map((x) => x.title)).size).toBe(4);
+    expect(Object.keys(landing.about.contactLabels).sort()).toEqual(["address", "email", "phone", "website"]);
+  });
+
+  test("the contact details are not in the words: they are the school profile, so no telephone number, address or e-mail is written into the page", () => {
+    const text = [landing.lead, ...everyText()].join(" ");
+    expect(text).not.toMatch(/@|https?:|www\.|\+\s?\d/);
+  });
+
+  test("the claims of the old page that cannot be shown are not carried: no certification, no class size, no 'most popular', no dated session", () => {
+    const text = everyText().join(" ").toLowerCase();
+    for (const claim of [
+      "certified",
+      "small class",
+      "most popular",
+      "modern laboratory",
+      "inter-house",
+      "adhkar",
+      "applications are",
+      "now open",
+    ])
+      expect(text, `the copy must not claim "${claim}"`).not.toContain(claim);
   });
 });

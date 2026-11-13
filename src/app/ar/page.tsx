@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Noto_Naskh_Arabic } from "next/font/google";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { SchoolInfo } from "@/components/landing/SchoolInfo";
+import { eyebrowWithMotto, getPublicContact } from "@/lib/landing/contact";
 import { leaveUnlessVisitor } from "@/lib/landing/start";
 import { labelsAr, landingAr, nameAr } from "@/lib/landing-ar";
 
@@ -15,16 +17,19 @@ export const metadata: Metadata = { title: { absolute: landingAr.title }, descri
 
 export default async function ArabicHome() {
   await leaveUnlessVisitor();
+  const contact = await getPublicContact();
   return (
     <div className={`${naskh.variable} font-[family-name:var(--font-arabic)]`}>
       <LandingPage
-        copy={landingAr}
+        copy={{ ...landingAr, eyebrow: eyebrowWithMotto(landingAr.eyebrow, contact.motto) }}
         name={nameAr}
         labels={labelsAr}
         lang="ar"
         dir="rtl"
         switchTo={{ href: "/", label: "English", lang: "en" }}
-      />
+      >
+        <SchoolInfo about={landingAr.about} contact={contact} />
+      </LandingPage>
     </div>
   );
 }

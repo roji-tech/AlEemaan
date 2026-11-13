@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, seedInstance } from "../support/db";
+import { EMPTY_PROFILE, readProfile, setProfile, type Profile } from "../support/school-profile";
 import { currentTheme, setTheme } from "../support/theme";
 import { signInThroughUi } from "./helpers";
 import { brand } from "@/lib/brand";
@@ -36,8 +37,17 @@ const headings = (page: Page, level: number) => page.getByRole("heading", { leve
 const extra = landingAr.links[0];
 const box = async (locator: ReturnType<Page["locator"]>) => (await locator.boundingBox())!;
 
+// The pages read the motto and the contact details from the school profile (task 0070). The profile starts empty for every test here, and is put back as it was found.
+let profileBefore: Profile = EMPTY_PROFILE;
 test.beforeAll(async () => {
   await seedInstance();
+  profileBefore = await readProfile();
+});
+test.beforeEach(async () => {
+  await setProfile({});
+});
+test.afterAll(async () => {
+  await setProfile(profileBefore);
 });
 
 test.describe("what a signed-out visitor sees at /ar", () => {
@@ -48,8 +58,19 @@ test.describe("what a signed-out visitor sees at /ar", () => {
     expect(response!.status()).toBe(200);
     await expect(page).toHaveTitle(landingAr.title);
     expect(await headings(page, 1)).toEqual([landingAr.headline]);
-    expect(await headings(page, 2)).toEqual([landingAr.coversHeading, landingAr.peopleHeading, landingAr.closingHeading]);
-    expect(await headings(page, 3)).toEqual([...landingAr.covers.map((c) => c.title), ...landingAr.people.map((p) => p.who)]);
+    expect(await headings(page, 2)).toEqual([
+      landingAr.coversHeading,
+      landingAr.peopleHeading,
+      landingAr.about.programsHeading,
+      landingAr.about.valuesHeading,
+      landingAr.closingHeading,
+    ]);
+    expect(await headings(page, 3)).toEqual([
+      ...landingAr.covers.map((c) => c.title),
+      ...landingAr.people.map((p) => p.who),
+      ...landingAr.about.programs.map((x) => x.title),
+      ...landingAr.about.values.map((x) => x.title),
+    ]);
     await expect(page.getByRole("banner")).toHaveCount(1);
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(page.getByRole("contentinfo")).toHaveCount(1);
@@ -71,6 +92,38 @@ test.describe("what a signed-out visitor sees at /ar", () => {
     expect(await page.evaluate(() => document.documentElement.lang)).toBe("en");
   });
 
+  test("the programs and the values are there in Arabic, and with the school profile filled in the contact section lists it, the telephone and the address kept left to right (task 0070)", async ({
+    page,
+  }) => {
+    await page.goto("/ar");
+    await expect(page.getByRole("region", { name: landingAr.about.programsHeading }).getByRole("listitem")).toHaveCount(
+      landingAr.about.programs.length,
+    );
+    await expect(page.getByRole("region", { name: landingAr.about.valuesHeading }).getByRole("listitem")).toHaveCount(
+      landingAr.about.values.length,
+    );
+    await expect(page.getByRole("heading", { name: landingAr.about.contactHeading })).toHaveCount(0);
+    await setProfile({
+      motto: "Second To None",
+      phone: "+234 815 300 5393",
+      email: "office@school.example",
+      website: "https://school.example",
+    });
+    await page.goto("/ar");
+    const contact = page.getByRole("region", { name: landingAr.about.contactHeading });
+    await expect(contact).toContainText(landingAr.about.contactText);
+    await expect(contact.getByText(landingAr.about.contactLabels.phone, { exact: true })).toBeVisible();
+    await expect(contact.getByRole("link", { name: "+234 815 300 5393" })).toHaveAttribute("href", "tel:+2348153005393");
+    await expect(contact.locator('span[dir="ltr"]').first()).toBeVisible();
+    await expect(
+      page
+        .getByRole("main")
+        .getByText(/إبادان، نيجيريا/)
+        .first(),
+    ).toContainText("\u201CSecond To None\u201D");
+    await checkBothThemes(page, "the Arabic landing page with the school profile filled in");
+  });
+
   test("the branches and the kinds of people, each as a list item with its words, and no 'how it is run' section", async ({ page }) => {
     await page.goto("/ar");
     const section = (name: string) => page.getByRole("region", { name });
@@ -78,7 +131,8 @@ test.describe("what a signed-out visitor sees at /ar", () => {
     await expect(section(landingAr.peopleHeading).getByRole("listitem")).toHaveCount(landingAr.people.length);
     for (const c of landingAr.covers) await expect(section(landingAr.coversHeading)).toContainText(c.text);
     for (const p of landingAr.people) await expect(section(landingAr.peopleHeading)).toContainText(p.text);
-    await expect(page.getByRole("region")).toHaveCount(4);
+    // the hero, the branches, the people, the programs, what the school stands for and the closing band (no contact section while the profile has no contact detail)
+    await expect(page.getByRole("region")).toHaveCount(6);
     await expect(section(landingAr.coversHeading).locator("svg")).toHaveCount(0);
   });
 });
