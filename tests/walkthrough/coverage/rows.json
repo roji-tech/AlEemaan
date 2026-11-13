@@ -2763,7 +2763,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Choose Access = Reads form results: only the holders, each tagged; Clear filters",
+    "proof": "Choose Access = Reads form results: only the holders, each tagged; a search that finds no one says 'No one matches these filters.' and offers Clear filters, which resets all (the button is drawn only in that empty state)",
     "source": [
       "src/components/users/UsersPanel.tsx"
     ],
@@ -2779,7 +2779,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Deactivate; show Deactivated; Reactivate; the person can sign in again",
+    "proof": "Deactivate; show Deactivated; a deactivated member can still sign in but belongs to no branch (the overview says so, the announcements are refused); Reactivate; the person has their branch again",
     "source": [
       "src/components/users/UsersPanel.tsx"
     ],
