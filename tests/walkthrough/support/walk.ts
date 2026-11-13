@@ -377,6 +377,10 @@ export class Walk {
     // Settle pause
     await new Promise((r) => setTimeout(r, pace.settle));
 
+    // A click on a link that loads a whole new page (an emailed link, a sign-out) hands the step a page whose caption bar was drawn again from its initial text ("STEP 00, Initializing"); the
+    // screenshot, the PDF and the video must carry the step's own caption, so it is drawn once more here. A page that is itself in the middle of loading is left to the next step.
+    await this.showStep(meta).catch(() => undefined);
+
     // A page reached for the first time is scanned for accessibility before the screenshot (the scan changes nothing on the page).
     await this.observers.axeOnNewRoute();
 

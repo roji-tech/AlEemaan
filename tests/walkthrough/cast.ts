@@ -274,10 +274,32 @@ export const users = {
   nobody: "nobody by that name",
   tooShortReason: "No",
   suspendReason: "Away without leave for two weeks; the school is looking into it.",
-  lastDayTyped: "12312026",
-  lastDayShown: "31 Dec 2026",
+  lastDayTyped: "12312030",
+  lastDayShown: "31 Dec 2030",
   terminateReason: "The contract ended after the review.",
   reinstateReason: "The review found in their favour; they are back.",
   branchAdminSuspendReason: "Missed the morning registration twice.",
   branchAdminLiftReason: "Explained, and agreed a new routine.",
+};
+
+/// What is typed in C17 Discipline (section 6.17): the reasons that go with each change of a pupil's or a staff record's standing.
+export const discipline = {
+  suspendReason: "Fighting in the corridor.",
+  expelReason: "Serious misconduct, after two warnings.",
+  liftReason: "The parents met the head teacher.",
+  reinstateReason: "The appeal was upheld.",
+  staffSuspendReason: "Pending an inquiry into the school's cash box.",
+  staffTerminateReason: "The contract ended after the inquiry.",
+  staffReinstateReason: "The inquiry cleared them.",
+};
+
+/// What is typed in C18 Account (section 6.18). A new administrator is invited for the account steps, so that nothing of the school's real people has to be put back.
+export const account = {
+  newcomer: { name: "Ese Ibe", email: "ese.ibe@walkthrough.test" },
+  editedName: "Ese Ibe-Mark",
+  newPassword: "Granite-Cobalt-Plum-2027",
+  newEmail: "ese.mark@walkthrough.test",
+  // C19: the address that has no account, and the password chosen from the reset link
+  nobody: "nobody.at.all@walkthrough.test",
+  resetPassword: "Quartz-Maple-Heron-2028",
 };
