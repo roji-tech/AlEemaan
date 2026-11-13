@@ -539,3 +539,12 @@
 - [x] Found while checking: Vercel's Production Branch is `master`, not `prod`, so a merge into `master` deploys to production; no branch protection and no CI workflow exist
 - [x] The first thing to do is to change Vercel's Production Branch to `prod` (decided by the maintainer 2026-11-13); the guide says not to merge `dev` into `master` before that
 - [ ] Not done: changing Vercel or the databases (the maintainer's)
+
+## TASK-0072: A pupil's and a guardian's report card in the portal is the card the school hands out
+
+[Task file](0072-portal-report-card.md). Found by the product walkthrough's chapter C14 (task 0033), step 134; built on `claude/portal-report-card`. No migration, no new route; nothing removed from the API.
+
+- [x] The portal showed the BRANCH's name where the school's belongs, only the arm ("A") as the class, no position, class size, legend or parts, a downloaded card with no principal, motto, address or position, and **a made-up remark ("Commendable performance...") in the teacher's and the principal's name where none was written**; it now draws the staff's own `ReportCard` from `reportCards[].card` (`getReportCard`, published results only), and Download gives that same card
+- [x] Found by this task's own browser test: the shared download builder `generateReportCardHtml` never printed the principal's name and **wrote a remark where none was written** ("Satisfactory academic performance.", "Promoted/Advanced to next academic term."); it now names the principal beside the remark and writes a dash, as the screen card does (this changes the staff's downloaded card the same two ways, on purpose)
+- [x] New specs `portal-report-card.spec.ts` (API) and `portal-report-card.spec.ts` (browser) and two unit tests for the builder; the API spec FAILED 3 of 3 and the two unit tests 2 of 2 on the unfixed code; the final run was 80 passed, 0 failed
+- [ ] Not done: the whole suites; mutation passes (deferred); the walkthrough's C14 asserting the school name and the class on the portal card (next walkthrough PR)

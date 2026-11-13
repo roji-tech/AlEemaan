@@ -11,7 +11,7 @@ import {
 } from "./auth";
 import { ResultStatus, AttendanceStatus, InvoiceStatus, MaterialStatus, QuizStatus } from "@prisma/client";
 import { submitAssignment, attemptQuiz, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
-import { reportCardVisibleTo } from "@/lib/academics/report-card";
+import { getReportCard, reportCardVisibleTo, studentBranch } from "@/lib/academics/report-card";
 import { accessFor, allowedTabs, type Access, type Actor } from "./access";
 import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
@@ -503,19 +503,24 @@ export async function getStudentPortalResults(studentId: string, allowedStudentI
     });
   }
 
-  const reportCards = Array.from(periodMap.values()).map((p) => {
-    const totalScore = p.results.reduce((acc: number, r) => acc + r.total, 0);
-    const average = p.results.length > 0 ? Number((totalScore / p.results.length).toFixed(2)) : 0;
-    return {
-      period: p.period,
-      classArm: p.classArm,
-      results: p.results,
-      remarks: p.remarks,
-      totalScore,
-      average,
-      subjectCount: p.results.length,
-    };
-  });
+  // The card itself is the one the school's staff read (task 0072): the same builder, published results only, never a preview. The fields beside it are what the portal has always sent.
+  const branchId = await studentBranch(studentId);
+  const reportCards = await Promise.all(
+    Array.from(periodMap.values()).map(async (p) => {
+      const totalScore = p.results.reduce((acc: number, r) => acc + r.total, 0);
+      const average = p.results.length > 0 ? Number((totalScore / p.results.length).toFixed(2)) : 0;
+      return {
+        period: p.period,
+        classArm: p.classArm,
+        results: p.results,
+        remarks: p.remarks,
+        totalScore,
+        average,
+        subjectCount: p.results.length,
+        card: branchId ? await getReportCard(branchId, studentId, p.period.id, false) : null,
+      };
+    }),
+  );
 
   return { reportCards };
 }

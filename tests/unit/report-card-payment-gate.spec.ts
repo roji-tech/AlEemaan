@@ -104,4 +104,23 @@ test.describe("generateReportCardHtml", () => {
     expect(html).not.toContain("<img src=x onerror=alert(1)>");
     expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
   });
+
+  // Task 0072: the downloaded card carries what the school wrote and nothing else, as the on-screen card does.
+  test("names the principal beside the principal's remark, as the screen card does", () => {
+    const html = generateReportCardHtml(mockCard, "https://school.aleemaan.edu.ng");
+    expect(html).toContain("Principal's Remark (Dr. A. Rahman)");
+  });
+
+  test("an unwritten remark is a dash, never a sentence made up in the teacher's or the principal's name", () => {
+    const html = generateReportCardHtml(
+      { ...mockCard, school: { ...mockCard.school, principal: null }, remarks: { teacher: null, principal: null } },
+      "https://school.aleemaan.edu.ng",
+    );
+    expect(html).not.toContain("Satisfactory academic performance");
+    expect(html).not.toContain("Promoted/Advanced");
+    expect(html).toContain("<p>—</p>");
+    expect(html).toContain('<p style="margin-bottom: 0;">—</p>');
+    // with no principal on file the heading carries no empty brackets
+    expect(html).toContain('<h3 style="margin-top: 12px;">Principal\'s Remark</h3>');
+  });
 });
