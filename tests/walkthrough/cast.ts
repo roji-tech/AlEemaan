@@ -455,6 +455,7 @@ export const programCompletion = {
 /// What is written in C31 Program progress records (section 6.31): ranges of the Quran booklet (surah and ayah), a note, a rating, and what a supervisor says when an entry is returned.
 export const progress = {
   template: "QURAN_BOOKLET",
+  lockRelease: "0",
   surah: "2",
   surahName: "Al-Baqarah",
   fromAyah: "1",
@@ -473,3 +474,6 @@ export const progress = {
   tooShort: "ok",
   comment: "Check the last ayah again",
 };
+
+/// What is written in C32 Program progress in the portal (section 6.32): the Hijri adjustment tried out of range and then in range.
+export const progressPortal = { hijriBad: "3", hijriGood: "-1" };

@@ -13,6 +13,7 @@ const chapter = "C31 Program progress";
 const dialog = (page: Page, name: string | RegExp) => page.getByRole("dialog", { name });
 const tab = (page: Page, name: string) => page.getByRole("tab", { name, exact: true });
 const entries = (page: Page): Locator => page.getByRole("list", { name: "New text entries" }).getByRole("listitem");
+const revision = (page: Page): Locator => page.getByRole("list", { name: "Daily revision entries" }).getByRole("listitem");
 const yusuf = `${pupils.yusuf.first} ${pupils.yusuf.last}`;
 const teacher = cast.teacher.name;
 
@@ -50,6 +51,7 @@ export async function c31ProgramProgress(walk: Walk, page: Page): Promise<void> 
       await expect(page.getByRole("button", { name: "Save settings" })).toBeDisabled();
       await walk.selectOption(fieldset.getByLabel("Template"), g.template);
       await walk.click(fieldset.getByLabel("Verify entries before families see them"));
+      await walk.type(fieldset.getByLabel("Lock is handed back after (seconds)"), g.lockRelease);
       await walk.click(page.getByRole("button", { name: "Save settings" }));
       await expect(page.getByText("The settings were saved.")).toBeVisible();
       await walk.click(tab(page, "Progress records"));
@@ -176,7 +178,7 @@ export async function c31ProgramProgress(walk: Walk, page: Page): Promise<void> 
       role: "Teacher",
       title: "When the program verifies, an entry is handed in, and its writer cannot verify it",
       caption:
-        "A draft is handed in when the teacher is done with it. It then says it was handed in, and the teacher is not offered Verify: another person has to.",
+        "A draft is handed in when the teacher is done with it. It then says it was handed in, and the teacher is not offered Verify: another person has to. The daily revision is added and handed in at once.",
       covers: ["PGR-07"],
     },
     async () => {
@@ -184,6 +186,15 @@ export async function c31ProgramProgress(walk: Walk, page: Page): Promise<void> 
       await expect(page.getByText("The entry was handed in.")).toBeVisible();
       await expect(entries(page).first()).toContainText("Handed in");
       await expect(page.getByRole("button", { name: /^Verify the new text entry/ })).toHaveCount(0);
+      await walk.click(page.getByRole("button", { name: "Add to daily revision" }));
+      const add = dialog(page, "Add daily revision");
+      await walk.selectOption(add.getByLabel("From surah"), g.gridSurah);
+      await walk.type(add.getByLabel("From ayah"), g.gridFrom);
+      await walk.selectOption(add.getByLabel("To surah"), g.gridSurah);
+      await walk.type(add.getByLabel("To ayah"), g.gridTo);
+      await walk.selectOption(add.getByLabel("Rating"), g.gridRating);
+      await walk.click(add.getByRole("button", { name: "Add and hand in" }));
+      await expect(revision(page)).toContainText("Handed in");
     },
   );
 
@@ -215,11 +226,7 @@ export async function c31ProgramProgress(walk: Walk, page: Page): Promise<void> 
           .getByRole("button", { name: /^Verify/ }),
       );
       await expect(page.getByText("The entry was verified.")).toBeVisible();
-      await walk.click(
-        entries(page)
-          .filter({ hasText: `Al-Fatihah ${g.gridFrom} to ${g.gridTo}` })
-          .getByRole("button", { name: /^Return/ }),
-      );
+      await walk.click(revision(page).getByRole("button", { name: /^Return/ }));
       const ask = dialog(page, "Return this entry");
       await walk.type(ask.getByLabel("Comment for the writer"), g.tooShort);
       await walk.click(ask.getByRole("button", { name: "Return entry" }));
@@ -227,7 +234,7 @@ export async function c31ProgramProgress(walk: Walk, page: Page): Promise<void> 
       await walk.type(ask.getByLabel("Comment for the writer"), g.comment);
       await walk.click(ask.getByRole("button", { name: "Return entry" }));
       await expect(page.getByText("The entry was returned.")).toBeVisible();
-      await expect(entries(page).filter({ hasText: `Al-Fatihah ${g.gridFrom} to ${g.gridTo}` })).toContainText(`Returned: ${g.comment}`);
+      await expect(revision(page)).toContainText(`Returned: ${g.comment}`);
     },
   );
 
@@ -245,8 +252,8 @@ export async function c31ProgramProgress(walk: Walk, page: Page): Promise<void> 
       await signOut(walk, page);
       await signIn(walk, page, cast.teacher);
       await openRecord(walk, page);
-      await expect(entries(page).filter({ hasText: `Returned: ${g.comment}` })).toBeVisible();
-      await walk.click(page.getByRole("button", { name: /^Hand in the new text entry/ }).first());
+      await expect(revision(page)).toContainText(`Returned: ${g.comment}`);
+      await walk.click(page.getByRole("button", { name: /^Hand in the daily revision entry/ }));
       await expect(page.getByText("The entry was handed in.")).toBeVisible();
     },
   );
