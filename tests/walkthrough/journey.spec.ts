@@ -1,6 +1,7 @@
 import * as path from "path";
 import { test } from "@playwright/test";
 import { Walk } from "./support/walk";
+import { resume } from "./chapters/resume";
 import { c01Start } from "./chapters/c01-start";
 import { c02School } from "./chapters/c02-school";
 import { c03PeopleAccept, c03PeopleInvite, c03PeopleRoles } from "./chapters/c03-people";
@@ -40,6 +41,8 @@ test("the walkthrough", async ({ page }, testInfo) => {
     walk.saveFindings(path.join(passDir, "evidence"));
   };
 
+  // a resumed recon (WALKTHROUGH_ONLY): sign in again, and run only the chapters named; a whole run skips this
+  await chapter("Resume", () => resume(walk, page, theme));
   await chapter("C01 Start and sign in", () => c01Start(walk, page, theme));
   await chapter("C02 The school", () => c02School(walk, page));
   await chapter("C03 People", async () => {

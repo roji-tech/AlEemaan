@@ -5,6 +5,7 @@ import { pace, keyDelay, reconTypingScale, TYPING_BUDGET_MINUTES } from "./pace"
 import { getOverlayInitScript } from "./overlay";
 import { Observers } from "./observers";
 import rows from "../coverage/rows.json";
+import { RESUME_CHAPTER, chapterWanted, onlyChapters, requestCheckpoint } from "../../../scripts/walkthrough-run/checkpoint.mjs";
 
 /// Every row id of the coverage matrix: a step may only claim a row that exists.
 const KNOWN_ROWS = new Set<string>((rows as Array<{ id: string }>).map((row) => row.id));
@@ -75,6 +76,8 @@ export class Walk {
   /// Recon only: where the first page load went, and whether the last chapter stopped early (the next one then starts by typing that address again).
   private startUrl: string | null = null;
   private needsRecovery = false;
+  /// The chapters that ran (a resumed recon names the chapters it wants, and a name that no chapter has is a typing mistake, said at the end).
+  private ranChapters: string[] = [];
   readonly mode: WalkMode = walkMode();
   /// Always on: console, page errors, failed requests, response statuses, requests that would leave the machine, and axe after every new page.
   readonly observers: Observers;
@@ -408,6 +411,8 @@ export class Walk {
 
   /// Writes what the observers saw, and in a strict run (the final one) fails on any blocker. A recon run passes strict: false and reads the file.
   finish(observationsPath: string, options: { strict: boolean }): void {
+    const unknown = onlyChapters(process.env).filter((name) => !this.ranChapters.includes(name));
+    if (unknown.length > 0) throw new Error(`WALKTHROUGH_ONLY names a chapter the journey does not have: ${unknown.join(", ")}.`);
     this.observers.save(observationsPath);
     this.assertTypingBudget();
     const blockers = this.observers.blockers();
@@ -425,6 +430,26 @@ export class Walk {
    * in strict it is thrown. A chapter that does not know where it left the page starts with recoverAt(), which only recon may use.
    */
   async chapter(name: string, run: () => Promise<void>): Promise<boolean> {
+    const only = onlyChapters(process.env);
+    if (!chapterWanted(name, only)) return true;
+    if (only.length > 0 && this.mode === "strict")
+      throw new Error("WALKTHROUGH_ONLY is for a recon run: a strict run is the whole journey.");
+    this.ranChapters.push(name);
+    const ended = await this.runChapter(name, run);
+    if (ended) await this.checkpoint(name);
+    return ended;
+  }
+
+  /**
+   * Recon only (the runner sets WALKTHROUGH_CHECKPOINTS=save): the chapter has ended without stopping, so ask the runner to save the database as it is now, and WAIT until it has, so that the
+   * save is the state at the end of this chapter and can never include the first step of the next. The resume sign-in is not a chapter and is never saved.
+   */
+  async checkpoint(name: string): Promise<void> {
+    if (process.env.WALKTHROUGH_CHECKPOINTS !== "save" || name === RESUME_CHAPTER) return;
+    await requestCheckpoint(path.dirname(this.screenshotsDir), name);
+  }
+
+  private async runChapter(name: string, run: () => Promise<void>): Promise<boolean> {
     if (this.needsRecovery && this.startUrl) {
       // a chapter that stopped inside a typed-address tab leaves it open: the next chapter starts on the first tab
       if (this.firstTab) await this.closeTypedAddress();
