@@ -12,8 +12,8 @@ import { backToStaffSignIn, findPortal, portalSignIn, portalSignOut, section } f
 
 const chapter = "C14 Results";
 
-const tabs = (page: Page) => page.getByRole("tablist", { name: "Results sections" });
-const tab = (page: Page, name: string) => tabs(page).getByRole("tab", { name, exact: true });
+export const tabs = (page: Page) => page.getByRole("tablist", { name: "Results sections" });
+export const tab = (page: Page, name: string) => tabs(page).getByRole("tab", { name, exact: true });
 const rowOf = (page: Page, name: string): Locator => page.getByRole("row").filter({ hasText: name });
 
 /// Chooses the class and subject on Enter marks, as the teacher does after opening the page.
@@ -23,7 +23,7 @@ async function chooseSheet(walk: Walk, page: Page, pair: string): Promise<void> 
 }
 
 /// Chooses the class and the pupil on Report cards (the term is the current one), as the administrator does.
-async function chooseCard(walk: Walk, page: Page, pupil: { first: string; last: string }): Promise<void> {
+export async function chooseCard(walk: Walk, page: Page, pupil: { first: string; last: string }): Promise<void> {
   await walk.selectOption(page.getByLabel("Class", { exact: true }), r.className);
   await walk.selectOption(page.getByLabel("Student"), `${pupil.first} ${pupil.last}`);
   await expect(page.getByRole("article", { name: `Report card for ${pupil.first} ${pupil.last}` })).toBeVisible();
@@ -395,7 +395,7 @@ export async function c14Results(walk: Walk, page: Page): Promise<void> {
       role: "Pupil",
       title: "A pupil reads the published results and takes the card",
       caption:
-        "Once published, the results are in the portal's Academic Results: the term, each subject's marks and grade, the average and the remarks, and the card can be printed or downloaded. Before publishing, this section said there were none.",
+        "Once published, the results are in the portal's Academic Results, on the same report card the school's staff read: the school's name and motto, the class, each subject's marks and grade, the average, position and remarks, and the grading legend. The card can be printed or downloaded. Before publishing, this section said there were none.",
       covers: ["POR-05"],
     },
     async () => {
@@ -405,11 +405,16 @@ export async function c14Results(walk: Walk, page: Page): Promise<void> {
       await portalSignIn(walk, page, pupils.yusuf.admissionNo, pupils.yusuf.dobShown);
       await walk.click(section(page, "Academic Results"));
       await expect(page.getByRole("heading", { name: "No Published Results Found" })).toHaveCount(0);
-      await expect(page.getByLabel("Select Academic Term:")).toBeVisible();
+      await expect(page.getByLabel("Select Academic Term:")).toContainText(r.className);
+      const card = page.getByRole("article", { name: `Report card for ${pupils.yusuf.first} ${pupils.yusuf.last}` });
+      await expect(card).toContainText(school.profile.name);
+      await expect(card).toContainText(school.profile.motto);
+      await expect(card.getByText(r.className, { exact: true })).toBeVisible();
+      await expect(card.getByText("Position", { exact: true })).toBeVisible();
       await expect(
-        page.getByRole("row", { name: new RegExp(`${a.subjects.maths}.*${r.yusuf.ca}.*${r.yusuf.exam}.*${r.yusuf.total}`) }),
+        card.getByRole("row", { name: new RegExp(`${a.subjects.maths}.*${r.yusuf.ca}.*${r.yusuf.exam}.*${r.yusuf.total}`) }),
       ).toBeVisible();
-      await expect(page.getByText(`${r.yusuf.total}%`).first()).toBeVisible();
+      await expect(card.getByText(`${r.yusuf.total}%`).first()).toBeVisible();
       await expect(page.getByText(r.remarks.teacher)).toBeVisible();
       const downloading = page.waitForEvent("download");
       await walk.click(page.getByRole("button", { name: "Download Card" }));

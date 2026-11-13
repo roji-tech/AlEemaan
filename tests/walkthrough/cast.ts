@@ -247,3 +247,21 @@ export const results = {
   // a code that was never issued, typed as a person would type an address into a new tab
   madeUpCode: "not-a-real-code-0000",
 };
+
+/// What is typed and read in C15 Approvals (section 6.14): the reasons that go with each decision, and the labels of the verification page's name format.
+export const approvals = {
+  // the branch administrator's reason for approving the teacher's own scheme for English Language (the request C14 left waiting)
+  approveReason: "English has a longer exam, so the 30 and 70 split is fair.",
+  // the branch administrator's reason for asking that the public verification page show initials only
+  proposalReason: "Parents asked that a child's name is not written out on a page anyone can open.",
+  // the reason the branch administrator types when they try to approve that request themselves (the server refuses)
+  selfDecideReason: "I would like this to start now.",
+  // the superadmin's reason for refusing that request
+  rejectReason: "The page already shows only the first name and the first letter of the last name.",
+  // the superadmin's own change to the verification page, and the name as the public page then writes it
+  nameFormat: {
+    initials: "Initials only (A. Y.)",
+    full: "Full name",
+    standard: "First name and the first letter of the last name (Amina Y.)",
+  },
+};
