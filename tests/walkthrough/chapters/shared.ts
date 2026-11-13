@@ -17,7 +17,7 @@ export async function signIn(walk: Walk, page: Page, person: { name: string; ema
 
 export async function signOut(walk: Walk, page: Page): Promise<void> {
   await walk.click(page.getByRole("button", { name: /^Account menu for/ }));
-  await walk.click(page.getByRole("button", { name: "Sign out" }));
+  await walk.click(page.getByRole("button", { name: "Sign out", exact: true }));
   await expect(page).toHaveURL(/\/login$/);
 }
 

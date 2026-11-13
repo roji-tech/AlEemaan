@@ -123,6 +123,27 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     await expect(walk.closeTypedAddress()).rejects.toThrow(/No typed-address tab/);
   });
 
+  test("a step that ends on a page the action loaded afresh still has its own caption on it, not the bar's first text", async ({
+    page,
+  }) => {
+    const walk = new Walk(page, tempDir());
+    await walk.init();
+    await walk.goto(PAGE);
+    const meta = {
+      id: 2,
+      title: "A page loaded by the step",
+      role: "Visitor" as const,
+      caption: "The caption of this step.",
+      covers: ["SET-01"],
+    };
+    await walk.step(meta, async () => {
+      // a click on a link that loads a whole new document: the bar is drawn again from its initial text
+      await page.goto("data:text/html,<title>next</title><main><h1>Next page</h1></main>");
+    });
+    await expect(page.locator("#wt-title")).toHaveText("A page loaded by the step");
+    await expect(page.locator("#wt-caption")).toHaveText("The caption of this step.");
+  });
+
   test("a step must cover real rows of the coverage matrix, and writes its screenshot and timeline entry", async ({ page }) => {
     const dir = tempDir();
     const walk = new Walk(page, dir);

@@ -2944,7 +2944,7 @@
       "Teacher"
     ],
     "kind": "positive",
-    "proof": "Devices signed in: 'This device'; sign one out; 'Sign out of all other devices'",
+    "proof": "Devices signed in: this device is listed first and marked 'This device', and with no other it says 'You're not signed in anywhere else.' (signing another device out, and 'Sign out of all other devices', need a second browser, which one recording does not have; the API and browser tests of the account cover them)",
     "source": [
       "src/components/auth/SessionsPanel.tsx"
     ],

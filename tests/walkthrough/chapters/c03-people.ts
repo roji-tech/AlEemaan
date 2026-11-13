@@ -10,7 +10,7 @@ const chapter = "C03 People";
 
 const pendingFor = (page: Page, email: string) => page.getByRole("button", { name: `Revoke the invitation to ${email}` });
 
-async function invite(walk: Walk, page: Page, email: string, role: string, branch: string): Promise<void> {
+export async function invite(walk: Walk, page: Page, email: string, role: string, branch: string): Promise<void> {
   await walk.click(page.getByRole("button", { name: "Invite someone" }));
   const dialog = page.getByRole("dialog", { name: "Invite someone" });
   await walk.type(dialog.getByLabel("Email address"), email);
@@ -100,28 +100,28 @@ export async function c03PeopleInvite(walk: Walk, page: Page): Promise<void> {
   );
 }
 
-const inbox = (page: Page) => page.getByRole("dialog", { name: "Dev email inbox" });
+export const inbox = (page: Page) => page.getByRole("dialog", { name: "Dev email inbox" });
 
 /// Opens the dev inbox from its launcher.
-async function openInbox(walk: Walk, page: Page): Promise<void> {
+export async function openInbox(walk: Walk, page: Page): Promise<void> {
   await walk.click(page.getByRole("button", { name: /^Dev email inbox/ }).first());
   await expect(inbox(page)).toBeVisible();
 }
 
 /// The first time on a tab the inbox asks for the run's token; after that the tab keeps it.
-async function unlockInbox(walk: Walk, page: Page): Promise<void> {
+export async function unlockInbox(walk: Walk, page: Page): Promise<void> {
   await walk.type(inbox(page).getByLabel("Dev tools token"), devToolsToken());
   await walk.click(inbox(page).getByRole("button", { name: "Unlock" }));
 }
 
 /// Opens the message sent to `email` and follows the link in it, as a person would: a click on the link the inbox shows.
-async function followInvitation(walk: Walk, page: Page, email: string): Promise<void> {
+export async function followInvitation(walk: Walk, page: Page, email: string): Promise<void> {
   await walk.click(inbox(page).getByRole("button", { name: new RegExp(`${email}.*invited`) }));
   await expect(inbox(page).getByText(`To ${email}`)).toBeVisible();
   await walk.click(inbox(page).getByRole("link", { name: /\/accept-invite#token=/ }));
 }
 
-async function accept(walk: Walk, page: Page, person: { name: string; email: string }, roleText: string): Promise<void> {
+export async function accept(walk: Walk, page: Page, person: { name: string; email: string }, roleText: string): Promise<void> {
   await openInbox(walk, page);
   await followInvitation(walk, page, person.email);
   await expect(page.getByText(roleText)).toBeVisible();
