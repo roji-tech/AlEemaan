@@ -222,3 +222,28 @@ export const coursework = {
   },
   scrapQuiz: { title: "Trial quiz", prompt: "Is this a trial?", right: "Yes", wrong: "No" },
 };
+
+/// The results of C14: the marks of the first term's Mathematics in Primary 1 A (Primary 1 scheme: CA 40 and the exam 60, made in C05), the teacher's own scheme for English Language, and the
+/// remarks on one pupil's card. Totals are what the sheet shows while the teacher types (the server makes the record when the marks are saved).
+export const results = {
+  pair: { maths: "Primary 1 A · Mathematics", english: "Primary 1 A · English Language" },
+  group: "Primary 1 A · Mathematics",
+  className: "Primary 1 A",
+  scheme: "Primary 1 scheme",
+  // Aisha's CA is first typed over its maximum of 40, which the sheet marks as needing attention; the second value is the one saved.
+  aisha: { ca: "36", caTooHigh: "45", exam: "52", total: "88" },
+  yusuf: { ca: "28", exam: "41", total: "69" },
+  teacherScheme: {
+    name: "English scheme",
+    caMarks: "30",
+    examMarks: "70",
+    reason: "English has a longer exam: reading, writing and a spoken part.",
+    reasonEdited: "English has a longer exam: reading, writing and speaking.",
+    shown: "CA 30 + Exam 70 = 100",
+  },
+  remarks: { teacher: "Yusuf works hard and asks good questions.", principal: "A pleasing term. Keep it up." },
+  unlockTooShort: "No",
+  unlockReason: "A mark was typed wrongly; checking it again",
+  // a code that was never issued, typed as a person would type an address into a new tab
+  madeUpCode: "not-a-real-code-0000",
+};

@@ -67,6 +67,9 @@ export class Walk {
   private timeline: TimelineEntry[] = [];
   private screenshotsDir: string;
   private currentRole: WalkRole = "Visitor";
+  /// The step being run (a typed-address tab shows the same step badge and caption), and the first tab while a typed-address tab is open.
+  private lastStep: StepMeta | null = null;
+  private firstTab: Page | null = null;
   private typedMs: number = 0;
   private findings: Finding[] = [];
   /// Recon only: where the first page load went, and whether the last chapter stopped early (the next one then starts by typing that address again).
@@ -286,27 +289,8 @@ export class Walk {
     });
   }
 
-  /**
-   * Executes a formal walkthrough step: updates the in-page overlay, records timestamps,
-   * runs the action, settles DOM, captures screenshot, and dwells.
-   */
-  async step(meta: StepMeta, action: () => Promise<void>): Promise<void> {
-    if (!Array.isArray(meta.covers) || meta.covers.length === 0)
-      throw new Error(`Step ${meta.id} ("${meta.title}") covers no coverage-matrix row.`);
-    for (const id of meta.covers) {
-      if (!KNOWN_ROWS.has(id))
-        throw new Error(`Step ${meta.id} ("${meta.title}") covers "${id}", which is not a row of the coverage matrix.`);
-    }
-    this.stepCount = meta.id;
-    this.currentRole = meta.role;
-    this.observers.setStep(meta.id);
-    const startMs = Date.now() - this.recordingStartMs;
-
-    const roleSlug = ROLE_CLASS[meta.role];
-    const stepLabel = `Step ${String(meta.id).padStart(2, "0")}`;
-
-    // Update overlay in DOM
-    await this.injectOverlayNow();
+  /// Writes the step's badge, role, title and caption into the bar of the tab the walk is on.
+  private async showStep(meta: StepMeta): Promise<void> {
     await this.page.evaluate(
       ({ step, role, title, caption, slug }) => {
         const stepEl = document.getElementById("wt-step");
@@ -323,13 +307,66 @@ export class Walk {
         if (captionEl) captionEl.textContent = caption;
       },
       {
-        step: stepLabel,
+        step: `Step ${String(meta.id).padStart(2, "0")}`,
         role: meta.role,
         title: meta.title,
         caption: meta.caption,
-        slug: roleSlug,
+        slug: ROLE_CLASS[meta.role],
       },
     );
+  }
+
+  /**
+   * A typed address (decision D2). A person types an address into the address bar of a FRESH tab, and that is the one load the tab ever gets, counted by being the only one here. The walk's
+   * cursor, caption bar, screenshots and observers move to the new tab, and stay there until closeTypedAddress() brings the first tab back; the first tab keeps its single landing.
+   * Playwright records one video per tab, so what happens in this tab is in the screenshots, the PDF and the timeline and not in the first tab's recording.
+   */
+  async typedAddress(address: string): Promise<Page> {
+    if (this.firstTab) throw new Error("A typed-address tab is already open: close it before typing another address.");
+    const tab = await this.page.context().newPage();
+    await tab.addInitScript(getOverlayInitScript());
+    this.firstTab = this.page;
+    this.page = tab;
+    this.observers.follow(tab);
+    await tab.goto(address, { waitUntil: "domcontentloaded" });
+    await this.injectOverlayNow();
+    if (this.lastStep) await this.showStep(this.lastStep);
+    return tab;
+  }
+
+  /// Closes the typed-address tab and goes back to the first tab, with the step's caption on it again.
+  async closeTypedAddress(): Promise<void> {
+    const first = this.firstTab;
+    if (!first) throw new Error("No typed-address tab is open.");
+    const tab = this.page;
+    this.page = first;
+    this.firstTab = null;
+    this.observers.follow(first);
+    await tab.close();
+    await first.bringToFront();
+    if (this.lastStep) await this.showStep(this.lastStep);
+  }
+
+  /**
+   * Executes a formal walkthrough step: updates the in-page overlay, records timestamps,
+   * runs the action, settles DOM, captures screenshot, and dwells.
+   */
+  async step(meta: StepMeta, action: () => Promise<void>): Promise<void> {
+    if (!Array.isArray(meta.covers) || meta.covers.length === 0)
+      throw new Error(`Step ${meta.id} ("${meta.title}") covers no coverage-matrix row.`);
+    for (const id of meta.covers) {
+      if (!KNOWN_ROWS.has(id))
+        throw new Error(`Step ${meta.id} ("${meta.title}") covers "${id}", which is not a row of the coverage matrix.`);
+    }
+    this.stepCount = meta.id;
+    this.currentRole = meta.role;
+    this.lastStep = meta;
+    this.observers.setStep(meta.id);
+    const startMs = Date.now() - this.recordingStartMs;
+
+    // Update overlay in DOM
+    await this.injectOverlayNow();
+    await this.showStep(meta);
 
     // Execute user action
     await action();
@@ -389,6 +426,8 @@ export class Walk {
    */
   async chapter(name: string, run: () => Promise<void>): Promise<boolean> {
     if (this.needsRecovery && this.startUrl) {
+      // a chapter that stopped inside a typed-address tab leaves it open: the next chapter starts on the first tab
+      if (this.firstTab) await this.closeTypedAddress();
       await this.recoverAt(this.startUrl);
       this.needsRecovery = false;
     }
