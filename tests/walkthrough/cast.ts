@@ -331,3 +331,123 @@ export const bank = {
   subject: "Mathematics",
   question: { prompt: "Which of these fractions is the same as one half?", a: "2/4", b: "1/3", classTag: "Primary 1" },
 };
+
+/// What is written in C23 Question bank, review and reports (section 6.23): a reviewer's own question, why it is sent back, a problem a teacher reports and the answer to it.
+export const review = {
+  subject: "Mathematics",
+  question: { prompt: "Which of these numbers is a prime number?", a: "7", b: "9", fixedB: "15", classTag: "Primary 6" },
+  sentBack: "Nine is too easy to rule out: use fifteen.",
+  report: "Please check the key: a pupil can argue that fifteen is prime.",
+  answer: "Fifteen is three times five, so it is not prime; the key is right.",
+  retire: "Replaced by a clearer question in the next term's paper.",
+};
+
+/// What is written in C24 Question bank, overlap, printing and settings (section 6.24): a near copy of the reviewer's question, why a handout is printed, and the settings that are changed and put back.
+export const tools = {
+  copySuffix: " Choose one.",
+  printReason: "Handout for the Monday revision class",
+  settings: {
+    notANumber: "lots",
+    largest: "60",
+    presets: "10, 20, 50",
+    reason: "Smaller sets for term one",
+    branchLargest: "40",
+    schoolLargest: "100",
+    schoolPresets: "10, 20, 30, 50, 100",
+  },
+};
+
+/// What is written in C25 Programs (section 6.25): a program that never ends, with its levels and groups, and a program for a set period with a branch of its own.
+export const programs = {
+  hifz: {
+    name: "Quran memorisation",
+    levels: ["Juz", "Group"],
+    top: "Juz A",
+    second: "Juz B",
+    child: "Group 1",
+    renamed: "Group One",
+  },
+  course: {
+    name: "Revision course",
+    startsTyped: "12142026",
+    startsText: "14 Dec 2026",
+    ownBranchTaken: school.branches.added,
+    ownBranch: "Revision Centre",
+    badEndTyped: "11302026",
+    endTyped: "06302027",
+    renamed: "Revision course (evening)",
+  },
+};
+
+/// The people of C26 Program people (section 6.26): pupils added from the school's records, a whole class, a child typed in through the other branch, and the reasons that are kept.
+export const programPeople = {
+  group: "Juz A–Group One",
+  otherGroup: "Juz B",
+  className: "Primary 1 A",
+  child: { first: "Maryam", last: "Ahmad", dobTyped: "03042020", guardian: "Hauwa Ahmad", phone: "0803 000 0301" },
+  guardian: { first: "Hauwa", last: "Ahmad" },
+  leaveReason: "Moved to another city",
+  backReason: "Came back after the break",
+  suspendReason: "Disturbing the class",
+  liftReason: "Apologised to the group",
+  expelReason: "Left without telling anyone",
+  reinstateReason: "The family came to explain",
+};
+
+/// What is written in C27 Program attendance (section 6.27): a note, a session name, why a mark is corrected, and the percentage a program flags under.
+export const attendance = {
+  note: "Sick, his mother called",
+  session: "Evening",
+  reason: "Found in the register",
+  flagTyped: "60",
+  flagBad: "101",
+  flagKept: "75",
+};
+
+/// What is written in C28 Program assessments (section 6.28): the grades, an assessment and its limits, the scores, and why a published score is changed.
+export const programAssessments = {
+  grades: [
+    { name: "Fail", from: "0" },
+    { name: "Pass", from: "50" },
+  ],
+  duplicateName: "Fail",
+  title: "Recitation check",
+  kind: "Recitation",
+  outOf: "20",
+  passMark: "10",
+  tooBigTitle: "Too big",
+  tooBig: "5000",
+  over: "21",
+  score: "15,5",
+  scoreShown: "15.5",
+  fixed: "17",
+  comment: "Good recitation",
+  changed: "18",
+  reason: "Recounted the paper",
+};
+
+/// What is written in C29 Program fees (section 6.29): a monthly fee, the payments on its invoices, and a discount with its reason.
+export const programFees = {
+  name: "Monthly fee",
+  amount: "5000",
+  amountShown: "₦5,000.00",
+  dueDay: "10",
+  over: "6000",
+  part: "2000",
+  rest: "3000",
+  discount: "1000",
+  discountReason: "Sibling discount",
+  branchPayment: "1000",
+};
+
+/// What is written in C30 Program completion (section 6.30): the certificate's title and wording (one placeholder mistyped on purpose), a signatory, the rule, and the reasons that are kept.
+export const programCompletion = {
+  title: "Certificate of Memorisation",
+  badWording: "Well done {nme}.",
+  wording: "{name} memorised a portion in {program} at {school}.",
+  signatory: { name: "Sheikh Musa", title: "Head of program" },
+  minAverage: "70",
+  override: "Finished the practical work instead",
+  withdraw: "Issued before the final result was checked",
+  reopen: "Had not finished the last unit",
+};

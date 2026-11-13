@@ -24,6 +24,14 @@ import { c19Recovery } from "./chapters/c19-recovery";
 import { c20FormsStaff } from "./chapters/c20-forms-staff";
 import { c21FormsPublic } from "./chapters/c21-forms-public";
 import { c22QuestionBank } from "./chapters/c22-question-bank";
+import { c23QuestionBankReview } from "./chapters/c23-question-bank-review";
+import { c24QuestionBankTools } from "./chapters/c24-question-bank-tools";
+import { c25Programs } from "./chapters/c25-programs";
+import { c26ProgramPeople } from "./chapters/c26-program-people";
+import { c27ProgramAttendance } from "./chapters/c27-program-attendance";
+import { c28ProgramAssessments } from "./chapters/c28-program-assessments";
+import { c29ProgramFees } from "./chapters/c29-program-fees";
+import { c30ProgramCompletion } from "./chapters/c30-program-completion";
 
 // The journey of one pass (task 0033). One browser context, one recording, chapters in the order the data is made (section 6.6). The pass is the project that runs it (desktop-light,
 // desktop-dark, phone); the chapters are the same in each. WALKTHROUGH_MODE=recon records a chapter that stops early as a finding and goes on; the default, strict, stops at the first failure.
@@ -76,6 +84,14 @@ test("the walkthrough", async ({ page }, testInfo) => {
   await chapter("C20 Forms (staff)", () => c20FormsStaff(walk, page));
   await chapter("C21 Forms (public questionnaire)", () => c21FormsPublic(walk, page));
   await chapter("C22 Question bank", () => c22QuestionBank(walk, page));
+  await chapter("C23 Question bank review and reports", () => c23QuestionBankReview(walk, page));
+  await chapter("C24 Question bank tools", () => c24QuestionBankTools(walk, page));
+  await chapter("C25 Programs", () => c25Programs(walk, page));
+  await chapter("C26 Program people", () => c26ProgramPeople(walk, page));
+  await chapter("C27 Program attendance", () => c27ProgramAttendance(walk, page));
+  await chapter("C28 Program assessments", () => c28ProgramAssessments(walk, page));
+  await chapter("C29 Program fees", () => c29ProgramFees(walk, page));
+  await chapter("C30 Program completion", () => c30ProgramCompletion(walk, page));
 
   walk.saveTimeline(path.join(passDir, "timeline.json"));
   walk.saveFindings(path.join(passDir, "evidence"));
