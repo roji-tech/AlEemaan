@@ -38,6 +38,8 @@ import { c33PortalPractice } from "./chapters/c33-portal-practice";
 import { c34FormsPortal } from "./chapters/c34-forms-portal";
 import { c35AccessDenied } from "./chapters/c35-access-denied";
 import { c36Shell } from "./chapters/c36-shell";
+import { c37PaymentRules } from "./chapters/c37-payment-rules";
+import { c38ApprovalSettings } from "./chapters/c38-approval-settings";
 
 // The journey of one pass (task 0033). One browser context, one recording, chapters in the order the data is made (section 6.6). The pass is the project that runs it (desktop-light,
 // desktop-dark, phone); the chapters are the same in each. WALKTHROUGH_MODE=recon records a chapter that stops early as a finding and goes on; the default, strict, stops at the first failure.
@@ -104,6 +106,8 @@ test("the walkthrough", async ({ page }, testInfo) => {
   await chapter("C34 Forms portal", () => c34FormsPortal(walk, page));
   await chapter("C35 Access denied", () => c35AccessDenied(walk, page));
   await chapter("C36 Shell", () => c36Shell(walk, page));
+  await chapter("C37 Payment rules", () => c37PaymentRules(walk, page));
+  await chapter("C38 Approval settings", () => c38ApprovalSettings(walk, page));
 
   walk.saveTimeline(path.join(passDir, "timeline.json"));
   walk.saveFindings(path.join(passDir, "evidence"));
