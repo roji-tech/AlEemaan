@@ -477,3 +477,16 @@ export const progress = {
 
 /// What is written in C32 Program progress in the portal (section 6.32): the Hijri adjustment tried out of range and then in range.
 export const progressPortal = { hijriBad: "3", hijriGood: "-1" };
+
+/// What is written in C33 Portal practice (section 6.33): the school allows practice with a pool of one question, and what the pupil answers.
+export const practice = {
+  minPool: "1",
+  tooShort: "no",
+  report: "The explanation does not say why.",
+  subject: "Mathematics",
+  classTag: "Primary 1",
+  questions: [
+    { prompt: "Is three plus four equal to seven?", right: "Yes", wrong: "No", explanation: "Three and four make seven." },
+    { prompt: "Is five plus six equal to eleven?", right: "Yes", wrong: "No", explanation: "Five and six make eleven." },
+  ],
+};
