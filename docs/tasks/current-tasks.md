@@ -530,3 +530,12 @@
 - [x] `GET /lms/assignments` sent `_count.submissions` to a pupil's and a guardian's session (how many classmates had handed in): it does not now
 - [x] New specs `lms-assignment-count.spec.ts` (API) and `lms-card-details.spec.ts` (end to end); 2 failed on the unfixed build, 41 passed on the fixed build (desktop and phone) with the existing LMS and portal specs
 - [ ] Not done: the whole suite; mutation passes (deferred); an assignment still cannot carry resource links from the dialog (recorded for the maintainer)
+
+## TASK-0071: A deployment guide: how to release to production, step by step
+
+[Task file](0071-deployment-guide.md). Asked for by the maintainer on 2026-11-13; built on `claude/deployment-guide`. Documentation only: no code, no migration, no change to Vercel.
+
+- [x] `docs/DEPLOYMENT.md`: how the three branches and Vercel are wired (checked, with how to check again), the decisions made by the maintainer, the one-time set-up, every release in order (staging first, migrations before code), rollback, symptoms and who does what
+- [x] Found while checking: Vercel's Production Branch is `master`, not `prod`, so a merge into `master` deploys to production; no branch protection and no CI workflow exist
+- [x] The first thing to do is to change Vercel's Production Branch to `prod` (decided by the maintainer 2026-11-13); the guide says not to merge `dev` into `master` before that
+- [ ] Not done: changing Vercel or the databases (the maintainer's)
