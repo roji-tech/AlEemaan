@@ -559,3 +559,11 @@
 - [x] Found by this task's own browser test: the shared download builder `generateReportCardHtml` never printed the principal's name and **wrote a remark where none was written** ("Satisfactory academic performance.", "Promoted/Advanced to next academic term."); it now names the principal beside the remark and writes a dash, as the screen card does (this changes the staff's downloaded card the same two ways, on purpose)
 - [x] New specs `portal-report-card.spec.ts` (API) and `portal-report-card.spec.ts` (browser) and two unit tests for the builder; the API spec FAILED 3 of 3 and the two unit tests 2 of 2 on the unfixed code; the final run was 80 passed, 0 failed
 - [ ] Not done: the whole suites; mutation passes (deferred); the walkthrough's C14 asserting the school name and the class on the portal card (next walkthrough PR)
+
+## TASK-0074: The sign-in panel says "multiple branches", not "four branches"
+
+[Task file](0074-login-headline-multiple-branches.md). The maintainer's "can you change the 'Four branches' to 'multiple branches'" (2026-11-14, with a screenshot of the sign-in page); built on `claude/login-headline-multiple-branches`. No migration, no API, no layout change.
+
+- [x] `brand.login.headline` is "One school, multiple branches, one login." and the browser spec `brand.spec.ts` asserts it
+- [ ] Not done, on purpose: the landing page and the Arabic landing page still say "four branches" (a fact about this school, held by two unit specs); say if they should be softened too
+- [ ] Not done: re-recording the walkthrough (the next strict run shows the new words)

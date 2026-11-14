@@ -10,7 +10,7 @@ export const brand = {
   tagline: "Secondary & Primary • English & Arabic",
   description: "AlEemaan school management.",
   login: {
-    headline: "One school, four branches, one login.",
+    headline: "One school, multiple branches, one login.",
     blurb: "Secondary & Primary, English & Arabic — every branch's records in one place.",
     points: ["Secondary & Primary, English & Arabic", "Branch-level academic terms", "One admin account, every branch"],
   },
