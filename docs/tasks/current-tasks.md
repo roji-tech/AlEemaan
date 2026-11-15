@@ -577,3 +577,12 @@
 - [x] `tests/unit/storage-config.spec.ts`: the Cloudinary cases rewritten, one new test for the log; failing first on the unfixed code
 - [x] `.env.example`, `docs/DEPLOYMENT.md` (variable table and the 503 row), `docs/HANDOVER.md`, `docs/functions/school-app.md`
 - [ ] Not done: a real upload, read and delete against a Cloudinary account (needs the maintainer's credentials); Octalve still reads `CLOUDINARY_URL` (same small change if wanted)
+
+## TASK-0076: The info-tip registry's key guard allows two-word keys in camelCase
+
+[Task file](0076-info-tip-key-guard.md). Found while running the unit project for task 0075 (2026-11-15): `tests/unit/info-tips.spec.ts` ("every key is a dotted lowercase name") was red on `dev` because task 0073 added `programs.lockRelease` and `programs.weekGrid`. Built on `claude/info-tip-key-guard`; a test change only, no behaviour change.
+
+- [x] The finding: two of 15 keys are camelCase; the guard from task 0054 allowed lowercase letters only
+- [x] The guard now reads `^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$` (each part starts lowercase; still refuses an uppercase start, a hyphen, an underscore, a space, a single part, an empty part); the keys are unchanged
+- [x] Failing first on `dev` (the same spec, failing on `programs.lockRelease`); on the branch `info-tips.spec.ts` 5 passed
+- [ ] Not done: `pnpm build` (no source changed); the rest of the unit project (the last whole run is task 0075's); mutation passes (deferred)

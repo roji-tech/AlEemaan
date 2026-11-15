@@ -18,9 +18,10 @@ function walk(dir: string): string[] {
 }
 
 test.describe("the info-tip registry", () => {
-  test("has tips, and every key is a dotted lowercase name", () => {
+  test("has tips, and every key is a dotted name of lower camel case parts", () => {
     expect(entries.length).toBeGreaterThan(0);
-    for (const [key] of entries) expect(key, key).toMatch(/^[a-z]+(\.[a-z]+)+$/);
+    // `programs.weekGrid`: at least two parts, each starting with a lowercase letter and holding letters and digits only (task 0076)
+    for (const [key] of entries) expect(key, key).toMatch(/^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/);
   });
 
   test("every tip is one or two short sentences of 20 to 200 characters that end in a full stop", () => {
