@@ -567,3 +567,13 @@
 - [x] `brand.login.headline` is "One school, multiple branches, one login." and the browser spec `brand.spec.ts` asserts it
 - [ ] Not done, on purpose: the landing page and the Arabic landing page still say "four branches" (a fact about this school, held by two unit specs); say if they should be softened too
 - [ ] Not done: re-recording the walkthrough (the next strict run shows the new words)
+
+## TASK-0075: Cloudinary is configured with `CLOUDINARY_NAME`, `CLOUDINARY_KEY` and `CLOUDINARY_SECRET`, not one connection string
+
+[Task file](0075-cloudinary-three-variables.md). The maintainer, deploying with Cloudinary (2026-11-15): "can't you split it like this?" Built on `claude/cloudinary-three-variables`. No migration, no route or store change; `CLOUDINARY_URL` is no longer read.
+
+- [x] `resolveCloudinary` reads the three variables, each with its own pattern and its own message (never the value); a missing or blank one is named
+- [x] `getImageStore` writes the problem text to the server log (the routes answer a plain 503, so the log is the only place the variable can be seen)
+- [x] `tests/unit/storage-config.spec.ts`: the Cloudinary cases rewritten, one new test for the log; failing first on the unfixed code
+- [x] `.env.example`, `docs/DEPLOYMENT.md` (variable table and the 503 row), `docs/HANDOVER.md`, `docs/functions/school-app.md`
+- [ ] Not done: a real upload, read and delete against a Cloudinary account (needs the maintainer's credentials); Octalve still reads `CLOUDINARY_URL` (same small change if wanted)

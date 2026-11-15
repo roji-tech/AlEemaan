@@ -11,7 +11,7 @@ import { STORE_NAMES, StorageNotConfiguredError, type ImageStore, type StoreName
 //   IMAGE_STORE = s3 | r2 | cloudinary | memory
 //   s3 : S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and optionally S3_ENDPOINT (MinIO and the like; used path-style)
 //   r2 : R2_ACCOUNT_ID (or R2_ENDPOINT, for a jurisdiction such as the EU), R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY; the region is always "auto"
-//   cloudinary : CLOUDINARY_URL = cloudinary://<api key>:<api secret>@<cloud name> (what Cloudinary's dashboard shows as "API environment variable"); nothing may follow the cloud name
+//   cloudinary : CLOUDINARY_NAME (the cloud name), CLOUDINARY_KEY (the API key), CLOUDINARY_SECRET (the API secret), all from Cloudinary's dashboard; CLOUDINARY_URL is not read
 //   memory : tests only; refused when the server is production-shaped (APP_ENV), unless ALLOW_MEMORY_IMAGE_STORE_IN_PRODUCTION=true (only the test harness sets it)
 //
 // Every image records WHICH store holds it, so a deployment can move from one backend to another: new uploads go to IMAGE_STORE, and an old image is read from the store it
@@ -82,19 +82,16 @@ function resolveS3Family(env: Env, name: "s3" | "r2"): StoreResolution {
 }
 
 function resolveCloudinary(env: Env): StoreResolution {
-  const raw = value(env, "CLOUDINARY_URL");
-  if (!raw) return { ok: false, problem: "cloudinary storage needs CLOUDINARY_URL." };
-  // The vendor's package reads query options (a different API host, a proxy) from this same variable, so anything after the cloud name is refused rather than passed along.
-  const parts = /^cloudinary:\/\/([^:@/?#\s]*):([^:@/?#\s]*)@([^:@/?#\s]*)$/.exec(raw);
-  if (!parts)
-    return {
-      ok: false,
-      problem: "CLOUDINARY_URL must look like cloudinary://<api key>:<api secret>@<cloud name>, with nothing after the cloud name.",
-    };
-  const [, apiKey, apiSecret, cloudName] = parts;
-  if (!CLOUDINARY_KEY.test(apiKey)) return { ok: false, problem: "The api key in CLOUDINARY_URL is not valid." };
-  if (!CLOUDINARY_SECRET.test(apiSecret)) return { ok: false, problem: "The api secret in CLOUDINARY_URL is not valid." };
-  if (!CLOUD_NAME.test(cloudName)) return { ok: false, problem: "The cloud name in CLOUDINARY_URL is not valid." };
+  const cloudName = value(env, "CLOUDINARY_NAME");
+  const apiKey = value(env, "CLOUDINARY_KEY");
+  const apiSecret = value(env, "CLOUDINARY_SECRET");
+  const missing = ["CLOUDINARY_NAME", "CLOUDINARY_KEY", "CLOUDINARY_SECRET"].filter((v) => !value(env, v));
+  if (missing.length > 0) return { ok: false, problem: `cloudinary storage needs ${missing.join(", ")}.` };
+  // Three plain values, each checked against a pattern that cannot hold a `?`, `/`, `#`, `:` or `@`, so nothing can carry an option to the vendor's package (it reads a different API host
+  // or a proxy from the query string of a connection string, which is why the single `CLOUDINARY_URL` is not read). A message names the variable and never repeats its value.
+  if (!CLOUD_NAME.test(cloudName)) return { ok: false, problem: "CLOUDINARY_NAME is not a valid cloud name." };
+  if (!CLOUDINARY_KEY.test(apiKey)) return { ok: false, problem: "CLOUDINARY_KEY is not a valid API key." };
+  if (!CLOUDINARY_SECRET.test(apiSecret)) return { ok: false, problem: "CLOUDINARY_SECRET is not a valid API secret." };
   return { ok: true, settings: { name: "cloudinary", cloudinary: { cloudName, apiKey, apiSecret } } };
 }
 
@@ -127,7 +124,11 @@ function sharedMemoryStore(): MemoryImageStore {
 /// The store for this deployment (or, with `which`, the one an old image names). Throws StorageNotConfiguredError when there is none; the routes answer that with a 503.
 export function getImageStore(which?: string): ImageStore {
   const resolved = resolveStoreSettings(process.env, which);
-  if (!resolved.ok) throw new StorageNotConfiguredError(resolved.problem);
+  if (!resolved.ok) {
+    // The routes turn this into a plain 503, so the log is the only place the person deploying can see WHICH variable is missing or wrong. The text names variables and never a value.
+    console.error("image storage is not configured:", resolved.problem);
+    throw new StorageNotConfiguredError(resolved.problem);
+  }
   const { settings } = resolved;
   if (settings.name === "memory") return sharedMemoryStore();
   const id =
