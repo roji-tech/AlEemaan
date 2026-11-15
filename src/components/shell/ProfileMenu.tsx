@@ -5,26 +5,26 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useSignOut } from "@/components/auth/useSignOut";
 import { ChevronDownIcon, LogOutIcon, MonitorIcon, SlidersIcon, UserIcon } from "@/components/ui/icons";
-import { SoonTag } from "./SoonTag";
 import { FOCUS_RING, initialsOf } from "./nav";
 
 type ProfileMenuProps = {
   name: string | null;
   email: string | null;
   roleLabel: string;
-  /// Administrators see the (not yet built) Settings entry, as the artifact draws it.
-  isAdmin: boolean;
+  /// Settings belongs to the superadministrator (the sidebar offers it to nobody else), so only they get the entry, and it is a real link: it was a "Soon" tag on plain text from the day
+  /// the artifact drew it until the walkthrough found it (task 0033), long after the page was built.
+  isSuperAdmin: boolean;
 };
 
 const ITEM =
   "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg";
 
-/// The top-bar account menu: avatar (+ name from `sm` up) opening Profile, Settings (soon) and
-/// Sign out. A disclosure, not an ARIA `menu` — it holds ordinary links and a button in the
+/// The top-bar account menu: avatar (+ name from `sm` up) opening Profile, the video guide, Settings (for the
+/// superadministrator) and Sign out. A disclosure, not an ARIA `menu` — it holds ordinary links and a button in the
 /// normal tab order, so it needs no arrow-key roving and makes no promise it doesn't keep.
 /// Closes on Escape (focus back on the button), on a click outside, when Tab moves focus out of
 /// it, and on navigation.
-export function ProfileMenu({ name, email, roleLabel, isAdmin }: ProfileMenuProps) {
+export function ProfileMenu({ name, email, roleLabel, isSuperAdmin }: ProfileMenuProps) {
   const pathname = usePathname();
   const panelId = useId();
   const [open, setOpen] = useState(false);
@@ -107,12 +107,11 @@ export function ProfileMenu({ name, email, roleLabel, isAdmin }: ProfileMenuProp
             <MonitorIcon className="h-4 w-4" />
             Video guide
           </Link>
-          {isAdmin && (
-            <span className={`${ITEM} text-fg-muted hover:bg-transparent hover:text-fg-muted`}>
+          {isSuperAdmin && (
+            <Link href="/settings" className={`${ITEM} ${FOCUS_RING}`}>
               <SlidersIcon className="h-4 w-4" />
               Settings
-              <SoonTag />
-            </span>
+            </Link>
           )}
 
           <div className="my-1 h-px bg-line" />

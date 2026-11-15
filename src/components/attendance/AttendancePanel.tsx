@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { AttendanceStatus } from "@/lib/attendance/rules";
@@ -374,9 +375,12 @@ export function AttendancePanel({
         </div>
 
         <div>
-          <label htmlFor="attendance-date" className="block text-sm font-medium text-fg mb-1">
-            Date
-          </label>
+          <div className="mb-1 flex items-center gap-1.5">
+            <label htmlFor="attendance-date" className="block text-sm font-medium text-fg">
+              Date
+            </label>
+            <InfoTip tip="attendance.window" />
+          </div>
           <input
             id="attendance-date"
             type="date"

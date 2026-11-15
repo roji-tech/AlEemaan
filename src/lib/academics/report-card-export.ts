@@ -251,9 +251,9 @@ export function generateReportCardHtml(card: Card, origin: string): string {
 
     <div class="remarks">
       <h3>Class Teacher's Remark</h3>
-      <p>${escapeHtml(card.remarks.teacher || "Satisfactory academic performance.")}</p>
-      <h3 style="margin-top: 12px;">Principal's Remark</h3>
-      <p style="margin-bottom: 0;">${escapeHtml(card.remarks.principal || "Promoted/Advanced to next academic term.")}</p>
+      <p>${escapeHtml(card.remarks.teacher || "—")}</p>
+      <h3 style="margin-top: 12px;">Principal's Remark${card.school.principal ? ` (${escapeHtml(card.school.principal)})` : ""}</h3>
+      <p style="margin-bottom: 0;">${escapeHtml(card.remarks.principal || "—")}</p>
     </div>
 
     <div class="signatures">

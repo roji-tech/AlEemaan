@@ -1,0 +1,135 @@
+import "../support/env";
+import { test, expect } from "@playwright/test";
+import { brand } from "@/lib/brand";
+
+// The words of the landing page (task 0048). The page may only say what the product does today, so the copy is held to a few rules a reviewer would otherwise have to remember: what the page offers
+// (no sign-up, no price, no trial, no demo: there is none to link to), no figures (a number on a landing page is a claim that goes stale), sentences and not fragments, and a title and a
+// description of a length a tab and a search result can show.
+
+const landing = brand.landing;
+const everyText = (): string[] => [
+  landing.eyebrow,
+  landing.headline,
+  landing.lead,
+  landing.coversHeading,
+  ...landing.covers.flatMap((c) => [c.title, c.text]),
+  landing.peopleHeading,
+  ...landing.people.flatMap((p) => [p.who, p.text]),
+  landing.about.programsHeading,
+  ...landing.about.programs.flatMap((x) => [x.title, x.text]),
+  landing.about.valuesHeading,
+  ...landing.about.values.flatMap((x) => [x.title, x.text]),
+  landing.about.contactHeading,
+  landing.about.contactText,
+  ...Object.values(landing.about.contactLabels),
+  landing.closingHeading,
+  landing.closingText,
+];
+
+test.describe("what the page may say", () => {
+  test("it offers no sign-up, price, trial, demo or free plan: none of them exists", () => {
+    const text =
+      `${landing.title} ${landing.description} ${everyText().join(" ")} ${landing.links.map((l) => l.label).join(" ")}`.toLowerCase();
+    for (const word of ["sign up", "signup", "register", "free", "trial", "price", "pricing", "plan", "demo", "subscribe", "discount"])
+      expect(text, `the copy must not mention "${word}"`).not.toContain(word);
+  });
+
+  test("it states no figure: no digit anywhere in the words", () => {
+    for (const text of [landing.title, landing.description, ...everyText()]) expect(text, text).not.toMatch(/\d/);
+  });
+
+  test("every text is a real piece of writing: trimmed, not empty, no doubled spaces, no placeholder", () => {
+    for (const text of [landing.title, landing.description, ...everyText()]) {
+      expect(text, text).toBe(text.trim());
+      expect(text.length, `"${text}" is empty`).toBeGreaterThan(2);
+      expect(text, text).not.toMatch(/ {2}|lorem|todo|tbd|xxx/i);
+    }
+  });
+
+  test("an item's text is a sentence that ends with a full stop", () => {
+    for (const text of [
+      landing.lead,
+      landing.closingText,
+      landing.about.contactText,
+      ...landing.covers.map((c) => c.text),
+      ...landing.people.map((p) => p.text),
+      ...landing.about.programs.map((x) => x.text),
+      ...landing.about.values.map((x) => x.text),
+    ])
+      expect(text, text).toMatch(/[.]$/);
+  });
+});
+
+test.describe("the shape of the page", () => {
+  test("the school's four branches, named as the setup wizard seeds them, each once, in the school's order", () => {
+    expect(landing.covers.map((c) => c.title)).toEqual([
+      "Secondary (English)",
+      "Primary (English)",
+      "Secondary (Arabic)",
+      "Primary (Arabic)",
+    ]);
+    expect(landing.coversHeading).toBe("Our branches");
+  });
+
+  test("four kinds of people, each said once", () => {
+    expect(landing.people).toHaveLength(4);
+    expect(new Set(landing.people.map((p) => p.who)).size).toBe(4);
+  });
+
+  test("the title names the product without repeating it the way the tab's template would; the description is one sentence of a length a search result shows", () => {
+    expect(landing.title.startsWith(brand.name)).toBe(true);
+    expect(landing.title.length).toBeLessThanOrEqual(60);
+    expect(landing.description.length).toBeLessThanOrEqual(160);
+    expect(landing.description.split(/[.!?](\s|$)/).filter((s) => s.trim().length > 1)).toHaveLength(1);
+  });
+
+  test("the extra links are paths on this site, each with a name that says where it goes, and none is a way to sign up", () => {
+    expect(landing.links.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(landing.links.map((l) => l.href)).size).toBe(landing.links.length);
+    for (const link of landing.links) {
+      expect(link.href, link.label).toMatch(/^\/[a-z0-9/_-]*$/); // a path on this site: never an address elsewhere
+      expect(link.href, link.label).not.toBe("/login"); // sign-in is always offered and is not one of the extras
+      expect(link.label.length, link.label).toBeGreaterThan(5);
+      expect(`${link.label} ${link.href}`.toLowerCase(), link.label).not.toMatch(/sign ?up|register|trial|demo/);
+    }
+  });
+
+  test("the page speaks of the school and not of software: the town is named, and nothing calls the school a product, a system or a platform (task 0049)", () => {
+    expect(landing.eyebrow).toBe("Ibadan, Nigeria");
+    expect(landing.title).toContain("School");
+    expect(landing.description).toContain("Ibadan");
+    const text = [landing.title, landing.description, ...everyText()].join(" ").toLowerCase();
+    for (const word of ["software", "platform", "system", "product", "management", "feature"])
+      expect(text, `the copy must not mention "${word}"`).not.toContain(word);
+  });
+});
+
+test.describe("the school's own sections (task 0070)", () => {
+  test("three programs and four things the school stands for, each said once, and four contact labels", () => {
+    expect(landing.about.programs).toHaveLength(3);
+    expect(new Set(landing.about.programs.map((x) => x.title)).size).toBe(3);
+    expect(landing.about.values).toHaveLength(4);
+    expect(new Set(landing.about.values.map((x) => x.title)).size).toBe(4);
+    expect(Object.keys(landing.about.contactLabels).sort()).toEqual(["address", "email", "phone", "website"]);
+  });
+
+  test("the contact details are not in the words: they are the school profile, so no telephone number, address or e-mail is written into the page", () => {
+    const text = [landing.lead, ...everyText()].join(" ");
+    expect(text).not.toMatch(/@|https?:|www\.|\+\s?\d/);
+  });
+
+  test("the claims of the old page that cannot be shown are not carried: no certification, no class size, no 'most popular', no dated session", () => {
+    const text = everyText().join(" ").toLowerCase();
+    for (const claim of [
+      "certified",
+      "small class",
+      "most popular",
+      "modern laboratory",
+      "inter-house",
+      "adhkar",
+      "applications are",
+      "now open",
+    ])
+      expect(text, `the copy must not claim "${claim}"`).not.toContain(claim);
+  });
+});

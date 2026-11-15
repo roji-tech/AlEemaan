@@ -108,6 +108,56 @@ test.describe("who sees the page", () => {
   });
 });
 
+test.describe("non-teaching staff", () => {
+  // How many Question bank links the navigation offers: the sidebar on a desktop, the More sheet on a phone (closed again afterwards).
+  async function bankLinks(page: Page, isMobile: boolean) {
+    if (!isMobile) return mainNav(page).getByRole("link", { name: "Question bank" }).count();
+    await mainNav(page).getByRole("button", { name: "More" }).click();
+    const count = await dialog(page).getByRole("link", { name: "Question bank" }).count();
+    await page.keyboard.press("Escape");
+    return count;
+  }
+
+  test("without a reviewer assignment there is no navigation entry and no Write a question; with one, both appear", async ({
+    page,
+    isMobile,
+  }) => {
+    const { home, admin } = await people();
+    const staff = await createUser({ role: Role.NON_TEACHING_STAFF, name: `${tag} Bursar` });
+    await signInThroughUi(page, staff);
+    await page.goto("/dashboard");
+    expect(await bankLinks(page, isMobile), "a non-teaching member of staff with no assignment is not offered the entry").toBe(0);
+
+    // the page still opens by its address (they are staff, and may browse what pupils already see), but offers nothing the route would refuse
+    await page.goto("/question-bank");
+    await expect(page.getByRole("tab", { name: "Browse" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Write a question" })).toHaveCount(0);
+    await page.getByRole("tab", { name: "My questions" }).click();
+    await expect(page.getByText("You have not written a question.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Write a question" })).toHaveCount(0);
+
+    // an administrator names them a reviewer: the very next page load offers the entry, and writing
+    await db.questionBankReviewer.create({ data: { userId: staff.id, assignedById: admin.id, scope: "GENERAL", branchId: home.id } });
+    await page.goto("/dashboard");
+    expect(await bankLinks(page, isMobile), "a reviewer is offered the entry").toBe(1);
+    if (isMobile) {
+      await mainNav(page).getByRole("button", { name: "More" }).click();
+      await dialog(page).getByRole("link", { name: "Question bank" }).click();
+    } else {
+      await mainNav(page).getByRole("link", { name: "Question bank" }).click();
+    }
+    await expect(page).toHaveURL(/\/question-bank$/);
+    await expect(page.getByRole("button", { name: "Write a question" })).toBeVisible();
+    await page.getByRole("tab", { name: "Review queue" }).click();
+    await expect(page.getByText("Nothing is waiting for you.")).toBeVisible();
+
+    // and when the assignment is taken away the entry goes again
+    await db.questionBankReviewer.deleteMany({ where: { userId: staff.id } });
+    await page.goto("/dashboard");
+    expect(await bankLinks(page, isMobile), "without the assignment the entry is gone again").toBe(0);
+  });
+});
+
 test.describe("reviewers", () => {
   test("a branch administrator adds a subject reviewer, sees them listed, and removes them after a confirmation", async ({
     page,

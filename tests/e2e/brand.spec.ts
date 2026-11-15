@@ -37,7 +37,7 @@ test.describe("AlEemaan's brand", () => {
     const panel = page.locator("aside");
     await expect(panel).toBeVisible();
     expect(await backgroundOf(panel)).toBe(DEEP_GREEN);
-    await expect(panel).toContainText("One school, four branches, one login.");
+    await expect(panel).toContainText("One school, multiple branches, one login.");
     await expect(panel).toContainText("Secondary & Primary, English & Arabic — every branch's records in one place.");
     for (const point of ["Secondary & Primary, English & Arabic", "Branch-level academic terms", "One admin account, every branch"]) {
       await expect(panel.getByText(point, { exact: true })).toBeVisible(); // the blurb starts with the same words

@@ -6,7 +6,7 @@ Every component in the app — the folders under `src/components/` and the few v
 | :--- | :--- |
 | [`school-app.md`](./school-app.md) | The screens of the signed-in school app: academics, results, students, attendance, timetable, coursework, announcements, communication, finance, approvals, users, the question bank, branches and settings |
 | [`portal.md`](./portal.md) | `src/components/portal/`: the parent and student portal |
-| [`public.md`](./public.md) | `src/components/auth/` and the sign-in and set-up forms: sign-in, recovery, invitations, two-step verification, sessions and the account page |
+| [`public.md`](./public.md) | `src/components/auth/` and the sign-in and set-up forms (sign-in, recovery, invitations, two-step verification, sessions and the account page), and `src/components/landing/` (the landing page) |
 | [`shared.md`](./shared.md) | `ui/` (form and layout primitives), `shell/` (app shell and navigation), `pwa/`, `dev/` and `tools/` (the quick-tools drawer) |
 
 See also [`../functions/index.md`](../functions/index.md) for the non-component logic these components call, and [`../pages/index.md`](../pages/index.md) for the pages that render them.

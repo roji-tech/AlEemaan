@@ -47,6 +47,18 @@ export const SECTIONS = [
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
 
+export const QUESTION_BANK_HREF = "/question-bank";
+
+/// Pages the shell shows or hides for ONE person on top of what their role gives, keyed by an entry's `href` (the value is always `true`: a set that is spelled as an object so it
+/// crosses from the server to the browser as it is). `included` adds a page the role would not offer; `excluded` removes one it would, and wins when a page is in both. The layout
+/// works them out where the permissions are known (`lib/shell-pages.ts`); the shell only applies them. DISPLAY ONLY, like every entry here: a page or API still refuses whoever
+/// it refuses, so an `included` page is never a grant (and is ignored for the administrators' and superadmin's pages, which no override can offer to anyone else).
+export type PageOverrides = {
+  included: Readonly<Record<string, true>>;
+  excluded: Readonly<Record<string, true>>;
+};
+export const NO_PAGE_OVERRIDES: PageOverrides = { included: {}, excluded: {} };
+
 /// The single source of truth for navigation: the sidebar, the phone tab bar and the "More"
 /// sheet are all derived from this list, so they can't disagree.
 export const NAV: readonly NavItem[] = [
@@ -64,14 +76,20 @@ export const NAV: readonly NavItem[] = [
   { label: "Communication", href: "/communication", icon: MailIcon, adminOnly: true, inMore: true, section: "communication" },
   { label: "Finance", href: "/finance", icon: CreditCardIcon, adminOnly: true, inMore: true, section: "administration" },
   { label: "Approvals", href: "/approvals", icon: ShieldCheckIcon, adminOnly: true, inMore: true, section: "administration" },
-  { label: "Question bank", href: "/question-bank", icon: FileTextIcon, staffOnly: true, inMore: true, section: "assessment" },
+  { label: "Question bank", href: QUESTION_BANK_HREF, icon: FileTextIcon, staffOnly: true, inMore: true, section: "assessment" },
   { label: "Forms", href: "/forms", icon: ClipboardIcon, allStaff: true, inMore: true, section: "assessment" },
   { label: "Users", href: "/users", icon: UsersIcon, adminOnly: true, section: "administration" },
 ];
 
-export const navFor = (isAdmin: boolean, isSuperAdmin: boolean, isTeacher = false, isStaff = false): NavItem[] =>
-  NAV.filter((item) =>
-    item.superAdminOnly
+export const navFor = (
+  isAdmin: boolean,
+  isSuperAdmin: boolean,
+  isTeacher = false,
+  isStaff = false,
+  pages: PageOverrides = NO_PAGE_OVERRIDES,
+): NavItem[] =>
+  NAV.filter((item) => {
+    const byRole = item.superAdminOnly
       ? isSuperAdmin
       : item.adminOnly
         ? isAdmin
@@ -79,8 +97,11 @@ export const navFor = (isAdmin: boolean, isSuperAdmin: boolean, isTeacher = fals
           ? isAdmin || isTeacher || isStaff
           : item.staffOnly
             ? isAdmin || isTeacher
-            : true,
-  );
+            : true;
+    if (item.href && pages.excluded[item.href]) return false;
+    if (item.superAdminOnly || item.adminOnly) return byRole;
+    return byRole || Boolean(item.href && pages.included[item.href]);
+  });
 
 export type NavGroup = {
   /// null = no heading: the entries listed on their own, or a section that has just one visible entry (a section of one is a plain link).

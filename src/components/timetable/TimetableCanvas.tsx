@@ -325,7 +325,10 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
         onClose={() => setBatchOpen(false)}
         onSaved={onRefresh}
       />
+      {/* keyed so that every opening starts from the period it is opened for (or the chosen day): the form's fields are `useState(initial...)`, which only reads its props on the first render,
+          so a modal mounted once opened on the first subject, teacher and arm and 09:00, and "Update" overwrote the period with them (task 0057). BatchSlotsModal does the same. */}
       <SlotEditModal
+        key={modalOpen ? (editingSlot?.id ?? `new-${selectedDay ?? "any"}`) : "closed"}
         branchId={branchId}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

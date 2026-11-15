@@ -7,7 +7,7 @@ import { brand } from "@/lib/brand";
 // The product logo on the signed-out screens is a link to the start page, `/` (AuthShell). Runs on the desktop AND the phone project: the logo is in the brand panel on large screens and in
 // the compact header on phones, and never both at once.
 //
-// What `/` does is not this spec's business (it is a router: a signed-out visitor ends on the sign-in page); this spec pins that the logo is a real link to it, that a keyboard reaches it, that it is announced, and that making it a link did not expose the panel's decorative parts to assistive technology.
+// What `/` shows is the landing page's business (tests/e2e/landing-screens.spec.ts); this spec pins that the logo is a real link to it, that a keyboard reaches it, that it is announced, and that making it a link did not expose the panel's decorative parts to assistive technology.
 
 test.beforeAll(async () => {
   await seedInstance();
@@ -32,12 +32,14 @@ test("on a signed-out screen there is exactly one logo link, to /, in the brand 
 
 test("a keyboard reaches the logo, and it shows a focus ring", async ({ page }) => {
   await page.goto("/forgot-password");
+  // The first field has the caret when the page opens (autofocus), so Tab starts in the middle of the page: field, button, link, then round to the top. The logo is the first stop after that on a
+  // large screen and comes after the theme button on a phone. A whole trip round the page is the claim: a keyboard reaches the logo.
   let focused = false;
-  for (let presses = 0; presses < 4 && !focused; presses += 1) {
+  for (let presses = 0; presses < 8 && !focused; presses += 1) {
     await page.keyboard.press("Tab");
     focused = await logo(page).evaluate((el) => el === document.activeElement);
   }
-  expect(focused, "four Tab presses from the top of the page reach the logo").toBe(true);
+  expect(focused, "a full trip of Tab presses round the page reaches the logo").toBe(true);
   const ring = await logo(page).evaluate((el) => {
     const style = getComputedStyle(el);
     return { style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
@@ -46,11 +48,14 @@ test("a keyboard reaches the logo, and it shows a focus ring", async ({ page }) 
   expect(ring.width).toBeGreaterThanOrEqual(2);
 });
 
-test("from another signed-out screen the logo takes the visitor back to the start, which for a signed-out visitor is the sign-in page", async ({
+test("from another signed-out screen the logo takes the visitor back to the start, which for a signed-out visitor is the landing page, one press from sign-in", async ({
   page,
 }) => {
   await page.goto("/forgot-password");
   await logo(page).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1, name: brand.landing.headline })).toBeVisible();
+  await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).first().click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

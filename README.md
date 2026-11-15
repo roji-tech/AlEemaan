@@ -37,6 +37,10 @@ pnpm prisma migrate dev
 pnpm dev
 ```
 
+## Deploying
+
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) is the step-by-step guide to a production release: how Vercel and the three branches (`dev` development, `master` staging, `prod` production) are wired, the one-time set-up (database, environment variables, domain, first account), every release in order (migrate the database first, then the code), rollback, and what to check when something is wrong.
+
 ## Tests
 
 ```bash

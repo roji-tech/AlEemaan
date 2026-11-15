@@ -1,7 +1,12 @@
-import { NotificationChannel, NotificationDispatchStatus, Prisma } from "@prisma/client";
+import { EnrollmentStatus, NotificationChannel, NotificationDispatchStatus, Prisma, SessionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
+import { getSchoolSettings } from "@/lib/settings/school-settings";
 import { ensureSystemTemplates, interpolateTokens } from "./templates";
 import { defaultNotificationDispatcher } from "./gateways/dispatcher";
+import { BATCH_SIZE, sendNextBatch } from "./queue";
+import { summariseDispatches, type DispatchSummary } from "./summary";
+import { messageDate } from "./tags";
 import type {
   BroadcastMessageInput,
   CreateTemplateInput,
@@ -338,11 +343,13 @@ export async function broadcastMessage(
   branchId: string,
   input: BroadcastMessageInput,
   actorUserId?: string,
-): Promise<{ count: number; dispatches: DispatchListItem[] }> {
+): Promise<DispatchSummary & { queued: number; dispatches: DispatchListItem[] }> {
   const { channel, targetAudience, classGroupId, classArmId, subject, body, templateId, variables } = input;
 
   // 1. Resolve recipients
-  type Recipient = { address: string; userId?: string | null; studentId?: string; studentName?: string };
+  type Recipient = { address: string; userId?: string | null; studentId?: string; studentName?: string; classArm?: string };
+  // SMS and WhatsApp go to a phone number; Email goes to an email address (task 0055: staff and pupil logins used to be given their EMAIL for all three).
+  const toPhone = channel === NotificationChannel.SMS || channel === NotificationChannel.WHATSAPP;
   const recipients: Recipient[] = [];
 
   if (targetAudience === "ALL_PARENTS" || targetAudience === "CLASS_GROUP_PARENTS" || targetAudience === "CLASS_ARM_PARENTS") {
@@ -364,16 +371,24 @@ export async function broadcastMessage(
         lastName: true,
         guardianEmail: true,
         guardianPhone: true,
+        // the pupil's class now: the enrolment of the branch's active session (the `{{class_arm}}` tag)
+        enrollments: {
+          where: { status: EnrollmentStatus.ACTIVE, session: { status: SessionStatus.ACTIVE, archivedAt: null } },
+          select: { className: true, arm: true },
+          take: 1,
+        },
       },
     });
 
     for (const s of students) {
       const address = channel === NotificationChannel.EMAIL ? s.guardianEmail : s.guardianPhone;
       if (address) {
+        const current = s.enrollments[0];
         recipients.push({
           address: address.trim(),
           studentId: s.id,
           studentName: `${s.firstName} ${s.lastName}`,
+          classArm: current ? [current.className, current.arm].filter(Boolean).join(" ") : undefined,
         });
       }
     }
@@ -389,10 +404,21 @@ export async function broadcastMessage(
       },
     });
 
+    // a phone channel uses the staff record's phone (linked by the login); a staff member with none, or with no staff record, is left out
+    const phones = new Map<string, string>();
+    if (toPhone) {
+      const records = await prisma.staffRecord.findMany({
+        where: { branchId, archivedAt: null, userId: { in: staffMembers.map((m) => m.user.id) } },
+        select: { userId: true, phone: true },
+      });
+      for (const record of records) if (record.userId && record.phone?.trim()) phones.set(record.userId, record.phone.trim());
+    }
+
     for (const m of staffMembers) {
-      if (m.user.email) {
+      const address = toPhone ? phones.get(m.user.id) : m.user.email?.trim();
+      if (address) {
         recipients.push({
-          address: m.user.email.trim(),
+          address,
           userId: m.user.id,
         });
       }
@@ -409,7 +435,8 @@ export async function broadcastMessage(
       },
     });
 
-    for (const m of studentUsers) {
+    // a pupil's login has no phone number anywhere, so a phone channel reaches nobody here (the input check says so before this point)
+    for (const m of toPhone ? [] : studentUsers) {
       if (m.user.email) {
         recipients.push({
           address: m.user.email.trim(),
@@ -423,72 +450,55 @@ export async function broadcastMessage(
   const uniqueRecipients = Array.from(new Map(recipients.map((r) => [r.address.toLowerCase(), r])).values());
 
   if (uniqueRecipients.length === 0) {
-    return { count: 0, dispatches: [] };
+    return { ...summariseDispatches([]), queued: 0, dispatches: [] };
   }
 
-  // 2. Create dispatch rows and execute
-  const createdDispatches: DispatchListItem[] = [];
+  // 2. One row per recipient, all at once, then the first batch is sent before this answers (task 0063): a small broadcast is delivered by the time the admin sees the result, a large one
+  // goes on in batches that the Communication screen asks for (queue.ts). Nothing is sent here that was not written first, so a call that is cut off leaves QUEUED rows, not lost ones.
+  // The tags the composer offers (tags.ts): the school's name and today's date for everyone; the pupil's name and class for a guardian. They win over a same-named entry of `variables`.
+  const school = await getSchoolSettings();
+  const today = messageDate(new Date(), resolveSchoolTimeZone());
 
-  for (const r of uniqueRecipients) {
-    const mergedVariables = {
-      ...variables,
-      ...(r.studentName ? { student_name: r.studentName } : {}),
-    };
-
-    const renderedBody = interpolateTokens(body, mergedVariables, channel);
-    const renderedSubject = subject ? interpolateTokens(subject, mergedVariables, channel) : null;
-
-    const row = await prisma.notificationDispatch.create({
-      data: {
+  const made = await prisma.notificationDispatch.createManyAndReturn({
+    data: uniqueRecipients.map((r) => {
+      const mergedVariables = {
+        ...variables,
+        school_name: school.name,
+        date: today,
+        ...(r.studentName ? { student_name: r.studentName, class_arm: r.classArm ?? "their class" } : {}),
+      };
+      return {
         branchId,
         templateId: templateId || null,
         channel,
         recipientAddress: r.address,
         recipientUserId: r.userId || null,
         status: NotificationDispatchStatus.QUEUED,
-        subject: renderedSubject,
-        body: renderedBody,
+        subject: subject ? interpolateTokens(subject, mergedVariables, channel) : null,
+        body: interpolateTokens(body, mergedVariables, channel),
         metadata: mergedVariables,
-        attempts: 1,
-      },
-    });
-
-    // Execute dispatch
-    const dispatchRes = await defaultNotificationDispatcher({
-      dispatchId: row.id,
-      branchId,
-      channel,
-      recipientAddress: r.address,
-      recipientUserId: r.userId || null,
-      subject: renderedSubject,
-      body: renderedBody,
-    });
-
-    const updated = await prisma.notificationDispatch.update({
-      where: { id: row.id },
-      data: {
-        status: dispatchRes.success ? NotificationDispatchStatus.SENT : NotificationDispatchStatus.FAILED,
-        sentAt: dispatchRes.success ? new Date() : null,
-        lastError: dispatchRes.success ? null : dispatchRes.error,
-      },
-    });
-
-    createdDispatches.push({
-      id: updated.id,
-      templateId: updated.templateId,
-      channel: updated.channel,
-      recipientAddress: updated.recipientAddress,
-      recipientUserId: updated.recipientUserId,
-      status: updated.status,
-      subject: updated.subject,
-      body: updated.body,
-      metadata: updated.metadata as Record<string, unknown> | null,
-      attempts: updated.attempts,
-      lastError: updated.lastError,
-      sentAt: updated.sentAt,
-      createdAt: updated.createdAt,
-    });
-  }
+        attempts: 0,
+      };
+    }),
+  });
+  const ids = made.map((row) => row.id);
+  await sendNextBatch(branchId, { onlyIds: ids.slice(0, BATCH_SIZE) });
+  const rows = await prisma.notificationDispatch.findMany({ where: { id: { in: ids } }, orderBy: { createdAt: "asc" } });
+  const createdDispatches: DispatchListItem[] = rows.map((updated) => ({
+    id: updated.id,
+    templateId: updated.templateId,
+    channel: updated.channel,
+    recipientAddress: updated.recipientAddress,
+    recipientUserId: updated.recipientUserId,
+    status: updated.status,
+    subject: updated.subject,
+    body: updated.body,
+    metadata: updated.metadata as Record<string, unknown> | null,
+    attempts: updated.attempts,
+    lastError: updated.lastError,
+    sentAt: updated.sentAt,
+    createdAt: updated.createdAt,
+  }));
 
   // 3. Log audit entry
   await prisma.notificationAuditLog.create({
@@ -507,7 +517,11 @@ export async function broadcastMessage(
   });
 
   return {
-    count: createdDispatches.length,
+    ...summariseDispatches(createdDispatches),
+    // how many are still waiting for the screen's next batches
+    queued: createdDispatches.filter(
+      (d) => d.status === NotificationDispatchStatus.QUEUED || d.status === NotificationDispatchStatus.PROCESSING,
+    ).length,
     dispatches: createdDispatches,
   };
 }

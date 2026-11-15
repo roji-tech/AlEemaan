@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 import { NotificationChannel } from "@prisma/client";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { SpinnerIcon } from "@/components/ui/icons";
+import { tagsFor } from "@/lib/communication/tags";
 
 export interface BroadcastComposerProps {
   branchId: string;
   onSuccess?: () => void;
+  /// The broadcast was made and `total - done` messages are still waiting: the panel sends them in the background and shows the progress.
+  onQueued?: (progress: { total: number; done: number; sent: number; failed: number }) => void;
 }
 
-export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProps) {
+export function BroadcastComposer({ branchId, onSuccess, onQueued }: BroadcastComposerProps) {
   const [channel, setChannel] = useState<NotificationChannel>(NotificationChannel.SMS);
   const [targetAudience, setTargetAudience] = useState<string>("ALL_PARENTS");
   const [subject, setSubject] = useState("");
@@ -17,13 +21,10 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const availableVariables = [
-    { label: "Student Name", token: "{{student_name}}" },
-    { label: "Class Arm", token: "{{class_arm}}" },
-    { label: "School Name", token: "{{school_name}}" },
-    { label: "Date", token: "{{date}}" },
-    { label: "Due Date", token: "{{due_date}}" },
-  ];
+  // Only the tags the server fills for this audience (tags.ts, task 0055): a chip is never offered that a recipient would receive as the text "{{...}}".
+  const availableVariables = tagsFor(targetAudience).map((tag) => ({ label: tag.label, token: `{{${tag.token}}}` }));
+  // A pupil's login has no phone number on file, and nothing here shows an In-App message to anyone (Announcements do): so those are not offered.
+  const phoneNotAvailable = targetAudience === "STUDENTS";
 
   const insertVariable = (token: string) => {
     setBody((prev) => `${prev} ${token} `);
@@ -58,9 +59,40 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
         return;
       }
 
+      // What happened, not only how many rows were made (task 0053): a message that failed, or could not be sent because the provider is not set up, is said so and its text is kept.
+      const sent: number = json.data?.sent ?? json.data?.count ?? 0;
+      const failed: number = json.data?.failed ?? 0;
+      const reason: string | null = json.data?.firstError ?? null;
+      const total: number = json.data?.count ?? sent + failed;
+      const queued: number = json.data?.queued ?? 0;
+      // A large broadcast is sent in batches (task 0063): the first went with this request, the panel sends the rest and shows the progress.
+      if (queued > 0) {
+        onQueued?.({ total, done: total - queued, sent, failed });
+        setFeedback({
+          type: failed > 0 ? "error" : "success",
+          message:
+            `Sending to ${total} recipients: ${total - queued} done so far, ${queued} still to go.` +
+            (failed > 0 ? ` ${failed} failed so far${reason ? `: ${reason}` : ""}.` : "") +
+            " The progress is shown above.",
+        });
+        setSubject("");
+        setBody("");
+        return;
+      }
+      if (failed > 0) {
+        setFeedback({
+          type: "error",
+          message:
+            (sent === 0 ? "The broadcast was not sent." : `Sent to ${sent}, failed for ${failed}.`) +
+            (reason ? ` ${reason}` : "") +
+            " Details are in Message Logs & Dispatches.",
+        });
+        // Stay here: the panel moves to the logs when the composer reports success, and this message (and the unsent text) would go with it.
+        return;
+      }
       setFeedback({
         type: "success",
-        message: `Broadcast successfully dispatched to ${json.data?.count || 0} recipient(s)!`,
+        message: `Broadcast successfully dispatched to ${sent} recipient(s)!`,
       });
       setSubject("");
       setBody("");
@@ -80,9 +112,7 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-4">
         <div>
           <h2 className="text-lg font-semibold text-fg">Compose Broadcast</h2>
-          <p className="text-sm text-fg-muted">
-            Send instant multi-channel broadcast notifications to parents, staff, or students.
-          </p>
+          <p className="text-sm text-fg-muted">Send instant multi-channel broadcast notifications to parents, staff, or students.</p>
         </div>
       </div>
 
@@ -102,30 +132,40 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Channel Selection */}
         <div>
-          <label htmlFor="broadcast-channel" className="block text-sm font-semibold text-fg mb-1">
-            Notification Channel
-          </label>
+          <div className="mb-1 flex items-center gap-1.5">
+            <label htmlFor="broadcast-channel" className="block text-sm font-semibold text-fg">
+              Notification Channel
+            </label>
+            <InfoTip tip="communication.channel" />
+          </div>
           <div id="broadcast-channel" className="flex flex-wrap gap-2">
             {[
               { id: NotificationChannel.SMS, label: "SMS" },
               { id: NotificationChannel.EMAIL, label: "Email" },
               { id: NotificationChannel.WHATSAPP, label: "WhatsApp" },
-              { id: NotificationChannel.IN_APP, label: "In-App" },
-            ].map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setChannel(c.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                  channel === c.id
-                    ? "bg-brand-strong text-white border-brand-fg"
-                    : "bg-field text-fg-muted border-line-strong hover:bg-surface-2"
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
+            ].map((c) => {
+              const unavailable = phoneNotAvailable && c.id !== NotificationChannel.EMAIL;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setChannel(c.id)}
+                  aria-pressed={channel === c.id}
+                  disabled={unavailable}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    channel === c.id
+                      ? "bg-brand-strong text-white border-brand-fg"
+                      : "bg-field text-fg-muted border-line-strong hover:bg-surface-2"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
           </div>
+          {phoneNotAvailable && (
+            <p className="mt-1.5 text-xs text-fg-muted">Pupils have no phone number on file, so only Email is available for them.</p>
+          )}
         </div>
 
         {/* Target Audience */}
@@ -136,7 +176,11 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
           <select
             id="broadcast-target"
             value={targetAudience}
-            onChange={(e) => setTargetAudience(e.target.value)}
+            onChange={(e) => {
+              setTargetAudience(e.target.value);
+              // choosing pupils while a phone channel is selected moves to Email, the one channel that reaches them (the hint under the buttons says why)
+              if (e.target.value === "STUDENTS" && channel !== NotificationChannel.EMAIL) setChannel(NotificationChannel.EMAIL);
+            }}
             className="w-full rounded-lg border border-line-strong bg-field px-3 py-2 text-sm text-fg focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="ALL_PARENTS">All Guardians / Parents</option>
@@ -146,8 +190,8 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
         </div>
       </div>
 
-      {/* Subject (for Email or In-App) */}
-      {(channel === NotificationChannel.EMAIL || channel === NotificationChannel.IN_APP) && (
+      {/* Subject (Email only: an SMS or a WhatsApp message has none) */}
+      {channel === NotificationChannel.EMAIL && (
         <div>
           <label htmlFor="broadcast-subject" className="block text-sm font-semibold text-fg mb-1">
             Email / Message Subject
@@ -184,7 +228,10 @@ export function BroadcastComposer({ branchId, onSuccess }: BroadcastComposerProp
 
       {/* Dynamic Placeholder Insertion Chips */}
       <div>
-        <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Insert Personalization Tags</span>
+        <div className="mb-2 flex items-center gap-1.5">
+          <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider">Insert Personalization Tags</span>
+          <InfoTip tip="communication.tags" />
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {availableVariables.map((v) => (
             <button

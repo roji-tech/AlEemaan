@@ -202,8 +202,8 @@ model FormMarkingAudit {
   studentId    String?
   scoreAwarded Float
   maxScore     Float
-  feedback     String?
-  action       String
+  feedback     String?  @db.VarChar(2000)
+  action       String  @db.VarChar(50)
   actorUserId  String
   createdAt    DateTime @default(now())
 
@@ -235,7 +235,7 @@ model FormTurnIn {
   markedById  String?
   markedAt    DateTime?
   requestedAt DateTime?
-  note        String?
+  note        String?  @db.VarChar(500)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @default(now()) @updatedAt
 
@@ -259,9 +259,9 @@ model FormTurnInAudit {
   formId      String
   studentId   String
   status      TurnInStatus
-  action      String
+  action      String  @db.VarChar(50)
   actorUserId String?
-  note        String?
+  note        String?  @db.VarChar(500)
   createdAt   DateTime     @default(now())
 
   branch  Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)

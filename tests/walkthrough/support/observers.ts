@@ -49,7 +49,17 @@ export class Observers {
   /// True between walk.goOffline() and walk.goOnline(): the browser's own "network is down" console lines are then expected and only listed.
   private offline = false;
 
-  constructor(private readonly page: Page) {}
+  /// The tabs that already have the listeners below (a tab is listened to once, however many times the walk comes back to it).
+  private readonly listening = new WeakSet<Page>();
+
+  constructor(private page: Page) {}
+
+  /// Moves the observers to another tab of the same browser context (a typed-address tab, or back to the first tab): its console, errors, failed requests and responses are listened to
+  /// from now on, and the accessibility scan reads it.
+  follow(page: Page): void {
+    this.page = page;
+    this.listen(page);
+  }
 
   setStep(id: number | null): void {
     this.step = id;
@@ -59,13 +69,31 @@ export class Observers {
     this.offline = offline;
   }
 
-  private add(kind: ObservationKind, severity: Severity, detail: string, extra: Pick<Observation, "rule" | "impact"> = {}): void {
-    this.observations.push({ kind, severity, step: this.step, route: routeOf(this.page), detail: detail.slice(0, 400), ...extra });
+  private add(
+    kind: ObservationKind,
+    severity: Severity,
+    detail: string,
+    extra: Pick<Observation, "rule" | "impact"> = {},
+    page: Page = this.page,
+  ): void {
+    this.observations.push({ kind, severity, step: this.step, route: routeOf(page), detail: detail.slice(0, 400), ...extra });
   }
 
   /// Attaches the listeners and refuses (and records) any request that would leave this machine. Call once, before the first page load.
   async start(context: BrowserContext): Promise<void> {
-    this.page.on("console", (message) => {
+    this.listen(this.page);
+    await context.route("**/*", (route) => {
+      const url = route.request().url();
+      if (staysOnThisMachine(url)) return route.continue();
+      this.add("external-request", "blocker", `the app calls ${url}`);
+      return route.abort("blockedbyclient");
+    });
+  }
+
+  private listen(page: Page): void {
+    if (this.listening.has(page)) return;
+    this.listening.add(page);
+    page.on("console", (message) => {
       const text = message.text();
       if (message.type() === "error") {
         // The browser logs every 4xx/5xx response as a console error too; the response listener below judges those by their status.
@@ -73,26 +101,26 @@ export class Observers {
         const isResponseNoise =
           /Failed to load resource: the server responded with a status of [45]\d\d/.test(text) ||
           (this.offline && /net::ERR_INTERNET_DISCONNECTED/.test(text));
-        this.add("console-error", isResponseNoise ? "listed" : "blocker", text);
-      } else if (message.type() === "warning") this.add("console-warning", "listed", text);
+        this.add("console-error", isResponseNoise ? "listed" : "blocker", text, {}, page);
+      } else if (message.type() === "warning") this.add("console-warning", "listed", text, {}, page);
     });
-    this.page.on("pageerror", (error) => this.add("page-error", "blocker", error.message));
-    this.page.on("requestfailed", (request: Request) => {
+    page.on("pageerror", (error) => this.add("page-error", "blocker", error.message, {}, page));
+    page.on("requestfailed", (request: Request) => {
       const reason = request.failure()?.errorText ?? "failed";
       // Next.js cancels the prefetch of a page (`?_rsc=`) when the person has already moved on: a cancelled prefetch is the framework working, not a failed request.
       if (reason === "net::ERR_ABORTED" && /[?&]_rsc=/.test(request.url())) return;
-      this.add("request-failed", "listed", `${request.method()} ${request.url()}: ${reason}`);
+      this.add("request-failed", "listed", `${request.method()} ${request.url()}: ${reason}`, {}, page);
     });
-    this.page.on("response", (response) => {
+    page.on("response", (response) => {
       const status = response.status();
       if (status >= 400)
-        this.add("http-error", status >= 500 ? "blocker" : "listed", `${status} ${response.request().method()} ${response.url()}`);
-    });
-    await context.route("**/*", (route) => {
-      const url = route.request().url();
-      if (staysOnThisMachine(url)) return route.continue();
-      this.add("external-request", "blocker", `the app calls ${url}`);
-      return route.abort("blockedbyclient");
+        this.add(
+          "http-error",
+          status >= 500 ? "blocker" : "listed",
+          `${status} ${response.request().method()} ${response.url()}`,
+          {},
+          page,
+        );
     });
   }
 

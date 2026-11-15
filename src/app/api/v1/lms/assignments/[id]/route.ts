@@ -4,7 +4,7 @@ import { withAuthGated } from "@/lib/auth/branch-gate";
 import { ok, fail } from "@/lib/api/envelope";
 import { updateAssignmentSchema } from "@/lib/lms/validation";
 import { isBranchStaff, hideSubmissions } from "@/lib/lms/audience";
-import { getAssignmentById, updateAssignment, archiveAssignment, LmsError } from "@/lib/lms/service";
+import { getAssignmentById, updateAssignment, archiveAssignment, LmsError, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
 import { readJsonObject } from "@/lib/api/validate";
 
 interface RouteParams {
@@ -28,7 +28,7 @@ export const GET = withAuthGated(
 
       const assignment = await getAssignmentById(branchId, id);
       if (await isBranchStaff(auth.userId, branchId)) return ok(assignment);
-      if (assignment.status !== "PUBLISHED") return fail("Assignment not found", 404, "NOT_FOUND");
+      if (!PUPIL_VISIBLE_ASSIGNMENT_STATUSES.includes(assignment.status)) return fail("Assignment not found", 404, "NOT_FOUND");
       return ok(hideSubmissions(assignment));
     } catch (error) {
       if (error instanceof LmsError) {

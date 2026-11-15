@@ -61,7 +61,7 @@ export default function VideoGuidePage() {
       <header className="border-b border-line bg-surface/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-fg hover:text-brand transition-colors">
+            <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-fg hover:text-brand-strong transition-colors">
               <svg className="w-5 h-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
@@ -69,7 +69,9 @@ export default function VideoGuidePage() {
             </Link>
             <span className="text-line-strong font-light">|</span>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand/10 text-brand">Product Guide</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-tint text-brand-strong">
+                Product Guide
+              </span>
               <h1 className="text-sm font-semibold tracking-tight text-fg sm:text-base">AlEemaan End-to-End Walkthrough & Tour</h1>
             </div>
           </div>
@@ -92,7 +94,7 @@ export default function VideoGuidePage() {
             <a
               href={`${MEDIA.base}/walkthrough.webm`}
               download
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand/90 text-white text-xs font-semibold shadow-sm transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-strong hover:bg-brand-strong-hover text-white text-xs font-semibold shadow-sm transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -127,7 +129,7 @@ export default function VideoGuidePage() {
                 </video>
               ) : (
                 <div className="p-8 text-center max-w-md">
-                  <div className="w-12 h-12 rounded-full bg-brand/10 text-brand mx-auto flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 rounded-full bg-brand-tint text-brand-strong mx-auto flex items-center justify-center mb-4">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path
                         strokeLinecap="round"
@@ -157,10 +159,10 @@ export default function VideoGuidePage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-ok-bg text-ok-fg border border-ok-line">
                     100% UI Action
                   </span>
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-info-bg text-info-fg border border-info-line">
                     Zero Backdoors
                   </span>
                 </div>
@@ -198,13 +200,13 @@ export default function VideoGuidePage() {
                           <div className="flex items-center gap-2 mb-1">
                             <span
                               className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                isActive ? "bg-brand text-white" : "bg-canvas text-fg-muted border border-line"
+                                isActive ? "bg-brand-strong text-white" : "bg-canvas text-fg-muted border border-line"
                               }`}
                             >
                               {ch.role}
                             </span>
                           </div>
-                          <p className={`text-xs font-semibold truncate ${isActive ? "text-brand" : "text-fg"}`}>{ch.title}</p>
+                          <p className={`text-xs font-semibold truncate ${isActive ? "text-brand-strong" : "text-fg"}`}>{ch.title}</p>
                         </div>
                         <span className="font-mono text-xs text-fg-muted shrink-0 mt-1">{ch.formattedTime}</span>
                       </button>
@@ -238,7 +240,7 @@ export default function VideoGuidePage() {
                     <p className="text-[11px] text-fg-muted">1 page per step with screenshots</p>
                   </div>
                 </div>
-                <a href={`${MEDIA.base}/walkthrough.pdf`} download className="text-xs font-medium text-brand hover:underline">
+                <a href={`${MEDIA.base}/walkthrough.pdf`} download className="text-xs font-medium text-brand-strong hover:underline">
                   Download
                 </a>
               </div>
@@ -259,7 +261,7 @@ export default function VideoGuidePage() {
                     <p className="text-[11px] text-fg-muted">Timestamped step captions</p>
                   </div>
                 </div>
-                <a href={`${MEDIA.base}/walkthrough.vtt`} download className="text-xs font-medium text-brand hover:underline">
+                <a href={`${MEDIA.base}/walkthrough.vtt`} download className="text-xs font-medium text-brand-strong hover:underline">
                   Download
                 </a>
               </div>

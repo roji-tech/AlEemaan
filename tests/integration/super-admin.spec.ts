@@ -1,23 +1,9 @@
-import fs from "node:fs";
-import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { Role as R, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { branchIdsFor, canAdminister, isSuperAdmin, resolveBranchRole } from "@/lib/auth/branch-access";
 
 // Branch administrators and superadmins (plan S1–S5, ADR 0012's interim bullet): `ADMIN` is the administrator of ONE branch, and the
-// `User.isSuperAdmin` flag administers every branch. The migration runs against a LIVE school, so its backfill is tested on legacy rows.
-
-const MIGRATION = path.join(process.cwd(), "prisma/migrations/20261011120000_super_admin_flag/migration.sql");
-const statements = (sql: string) =>
-  sql
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
-    .join("\n")
-    .split(/;\s*(?:\n|$)/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-class Rollback extends Error {}
+// `User.isSuperAdmin` flag administers every branch. (The test of the migration's own backfill was removed with the migration history, task 0051.)
 
 test.beforeEach(async () => {
   await resetDatabase();
@@ -25,59 +11,6 @@ test.beforeEach(async () => {
 });
 
 const otherBranch = async (not: string) => db.branch.findFirstOrThrow({ where: { id: { not } }, orderBy: { name: "asc" } });
-
-test.describe("the migration", () => {
-  test("every ACTIVE administrator becomes a superadmin, nobody else does, and running it twice changes nothing more", async () => {
-    // legacy rows, created the way the old code created them (no flag)
-    const activeAdmin = await createUser({ role: R.ADMIN, superAdmin: false });
-    const deactivatedAdmin = await createUser({ role: R.ADMIN, superAdmin: false });
-    await db.membership.updateMany({ where: { userId: deactivatedAdmin.id }, data: { deactivatedAt: new Date() } });
-    const teacher = await createUser({ role: R.TEACHING_STAFF });
-    const parent = await createUser({ role: R.PARENT });
-    const nobody = await createUser();
-    // one person with TWO admin memberships, and one admin in a branch that is not the first
-    const twice = await createUser({ role: R.ADMIN, superAdmin: false });
-    await db.membership.create({ data: { userId: twice.id, branchId: (await otherBranch(twice.branchId!)).id, role: R.ADMIN } });
-
-    const sql = statements(fs.readFileSync(MIGRATION, "utf8"));
-    expect(sql.length).toBeGreaterThanOrEqual(2); // the parser found the statements (a parser that finds none would pass vacuously)
-
-    let observed: { before: Record<string, boolean>; once: Record<string, boolean>; twice: Record<string, boolean> } | undefined;
-    const flags = async (tx: Pick<typeof db, "$queryRawUnsafe">) =>
-      Object.fromEntries(
-        (await tx.$queryRawUnsafe<{ id: string; isSuperAdmin: boolean }[]>(`SELECT id, "isSuperAdmin" FROM "User"`)).map((r) => [
-          r.id,
-          r.isSuperAdmin,
-        ]),
-      );
-    const outcome: unknown = await db
-      .$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(`ALTER TABLE "User" DROP COLUMN "isSuperAdmin"`); // step back to "before the migration"
-        for (const statement of sql) await tx.$executeRawUnsafe(statement);
-        const once = await flags(tx);
-        for (const statement of sql.filter((s) => /^UPDATE/i.test(s))) await tx.$executeRawUnsafe(statement); // the backfill again
-        const again = await flags(tx);
-        observed = { before: {}, once, twice: again };
-        throw new Rollback();
-      })
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
-    expect(String(outcome)).toBe(String(new Rollback()));
-
-    const { once, twice: again } = observed!;
-    expect(once[activeAdmin.id]).toBe(true);
-    expect(once[twice.id]).toBe(true);
-    expect(once[deactivatedAdmin.id]).toBe(false); // a deactivated membership is no membership (ADR 0002)
-    expect(once[teacher.id]).toBe(false);
-    expect(once[parent.id]).toBe(false);
-    expect(once[nobody.id]).toBe(false);
-    expect(again).toEqual(once);
-    // the test database is exactly as it was
-    expect((await db.user.findUniqueOrThrow({ where: { id: activeAdmin.id } })).isSuperAdmin).toBe(false);
-  });
-});
 
 test.describe("who administers which branch", () => {
   test("a superadmin administers every branch; a branch admin only their own; staff, a parent and a stranger none", async () => {

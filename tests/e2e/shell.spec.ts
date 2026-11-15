@@ -525,8 +525,23 @@ test.describe("the account menu (top bar)", () => {
     await expect(panel).toContainText("Administrator");
     await expect(panel.getByRole("link", { name: "Profile" })).toBeVisible();
     await expect(panel.getByRole("link", { name: "Video guide" })).toHaveAttribute("href", "/video-guide");
-    await expect(panel.getByText("Settings")).toBeVisible(); // "soon", as in the artifact
+    await expect(panel.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings"); // a superadministrator: Settings is a real link, not a "Soon" tag
+    await expect(panel.getByText("Soon", { exact: true })).toHaveCount(0);
     await expect(panel.getByRole("button", { name: "Sign out" })).toBeVisible();
+  });
+
+  test("a branch administrator's menu has no Settings entry: the page is the superadministrator's, and the sidebar does not offer it either", async ({
+    page,
+  }) => {
+    const branchAdmin = await createUser({ role: Role.ADMIN, superAdmin: false });
+    await signInThroughUi(page, branchAdmin);
+
+    const button = accountMenuButton(page);
+    await button.click();
+    const panel = page.locator(`#${await button.getAttribute("aria-controls")}`);
+    await expect(panel.getByRole("link", { name: "Profile" })).toBeVisible();
+    await expect(panel.getByText("Settings")).toHaveCount(0);
+    await expect(panel.getByText("Soon", { exact: true })).toHaveCount(0);
   });
 
   test("Escape closes it and puts focus back on the button; so does a click elsewhere", async ({ page }) => {

@@ -29,7 +29,10 @@ async function expectAccessible(page: Page, what: string) {
   await page.evaluate(() => void (document.documentElement.dataset.theme = "dark"));
 }
 const noSideways = async (page: Page, what: string) =>
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${what} scrolls sideways`).toBe(true);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    `${what} scrolls sideways`,
+  ).toBe(true);
 
 const DOB = "2013-05-10";
 const PHONE = "08011110001";
@@ -44,27 +47,69 @@ test.beforeEach(async () => {
     data: { branchId: branch.id, label: "2026/2027", startDate: new Date("2026-09-01"), endDate: new Date("2027-07-20"), status: "ACTIVE" },
   });
   const period = await db.academicPeriod.create({
-    data: { branchId: branch.id, sessionId: session.id, ordinal: 1, label: "1st Term", startDate: new Date("2026-09-01"), endDate: new Date("2026-12-15"), isCurrent: true },
+    data: {
+      branchId: branch.id,
+      sessionId: session.id,
+      ordinal: 1,
+      label: "1st Term",
+      startDate: new Date("2026-09-01"),
+      endDate: new Date("2026-12-15"),
+      isCurrent: true,
+    },
   });
   const group = await db.classGroup.create({ data: { branchId: branch.id, name: "JSS 1" } });
   const arm = await db.classArm.create({ data: { branchId: branch.id, classGroupId: group.id, name: "Gold" } });
   const mk = (admissionNo: string, firstName: string, dateOfBirth: string) =>
     db.studentRecord.create({
-      data: { branchId: branch.id, firstName, lastName: "Musa", gender: Gender.FEMALE, dateOfBirth: new Date(dateOfBirth), admissionNo, guardianPhone: "+2348011110001" },
+      data: {
+        branchId: branch.id,
+        firstName,
+        lastName: "Musa",
+        gender: Gender.FEMALE,
+        dateOfBirth: new Date(dateOfBirth),
+        admissionNo,
+        guardianPhone: "+2348011110001",
+      },
     });
   const s1 = await mk("2026/0001", "Amina", DOB);
   const s2 = await mk("2026/0002", "Binta", "2015-02-03");
   for (const s of [s1, s2]) {
     await db.studentEnrollment.create({
-      data: { studentId: s.id, branchId: branch.id, sessionId: session.id, className: "JSS 1", arm: "Gold", classArmId: arm.id, status: "ACTIVE" },
+      data: {
+        studentId: s.id,
+        branchId: branch.id,
+        sessionId: session.id,
+        className: "JSS 1",
+        arm: "Gold",
+        classArmId: arm.id,
+        status: "ACTIVE",
+      },
     });
   }
   await db.invoice.create({
-    data: { branchId: branch.id, studentId: s1.id, periodId: period.id, invoiceNo: "INV-2026-0001", totalAmount: 45000, amountPaid: 20000, status: "PARTIALLY_PAID" },
+    data: {
+      branchId: branch.id,
+      studentId: s1.id,
+      periodId: period.id,
+      invoiceNo: "INV-2026-0001",
+      totalAmount: 45000,
+      amountPaid: 20000,
+      status: "PARTIALLY_PAID",
+    },
   });
   const subject = await db.subject.create({ data: { branchId: branch.id, name: "Civic", code: "CIV" } });
-  await db.assignment.create({ data: { branchId: branch.id, subjectId: subject.id, title: "Essay on honesty", status: "PUBLISHED", dueDate: new Date(Date.now() + 864e5) } });
-  const quiz = await db.quiz.create({ data: { branchId: branch.id, subjectId: subject.id, title: "Week 1 quiz", status: "PUBLISHED", passingScore: 50 } });
+  await db.assignment.create({
+    data: {
+      branchId: branch.id,
+      subjectId: subject.id,
+      title: "Essay on honesty",
+      status: "PUBLISHED",
+      dueDate: new Date(Date.now() + 864e5),
+    },
+  });
+  const quiz = await db.quiz.create({
+    data: { branchId: branch.id, subjectId: subject.id, title: "Week 1 quiz", status: "PUBLISHED", passingScore: 50 },
+  });
   await db.quizQuestion.create({
     data: {
       branchId: branch.id,
@@ -130,7 +175,29 @@ test.describe("the portal", () => {
     await noSideways(page, "the guardian's coursework");
   });
 
-  test("with fees blocking report cards, a pupil is told it is not available yet, with no amount and no way to the invoices", async ({ page }) => {
+  test("after a sign-out the next person starts on the Overview, not on the section the last one left open, and none of the last one's coursework is there", async ({
+    page,
+  }) => {
+    // a guardian reads the coursework and signs out; on the same screen a pupil signs in
+    await portalSignIn(page, PHONE);
+    await tab(page, "Coursework (LMS)").click();
+    await expect(page.getByText("Essay on honesty")).toBeVisible();
+    await page.getByRole("button", { name: "Sign Out" }).click();
+    await expect(page.getByLabel("Student Admission Number")).toBeVisible();
+
+    await page.fill("#admissionNo", "2026/0001");
+    await page.fill("#secret", DOB);
+    await page.click("button:has-text('Access Student Portal')");
+    await expect(page.getByRole("tablist", { name: "Student Portal Sections" })).toBeVisible();
+    await expect(tab(page, "Overview")).toHaveAttribute("aria-selected", "true");
+    await expect(tab(page, "Coursework (LMS)")).toHaveAttribute("aria-selected", "false");
+    await expect(page.getByText("Attendance Rate")).toBeVisible();
+    await expect(page.getByText("Essay on honesty")).toHaveCount(0);
+  });
+
+  test("with fees blocking report cards, a pupil is told it is not available yet, with no amount and no way to the invoices", async ({
+    page,
+  }) => {
     await db.settingValue.create({ data: { scope: "GLOBAL", key: "block_unpaid_report_cards", value: true, status: "APPROVED" } });
     await portalSignIn(page, DOB);
     await tab(page, "Academic Results").click();
@@ -159,7 +226,9 @@ test.describe("the Settings screen", () => {
     await expect(box(page, "Pupil", "Overview")).toBeVisible();
   }
 
-  test("it shows the recommended table; ticking fees for pupils and saving changes what a pupil sees, and the change is on the list", async ({ page }) => {
+  test("it shows the recommended table; ticking fees for pupils and saving changes what a pupil sees, and the change is on the list", async ({
+    page,
+  }) => {
     await open(page);
     // the maintainer's table
     await expect(box(page, "Pupil", "Fees and invoices")).not.toBeChecked();
@@ -190,9 +259,18 @@ test.describe("the Settings screen", () => {
     await expect(tab(page, "Fees & Billing")).toBeVisible();
   });
 
-  test("a combination that leaves someone with nothing is refused in words, the practice choice is kept, and the recommended settings come back with one button", async ({ page }) => {
+  test("a combination that leaves someone with nothing is refused in words, the practice choice is kept, and the recommended settings come back with one button", async ({
+    page,
+  }) => {
     await open(page);
-    for (const area of ["Overview", "Academic results and report cards", "Fees and invoices", "Coursework and learning materials", "Hand in assignments", "Take quizzes"]) {
+    for (const area of [
+      "Overview",
+      "Academic results and report cards",
+      "Fees and invoices",
+      "Coursework and learning materials",
+      "Hand in assignments",
+      "Take quizzes",
+    ]) {
       const checkbox = box(page, "Guardian", area);
       if (await checkbox.isChecked()) await checkbox.uncheck();
     }
