@@ -81,7 +81,7 @@ A new variable reaches **new deployments only**: redeploy after adding one (sect
 | `PAYSTACK_SECRET_KEY` | If the school takes online payments | Online payments and the webhook answer 503; a production server never falls back to a mock. | Paystack's secret key. Webhook address to give Paystack: `https://<your domain>/api/v1/webhooks/paystack`. |
 | `FLUTTERWAVE_SECRET_KEY`, `FLUTTERWAVE_SECRET_HASH` | Only if Flutterwave is used | | The provider's dashboard. |
 | `TERMII_API_KEY`, `TERMII_SENDER_ID` | If the school sends SMS or WhatsApp | A message is recorded as failed ("is not set up on this server"); Retry works once the keys are set. | Termii's dashboard. |
-| `IMAGE_STORE` and that store's variables (`S3_*`, `R2_*` or `CLOUDINARY_URL`) | If the question bank is to hold images | Image upload and reading answer 503; nothing else is affected. | `.env.example` explains each; keep the bucket private. |
+| `IMAGE_STORE` and that store's variables (`S3_*`, `R2_*` or `CLOUDINARY_NAME`, `CLOUDINARY_KEY` and `CLOUDINARY_SECRET`) | If the question bank is to hold images | Image upload and reading answer 503; nothing else is affected. | `.env.example` explains each; keep the bucket private. |
 | `SCHOOL_TIME_ZONE` | Recommended | Day-based limits count a UTC day, which starts at 01:00 in Lagos. | `Africa/Lagos` for the Ibadan school. |
 | `CLIENT_IP_HEADER`, `TRUSTED_PROXY_HOPS` | Leave unset on Vercel (see the note) | | |
 | `PWNED_PASSWORD_CHECK` | Optional | The breached-password check stays on. | `off` only on an air-gapped install. |
@@ -202,7 +202,7 @@ A green "Ready" is **not** proof: a missing `SESSION_SECRET` also shows Ready. D
 | No emails arrive | `EMAIL_FROM` and `RESEND_API_KEY` missing (the link is in the server log), or the sending domain is not verified. |
 | A broadcast stays "Sending" | The Communication page must stay open; there is no scheduled sender in this app. Reopen it and it resumes. |
 | Online payment answers 503 | `PAYSTACK_SECRET_KEY` missing for this environment. |
-| Image upload answers 503 | `IMAGE_STORE` and its credentials are not complete. |
+| Image upload answers 503 | `IMAGE_STORE` and its credentials are not complete (for Cloudinary: `CLOUDINARY_NAME`, `CLOUDINARY_KEY` and `CLOUDINARY_SECRET`, all three, none blank). |
 
 ## 7. Who does what
 
