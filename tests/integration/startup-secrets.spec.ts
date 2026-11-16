@@ -13,6 +13,7 @@ const BASE = {
   NODE_ENV: "production",
   APP_URL: `http://localhost:${PORT}`,
   DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://unused@127.0.0.1:1/unused",
+  DATABASE_URL_POOLED: "", // a pooled address in the developer's shell or `.env` must not decide which database these servers would use (task 0077)
   MFA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
   // `next start` reads the developer's own `.env` from the working directory and a variable that is not already in the process's environment is taken from it: a machine whose
   // `.env` holds a real SESSION_SECRET (every developer's, to run the portal) made these four start normally and fail, while CI, which has no `.env`, passed. A variable that

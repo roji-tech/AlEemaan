@@ -586,3 +586,13 @@
 - [x] The guard now reads `^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$` (each part starts lowercase; still refuses an uppercase start, a hyphen, an underscore, a space, a single part, an empty part); the keys are unchanged
 - [x] Failing first on `dev` (the same spec, failing on `programs.lockRelease`); on the branch `info-tips.spec.ts` 5 passed
 - [ ] Not done: `pnpm build` (no source changed); the rest of the unit project (the last whole run is task 0075's); mutation passes (deferred)
+
+## TASK-0077: The app can connect through a pooled address (`DATABASE_URL_POOLED`) while migrations keep the direct one (`DATABASE_URL`)
+
+[Task file](0077-database-url-pooled.md). The maintainer, going live on Neon, asked for proplity's two-address set-up with these names (2026-11-16). Built on `claude/database-url-pooled`; no schema, route or migration change, and nothing changes for anyone who does not set the new variable.
+
+- [x] `src/lib/db-url.ts` (`runtimeDatabaseUrl`) and `src/lib/db.ts`: the running app uses `DATABASE_URL_POOLED` when it is set; the Prisma CLI and the scripts never see it. A wrong scheme, or a different database name from `DATABASE_URL`, is refused with a sentence that names variables and no value
+- [x] The test harness, the servers under test, the startup-secrets servers and the walkthrough runner set it to the empty string, so a hosted address in a shell or `.env` cannot decide which database a test uses
+- [x] `tests/unit/database-url.spec.ts` (8): failing first on a stub with the old behaviour (7 failed, 1 passed, each for its own reason); 8 passed on the change
+- [x] `.env.example`, `docs/DEPLOYMENT.md`, `docs/HANDOVER.md`, the function catalogue
+- [ ] Not done: setting the variables on Vercel and running the migration (the maintainer's); the `api`, browser and https projects; mutation passes (deferred)
