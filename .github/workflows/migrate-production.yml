@@ -1,0 +1,64 @@
+name: Migrate production
+
+# Manual only, never on a push or merge: Vercel deploys `prod` on its own, so run this BEFORE merging a release that carries a migration into `prod`.
+#   gh workflow run migrate-production.yml --ref prod -f confirm="migrate production"
+# The `production` GitHub Environment allows deployments from `prod` only.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "migrate production" to run migrations on the real production database'
+        required: true
+
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Migrate the production database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Confirm
+        if: inputs.confirm != 'migrate production'
+        run: |
+          echo "::error::The confirmation did not match 'migrate production'."
+          exit 1
+      - name: Only from the prod branch
+        if: github.ref != 'refs/heads/prod'
+        run: |
+          echo "::error::Run this from the prod branch (was ${{ github.ref }})."
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The DIRECT address (a pooler cannot hold the lock `migrate deploy` takes), from the `production` GitHub Environment's secret (Settings, Environments, production).
+      - name: Check the address
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::The DATABASE_URL secret is not set on the production environment."; exit 1; fi
+          case "$DATABASE_URL" in *-pooler*) echo "::error::DATABASE_URL is a pooled address; migrations need the direct one."; exit 1;; esac
+      - name: prisma migrate status (before)
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm exec prisma migrate status
+      - name: prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate:deploy
+      # Must end with "Database schema is up to date!".
+      - name: prisma migrate status (after)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm exec prisma migrate status

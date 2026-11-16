@@ -596,3 +596,12 @@
 - [x] `tests/unit/database-url.spec.ts` (8): failing first on a stub with the old behaviour (7 failed, 1 passed, each for its own reason); 8 passed on the change
 - [x] `.env.example`, `docs/DEPLOYMENT.md`, `docs/HANDOVER.md`, the function catalogue
 - [ ] Not done: setting the variables on Vercel and running the migration (the maintainer's); the `api`, browser and https projects; mutation passes (deferred)
+
+## TASK-0079: GitHub Actions: CI on every pull request, and the migrations run from GitHub
+
+[Task file](0079-github-actions-ci.md). The maintainer, after running the production migration by hand (2026-11-16): "can we do this kind of ci?" (proplity's workflows). Built on `claude/ci-workflows`; no code, schema or migration change.
+
+- [x] `ci.yml` (typecheck, lint, `tasks:check`, Prettier on changed files, build and unit tests on a Postgres service), `migration-check.yml` (schema validates, migrations produce the schema, secret-free), `migrate-staging.yml` (push to `master`, or by hand) and `migrate-production.yml` (by hand, typed confirmation, `prod` only); actions pinned by SHA
+- [x] GitHub environments `staging` and `production` with a direct `DATABASE_URL` secret each, restricted to `master` and `prod`; the drift check and `prisma validate` were run locally on `dev` first (No difference detected)
+- [x] `docs/DEPLOYMENT.md` step 3 (the quick way) and the order for production: migrate BEFORE merging into `prod`
+- [ ] Not done: required status checks, required reviewers, an Actions deploy; the first real run of each workflow is recorded in the task file once it has run
