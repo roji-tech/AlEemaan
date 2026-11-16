@@ -1,0 +1,78 @@
+name: CI
+
+# Quality and the unit tests on every push and pull request to the three long-lived branches. The full suite (hours: API, browser, https) stays a manual run.
+on:
+  push:
+    branches: [dev, master, prod]
+  pull_request:
+    branches: [dev, master, prod]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Typecheck, lint, format
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm tasks:check
+      # Only the files this pull request changes: the repository as a whole is not Prettier-clean (120 older files), and the rule has always been to leave a file as clean as it was found.
+      - name: Prettier on the changed files
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          files=$(git diff --name-only --diff-filter=d "origin/$BASE...HEAD" | grep -E '\.(ts|tsx|js|mjs|json|md|css|ya?ml)$' || true)
+          if [ -z "$files" ]; then echo "No Prettier-checked files changed."; exit 0; fi
+          echo "$files" | xargs pnpm exec prettier --check
+
+  unit:
+    name: Build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # A throwaway database on the service container: the setup project creates it, applies every migration and empties it.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aleemaan_ci_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The unit project starts the same servers as every project and they need a production build; `next build` needs no database.
+      - run: pnpm build
+      - run: pnpm exec playwright test --project=setup --project=unit --reporter=line
