@@ -633,3 +633,11 @@
 - [x] `tests/unit/read-body.spec.ts`: the multipart test sends encoded bytes instead of a `FormData` body (found by running the two specs on the runner under Node 24.11.1 and 24.22.2: the failure follows the version and that one test)
 - [ ] Not done: the build record (filled in from this branch's CI run); the mechanism inside Node is not confirmed, only the trigger
 
+## TASK-0082: The app's favicon and icons are the school's logo
+
+[Task file](0082-school-favicon.md). The maintainer: "please update Aleemaan favicon". Built on `claude/school-favicon`; no schema, migration or environment change.
+
+- [x] `favicon.ico` (16, 32, 48, 256 px), `/icon` (512 px) and `/apple-icon` (180 px) show the school's logo on white instead of a white "A" on navy; the routes and the manifest are unchanged
+- [x] `tests/e2e/app-icons.spec.ts`: the browser decodes each picture and counts its green and navy pixels
+- [ ] Not done: a monogram designed for a square tab icon (the logo is wide, D6); the picture was not specified, so the school's logo was chosen (D1)
+
