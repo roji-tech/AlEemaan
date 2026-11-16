@@ -171,6 +171,7 @@ async function main() {
     ...process.env,
     PORT,
     DATABASE_URL,
+    DATABASE_URL_POOLED: "", // a pooled address in the shell or `.env` must never decide which database this server uses (task 0077)
     NEXT_DIST_DIR: DIST_DIR,
     NODE_ENV: "production",
     APP_URL: `http://localhost:${PORT}`,
@@ -196,7 +197,7 @@ async function main() {
   if (!hasBuild || process.env.WALKTHROUGH_REBUILD) {
     console.log(`Building into ${DIST_DIR} (a production build, as the specification asks)...`);
     // The build does not need a database; it must not be handed a developer's own.
-    await runCmd("pnpm", ["build"], { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL, NODE_ENV: "production" });
+    await runCmd("pnpm", ["build"], { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL, DATABASE_URL_POOLED: "", NODE_ENV: "production" });
   }
   const serverCmd = "start";
   console.log(`Starting Next.js using 'next ${serverCmd}' from ${DIST_DIR}...`);

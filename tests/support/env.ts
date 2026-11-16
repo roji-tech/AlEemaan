@@ -61,6 +61,9 @@ export const TEST_DATABASE_NAME = decodeURIComponent(new URL(TEST_DATABASE_URL).
 
 // From here on, anything in this process that reads DATABASE_URL gets the test DB.
 process.env.DATABASE_URL = TEST_DATABASE_URL;
+// The pooled address (task 0077) would win over the line above for anything that reads it, so a hosted one left in a shell or in `.env` could point the tests at a real database. Set to the EMPTY string,
+// not deleted: `next start` reads `.env` for any variable that is absent from the environment, and an empty one blocks that.
+process.env.DATABASE_URL_POOLED = "";
 // The in-process (integration) tests exercise the plain-HTTP cookie shape; the
 // https project has its own server with its own APP_URL.
 process.env.APP_URL = HTTP_URL;
@@ -102,6 +105,7 @@ export function serverEnv(appUrl: string): Record<string, string> {
     ...inherited,
     NODE_ENV: "production",
     DATABASE_URL: TEST_DATABASE_URL,
+    DATABASE_URL_POOLED: "", // see above: never a hosted address for a server under test
     APP_URL: appUrl,
     CLIENT_IP_HEADER: "x-real-ip",
     TRUSTED_PROXY_HOPS: "1",
