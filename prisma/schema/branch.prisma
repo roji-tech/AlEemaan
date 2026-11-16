@@ -1,11 +1,16 @@
 // --- School structure (PRD §3): one school, four branches ---
 
 /// The four legacy sections, unified: Secondary (English), Primary (English),
-/// Secondary (Arabic), Primary (Arabic) — seeded once, at setup. No `code`
-/// field: unlike Octalve Edu's Tenant, nothing ever routes on it.
+/// Secondary (Arabic), Primary (Arabic) — seeded once, at setup. Nothing routes
+/// on the `code` (unlike Octalve Edu's Tenant): it is the prefix of the branch's
+/// invoice and receipt numbers.
 model Branch {
   id   String @id @default(cuid())
   name String @unique
+  /// 2-6 capital letters and digits, unique across the school, so `INV-<code>-2026-0001` never repeats between branches (the first four letters of the name did:
+  /// Secondary (English) and Secondary (Arabic) are both SECO). The default is not a value: an insert that leaves it empty gets one made from the name by the
+  /// `Branch_assign_code` trigger (migration 20261020120000_branch_code), so every way of creating a branch is covered. It does not change when the branch is renamed.
+  code String @unique @default("")
 
   memberships       Membership[]
   invitations       Invitation[]
