@@ -5,8 +5,8 @@ import { brand } from "@/lib/brand";
 import { eyebrowWithMotto, getPublicContact } from "@/lib/landing/contact";
 import { leaveUnlessVisitor } from "@/lib/landing/start";
 
-// The start page. A signed-in person goes straight to their dashboard and an instance whose first-run setup is not finished to its setup wizard; anyone else (a visitor, a person signed out, a
-// setup state that could not be read) sees the landing page (tasks 0048 and 0049), which sets nothing and offers the way in. Its header links to the same page in Arabic, `/ar` (task 0050).
+// The start page. A signed-in person goes straight to their dashboard; anyone else (a visitor, a person signed out) sees the landing page (tasks 0048 and 0049), whether or not first-run setup is
+// finished (task 0078), which sets nothing and offers the way in. Its header links to the same page in Arabic, `/ar` (task 0050).
 // Depends on the session cookie, so never statically cached.
 export const dynamic = "force-dynamic";
 

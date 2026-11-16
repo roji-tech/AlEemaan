@@ -8,7 +8,7 @@ import { brand } from "@/lib/brand";
 import { landingAr } from "@/lib/landing-ar";
 
 // What `/` answers (task 0048), over real HTTP and without a browser: a signed-out visitor is shown the landing page (a 200, not a redirect, and nothing set); a signed-in person is sent to the
-// dashboard; an instance whose first-run setup is not finished is sent to its wizard. The page is a page, not a router: it never answers with a `Location` to a signed-out visitor.
+// dashboard. The page is a page, not a router: it never answers with a `Location` to a signed-out visitor, **whatever the state of first-run setup** (task 0078: it used to send an unfinished instance's visitors to the wizard).
 //
 // `api()` sends the request exactly as written (no cookie jar, redirects not followed).
 
@@ -117,17 +117,31 @@ test.describe("signed in", () => {
   });
 });
 
-test.describe("an instance still being set up", () => {
-  test("setup not finished: sent to the wizard, as before; finished: the landing page", async () => {
+test.describe("an instance still being set up (task 0078)", () => {
+  test("setup not finished: the landing page itself, not a redirect to the wizard; finished: the same", async () => {
     await db.systemSettings.update({ where: { id: "global" }, data: { setupComplete: false } });
     try {
       const res = await api("/");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+      expect(h1s(res.text)).toEqual([brand.landing.headline]);
+    } finally {
+      await seedInstance();
+    }
+    const done = await api("/");
+    expect(done.status).toBe(200);
+    expect(h1s(done.text)).toEqual([brand.landing.headline]);
+  });
+
+  test("setup not finished: the way in still leads to the wizard (`/login`), as before", async () => {
+    await db.systemSettings.update({ where: { id: "global" }, data: { setupComplete: false } });
+    try {
+      const res = await api("/login");
       expect([307, 308]).toContain(res.status);
       expect(new URL(res.headers.get("location")!, HTTP_URL).pathname).toBe("/setup");
     } finally {
       await seedInstance();
     }
-    expect((await api("/")).status).toBe(200);
   });
 });
 
@@ -174,15 +188,18 @@ test.describe("/ar, the page in Arabic", () => {
     expect(res.text).not.toContain(landingAr.coversHeading);
   });
 
-  test("setup not finished: sent to the wizard like `/`; finished: the page", async () => {
+  test("setup not finished: the page itself in Arabic, like `/` (task 0078); finished: the same", async () => {
     await db.systemSettings.update({ where: { id: "global" }, data: { setupComplete: false } });
     try {
       const res = await api("/ar");
-      expect([307, 308]).toContain(res.status);
-      expect(new URL(res.headers.get("location")!, HTTP_URL).pathname).toBe("/setup");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.text).toContain(landingAr.coversHeading);
     } finally {
       await seedInstance();
     }
-    expect((await api("/ar")).status).toBe(200);
+    const done = await api("/ar");
+    expect(done.status).toBe(200);
+    expect(done.text).toContain(landingAr.coversHeading);
   });
 });
