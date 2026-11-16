@@ -596,3 +596,21 @@
 - [x] `tests/unit/database-url.spec.ts` (8): failing first on a stub with the old behaviour (7 failed, 1 passed, each for its own reason); 8 passed on the change
 - [x] `.env.example`, `docs/DEPLOYMENT.md`, `docs/HANDOVER.md`, the function catalogue
 - [ ] Not done: setting the variables on Vercel and running the migration (the maintainer's); the `api`, browser and https projects; mutation passes (deferred)
+
+## TASK-0078: The landing page is shown at `/` and `/ar` even before first-run setup is finished
+
+[Task file](0078-landing-before-setup.md). The maintainer, on the new production site (2026-11-16): `/` sent every visitor to `/setup` until an administrator existed ("can we exclude /"). Built on `claude/landing-before-setup`; one function, no schema, route or migration change.
+
+- [x] `leaveUnlessVisitor()` keeps one job, a signed-in person goes to the dashboard; it no longer asks whether setup is finished. `/login` still sends a visitor to `/setup`; `/setup` and `/api/v1/setup` are unchanged
+- [x] `tests/api/landing-router.spec.ts`: the two tests that pinned the old rule (`/` and `/ar`, task 0048) now expect the landing page (200, no `Location`) in both states, plus a control that `/login` still goes to the wizard; failing first on the unfixed build: 2 failed (307 where 200 was expected), 15 passed
+- [x] Docs: the function catalogue row, task 0048's note, the comment in `src/app/page.tsx`
+- [ ] Not done: a hint on the landing page that the instance is not set up yet; the browser landing specs were not rerun (they use a finished instance); mutation passes (deferred)
+
+## TASK-0079: GitHub Actions: CI on every pull request, and the migrations run from GitHub
+
+[Task file](0079-github-actions-ci.md). The maintainer, after running the production migration by hand (2026-11-16): "can we do this kind of ci?" (proplity's workflows). Built on `claude/ci-workflows`; no code, schema or migration change.
+
+- [x] `ci.yml` (typecheck, lint, `tasks:check`, Prettier on changed files, build and unit tests on a Postgres service), `migration-check.yml` (schema validates, migrations produce the schema, secret-free), `migrate-staging.yml` (push to `master`, or by hand) and `migrate-production.yml` (by hand, typed confirmation, `prod` only); actions pinned by SHA
+- [x] GitHub environments `staging` and `production` with a direct `DATABASE_URL` secret each, restricted to `master` and `prod`; the drift check and `prisma validate` were run locally on `dev` first (No difference detected)
+- [x] `docs/DEPLOYMENT.md` step 3 (the quick way) and the order for production: migrate BEFORE merging into `prod`
+- [ ] Not done: required status checks, required reviewers, an Actions deploy; the first real run of each workflow is recorded in the task file once it has run

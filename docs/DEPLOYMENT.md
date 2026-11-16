@@ -148,6 +148,14 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
 
 Today's pending migrations on a new empty database: the baseline `20260928081559_baseline` and then `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive). `migrate deploy` applies both in order.
 
+**Step 3, the quick way: GitHub Actions (task 0079).** Instead of the terminal commands above, a migration can run in GitHub with the same commands and the same checks:
+
+- **Staging** runs by itself when a push to `master` touches `prisma/migrations` or `prisma/schema` (workflow *Migrate staging*), and by hand with `gh workflow run migrate-staging.yml --ref master`. Vercel builds the same push at the same moment, so a migration must be additive: the old code has to run on the new schema for a minute.
+- **Production** is manual only (workflow *Migrate production*): `gh workflow run migrate-production.yml --ref prod -f confirm="migrate production"`, or the Actions tab. **Run it before merging the release into `prod`**, because Vercel deploys `prod` on its own the moment it merges and nothing orders the two. It shows `migrate status` before, applies the pending migrations, and must end with `Database schema is up to date!`.
+- Each reads `DATABASE_URL` from its own **GitHub Environment** (`staging`, `production`: Settings, Environments), the **direct** address (the workflow refuses an empty one and a `-pooler` one). Each environment only accepts runs from its own branch (`master`, `prod`). To change the address, set the secret again: `gh secret set DATABASE_URL --env production`.
+- **Every pull request** also runs *CI* (typecheck, lint, `tasks:check`, Prettier on the files it changes, a build, and the unit tests on a throwaway Postgres) and, when it touches the schema or the migrations, *Check migrations* (the schema validates, and the migrations produce exactly the schema).
+- Not automated, on purpose: the deploy itself (Vercel's own, as before), and the full suite (hours).
+
 **Step 4. Set what is new.** Add every new variable from step 2 (3.2) for **Preview** and, with its own value where it is a secret, for **Production**. Remember a variable reaches new deployments only.
 
 **Step 5. Staging: a pull request `dev` → `master`, and approve it.**
