@@ -82,3 +82,5 @@ A person who opens AlEemaan's address and is not signed in sees a real page that
 - **Not run:** the HTTPS project; the rest of the browser suite (45 of the 55 browser specs were not part of this run: ten were, the new one among them); a real screen reader and a real phone; the walkthrough; anything against a hosted database.
 
 **Left for the maintainer.** The words are a product decision: every claim is in section 3a with the screen it rests on, and nothing on the page promises what the product does not do (no PDF report cards, remarks, payment gate or mark import, which only Octalve has). The headline is the product's own line from the sign-in panel ("One school, four branches, one login"). There is no Arabic version of the page. `/video-guide` is not linked because it depends on its media files.
+
+> **Changed by task 0078 (2026-11-16):** `/` and `/ar` no longer send an instance whose first-run setup is not finished to `/setup`; they show the landing page. `/login` still does. See `0078-landing-before-setup.md`.

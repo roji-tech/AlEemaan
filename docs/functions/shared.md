@@ -113,7 +113,7 @@ What the two start pages share.
 
 | File | Description |
 | --- | --- |
-| `start.ts` | `leaveUnlessVisitor()` (tasks 0048 and 0050): the decision `/` and `/ar` both make before drawing anything. A signed-in person (`getSession()`) is redirected to `/dashboard`; otherwise an instance whose first-run set-up is not finished (`isSetupComplete()` is `false`; a state that could not be read is `null` and never redirects) goes to `/setup`; anyone else stays and the page is drawn. Reads the session cookie, so a page that calls it is never statically cached. |
+| `start.ts` | `leaveUnlessVisitor()` (tasks 0048, 0050 and 0078): the decision `/` and `/ar` both make before drawing anything. A signed-in person (`getSession()`) is redirected to `/dashboard`; anyone else stays and the page is drawn, **whether or not first-run set-up is finished** (task 0078: it used to send an unfinished instance's visitors to `/setup`; `/login` still does). Reads the session cookie, so a page that calls it is never statically cached. |
 | `contact.ts` | (task 0070) What the landing pages show of the school profile. `getPublicContact()` reads ONLY `motto`, `phone`, `email`, `address` and `website` of `SchoolSettings` (`findUnique`, never `getSchoolSettings()`, which upserts: the landing page writes nothing), trims them, drops the empty ones, and returns `{}` when the database cannot be read. `toPublicContact(row)` is the pure part. `mailtoHref`, `telHref` (digits and a leading plus) and `websiteHref` (`isWebLink`: `http:` or `https:` only) return an `href` or `null`, so an unsafe value stays plain text. `eyebrowWithMotto(eyebrow, motto)` is the hero's small line with the motto in quotation marks. |
 
 ## `src/lib/` (top-level files)
