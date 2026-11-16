@@ -614,3 +614,13 @@
 - [x] GitHub environments `staging` and `production` with a direct `DATABASE_URL` secret each, restricted to `master` and `prod`; the drift check and `prisma validate` were run locally on `dev` first (No difference detected)
 - [x] `docs/DEPLOYMENT.md` step 3 (the quick way) and the order for production: migrate BEFORE merging into `prod`
 - [ ] Not done: required status checks, required reviewers, an Actions deploy; the first real run of each workflow is recorded in the task file once it has run
+
+## TASK-0080: The school's own website is back at `/` (the old static site, as React and Tailwind in `src/app/(marketing)`)
+
+[Task file](0080-old-school-site.md). The maintainer: "I wanna bring back the old landing page for Aleemaan" (the folder `out/aleemanschool`), then "the whole old site", "keep it at /product", "put it all inside (marketing)", "convert the html to react component" and, for the old result portal, "point Portal at AlEemaan's own /portal". Built on `claude/old-school-site`; no schema or migration change, no environment change.
+
+- [x] Nine React and Tailwind pages (`/`, `/about`, `/our-academics`, `/admissions`, `/contact`, `/anthem`, `/oldstudents`, `/subjects`, `/vacancy`) in `src/app/(marketing)/(site)`, the shared pieces in `src/components/site/`, the data in `src/lib/school-site/`; the product landing page moved to `/product`
+- [x] No loosened policy: the application's own, plus `frame-src` for the map's two Google hosts on `/contact` only
+- [x] Not brought back: the old result portal (Firebase), the old forms that sent nothing (the admission form now writes a WhatsApp message), invented alumni
+- [x] Tests: unit, API, and browser (desktop and phone, axe in every page); the landing, sign-in and logo specs retargeted
+- [ ] Not done: see the task file section 4 (content review, a side-by-side look at the old pages, real alumni, mutation passes)

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isMalformedPath } from "@/lib/api/ids";
+import { SCHOOL_MAP_ORIGINS } from "@/lib/school-site/paths";
 import { buildCsp, generateNonce } from "@/lib/security/csp";
 import { videoGuideMedia } from "@/lib/video-guide/media-base";
 
@@ -28,6 +29,8 @@ export function proxy(request: NextRequest) {
     https: (process.env.APP_URL ?? "").startsWith("https://"),
     // The video is kept out of git and may be hosted elsewhere: that host is allowed on the video guide page and nowhere else.
     mediaOrigin: request.nextUrl.pathname === "/video-guide" ? videoGuideMedia(process.env.NEXT_PUBLIC_VIDEO_GUIDE_BASE_URL).origin : null,
+    // The school website's map (task 0080) is the one embedded frame in the application, on its contact page only.
+    frameOrigin: request.nextUrl.pathname === "/contact" ? SCHOOL_MAP_ORIGINS : null,
   });
   const header = process.env.CSP_REPORT_ONLY === "true" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy";
 
@@ -47,7 +50,7 @@ export const config = {
     { source: "/api/(.*%.*)" },
     // Pages. Static assets need no policy. Prefetches are skipped, as Next's guide recommends.
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      source: "/((?!api|_next/static|_next/image|school-site|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

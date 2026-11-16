@@ -5,7 +5,7 @@ import { brand } from "@/lib/brand";
 import { eyebrowWithMotto, getPublicContact } from "@/lib/landing/contact";
 import { leaveUnlessVisitor } from "@/lib/landing/start";
 
-// The start page. A signed-in person goes straight to their dashboard; anyone else (a visitor, a person signed out) sees the landing page (tasks 0048 and 0049), whether or not first-run setup is
+// The product landing page (moved here from `/` by task 0080: `/` is now the school's own website, src/app/(marketing)/route.ts). A signed-in person goes straight to their dashboard; anyone else (a visitor, a person signed out) sees the landing page (tasks 0048 and 0049), whether or not first-run setup is
 // finished (task 0078), which sets nothing and offers the way in. Its header links to the same page in Arabic, `/ar` (task 0050).
 // Depends on the session cookie, so never statically cached.
 export const dynamic = "force-dynamic";
