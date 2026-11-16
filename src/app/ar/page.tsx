@@ -19,14 +19,14 @@ export default async function ArabicHome() {
   await leaveUnlessVisitor();
   const contact = await getPublicContact();
   return (
-    <div className={`${naskh.variable} font-[family-name:var(--font-arabic)]`}>
+    <div className={`${naskh.variable} font-(family-name:--font-arabic)`}>
       <LandingPage
         copy={{ ...landingAr, eyebrow: eyebrowWithMotto(landingAr.eyebrow, contact.motto) }}
         name={nameAr}
         labels={labelsAr}
         lang="ar"
         dir="rtl"
-        switchTo={{ href: "/product", label: "English", lang: "en" }}
+        switchTo={{ href: "/", label: "English", lang: "en" }}
       >
         <SchoolInfo about={landingAr.about} contact={contact} />
       </LandingPage>
