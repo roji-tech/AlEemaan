@@ -175,6 +175,31 @@ test.describe("the portal", () => {
     await noSideways(page, "the guardian's coursework");
   });
 
+  // Task 0083: the logo is a way back to the start page, on the sign-in card and in the header of a signed-in portal.
+  test("the logo on the sign-in card is a link to the start page, which a keyboard reaches", async ({ page }) => {
+    await page.goto("/portal");
+    const logo = page.getByRole("link", { name: "AlEemaan School website" });
+    await expect(logo).toHaveAttribute("href", "/");
+    await logo.focus();
+    await expect(logo).toBeFocused();
+    await logo.click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { level: 1, name: "AL-EEMAN SCHOOL OF SCIENCE & ARABIC STUDIES" })).toBeVisible();
+  });
+
+  test("the logo and the name in the header of a signed-in portal are one link to the start page; the branch beside them is not", async ({
+    page,
+  }) => {
+    await portalSignIn(page, DOB);
+    const header = page.getByRole("banner");
+    const link = header.getByRole("link", { name: "AlEemaan Portal" });
+    await expect(link).toHaveAttribute("href", "/");
+    await expect(header.getByRole("link")).toHaveCount(1);
+    await link.click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { level: 1, name: "AL-EEMAN SCHOOL OF SCIENCE & ARABIC STUDIES" })).toBeVisible();
+  });
+
   test("after a sign-out the next person starts on the Overview, not on the section the last one left open, and none of the last one's coursework is there", async ({
     page,
   }) => {

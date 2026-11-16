@@ -23,7 +23,7 @@ const h1s = (html: string) => [...html.matchAll(/<h1[\s>][\s\S]*?<\/h1>/g)].map(
 
 test.describe("signed out", () => {
   test("the landing page itself (200), with the headline, and not a redirect", async () => {
-    const res = await api("/");
+    const res = await api("/product");
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
     expect(res.headers.get("content-type")).toMatch(/text\/html/);
@@ -33,13 +33,13 @@ test.describe("signed out", () => {
 
   test("it sets no cookie and writes nothing", async () => {
     const before = await db.session.count();
-    const res = await api("/");
+    const res = await api("/product");
     expect(res.setCookies).toEqual([]);
     expect(await db.session.count()).toBe(before);
   });
 
   test("the ways in are real links: /login and the parent and pupil portal, and the same page in Arabic (task 0050); nothing else leaves the page", async () => {
-    const res = await api("/");
+    const res = await api("/product");
     const hrefs = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThanOrEqual(4);
     expect([...new Set(hrefs)].sort()).toEqual(["/ar", "/login", "/portal"]);
@@ -47,7 +47,7 @@ test.describe("signed out", () => {
   });
 
   test("the link to the Arabic page says so in Arabic and is marked as Arabic", async () => {
-    const res = await api("/");
+    const res = await api("/product");
     const link = /<a\s[^>]*href="\/ar"[^>]*>[^<]*<\/a>/.exec(res.text)?.[0] ?? "";
     expect(link).toContain("العربية");
     expect(link).toContain('lang="ar"');
@@ -58,7 +58,7 @@ test.describe("signed out", () => {
     const before = await readProfile();
     await setProfile({}); // no contact detail in the school profile, so no contact section
     try {
-      const res = await api("/");
+      const res = await api("/product");
       const h2 = [...res.text.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
       const { landing } = brand;
       expect(h2).toEqual([
@@ -77,7 +77,7 @@ test.describe("signed out", () => {
     const before = await readProfile();
     await setProfile({ phone: "+234 815 300 5393", motto: "Second To None" });
     try {
-      const res = await api("/");
+      const res = await api("/product");
       expect(res.status).toBe(200);
       expect(res.text).toContain(brand.landing.about.contactHeading);
       expect(res.text).toContain('href="tel:+2348153005393"');
@@ -89,7 +89,7 @@ test.describe("signed out", () => {
   });
 
   test("the tab and the description are the page's own, and it is open to search engines", async () => {
-    const res = await api("/");
+    const res = await api("/product");
     const html = res.text.replaceAll("&#x27;", "'"); // the page escapes an apostrophe in an attribute
     expect(html).toContain(`<title>${brand.landing.title}</title>`);
     expect(html).toContain(`name="description" content="${brand.landing.description}"`);
@@ -98,7 +98,7 @@ test.describe("signed out", () => {
 
   test("a forged or garbage session cookie is a signed-out visitor: the page, not an error and not a redirect", async () => {
     for (const cookie of [cookieHeader("not-a-real-token"), cookieHeader("zzzz"), cookieHeader("")]) {
-      const res = await api("/", { cookie });
+      const res = await api("/product", { cookie });
       expect(res.status, cookie).toBe(200);
       expect(res.headers.get("location"), cookie).toBeNull();
     }
@@ -110,7 +110,7 @@ test.describe("signed in", () => {
     const admin = await createUser({ role: Role.ADMIN, name: "Landing Admin" });
     const login = await loginAs(admin);
     expect(login.token).not.toBeNull();
-    const res = await api("/", { cookie: cookieHeader(login.token!) });
+    const res = await api("/product", { cookie: cookieHeader(login.token!) });
     expect([307, 308]).toContain(res.status);
     expect(new URL(res.headers.get("location")!, HTTP_URL).pathname).toBe("/dashboard");
     expect(res.text).not.toContain(brand.landing.coversHeading);
@@ -121,14 +121,14 @@ test.describe("an instance still being set up (task 0078)", () => {
   test("setup not finished: the landing page itself, not a redirect to the wizard; finished: the same", async () => {
     await db.systemSettings.update({ where: { id: "global" }, data: { setupComplete: false } });
     try {
-      const res = await api("/");
+      const res = await api("/product");
       expect(res.status).toBe(200);
       expect(res.headers.get("location")).toBeNull();
       expect(h1s(res.text)).toEqual([brand.landing.headline]);
     } finally {
       await seedInstance();
     }
-    const done = await api("/");
+    const done = await api("/product");
     expect(done.status).toBe(200);
     expect(h1s(done.text)).toEqual([brand.landing.headline]);
   });
@@ -172,8 +172,8 @@ test.describe("/ar, the page in Arabic", () => {
   test("its links are /login, the portal and the English page, and the English link says so in English and is marked as English", async () => {
     const res = await api("/ar");
     const hrefs = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"/g)].map((m) => m[1]);
-    expect([...new Set(hrefs)].sort()).toEqual(["/", "/login", "/portal"]);
-    const link = /<a\s[^>]*href="\/"[^>]*>[^<]*<\/a>/.exec(res.text)?.[0] ?? "";
+    expect([...new Set(hrefs)].sort()).toEqual(["/login", "/portal", "/product"]);
+    const link = /<a\s[^>]*href="\/product"[^>]*>[^<]*<\/a>/.exec(res.text)?.[0] ?? "";
     expect(link).toContain(">English<");
     expect(link).toContain('lang="en"');
     expect(link).toContain('hrefLang="en"');

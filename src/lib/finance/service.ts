@@ -150,7 +150,7 @@ export async function generateInvoices(
     const period = await tx.academicPeriod.findFirstOrThrow({
       where: { branchId, id: options.periodId },
       include: {
-        branch: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true, code: true } },
         session: true,
       },
     });
@@ -185,7 +185,7 @@ export async function generateInvoices(
     let created = 0;
     let skipped = 0;
     const year = new Date().getFullYear();
-    const branchCode = period.branch.name.slice(0, 4).toUpperCase();
+    const branchCode = period.branch.code;
 
     for (const enrollment of enrollments) {
       // Check if invoice already exists (idempotent)
@@ -427,7 +427,7 @@ export async function recordManualPayment(
     await enforcePartPayment(tx, branchId, invoice, amountDecimal);
 
     const year = new Date().getFullYear();
-    const branchCode = invoice.branch.name.slice(0, 4).toUpperCase();
+    const branchCode = invoice.branch.code;
     const receiptNo = await allocateReceiptNo(tx, branchId, branchCode, year);
     const reference = data.reference || generatePaymentReference(PaymentProvider.MANUAL);
 
@@ -514,7 +514,7 @@ export async function fulfillPayment(reference: string, verifiedAmountInKobo: nu
 
     // 4. Allocate receipt number
     const year = new Date().getFullYear();
-    const branchCode = payment.branch.name.slice(0, 4).toUpperCase();
+    const branchCode = payment.branch.code;
     const receiptNo = await allocateReceiptNo(tx, payment.branchId, branchCode, year);
 
     await tx.payment.update({

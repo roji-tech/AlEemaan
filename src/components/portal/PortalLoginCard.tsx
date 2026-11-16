@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 
 export interface PortalStudentRecord {
   id: string;
@@ -65,7 +66,11 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
   return (
     <div className="w-full max-w-md mx-auto bg-surface border border-line rounded-2xl p-6 sm:p-8 shadow-card-v text-fg">
       <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-strong text-white mb-3 shadow-xs">
+        <Link
+          href="/"
+          aria-label="AlEemaan School website"
+          className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-strong text-white mb-3 shadow-xs transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+        >
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
             <path
@@ -74,7 +79,7 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
               d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
             />
           </svg>
-        </div>
+        </Link>
         <h1 className="text-2xl font-bold tracking-tight text-fg">AlEemaan Portal</h1>
         <p className="text-sm text-fg-muted mt-1">Parent & Student Self-Service Access</p>
       </div>

@@ -273,3 +273,21 @@ The screens of suspension, expulsion and termination (task 0045). Presentation o
 
 The Payment Rules panel is catalogued with `finance/`, the switch screen with `settings/`, and the portal's standing notice in `docs/components/portal.md`. Existing screens changed: Students, Users and the Academics staff list show the standing badge and the Suspend, Lift, Expel, Terminate, Reinstate and History buttons their viewer may use; the attendance roll marks a suspended pupil; `finance/InvoiceDetailModal.tsx` shows what may be paid and the "Pay in full only" switch; `finance/RecordPaymentModal.tsx` says it and offers "Pay the full balance"; `programs/ProgramsSettingsPanel.tsx` is now a thin wrapper of `SwitchSettingsPanel`.
 
+## `src/components/site/`
+
+The school's own website (task 0080): the pieces its nine pages share. Server components unless a row says client. All colours are fixed (the site has its own light look), every control is a real button, link or `details`, and none of them needs more than the application's own page policy.
+
+| File | Description |
+| --- | --- |
+| `icons.tsx` | `SiteIcon` (props `name`, plus any SVG props): about forty decorative inline icons from one table of paths (no icon library). |
+| `SiteImage.tsx` | `SiteImage` (props `src`, `alt`, `width`, `height`, any `img` attribute): a plain lazy `img` with its size written out, used instead of `next/image`, which writes an inline `style` attribute that the application's page policy does not allow. |
+| `parts.tsx` | `WRAP` (content width), `BTN` (button shape), `SectionLabel`, `SectionHeader` (label, title, text) and `PageHeader` (the green band with the page's one `h1`). |
+| `SiteHeader.tsx` | Client component: the sticky header with the logo, `SITE_NAV`, the "Sign in" link, the current page marked `aria-current`, a menu button on a narrow screen (closes on a link, on Escape and on a press outside) and a deeper shadow once scrolled. |
+| `SiteFooter.tsx` | The footer: logo, motto, four quick links and the school's contact details; the year is the server's. |
+| `ScrollTopButton.tsx` | Client component: a round button that appears after 300 px and scrolls to the top (without animation when the person asked for less motion). |
+| `CurriculumTabs.tsx` | Client component (prop `programmes`): the Academics tabs with the tab pattern (arrow keys, Home and End); an address with `#arabic`, `#science` or `#combined` opens the matching tab (read with `useSyncExternalStore`, so the first render matches the server). |
+| `FeesDialog.tsx` | Client component: a button and a native `dialog` with the fee categories, the bills of a category, and the chosen bill's table, notes, materials and payment account; "Print / Save as PDF" prints the dialog alone (`globals.css`, the class `site-print-hide` on the rest). |
+| `WhatsAppForm.tsx` | Client component (props `phone`, `intro`, `fields`, `submitLabel`, `note`): a form that checks its required fields in words (`role="alert"`) and then opens `wa.me` with the answers written in a message; nothing is sent to this server. |
+| `AlumniGrid.tsx` | Client component (prop `alumni`): the alumni cards with a filter by field, or "Alumni Records Coming Soon" while the list is empty. |
+| `AnthemPlayer.tsx` | Client component: the browser's own `audio` element and a choice between the two recordings; nothing plays by itself. |
+

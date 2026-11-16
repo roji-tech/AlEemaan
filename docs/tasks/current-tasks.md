@@ -614,3 +614,38 @@
 - [x] GitHub environments `staging` and `production` with a direct `DATABASE_URL` secret each, restricted to `master` and `prod`; the drift check and `prisma validate` were run locally on `dev` first (No difference detected)
 - [x] `docs/DEPLOYMENT.md` step 3 (the quick way) and the order for production: migrate BEFORE merging into `prod`
 - [ ] Not done: required status checks, required reviewers, an Actions deploy; the first real run of each workflow is recorded in the task file once it has run
+
+## TASK-0080: The school's own website is back at `/` (the old static site, as React and Tailwind in `src/app/(marketing)`)
+
+[Task file](0080-old-school-site.md). The maintainer: "I wanna bring back the old landing page for Aleemaan" (the folder `out/aleemanschool`), then "the whole old site", "keep it at /product", "put it all inside (marketing)", "convert the html to react component" and, for the old result portal, "point Portal at AlEemaan's own /portal". Built on `claude/old-school-site`; no schema or migration change, no environment change.
+
+- [x] Nine React and Tailwind pages (`/`, `/about`, `/our-academics`, `/admissions`, `/contact`, `/anthem`, `/oldstudents`, `/subjects`, `/vacancy`) in `src/app/(marketing)/(site)`, the shared pieces in `src/components/site/`, the data in `src/lib/school-site/`; the product landing page moved to `/product`
+- [x] No loosened policy: the application's own, plus `frame-src` for the map's two Google hosts on `/contact` only
+- [x] Not brought back: the old result portal (Firebase), the old forms that sent nothing (the admission form now writes a WhatsApp message), invented alumni
+- [x] Tests: unit, API, and browser (desktop and phone, axe in every page); the landing, sign-in and logo specs retargeted
+- [ ] Not done: see the task file section 4 (content review, a side-by-side look at the old pages, real alumni, mutation passes)
+
+## TASK-0081: CI goes green: `next typegen` before `tsc`, and the multipart test that Node 24.22 blames on its neighbour
+
+[Task file](0081-ci-typegen-and-read-body-test.md). Found by task 0079's first CI runs; the maintainer said "go". Built on `claude/ci-typegen-flake`; no application code, schema or migration change.
+
+- [x] `ci.yml`: `pnpm exec next typegen` before `pnpm typecheck`
+- [x] `tests/unit/read-body.spec.ts`: the multipart test sends encoded bytes instead of a `FormData` body (found by running the two specs on the runner under Node 24.11.1 and 24.22.2: the failure follows the version and that one test)
+- [ ] Not done: the build record (filled in from this branch's CI run); the mechanism inside Node is not confirmed, only the trigger
+
+## TASK-0082: The app's favicon and icons are the school's logo
+
+[Task file](0082-school-favicon.md). The maintainer: "please update Aleemaan favicon". Built on `claude/school-favicon`; no schema, migration or environment change.
+
+- [x] `favicon.ico` (16, 32, 48, 256 px), `/icon` (512 px) and `/apple-icon` (180 px) show the school's logo on white instead of a white "A" on navy; the routes and the manifest are unchanged
+- [x] `tests/e2e/app-icons.spec.ts`: the browser decodes each picture and counts its green and navy pixels
+- [ ] Not done: a monogram designed for a square tab icon (the logo is wide, D6); the picture was not specified, so the school's logo was chosen (D1)
+
+## TASK-0083: The portal's logo is a link to the start page
+
+[Task file](0083-portal-logo-link.md). The maintainer: "make the logo a link" (the portal header, with a screenshot of the sign-in card). Built on `claude/portal-logo-link`; no schema, migration or environment change.
+
+- [x] `PortalHeader.tsx`: the logo and "AlEemaan Portal" are one `<Link href="/">`; the branch pill and the subtitle stay outside it
+- [x] `PortalLoginCard.tsx`: the logo tile on the sign-in card is a `<Link href="/" aria-label="AlEemaan School website">`
+- [x] Tests: two browser tests, failing first on the old markup (2 failed, 1 passed), then 21 passed on desktop and phone with the portal axe spec
+- [ ] Not done: mutation passes (deferred to the end of PHASE 2)

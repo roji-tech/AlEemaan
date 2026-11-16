@@ -75,7 +75,18 @@ The page Content-Security-Policy, as pure functions.
 
 | File | Description |
 | --- | --- |
-| `csp.ts` | `generateNonce()` (16 random bytes, base64), `buildCsp({ nonce, dev, https })` and `API_CSP`. The page policy allows `'self'` for default, font, connect, base and form targets; scripts need the request's nonce (`'strict-dynamic'`, plus `'unsafe-eval'` only in dev) and so do styles (no `'unsafe-inline'`); images also allow `data:` and `blob:`; no objects, no framing. `upgrade-insecure-requests` is added only when `https` (it would break a plain-HTTP LAN install) and `ws:` and `wss:` only in dev. `API_CSP` (`default-src 'none'; frame-ancestors 'none'`) is what `next.config.ts` puts on `/api/*`; `src/proxy.ts` calls the other two. `buildCsp` also takes `mediaOrigin` (null for every page except `/video-guide`): when set it adds exactly that origin to `connect-src` and a `media-src 'self' <origin>`, so a video hosted elsewhere can load on that one page; nothing else in the policy changes. |
+| `csp.ts` | `generateNonce()` (16 random bytes, base64), `buildCsp({ nonce, dev, https })` and `API_CSP`. The page policy allows `'self'` for default, font, connect, base and form targets; scripts need the request's nonce (`'strict-dynamic'`, plus `'unsafe-eval'` only in dev) and so do styles (no `'unsafe-inline'`); images also allow `data:` and `blob:`; no objects, no framing. `upgrade-insecure-requests` is added only when `https` (it would break a plain-HTTP LAN install) and `ws:` and `wss:` only in dev. `API_CSP` (`default-src 'none'; frame-ancestors 'none'`) is what `next.config.ts` puts on `/api/*`; `src/proxy.ts` calls the other two. `buildCsp` also takes `frameOrigin` (task 0080: null except on `/contact`, where it adds exactly `frame-src 'self' <origin>` for the school website's map) and `mediaOrigin` (null for every page except `/video-guide`): when set it adds exactly that origin to `connect-src` and a `media-src 'self' <origin>`, so a video hosted elsewhere can load on that one page; nothing else in the policy changes. |
+
+## `src/lib/school-site/`
+
+The school's own website (task 0080); its pages are in `src/app/(marketing)/(site)`, see `docs/pages/public.md`.
+
+| File | Description |
+| --- | --- |
+| `paths.ts` | `SCHOOL_SITE_PAGES` (the nine pages), `SCHOOL_SITE_ASSET_PREFIX` (`/school-site/`, the pictures and recordings in `public/school-site/`) and `SCHOOL_MAP_ORIGINS` (`https://maps.google.com` and `https://www.google.com`, the only hosts the site frames; `src/proxy.ts` allows them on `/contact` only) and `SCHOOL_MAP_ORIGIN` (the first, where the map starts). |
+| `nav.ts` | `SITE_NAV` (Home, About Us, Academics at `/our-academics`, Admissions, Contact, School Anthem, Portal at the application's `/portal`), `SITE_SIGN_IN` (`/login`) and `SITE_CONTACT` (the school's place, telephone, e-mail and hours as the old footer gave them). |
+| `fees.ts` | `FEES` (the old site's fee file as typed data: three categories, their bills with columns, rows, totals, notes, materials and payment accounts; a fee is changed by editing its number), the types, and `naira(value)`. |
+| `alumni.ts` | `ALUMNI` (EMPTY until the school confirms real people; the old page's ten examples were invented), `ALUMNI_FIELDS` and the types. |
 
 ## `src/lib/video-guide/`
 
@@ -123,6 +134,7 @@ Small modules most of the app imports: the database client, brand strings, role 
 | File | Description |
 | --- | --- |
 | `brand.ts` | `brand`: AlEemaan's per-repo strings: `name`, `tagline`, `description`, the sign-in `login` headline, blurb and points, the words and extra links of the landing page `landing` (with `landing.about`, task 0070: programs, values, the admissions sentence and the contact labels), and `place` (the singular and plural word for a branch). One of only two brand files, with `src/app/brand.css`. Read by the root layout, manifest, `AppShell`, `AuthShell`, the landing page, the offline page and the email messages. Nothing reads `place` today. |
+| `brand-icon.ts` | `LOGO_ICON_DATA_URI` (the school's logo, cropped to its drawing, 420 px wide, 48 colours, 9 kB, embedded as a `data:image/png;base64` address) and `LOGO_ICON_ASPECT` (its width over its height). Used by the generated icons `src/app/icon.tsx` and `src/app/apple-icon.tsx` (task 0082), so they need no file read or network. |
 | `db-url.ts` | `runtimeDatabaseUrl(env?)` (task 0077): the address the RUNNING app connects to, `DATABASE_URL_POOLED` (trimmed) when it is set and not blank, else `undefined` so Prisma reads `DATABASE_URL`. Refuses, with a sentence that names the variables and no value, a pooled address that is not `postgres://` or `postgresql://`, or that names a different database from `DATABASE_URL`. Only `db.ts` calls it: the Prisma CLI and the scripts keep the direct address. |
 | `db.ts` | `prisma`: the one `PrismaClient`, cached on `globalThis` outside production so hot reload does not open a new connection pool per edit. Interactive transactions get `maxWait` 15 s and `timeout` 60 s (Prisma's default timeout is 5 s; first-run setup runs about eight queries in one transaction and failed with `P2028` against a remote database). The client takes its address from `runtimeDatabaseUrl()` (task 0077): the pooled address when `DATABASE_URL_POOLED` is set, else Prisma reads `DATABASE_URL`. |
 | `dev-tools.ts` | The one gate for development affordances (today the dev email inbox). `appEnv(env?)` returns `development`, `staging` or `production` from `VERCEL_ENV`, `APP_ENV` and `NODE_ENV`; an unrecognised `APP_ENV` counts as production. `devToolsAccess(env?)` returns `{ kind: "off" }` (production always; staging unless `DEV_TOOLS=true` and a non-empty `DEV_TOOLS_TOKEN`; development with `DEV_TOOLS=false`), `{ kind: "open" }` (development) or `{ kind: "token", token }` (staging, switched on). `devToolsEnabled(env?)` is `kind !== "off"`. Pure functions of the environment that fail closed. |
@@ -135,7 +147,7 @@ Small modules most of the app imports: the database client, brand strings, role 
 
 ## `src/` (top-level files)
 
-Next.js loads `instrumentation.ts` and `proxy.ts` by name; `instrumentation-node.ts` is the secret check the startup hook calls.
+Next.js loads `instrumentation.ts` and `proxy.ts` by name ; `instrumentation-node.ts` is the secret check the startup hook calls.
 
 | File | Description |
 | --- | --- |

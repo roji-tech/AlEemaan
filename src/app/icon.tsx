@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { LOGO_ICON_ASPECT, LOGO_ICON_DATA_URI } from "@/lib/brand-icon";
 
 export const size = {
   width: 512,
@@ -6,25 +7,23 @@ export const size = {
 };
 export const contentType = "image/png";
 
+// The school's logo on a white rounded square (task 0082; it was a white "A" on navy). Served at `/icon` and listed in the web manifest.
+const LOGO_WIDTH = 440;
+
 export default function Icon() {
   return new ImageResponse(
     <div
       style={{
-        fontSize: 220,
-        background: "#0f172a",
+        background: "#ffffff",
         width: "100%",
         height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#ffffff",
-        fontWeight: 800,
-        fontFamily: "sans-serif",
         borderRadius: "96px",
-        border: "12px solid #1e293b",
       }}
     >
-      <span style={{ transform: "translateY(-8px)" }}>A</span>
+      <img src={LOGO_ICON_DATA_URI} width={LOGO_WIDTH} height={Math.round(LOGO_WIDTH / LOGO_ICON_ASPECT)} alt="" />
     </div>,
     {
       ...size,

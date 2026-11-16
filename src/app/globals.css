@@ -189,3 +189,22 @@ body {
     print-color-adjust: exact;
   }
 }
+
+/* The school website's hero heading (task 0080); only drawn under `motion-safe`. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Printing the school website's fee dialog prints the dialog alone (task 0080). */
+@media print {
+  body:has(dialog[data-fees-dialog][open]) .site-print-hide {
+    display: none !important;
+  }
+}
