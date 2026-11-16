@@ -26,7 +26,7 @@ export default async function ArabicHome() {
         labels={labelsAr}
         lang="ar"
         dir="rtl"
-        switchTo={{ href: "/", label: "English", lang: "en" }}
+        switchTo={{ href: "/product", label: "English", lang: "en" }}
       >
         <SchoolInfo about={landingAr.about} contact={contact} />
       </LandingPage>
