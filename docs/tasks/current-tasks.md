@@ -641,3 +641,11 @@
 - [x] `tests/e2e/app-icons.spec.ts`: the browser decodes each picture and counts its green and navy pixels
 - [ ] Not done: a monogram designed for a square tab icon (the logo is wide, D6); the picture was not specified, so the school's logo was chosen (D1)
 
+## TASK-0083: The portal's logo is a link to the start page
+
+[Task file](0083-portal-logo-link.md). The maintainer: "make the logo a link" (the portal header, with a screenshot of the sign-in card). Built on `claude/portal-logo-link`; no schema, migration or environment change.
+
+- [x] `PortalHeader.tsx`: the logo and "AlEemaan Portal" are one `<Link href="/">`; the branch pill and the subtitle stay outside it
+- [x] `PortalLoginCard.tsx`: the logo tile on the sign-in card is a `<Link href="/" aria-label="AlEemaan School website">`
+- [x] Tests: two browser tests, failing first on the old markup (2 failed, 1 passed), then 21 passed on desktop and phone with the portal axe spec
+- [ ] Not done: mutation passes (deferred to the end of PHASE 2)

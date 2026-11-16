@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 interface Student {
   id: string;
@@ -30,16 +31,23 @@ export function PortalHeader({ students, selectedStudentId, onSelectStudent, onS
         {/* Brand & Active Branch */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-brand-strong text-white flex items-center justify-center font-bold text-base shadow-xs">
-              AE
-            </div>
+            {/* The logo and the name are one link to the start page, `/` (task 0083); the branch is not part of it. */}
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 rounded-xl transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            >
+              <span
+                aria-hidden="true"
+                className="w-9 h-9 rounded-xl bg-brand-strong text-white flex items-center justify-center font-bold text-base shadow-xs"
+              >
+                AE
+              </span>
+              <span className="font-bold text-fg tracking-tight text-sm sm:text-base">AlEemaan Portal</span>
+            </Link>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-fg tracking-tight text-sm sm:text-base">AlEemaan Portal</span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-2 text-fg border border-line">
-                  {currentStudent?.branch.name || "School"}
-                </span>
-              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-2 text-fg border border-line">
+                {currentStudent?.branch.name || "School"}
+              </span>
               <p className="text-xs text-fg-muted">Student & Guardian Self-Service</p>
             </div>
           </div>
