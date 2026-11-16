@@ -624,3 +624,12 @@
 - [x] Not brought back: the old result portal (Firebase), the old forms that sent nothing (the admission form now writes a WhatsApp message), invented alumni
 - [x] Tests: unit, API, and browser (desktop and phone, axe in every page); the landing, sign-in and logo specs retargeted
 - [ ] Not done: see the task file section 4 (content review, a side-by-side look at the old pages, real alumni, mutation passes)
+
+## TASK-0082: The app's favicon and icons are the school's logo
+
+[Task file](0082-school-favicon.md). The maintainer: "please update Aleemaan favicon". Built on `claude/school-favicon`; no schema, migration or environment change.
+
+- [x] `favicon.ico` (16, 32, 48, 256 px), `/icon` (512 px) and `/apple-icon` (180 px) show the school's logo on white instead of a white "A" on navy; the routes and the manifest are unchanged
+- [x] `tests/e2e/app-icons.spec.ts`: the browser decodes each picture and counts its green and navy pixels
+- [ ] Not done: a monogram designed for a square tab icon (the logo is wide, D6); the picture was not specified, so the school's logo was chosen (D1)
+
