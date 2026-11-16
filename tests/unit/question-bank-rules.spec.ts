@@ -2,6 +2,7 @@ import "../support/env";
 import { test, expect } from "@playwright/test";
 import { Role } from "@prisma/client";
 import {
+  hasLiveReviewerRow,
   mayAuthorIn,
   mayDecide,
   mayEditAsSubmitter,
@@ -234,6 +235,47 @@ test.describe("authoring and editing one's own", () => {
     }
     // not even a superadmin edits as a submitter what is not theirs (they act through the review routes)
     expect(mayEditAsSubmitter(who({ isSuperAdmin: true }), { status: "DRAFT", submittedById: "other" })).toBe(false);
+  });
+});
+
+test.describe("a reviewer assignment that still counts (what the sidebar asks)", () => {
+  test("a row counts only while its person is staff where the row says; an every-branch row needs staff anywhere", () => {
+    const staff = [member(Role.NON_TEACHING_STAFF)];
+    expect(hasLiveReviewerRow({ memberships: staff, reviewerRows: [reviewer()] })).toBe(true);
+    expect(hasLiveReviewerRow({ memberships: staff, reviewerRows: [reviewer({ branchId: null })] })).toBe(true);
+    expect(hasLiveReviewerRow({ memberships: staff, reviewerRows: [] })).toBe(false);
+    // the row names a branch where the person is no longer staff (or never was)
+    expect(hasLiveReviewerRow({ memberships: [member(Role.NON_TEACHING_STAFF, B)], reviewerRows: [reviewer()] })).toBe(false);
+    // no active membership at all (deactivated people are not loaded): even an every-branch row is dead
+    expect(hasLiveReviewerRow({ memberships: [], reviewerRows: [reviewer({ branchId: null })] })).toBe(false);
+    // a pupil or guardian is not staff, whatever rows exist
+    expect(hasLiveReviewerRow({ memberships: [member(Role.STUDENT)], reviewerRows: [reviewer({ branchId: null })] })).toBe(false);
+    expect(hasLiveReviewerRow({ memberships: [member(Role.PARENT)], reviewerRows: [reviewer()] })).toBe(false);
+  });
+
+  test("for non-teaching staff it agrees with the route's rule: a live row exists exactly when they may write in some branch", () => {
+    const branches = [A, B];
+    const memberSets = [
+      [],
+      [member(Role.NON_TEACHING_STAFF)],
+      [member(Role.NON_TEACHING_STAFF, B)],
+      [member(Role.NON_TEACHING_STAFF), member(Role.NON_TEACHING_STAFF, B)],
+    ];
+    const rowSets = [
+      [],
+      [reviewer()],
+      [reviewer({ branchId: B })],
+      [reviewer({ branchId: null })],
+      [reviewer({ scope: "SUBJECT", subjectKey: "maths" })],
+    ];
+    for (const memberships of memberSets) {
+      for (const reviewerRows of rowSets) {
+        const viewer = who({ memberships, reviewerRows });
+        expect(hasLiveReviewerRow(viewer), JSON.stringify({ memberships, reviewerRows })).toBe(
+          branches.some((branchId) => mayAuthorIn(viewer, branchId)),
+        );
+      }
+    }
   });
 });
 

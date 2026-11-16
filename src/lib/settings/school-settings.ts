@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { isWebLink } from "@/lib/lms/attachments";
 
 export const schoolSettingsUpdateSchema = z.object({
   name: z.string().trim().min(2, "School name must be at least 2 characters").max(120),
@@ -8,7 +9,15 @@ export const schoolSettingsUpdateSchema = z.object({
   motto: z.string().trim().max(200).nullable().optional(),
   address: z.string().trim().max(300).nullable().optional(),
   email: z.string().trim().email("Invalid email address").nullable().optional().or(z.literal("")),
-  website: z.string().trim().url("Invalid website URL").nullable().optional().or(z.literal("")),
+  // The website is a link on the public landing page (task 0070), so it must be a web address: z.string().url() also takes javascript:, data: and ftp:.
+  website: z
+    .string()
+    .trim()
+    .url("Invalid website URL")
+    .refine(isWebLink, "The website must start with http:// or https://")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
 });
 
 export type SchoolSettingsUpdateInput = z.infer<typeof schoolSettingsUpdateSchema>;

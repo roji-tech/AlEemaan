@@ -5,6 +5,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { updateMaterialSchema } from "@/lib/lms/validation";
 import { getMaterialById, updateMaterial, archiveMaterial, LmsError } from "@/lib/lms/service";
 import { readJsonObject } from "@/lib/api/validate";
+import { isBranchStaff } from "@/lib/lms/audience";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -15,7 +16,7 @@ interface RouteParams {
  */
 export const GET = withAuthGated(
   "read-any",
-  async (req: NextRequest, _auth, { params }: RouteParams) => {
+  async (req: NextRequest, auth, { params }: RouteParams) => {
     try {
       const { id } = await params;
       const { searchParams } = new URL(req.url);
@@ -26,6 +27,7 @@ export const GET = withAuthGated(
       }
 
       const material = await getMaterialById(branchId, id);
+      if (material.status !== "PUBLISHED" && !(await isBranchStaff(auth.userId, branchId))) return fail("Learning material not found", 404, "NOT_FOUND");
       return ok(material);
     } catch (error) {
       if (error instanceof LmsError) {

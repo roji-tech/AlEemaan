@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { useSidebar } from "./SidebarFrame";
 import { SoonTag } from "./SoonTag";
-import { FOCUS_RING, groupNav, isActive, navFor, sectionOfPath, type NavItem } from "./nav";
+import { FOCUS_RING, groupNav, isActive, navFor, sectionOfPath, type NavItem, type PageOverrides } from "./nav";
 
 const LINK =
   "flex min-h-11 items-center gap-3 rounded-xl px-2.5 text-sm font-medium text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg aria-[current=page]:bg-brand-tint aria-[current=page]:font-semibold aria-[current=page]:text-brand-fg";
@@ -24,15 +24,17 @@ export function SidebarNav({
   isSuperAdmin,
   isTeacher,
   isStaff,
+  pages,
 }: {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isTeacher: boolean;
   isStaff: boolean;
+  pages: PageOverrides;
 }) {
   const pathname = usePathname();
   const { open, folded, toggleSection, revealSection } = useSidebar();
-  const items = navFor(isAdmin, isSuperAdmin, isTeacher, isStaff);
+  const items = navFor(isAdmin, isSuperAdmin, isTeacher, isStaff, pages);
   const groups = groupNav(items);
 
   // The page you are on is never hidden: arriving on a page opens the section that holds it.

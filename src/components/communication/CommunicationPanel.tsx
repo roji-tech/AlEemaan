@@ -4,6 +4,8 @@ import { useState, useRef, type KeyboardEvent } from "react";
 import { BroadcastComposer } from "./BroadcastComposer";
 import { DispatchLogsView } from "./DispatchLogsView";
 import { TemplatesManager } from "./TemplatesManager";
+import { SendingProgress } from "./SendingProgress";
+import { useQueuePump } from "./useQueuePump";
 
 export interface CommunicationPanelProps {
   branches: { id: string; name: string }[];
@@ -18,6 +20,8 @@ export function CommunicationPanel({ branches, userBranchId }: CommunicationPane
   const [activeTab, setActiveTab] = useState<TabType>("broadcast");
 
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  // messages that are still waiting (a broadcast too large for one request, or one that was cut off) are sent in the background, whichever tab is open
+  const pump = useQueuePump(selectedBranchId);
 
   const tabs: { id: TabType; label: string }[] = [
     { id: "broadcast", label: "Broadcast Composer" },
@@ -101,9 +105,13 @@ export function CommunicationPanel({ branches, userBranchId }: CommunicationPane
         </div>
       </div>
 
+      <SendingProgress state={pump.state} onRetry={() => void pump.resume()} onDismiss={pump.dismiss} />
+
       {/* Tab Panels */}
       <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="focus:outline-none">
-        {activeTab === "broadcast" && <BroadcastComposer branchId={selectedBranchId} onSuccess={() => setActiveTab("logs")} />}
+        {activeTab === "broadcast" && (
+          <BroadcastComposer branchId={selectedBranchId} onSuccess={() => setActiveTab("logs")} onQueued={pump.begin} />
+        )}
 
         {activeTab === "logs" && <DispatchLogsView branchId={selectedBranchId} />}
 

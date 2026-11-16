@@ -17,19 +17,54 @@
   {
     "id": "RTE-02",
     "area": "Start",
-    "feature": "The site address on a set-up instance sends a visitor to sign-in, and a signed-in person to the overview",
+    "feature": "The site address on a set-up instance shows a visitor the school's front page, and sends a signed-in person to the overview",
     "route": "/",
     "roles": [
       "Visitor",
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "In a new tab, type the site address once (one goto for that tab): signed out lands on sign-in; signed in lands on the overview",
+    "proof": "In a new tab, type the site address once (one goto for that tab): signed out shows the front page with its Sign in link; signed in lands on the overview",
     "source": [
-      "src/app/page.tsx"
+      "src/app/page.tsx",
+      "src/lib/landing/start.ts"
     ],
     "status": "planned",
     "typedAddress": true
+  },
+  {
+    "id": "RTE-03",
+    "area": "Start",
+    "feature": "The front page in Arabic, right to left, at /ar",
+    "route": "/ar",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "On the front page, the header's Arabic link opens the same page in Arabic and right to left; its English link comes back",
+    "source": [
+      "src/app/ar/page.tsx",
+      "src/lib/landing-ar.ts",
+      "src/components/landing/LandingPage.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "LND-01",
+    "area": "Start",
+    "feature": "The front page shows a visitor what the school offers and every way in",
+    "route": "/",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Read the hero, each section, the closing and the footer; the Sign in entries (header, hero, closing, footer) lead to sign-in and the Parent and pupil portal links lead to the portal",
+    "source": [
+      "src/app/page.tsx",
+      "src/components/landing/LandingPage.tsx",
+      "src/lib/brand.ts"
+    ],
+    "status": "planned"
   },
   {
     "id": "SET-01",
@@ -318,17 +353,18 @@
   {
     "id": "VER-01",
     "area": "Verification",
-    "feature": "A published report card is verified on a public page by its link",
+    "feature": "A published report card is verified on a public page by its address",
     "route": "/verify/[token]",
     "roles": [
       "Visitor",
       "Guardian"
     ],
     "kind": "positive",
-    "proof": "From a report card press 'Verify these results': the public page shows the school, pupil, term and that it is genuine",
+    "proof": "Type the address printed under 'Verify these results' into a fresh tab: the public page shows the school, pupil (first name and last initial), class, term, subject and that it is genuine, and no marks",
     "source": [
       "src/app/verify/[token]/page.tsx"
     ],
+    "typedAddress": true,
     "status": "planned"
   },
   {
@@ -359,7 +395,7 @@
       "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "Click each sidebar entry in turn: Superadmin 16, administrator 13, teacher 9, non-teaching staff 2; each lands on its page with the right heading and crumb",
+    "proof": "Click each sidebar entry in turn: Superadmin 16, administrator 14, teacher 9, non-teaching staff 3 (Programs, Announcements, Forms); each lands on its page with the right heading and the entry marked as the current page",
     "source": [
       "src/components/shell/AppShell.tsx",
       "src/components/shell/SidebarNav.tsx",
@@ -379,7 +415,7 @@
       "Non-teaching staff"
     ],
     "kind": "negative",
-    "proof": "Look at the sidebar of an administrator (no Branches, Settings), a teacher (no Academics, Communication, Finance, Approvals, Users) and non-teaching staff (Overview and Announcements only)",
+    "proof": "Look at the sidebar of an administrator (no Branches, Settings), a teacher (no Academics, Communication, Finance, Approvals, Users) and non-teaching staff (no Students, Results, Finance, Users)",
     "source": [
       "src/components/shell/AppShell.tsx",
       "src/components/shell/SidebarNav.tsx",
@@ -544,7 +580,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Read the Totals, Branches and People-with-a-role figures; they equal what the Branches and Users pages show",
+    "proof": "Read the Totals (Branches, People with a role) and the viewer's own role, and the branch cards; the figures equal what the Branches and Users pages show",
     "source": [
       "src/app/(app)/dashboard/page.tsx"
     ],
@@ -563,7 +599,8 @@
     "source": [
       "src/app/(app)/dashboard/page.tsx"
     ],
-    "status": "planned"
+    "status": "not-demonstrable",
+    "reason": "The first-run wizard seeds the four branches (Primary and Secondary, English and Arabic), so no school the real flow can reach is ever without a branch; the empty message is exercised by the browser specs, which start from a database made for them"
   },
   {
     "id": "DSH-03",
@@ -623,7 +660,8 @@
     "source": [
       "src/app/(app)/branches/BranchesView.tsx"
     ],
-    "status": "planned"
+    "status": "not-demonstrable",
+    "reason": "The first-run wizard seeds the four branches (Primary and Secondary, English and Arabic), so no school the real flow can reach is ever without a branch; the empty message is exercised by the browser specs, which start from a database made for them"
   },
   {
     "id": "BRN-04",
@@ -818,7 +856,7 @@
   {
     "id": "ACA-04",
     "area": "Academics",
-    "feature": "Staff records: create, edit, search, filter by kind",
+    "feature": "Staff records: create (teaching or non-teaching), edit, search",
     "route": "/academics",
     "roles": [
       "Superadmin",
@@ -987,7 +1025,7 @@
       "Non-teaching staff"
     ],
     "kind": "negative",
-    "proof": "No Academics entry; a typed address shows 'Only administrators can open this page'",
+    "proof": "Sign in as a teacher: no Academics entry in the sidebar; a typed address opens Academics to read, and says 'Only an administrator of a branch can change them.'",
     "source": [
       "src/app/(app)/academics/page.tsx"
     ],
@@ -1114,7 +1152,7 @@
       "Non-teaching staff"
     ],
     "kind": "negative",
-    "proof": "The sidebar has no Students; a typed address is refused with a sentence",
+    "proof": "Sign in as a member of the non-teaching staff: no Students entry in the sidebar; a typed address opens the Students page, which says only an administrator of a branch can change the pupils",
     "source": [
       "src/components/students/StudentsPanel.tsx"
     ],
@@ -1423,7 +1461,7 @@
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "Unlock, type the reason, confirm; the status returns to draft",
+    "proof": "Unlock, type the reason (a reason under five characters is refused), confirm; the status returns to approved and the verification codes stop working until it is published again",
     "source": [
       "src/components/results/ReviewPanel.tsx"
     ],
@@ -1457,7 +1495,7 @@
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "On a published card press 'Verify these results' (continues in VER-01)",
+    "proof": "On a published card read the 'Verify these results' address (printed as text, not a link; continues in VER-01)",
     "source": [
       "src/components/results/ReportCard.tsx"
     ],
@@ -1698,14 +1736,14 @@
   {
     "id": "ANN-04",
     "area": "Announcements",
-    "feature": "Archive an announcement",
+    "feature": "Delete an announcement",
     "route": "/announcements",
     "roles": [
       "Branch administrator",
       "Superadmin"
     ],
     "kind": "positive",
-    "proof": "Archive; show Archived",
+    "proof": "Edit, then Delete; OK to the browser's 'Are you sure' question; the announcement leaves the feed. There is no Archive button: nothing in the app makes an announcement Archived, so that filter has nothing to show",
     "source": [
       "src/components/announcements/AnnouncementsFeed.tsx",
       "src/components/announcements/AnnouncementComposerModal.tsx",
@@ -1722,7 +1760,7 @@
       "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "The page lists announcements; Post Announcement is absent",
+    "proof": "The page lists the branch-wide announcement and not the one aimed at a class; Post Announcement is absent",
     "source": [
       "src/components/announcements/AnnouncementsFeed.tsx",
       "src/components/announcements/AnnouncementComposerModal.tsx",
@@ -1809,7 +1847,7 @@
       "src/components/communication/BroadcastComposer.tsx"
     ],
     "status": "not-demonstrable",
-    "reason": "Real delivery is out of scope (nothing may leave this machine). The in-app channel and the dev inbox are shown; the others are named in the PDF as not walked"
+    "reason": "Real delivery is out of scope (nothing may leave this machine). A broadcast by Email on the development server is kept in memory and listed as sent, which is what is shown; SMS and WhatsApp are named in the PDF as not walked, and the In-App channel was removed because no screen shows an In-App message (task 0055)"
   },
   {
     "id": "COM-05",
@@ -2237,16 +2275,18 @@
   {
     "id": "QBK-11",
     "area": "Question bank",
-    "feature": "Non-teaching staff and pupils cannot open the question bank",
+    "feature": "The question bank is offered to staff who have work there: a non-teaching member sees the sidebar entry only once they are a reviewer; until then the page opens by its address without Write a question, Review queue, Reviewers or Settings; a pupil cannot open it",
     "route": "/question-bank",
     "roles": [
       "Non-teaching staff",
       "Pupil"
     ],
     "kind": "negative",
-    "proof": "No entry; a typed address shows 'Only staff can open this page'",
+    "proof": "A member of the non-teaching staff before being named a reviewer: no Question bank entry in the sidebar; a typed address opens Browse, My questions and My reports, My questions says nothing has been written, and there is no Write a question. After an administrator names them a reviewer (QBK-07) the sidebar offers the entry, with Write a question and the Review queue (step 224). A pupil's typed address says 'Only staff can open this page' (a pupil has no staff sign-in in the walkthrough, so that half is the browser tests')",
     "source": [
-      "src/app/(app)/question-bank/page.tsx"
+      "src/app/(app)/question-bank/page.tsx",
+      "src/components/shell/nav.ts",
+      "src/components/question-bank/QuestionsPanel.tsx"
     ],
     "status": "planned",
     "typedAddress": true
@@ -2417,7 +2457,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Print: tick 'Include the answer key', give a reason, 'Download PDF'; a watermarked PDF is saved and the print is logged",
+    "proof": "Overview, Print: tick 'Include the answer key', give a reason (the field says 'Reason (optional)'), 'Download PDF'; a watermarked PDF is saved and the print is logged",
     "source": [
       "src/components/forms/FormPrintDialog.tsx"
     ],
@@ -2725,7 +2765,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Choose Access = Reads form results: only the holders, each tagged; Clear filters",
+    "proof": "Choose Access = Reads form results: only the holders, each tagged; a search that finds no one says 'No one matches these filters.' and offers Clear filters, which resets all (the button is drawn only in that empty state)",
     "source": [
       "src/components/users/UsersPanel.tsx"
     ],
@@ -2741,7 +2781,7 @@
       "Branch administrator"
     ],
     "kind": "positive",
-    "proof": "Deactivate; show Deactivated; Reactivate; the person can sign in again",
+    "proof": "Deactivate; show Deactivated; a deactivated member can still sign in but belongs to no branch (the overview says so, the announcements are refused); Reactivate; the person has their branch again",
     "source": [
       "src/components/users/UsersPanel.tsx"
     ],
@@ -2906,7 +2946,7 @@
       "Teacher"
     ],
     "kind": "positive",
-    "proof": "Devices signed in: 'This device'; sign one out; 'Sign out of all other devices'",
+    "proof": "Devices signed in: this device is listed first and marked 'This device', and with no other it says 'You're not signed in anywhere else.' (signing another device out, and 'Sign out of all other devices', need a second browser, which one recording does not have; the API and browser tests of the account cover them)",
     "source": [
       "src/components/auth/SessionsPanel.tsx"
     ],
@@ -4484,10 +4524,11 @@
     "feature": "A mark is corrected with a reason, and the correction keeps what it replaced",
     "route": "/programs",
     "roles": [
-      "Superadmin"
+      "Superadmin",
+      "Non-teaching staff"
     ],
     "kind": "positive",
-    "proof": "Roll of a day more than a week ago: change a mark; 'Why are you correcting a mark?' must be filled in; Save; History of the person shows the old status, the new one, who and why",
+    "proof": "A correction needs a reason from a supervisor (always) and from an administrator for a day more than a week back; a teacher corrects within the week without one. The walkthrough proves it through a supervisor on today's roll: 'Why are you correcting a mark?' must be filled in, Save stays disabled until it is, and the person's history shows the old status, the new one, who and why (an administrator's correction of an old day needs a mark more than a week old, which a walkthrough cannot make)",
     "source": [
       "src/components/programs/ProgramAttendanceTab.tsx",
       "src/lib/programs/attendance-service.ts"
@@ -5292,7 +5333,7 @@
     "source": [
       "src/components/programs/ProgramSettingsTab.tsx",
       "src/lib/programs/program-settings-service.ts",
-      "prisma/migrations/20261113090000_progress_display/migration.sql"
+      "prisma/schema/programs.prisma"
     ],
     "status": "planned"
   },
@@ -5326,6 +5367,23 @@
     "proof": "Portal, Progress, Print: the browser's print opens; in print view the controls are gone and the card stays",
     "source": [
       "src/components/portal/PortalProgressTab.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "PGR-18",
+    "area": "Programs",
+    "feature": "The week grid refuses a day before the person's place began",
+    "route": "/programs",
+    "roles": [
+      "Teacher"
+    ],
+    "kind": "negative",
+    "proof": "Week grid for a place that began today: fill a day of an earlier week and 'Save the week' -> \"That is before this person's place began.\" and nothing is added to the list",
+    "source": [
+      "src/components/programs/ProgressWeekGrid.tsx",
+      "src/lib/programs/progress-rules.ts",
+      "src/lib/programs/progress-service.ts"
     ],
     "status": "planned"
   }

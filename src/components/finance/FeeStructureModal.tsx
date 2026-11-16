@@ -87,7 +87,7 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
     <Dialog open={isOpen} onClose={onClose} title={initialItem ? "Edit Fee Structure Item" : "Create New Fee Structure Item"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500" role="alert">
+          <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-fg" role="alert">
             {error}
           </div>
         )}
@@ -129,11 +129,14 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
             <label htmlFor={`${formId}-period`} className="block text-xs font-medium text-fg-muted mb-1">
               Academic Term / Period
             </label>
+            {/* An edit cannot change the term: the update schema has no `periodId` (src/lib/finance/validation.ts), so a changed term was sent and silently dropped (task 0058). */}
             <select
               id={`${formId}-period`}
               value={periodId}
               onChange={(e) => setPeriodId(e.target.value)}
-              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand-strong"
+              disabled={Boolean(initialItem)}
+              aria-describedby={initialItem ? `${formId}-period-note` : undefined}
+              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand-strong disabled:cursor-not-allowed disabled:opacity-70"
             >
               {periods.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -162,6 +165,12 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
             </select>
           </div>
         </div>
+
+        {initialItem && (
+          <p id={`${formId}-period-note`} className="text-xs text-fg-muted">
+            A fee stays in the term it was made for. To charge it in another term, add it again there.
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
           <button

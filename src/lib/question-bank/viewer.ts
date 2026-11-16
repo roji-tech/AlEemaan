@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { normalizeLabel } from "@/lib/question-bank/labels";
-import type { BankViewer } from "@/lib/question-bank/rules";
+import { hasLiveReviewerRow, type BankViewer } from "@/lib/question-bank/rules";
 
 /// Everything `rules.ts` needs to know about the person asking, read fresh in one round trip: whether they are a superadmin (only while they still hold an active
 /// membership, as everywhere else), their ACTIVE memberships, their reviewer assignments, and the subjects they teach.
@@ -46,4 +46,16 @@ export async function loadViewer(
     reviewerRows,
     teaches,
   };
+}
+
+/// Whether the sidebar offers the Question bank to a member of staff who is neither an administrator nor a teacher (non-teaching staff): only when they hold a reviewer
+/// assignment that still counts, because that is what lets them write and review there; without one they could only browse what pupils already see, and the page's
+/// "Write a question" would be refused. One small read, and the layout asks it only of those people. Display only: the page and the routes decide for themselves.
+export async function hasBankReviewerRole(
+  userId: string,
+  memberships: BankViewer["memberships"],
+  db: Pick<typeof prisma, "questionBankReviewer"> = prisma,
+): Promise<boolean> {
+  const reviewerRows = await db.questionBankReviewer.findMany({ where: { userId }, select: { branchId: true } });
+  return hasLiveReviewerRow({ memberships, reviewerRows });
 }

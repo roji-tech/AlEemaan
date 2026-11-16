@@ -172,6 +172,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
           />
           <SelectField
             label="Show"
+            info="students.show"
             value={show}
             onChange={(e) => {
               setShow(e.target.value as Show);

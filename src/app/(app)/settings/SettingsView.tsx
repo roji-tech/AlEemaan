@@ -98,9 +98,13 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
     setCreatingSession(false);
 
     if (res.ok) {
-      const created = res.data?.session as unknown as SessionItem;
+      // The create call answers with the session row (ISO timestamps, the branch nested as `branch`); the list is drawn from the page's own shape (`branchName`, `yyyy-mm-dd`), so the
+      // new card is made into that shape here: raw, it showed an empty branch badge and "2026-09-07T00:00:00.000Z" until the page was reloaded.
+      const created = res.data?.session as unknown as (Omit<SessionItem, "branchName"> & { branch?: { name: string } }) | undefined;
       if (created) {
-        setSessions([created, ...sessions]);
+        const { branch, ...rest } = created;
+        const branchName = branch?.name ?? branches.find((b) => b.id === created.branchId)?.name ?? "";
+        setSessions([{ ...rest, branchName, startDate: rest.startDate.slice(0, 10), endDate: rest.endDate.slice(0, 10) }, ...sessions]);
       }
       setIsNewSessionOpen(false);
       setNewLabel("");

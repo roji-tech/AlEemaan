@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useId, type FormEvent } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { attachmentLinks } from "@/lib/lms/attachments";
 
 export interface SubmissionItem {
   id: string;
@@ -206,11 +207,11 @@ export function SpeedGraderModal({
                       <div className="p-3 rounded-md bg-surface-2 text-sm text-fg whitespace-pre-wrap">{selectedSub.content}</div>
                     )}
 
-                    {selectedSub.attachments && selectedSub.attachments.length > 0 && (
+                    {attachmentLinks(selectedSub.attachments).length > 0 && (
                       <div className="space-y-1">
                         <span className="text-xs font-semibold text-fg-muted block">Attachments:</span>
                         <ul className="space-y-1">
-                          {selectedSub.attachments.map((att, i) => (
+                          {attachmentLinks(selectedSub.attachments).map((att, i) => (
                             <li key={i}>
                               <a
                                 href={att.url}
@@ -218,7 +219,7 @@ export function SpeedGraderModal({
                                 rel="noopener noreferrer"
                                 className="text-xs font-medium text-brand-fg hover:underline"
                               >
-                                📎 {att.title || "Attached Document"} ↗
+                                📎 {att.title} ↗
                               </a>
                             </li>
                           ))}

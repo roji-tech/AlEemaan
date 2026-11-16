@@ -84,7 +84,7 @@ export function RecordPaymentModal({
     <Dialog open={isOpen} onClose={onClose} title={`Record Offline Payment — ${invoiceNo}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500" role="alert">
+          <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-fg" role="alert">
             {error}
           </div>
         )}

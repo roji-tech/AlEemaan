@@ -1,10 +1,11 @@
 import type { Page, Locator } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
-import { pace, keyDelay, TYPING_BUDGET_MINUTES } from "./pace";
+import { pace, keyDelay, reconTypingScale, TYPING_BUDGET_MINUTES } from "./pace";
 import { getOverlayInitScript } from "./overlay";
 import { Observers } from "./observers";
 import rows from "../coverage/rows.json";
+import { RESUME_CHAPTER, chapterWanted, onlyChapters, requestCheckpoint } from "../../../scripts/walkthrough-run/checkpoint.mjs";
 
 /// Every row id of the coverage matrix: a step may only claim a row that exists.
 const KNOWN_ROWS = new Set<string>((rows as Array<{ id: string }>).map((row) => row.id));
@@ -67,11 +68,16 @@ export class Walk {
   private timeline: TimelineEntry[] = [];
   private screenshotsDir: string;
   private currentRole: WalkRole = "Visitor";
+  /// The step being run (a typed-address tab shows the same step badge and caption), and the first tab while a typed-address tab is open.
+  private lastStep: StepMeta | null = null;
+  private firstTab: Page | null = null;
   private typedMs: number = 0;
   private findings: Finding[] = [];
   /// Recon only: where the first page load went, and whether the last chapter stopped early (the next one then starts by typing that address again).
   private startUrl: string | null = null;
   private needsRecovery = false;
+  /// The chapters that ran (a resumed recon names the chapters it wants, and a name that no chapter has is a typing mistake, said at the end).
+  private ranChapters: string[] = [];
   readonly mode: WalkMode = walkMode();
   /// Always on: console, page errors, failed requests, response statuses, requests that would leave the machine, and axe after every new page.
   readonly observers: Observers;
@@ -198,7 +204,7 @@ export class Walk {
     await this.page.keyboard.press("Backspace");
     for (const character of text) {
       await this.page.keyboard.type(character);
-      const delay = keyDelay();
+      const delay = this.mode === "recon" ? keyDelay() * reconTypingScale : keyDelay();
       this.typedMs += delay;
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -275,26 +281,19 @@ export class Walk {
   }
 
   /**
-   * Executes a formal walkthrough step: updates the in-page overlay, records timestamps,
-   * runs the action, settles DOM, captures screenshot, and dwells.
+   * The app asks "Are you sure?" with the browser's own confirmation box in a few places (removing a timetable period, deleting an announcement). A person answers by pressing OK, and this is
+   * that: it answers the NEXT confirmation, and only if it asks the question given; any other question is dismissed (Cancel), so the step's own check of the result fails. The recording
+   * does not show the browser's box, so the caption says what was asked.
    */
-  async step(meta: StepMeta, action: () => Promise<void>): Promise<void> {
-    if (!Array.isArray(meta.covers) || meta.covers.length === 0)
-      throw new Error(`Step ${meta.id} ("${meta.title}") covers no coverage-matrix row.`);
-    for (const id of meta.covers) {
-      if (!KNOWN_ROWS.has(id))
-        throw new Error(`Step ${meta.id} ("${meta.title}") covers "${id}", which is not a row of the coverage matrix.`);
-    }
-    this.stepCount = meta.id;
-    this.currentRole = meta.role;
-    this.observers.setStep(meta.id);
-    const startMs = Date.now() - this.recordingStartMs;
+  async acceptNextConfirm(question: string): Promise<void> {
+    await this.caption(`The browser asks: "${question}" and OK is pressed.`);
+    this.page.once("dialog", (dialog) => {
+      void (dialog.type() === "confirm" && dialog.message() === question ? dialog.accept() : dialog.dismiss());
+    });
+  }
 
-    const roleSlug = ROLE_CLASS[meta.role];
-    const stepLabel = `Step ${String(meta.id).padStart(2, "0")}`;
-
-    // Update overlay in DOM
-    await this.injectOverlayNow();
+  /// Writes the step's badge, role, title and caption into the bar of the tab the walk is on.
+  private async showStep(meta: StepMeta): Promise<void> {
     await this.page.evaluate(
       ({ step, role, title, caption, slug }) => {
         const stepEl = document.getElementById("wt-step");
@@ -311,19 +310,76 @@ export class Walk {
         if (captionEl) captionEl.textContent = caption;
       },
       {
-        step: stepLabel,
+        step: `Step ${String(meta.id).padStart(2, "0")}`,
         role: meta.role,
         title: meta.title,
         caption: meta.caption,
-        slug: roleSlug,
+        slug: ROLE_CLASS[meta.role],
       },
     );
+  }
+
+  /**
+   * A typed address (decision D2). A person types an address into the address bar of a FRESH tab, and that is the one load the tab ever gets, counted by being the only one here. The walk's
+   * cursor, caption bar, screenshots and observers move to the new tab, and stay there until closeTypedAddress() brings the first tab back; the first tab keeps its single landing.
+   * Playwright records one video per tab, so what happens in this tab is in the screenshots, the PDF and the timeline and not in the first tab's recording.
+   */
+  async typedAddress(address: string): Promise<Page> {
+    if (this.firstTab) throw new Error("A typed-address tab is already open: close it before typing another address.");
+    const tab = await this.page.context().newPage();
+    await tab.addInitScript(getOverlayInitScript());
+    this.firstTab = this.page;
+    this.page = tab;
+    this.observers.follow(tab);
+    await tab.goto(address, { waitUntil: "domcontentloaded" });
+    await this.injectOverlayNow();
+    if (this.lastStep) await this.showStep(this.lastStep);
+    return tab;
+  }
+
+  /// Closes the typed-address tab and goes back to the first tab, with the step's caption on it again.
+  async closeTypedAddress(): Promise<void> {
+    const first = this.firstTab;
+    if (!first) throw new Error("No typed-address tab is open.");
+    const tab = this.page;
+    this.page = first;
+    this.firstTab = null;
+    this.observers.follow(first);
+    await tab.close();
+    await first.bringToFront();
+    if (this.lastStep) await this.showStep(this.lastStep);
+  }
+
+  /**
+   * Executes a formal walkthrough step: updates the in-page overlay, records timestamps,
+   * runs the action, settles DOM, captures screenshot, and dwells.
+   */
+  async step(meta: StepMeta, action: () => Promise<void>): Promise<void> {
+    if (!Array.isArray(meta.covers) || meta.covers.length === 0)
+      throw new Error(`Step ${meta.id} ("${meta.title}") covers no coverage-matrix row.`);
+    for (const id of meta.covers) {
+      if (!KNOWN_ROWS.has(id))
+        throw new Error(`Step ${meta.id} ("${meta.title}") covers "${id}", which is not a row of the coverage matrix.`);
+    }
+    this.stepCount = meta.id;
+    this.currentRole = meta.role;
+    this.lastStep = meta;
+    this.observers.setStep(meta.id);
+    const startMs = Date.now() - this.recordingStartMs;
+
+    // Update overlay in DOM
+    await this.injectOverlayNow();
+    await this.showStep(meta);
 
     // Execute user action
     await action();
 
     // Settle pause
     await new Promise((r) => setTimeout(r, pace.settle));
+
+    // A click on a link that loads a whole new page (an emailed link, a sign-out) hands the step a page whose caption bar was drawn again from its initial text ("STEP 00, Initializing"); the
+    // screenshot, the PDF and the video must carry the step's own caption, so it is drawn once more here. A page that is itself in the middle of loading is left to the next step.
+    await this.showStep(meta).catch(() => undefined);
 
     // A page reached for the first time is scanned for accessibility before the screenshot (the scan changes nothing on the page).
     await this.observers.axeOnNewRoute();
@@ -359,6 +415,8 @@ export class Walk {
 
   /// Writes what the observers saw, and in a strict run (the final one) fails on any blocker. A recon run passes strict: false and reads the file.
   finish(observationsPath: string, options: { strict: boolean }): void {
+    const unknown = onlyChapters(process.env).filter((name) => !this.ranChapters.includes(name));
+    if (unknown.length > 0) throw new Error(`WALKTHROUGH_ONLY names a chapter the journey does not have: ${unknown.join(", ")}.`);
     this.observers.save(observationsPath);
     this.assertTypingBudget();
     const blockers = this.observers.blockers();
@@ -376,7 +434,29 @@ export class Walk {
    * in strict it is thrown. A chapter that does not know where it left the page starts with recoverAt(), which only recon may use.
    */
   async chapter(name: string, run: () => Promise<void>): Promise<boolean> {
+    const only = onlyChapters(process.env);
+    if (!chapterWanted(name, only)) return true;
+    if (only.length > 0 && this.mode === "strict")
+      throw new Error("WALKTHROUGH_ONLY is for a recon run: a strict run is the whole journey.");
+    this.ranChapters.push(name);
+    const ended = await this.runChapter(name, run);
+    if (ended) await this.checkpoint(name);
+    return ended;
+  }
+
+  /**
+   * Recon only (the runner sets WALKTHROUGH_CHECKPOINTS=save): the chapter has ended without stopping, so ask the runner to save the database as it is now, and WAIT until it has, so that the
+   * save is the state at the end of this chapter and can never include the first step of the next. The resume sign-in is not a chapter and is never saved.
+   */
+  async checkpoint(name: string): Promise<void> {
+    if (process.env.WALKTHROUGH_CHECKPOINTS !== "save" || name === RESUME_CHAPTER) return;
+    await requestCheckpoint(path.dirname(this.screenshotsDir), name);
+  }
+
+  private async runChapter(name: string, run: () => Promise<void>): Promise<boolean> {
     if (this.needsRecovery && this.startUrl) {
+      // a chapter that stopped inside a typed-address tab leaves it open: the next chapter starts on the first tab
+      if (this.firstTab) await this.closeTypedAddress();
       await this.recoverAt(this.startUrl);
       this.needsRecovery = false;
     }

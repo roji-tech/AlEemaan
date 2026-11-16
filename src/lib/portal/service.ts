@@ -9,9 +9,9 @@ import {
   signPortalSession,
   verifyPortalSession,
 } from "./auth";
-import { ResultStatus, AttendanceStatus, InvoiceStatus, AssignmentStatus, QuizStatus } from "@prisma/client";
-import { submitAssignment, attemptQuiz } from "@/lib/lms/service";
-import { reportCardVisibleTo } from "@/lib/academics/report-card";
+import { ResultStatus, AttendanceStatus, InvoiceStatus, MaterialStatus, QuizStatus } from "@prisma/client";
+import { submitAssignment, attemptQuiz, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
+import { getReportCard, reportCardVisibleTo, studentBranch } from "@/lib/academics/report-card";
 import { accessFor, allowedTabs, type Access, type Actor } from "./access";
 import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
@@ -503,19 +503,24 @@ export async function getStudentPortalResults(studentId: string, allowedStudentI
     });
   }
 
-  const reportCards = Array.from(periodMap.values()).map((p) => {
-    const totalScore = p.results.reduce((acc: number, r) => acc + r.total, 0);
-    const average = p.results.length > 0 ? Number((totalScore / p.results.length).toFixed(2)) : 0;
-    return {
-      period: p.period,
-      classArm: p.classArm,
-      results: p.results,
-      remarks: p.remarks,
-      totalScore,
-      average,
-      subjectCount: p.results.length,
-    };
-  });
+  // The card itself is the one the school's staff read (task 0072): the same builder, published results only, never a preview. The fields beside it are what the portal has always sent.
+  const branchId = await studentBranch(studentId);
+  const reportCards = await Promise.all(
+    Array.from(periodMap.values()).map(async (p) => {
+      const totalScore = p.results.reduce((acc: number, r) => acc + r.total, 0);
+      const average = p.results.length > 0 ? Number((totalScore / p.results.length).toFixed(2)) : 0;
+      return {
+        period: p.period,
+        classArm: p.classArm,
+        results: p.results,
+        remarks: p.remarks,
+        totalScore,
+        average,
+        subjectCount: p.results.length,
+        card: branchId ? await getReportCard(branchId, studentId, p.period.id, false) : null,
+      };
+    }),
+  );
 
   return { reportCards };
 }
@@ -578,7 +583,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
   const assignments = await prisma.assignment.findMany({
     where: {
       branchId,
-      status: AssignmentStatus.PUBLISHED,
+      status: { in: PUPIL_VISIBLE_ASSIGNMENT_STATUSES },
       archivedAt: null,
       OR: [{ classArmId }, { classArmId: null, classGroupId: classGroupId }, { classArmId: null, classGroupId: null }],
     },
@@ -596,6 +601,7 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
   const materials = await prisma.learningMaterial.findMany({
     where: {
       branchId,
+      status: MaterialStatus.PUBLISHED,
       archivedAt: null,
       OR: [...(classGroupId ? [{ classGroupId }] : []), { classGroupId: null }],
     },
@@ -631,8 +637,9 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       subjectName: a.subject.name,
       dueDate: a.dueDate,
       totalPoints: a.totalPoints,
-      // Past the deadline with late work not allowed: the pupil sees it, but the form is closed (the server refuses it too).
-      closed: Boolean(a.dueDate && a.dueDate.getTime() < now && !a.allowLate),
+      // Closed by the teacher, or past the deadline with late work not allowed: the pupil sees it, but the form is closed (the server refuses it too).
+      closed: a.status === "CLOSED" || Boolean(a.dueDate && a.dueDate.getTime() < now && !a.allowLate),
+      closedBy: a.status === "CLOSED" ? "TEACHER" : a.dueDate && a.dueDate.getTime() < now && !a.allowLate ? "DEADLINE" : null,
       submission: a.submissions[0] || null,
     })),
     quizzes: quizzes.map((q) => ({
@@ -691,7 +698,7 @@ export async function submitPortalAssignment(
     where: {
       id: assignmentId,
       branchId: scope.branchId,
-      status: AssignmentStatus.PUBLISHED,
+      status: { in: PUPIL_VISIBLE_ASSIGNMENT_STATUSES },
       archivedAt: null,
       OR: [{ classArmId: scope.classArmId }, { classArmId: null, classGroupId: scope.classGroupId }, { classArmId: null, classGroupId: null }],
     },

@@ -43,20 +43,19 @@ function formatDisplayTime(ms) {
 async function findRecordedVideo(rawDir) {
   if (!fs.existsSync(rawDir)) return null;
 
+  // Playwright records one file per tab: the first tab (the whole walkthrough) is by far the largest; a typed-address tab (Walk.typedAddress) has a short recording of its own.
   function findWebm(dir) {
+    const found = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        const found = findWebm(full);
-        if (found) return found;
-      } else if (entry.isFile() && entry.name.endsWith(".webm")) {
-        return full;
-      }
+      if (entry.isDirectory()) found.push(...findWebm(full));
+      else if (entry.isFile() && entry.name.endsWith(".webm")) found.push(full);
     }
-    return null;
+    return found;
   }
 
-  return findWebm(rawDir);
+  const recordings = findWebm(rawDir).sort((a, b) => fs.statSync(b).size - fs.statSync(a).size);
+  return recordings[0] ?? null;
 }
 
 export async function generateReports() {

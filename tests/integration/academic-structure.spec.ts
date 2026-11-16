@@ -1,23 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { db, resetDatabase, seedInstance } from "../support/db";
 
-// Academic structure, Slice P1a (migration 20261014090000): the database itself keeps a child in its parent's branch, keeps live names unique, and the
-// backfill turns the className / arm strings of existing enrolments into real classes and arms - idempotently, on legacy-shaped rows.
-
-const MIGRATION = path.join(process.cwd(), "prisma/migrations/20261014090000_academic_structure/migration.sql");
-const backfill = () => {
-  const sql = fs.readFileSync(MIGRATION, "utf8");
-  const part = sql.slice(sql.indexOf("-- ===== Part 3"));
-  return part
-    .split("\n")
-    .filter((l) => !l.trim().startsWith("--"))
-    .join("\n")
-    .split(/;\s*(?:\n|$)/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-};
+// Academic structure, Slice P1a: the database itself keeps a child in its parent's branch and keeps live names unique. (The test of the migration's backfill of
+// className / arm strings was removed with the migration history, task 0051.)
 
 let home: { id: string };
 let other: { id: string };
@@ -87,68 +72,5 @@ test.describe("names and checks", () => {
     await rejects(db.classArm.create({ data: { branchId: home.id, classGroupId: g.id, name: " " } }));
     await rejects(db.classArm.create({ data: { branchId: home.id, classGroupId: g.id, name: "B", capacity: 0 } }));
     await rejects(db.subject.create({ data: { branchId: home.id, name: "Art", code: "art" } }));
-  });
-});
-
-test.describe("the backfill", () => {
-  const legacy = async (branchId: string, sessionId: string, n: number, className: string, arm: string | null) => {
-    const student = await db.studentRecord.create({
-      data: {
-        branchId,
-        firstName: "S",
-        lastName: `${n}`,
-        gender: "FEMALE",
-        dateOfBirth: new Date("2015-01-01"),
-        admissionNo: `2026/L${n}${Math.random()}`,
-      },
-    });
-    return db.studentEnrollment.create({ data: { studentId: student.id, branchId, sessionId, className, arm } });
-  };
-  const run = async () => {
-    for (const statement of backfill()) await db.$executeRawUnsafe(statement);
-  };
-
-  test("one class per distinct (branch, name ignoring case), one arm per (class, arm) with 'Main' for none, every enrolment linked, a blank class ignored - and a second run changes nothing", async () => {
-    const session = await db.academicSession.create({
-      data: { branchId: home.id, label: "2026/2027", startDate: new Date("2026-09-01"), endDate: new Date("2027-07-01") },
-    });
-    const otherSession = await db.academicSession.create({
-      data: { branchId: other.id, label: "2026/2027", startDate: new Date("2026-09-01"), endDate: new Date("2027-07-01") },
-    });
-    expect(backfill().length).toBeGreaterThanOrEqual(3); // the parser found the statements (one that finds none would pass vacuously)
-    const e1 = await legacy(home.id, session.id, 1, "JSS 1", "A");
-    const e2 = await legacy(home.id, session.id, 2, "jss 1 ", "a");
-    const e3 = await legacy(home.id, session.id, 3, "JSS 1", "B");
-    const e4 = await legacy(home.id, session.id, 4, "SS 2", null);
-    const e5 = await legacy(other.id, otherSession.id, 5, "JSS 1", "A");
-    const blank = await legacy(home.id, session.id, 6, "  ", null);
-
-    await run();
-    const groups = await db.classGroup.findMany({ orderBy: [{ branchId: "asc" }, { name: "asc" }] });
-    expect(groups.map((g) => `${g.branchId === home.id ? "home" : "other"}:${g.name}`).sort()).toEqual([
-      "home:JSS 1",
-      "home:SS 2",
-      "other:JSS 1",
-    ]);
-    const arms = await db.classArm.findMany({ include: { classGroup: true } });
-    expect(arms.map((a) => `${a.classGroup.name}/${a.name.toUpperCase()}/${a.branchId === home.id ? "home" : "other"}`).sort()).toEqual([
-      "JSS 1/A/home",
-      "JSS 1/A/other",
-      "JSS 1/B/home",
-      "SS 2/MAIN/home",
-    ]);
-    const linked = async (id: string) =>
-      (await db.studentEnrollment.findUniqueOrThrow({ where: { id }, include: { classArm: { include: { classGroup: true } } } })).classArm;
-    expect([(await linked(e1.id))?.id, (await linked(e2.id))?.id]).toEqual([(await linked(e1.id))?.id, (await linked(e1.id))?.id]); // same arm
-    expect((await linked(e3.id))?.name).toBe("B");
-    expect((await linked(e1.id))?.classGroup.name).toBe("JSS 1"); // the most frequent spelling names the class (JSS 1 twice, "jss 1" once)
-    expect((await linked(e4.id))?.name).toBe("Main");
-    expect((await linked(e5.id))?.branchId).toBe(other.id); // linked within ITS branch
-    expect(await linked(blank.id)).toBeNull();
-    expect((await db.studentEnrollment.findUniqueOrThrow({ where: { id: e1.id } })).className).toBe("JSS 1"); // the strings are untouched
-
-    const before = [await db.classGroup.count(), await db.classArm.count()];
-    await run();
-    expect([await db.classGroup.count(), await db.classArm.count()]).toEqual(before);
   });
 });

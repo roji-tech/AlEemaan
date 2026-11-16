@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { NotificationChannel, NotificationDispatchStatus } from "@prisma/client";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { SpinnerIcon } from "@/components/ui/icons";
 
 export interface DispatchLogsViewProps {
@@ -123,21 +124,24 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
             <option value="IN_APP">In-App</option>
           </select>
 
-          <select
-            aria-label="Filter by status"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium focus:border-brand-fg focus:outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="SENT">Sent</option>
-            <option value="FAILED">Failed</option>
-            <option value="QUEUED">Queued</option>
-            <option value="RETRYING">Retrying</option>
-          </select>
+          <span className="inline-flex items-center gap-1.5">
+            <select
+              aria-label="Filter by status"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium focus:border-brand-fg focus:outline-none"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="SENT">Sent</option>
+              <option value="FAILED">Failed</option>
+              <option value="QUEUED">Queued</option>
+              <option value="RETRYING">Retrying</option>
+            </select>
+            <InfoTip tip="communication.status" />
+          </span>
         </div>
 
         <button
@@ -258,11 +262,7 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
           <div className="w-full max-w-lg bg-surface border border-line rounded-xl shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-semibold text-fg">Dispatch Details</h3>
-              <button
-                type="button"
-                onClick={() => setInspectItem(null)}
-                className="text-fg-muted hover:text-fg text-sm font-bold"
-              >
+              <button type="button" onClick={() => setInspectItem(null)} className="text-fg-muted hover:text-fg text-sm font-bold">
                 ✕
               </button>
             </div>
@@ -273,13 +273,11 @@ export function DispatchLogsView({ branchId }: DispatchLogsViewProps) {
                 <span className="text-fg">{inspectItem.recipientAddress}</span>
               </div>
               <div>
-                <span className="font-semibold text-fg-muted">Channel:</span>{" "}
-                <span className="text-fg">{inspectItem.channel}</span>
+                <span className="font-semibold text-fg-muted">Channel:</span> <span className="text-fg">{inspectItem.channel}</span>
               </div>
               {inspectItem.subject && (
                 <div>
-                  <span className="font-semibold text-fg-muted">Subject:</span>{" "}
-                  <span className="text-fg">{inspectItem.subject}</span>
+                  <span className="font-semibold text-fg-muted">Subject:</span> <span className="text-fg">{inspectItem.subject}</span>
                 </div>
               )}
               <div>

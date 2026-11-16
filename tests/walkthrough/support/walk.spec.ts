@@ -67,6 +67,20 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     await expect(page.locator("#wt-caption")).toHaveText("The network is switched back on.");
   });
 
+  test("walk.acceptNextConfirm presses OK on the question it was told about and Cancel on any other", async ({ page }) => {
+    const walk = new Walk(page, tempDir());
+    await walk.init();
+    const html = "<title>t</title><button id='b' onclick=\"document.title = String(confirm('Delete it?'))\">Go</button>";
+    await walk.goto(`data:text/html,${encodeURIComponent(html)}`);
+    await walk.acceptNextConfirm("Delete it?");
+    await walk.click(page.locator("#b"));
+    await expect(page).toHaveTitle("true");
+    await walk.acceptNextConfirm("Something else?");
+    await walk.click(page.locator("#b"));
+    await expect(page).toHaveTitle("false");
+    await expect(page.locator("#wt-caption")).toHaveText('The browser asks: "Something else?" and OK is pressed.');
+  });
+
   test("a page is loaded once per tab; a second tab has its own first load", async ({ page, context }) => {
     const walk = new Walk(page, tempDir());
     await walk.init();
@@ -77,6 +91,57 @@ test.describe("The walk helpers do what the walkthrough rules say", () => {
     await secondWalk.init();
     await secondWalk.goto(PAGE);
     await expect(secondWalk.goto(PAGE)).rejects.toThrow(/Forbidden/);
+  });
+
+  test("a typed address opens a fresh tab, the walk follows it (caption, screenshot, observers) and closeTypedAddress brings the first tab back", async ({
+    page,
+  }) => {
+    const dir = tempDir();
+    const walk = new Walk(page, dir);
+    await walk.init();
+    await walk.goto(PAGE);
+    const typed = "data:text/html,<title>typed</title><main><h1>Typed page</h1></main><script>console.error('typed tab error')</script>";
+    const meta = { id: 7, title: "Typed address", role: "Visitor" as const, caption: "A address is typed.", covers: ["SET-01"] };
+    await walk.step(meta, async () => {
+      const tab = await walk.typedAddress(typed);
+      expect(tab).not.toBe(page);
+      expect(page.context().pages()).toHaveLength(2);
+      await expect(tab.getByRole("heading", { name: "Typed page" })).toBeVisible();
+      // the step's caption is on the tab the person is looking at
+      await expect(tab.locator("#wt-caption")).toHaveText("A address is typed.");
+      // one typed address at a time
+      await expect(walk.typedAddress(typed)).rejects.toThrow(/already open/);
+    });
+    // the step's screenshot was taken of the typed tab, and the tab's console error was heard
+    expect(fs.existsSync(path.join(dir, "step_007.png"))).toBe(true);
+    expect(walk.observers.observations.some((o) => o.kind === "console-error" && /typed tab error/.test(o.detail))).toBe(true);
+    await walk.closeTypedAddress();
+    expect(page.context().pages()).toHaveLength(1);
+    await expect(page.locator("#wt-caption")).toHaveText("A address is typed.");
+    // the first tab still has only its one landing
+    await expect(walk.goto(PAGE)).rejects.toThrow(/Forbidden/);
+    await expect(walk.closeTypedAddress()).rejects.toThrow(/No typed-address tab/);
+  });
+
+  test("a step that ends on a page the action loaded afresh still has its own caption on it, not the bar's first text", async ({
+    page,
+  }) => {
+    const walk = new Walk(page, tempDir());
+    await walk.init();
+    await walk.goto(PAGE);
+    const meta = {
+      id: 2,
+      title: "A page loaded by the step",
+      role: "Visitor" as const,
+      caption: "The caption of this step.",
+      covers: ["SET-01"],
+    };
+    await walk.step(meta, async () => {
+      // a click on a link that loads a whole new document: the bar is drawn again from its initial text
+      await page.goto("data:text/html,<title>next</title><main><h1>Next page</h1></main>");
+    });
+    await expect(page.locator("#wt-title")).toHaveText("A page loaded by the step");
+    await expect(page.locator("#wt-caption")).toHaveText("The caption of this step.");
   });
 
   test("a step must cover real rows of the coverage matrix, and writes its screenshot and timeline entry", async ({ page }) => {

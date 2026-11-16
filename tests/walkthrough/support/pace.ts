@@ -32,6 +32,10 @@ export const TYPING_BUDGET_MINUTES = 12;
 
 const scale = Number(process.env.WALKTHROUGH_SPEED_SCALE ?? "1") || 1;
 
+/// A RECON run only (never a strict one, which is the deliverable): the gap between two key presses is multiplied by WALKTHROUGH_TYPING_SCALE, so that a run that exists to find a wrong
+/// label or a missing button takes a few minutes and not twelve. Typing at this speed is not a person's, which is why `Walk.type` ignores it in a strict run. Default 1 (no change).
+export const reconTypingScale = Math.max(0.05, Number(process.env.WALKTHROUGH_TYPING_SCALE ?? "1") || 1);
+
 export const pace: PaceConfig = {
   glideSteps: Math.max(4, Math.round(7 * scale)),
   beforeClick: Math.max(30, Math.round(70 * scale)),

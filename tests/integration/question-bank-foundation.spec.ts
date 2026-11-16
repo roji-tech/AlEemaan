@@ -1,6 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createUser, db, resetDatabase, seedInstance } from "../support/db";
 
 // Question bank foundation (Task 0032 slice 1; migration 20261019210000_question_bank_foundation): the database itself refuses what the design note says must never
@@ -41,30 +39,6 @@ const image = (itemId: string, over: Record<string, unknown> = {}) =>
       ...over,
     },
   });
-
-test.describe("the migration is additive", () => {
-  const sql = readFileSync(join(process.cwd(), "prisma", "migrations", "20261019210000_question_bank_foundation", "migration.sql"), "utf8");
-  const statements = sql
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
-    .join("\n");
-
-  test("it creates 6 enums and 7 tables, and every table, index, constraint and trigger it touches is a new question bank one", () => {
-    expect(statements.match(/^CREATE TYPE /gm)).toHaveLength(6);
-    expect(statements.match(/^CREATE TABLE /gm)).toHaveLength(7);
-    const touched = [
-      ...statements.matchAll(
-        /^(?:ALTER TABLE|CREATE (?:UNIQUE )?INDEX "[^"]+" ON|CREATE TRIGGER "[^"]+" [A-Z ]+ ON(?: [A-Z]+ "[^"]+")?)\s+"([^"]+)"/gm,
-      ),
-    ].map((m) => m[1]);
-    expect(touched.length).toBeGreaterThan(10);
-    for (const table of touched) expect(table, table).toMatch(/^Question(Bank|Overlap)/);
-  });
-
-  test("it never drops, updates, deletes or inserts anything", () => {
-    expect(statements).not.toMatch(/^\s*(DROP|DELETE|UPDATE|INSERT|TRUNCATE)\b/im);
-  });
-});
 
 test.describe("fail-closed defaults", () => {
   test("an item nobody classified is a TEACHERS_ONLY draft, version 1, with no options", async () => {

@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback, useId } from "react";
-import { MaterialModal } from "./MaterialModal";
+import { MaterialModal, MATERIAL_TYPE_LABELS, type MaterialToEdit, type MaterialType } from "./MaterialModal";
+import { attachmentLinks } from "@/lib/lms/attachments";
 
 interface MaterialItem {
   id: string;
   branchId: string;
   title: string;
   description: string | null;
-  materialType: "DOCUMENT" | "VIDEO_LINK" | "PRESENTATION" | "NOTES" | "OTHER";
-  url: string | null;
   content: string | null;
-  published: boolean;
+  attachments: unknown;
+  materialType: MaterialType;
+  status: "DRAFT" | "PUBLISHED";
   subject: { id: string; name: string };
   classGroup: { id: string; name: string } | null;
   createdAt: string;
@@ -24,6 +25,9 @@ interface MaterialsListProps {
   userRole?: string;
 }
 
+const actionButton =
+  "inline-flex items-center px-2.5 py-1 rounded bg-surface-2 text-fg text-xs font-medium hover:bg-line focus:outline-none focus:ring-1 focus:ring-ring transition-colors";
+
 export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADMIN" }: MaterialsListProps) {
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +36,7 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
   const [subjectFilter, setSubjectFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editing, setEditing] = useState<MaterialToEdit | null>(null);
 
   const subjectFilterId = useId();
   const searchFilterId = useId();
@@ -76,6 +81,24 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
     }
   };
 
+  /// Publish a draft, or take a published material back to a draft (task 0066).
+  const setStatus = async (id: string, status: "DRAFT" | "PUBLISHED") => {
+    try {
+      const res = await fetch(`/api/v1/lms/materials/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId, status }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error?.message || "Failed to change the material");
+      }
+      void fetchMaterials();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to change the material");
+    }
+  };
+
   const filteredMaterials = materials.filter((item) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -87,14 +110,6 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
   });
 
   const canManage = ["ADMIN", "TEACHING_STAFF"].includes(userRole);
-
-  const typeLabels = {
-    DOCUMENT: "Document",
-    VIDEO_LINK: "Video Link",
-    PRESENTATION: "Presentation",
-    NOTES: "Reading Notes",
-    OTHER: "Resource",
-  };
 
   return (
     <div className="space-y-6">
@@ -179,8 +194,13 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-brand-fg">{mat.subject.name}</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-fg-muted">
-                    {typeLabels[mat.materialType] || mat.materialType}
+                  <span className="flex flex-wrap items-center justify-end gap-1.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-line bg-surface-2 text-fg">
+                      {MATERIAL_TYPE_LABELS[mat.materialType] ?? MATERIAL_TYPE_LABELS.OTHER}
+                    </span>
+                    {mat.status === "DRAFT" && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-line bg-surface-2 text-fg">Draft</span>
+                    )}
                   </span>
                 </div>
 
@@ -197,33 +217,67 @@ export function MaterialsList({ branchId, subjects, classGroups, userRole = "ADM
               </div>
 
               <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2">
-                {mat.url ? (
-                  <a
-                    href={mat.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-medium text-brand-fg hover:underline inline-flex items-center gap-1"
-                  >
-                    Open Resource ↗
-                  </a>
+                {attachmentLinks(mat.attachments).length > 0 ? (
+                  <div className="flex flex-col gap-1">
+                    {attachmentLinks(mat.attachments).map((link) => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-brand-fg hover:underline inline-flex items-center gap-1"
+                      >
+                        Open {link.title} ↗
+                      </a>
+                    ))}
+                  </div>
                 ) : (
                   <span className="text-xs text-fg-muted">In-app resource</span>
                 )}
 
                 {canManage && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(mat.id, mat.title)}
-                    className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
-                    aria-label={`Delete material ${mat.title}`}
-                  >
-                    Delete
-                  </button>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button type="button" onClick={() => setEditing(mat)} className={actionButton} aria-label={`Edit material ${mat.title}`}>
+                      Edit
+                    </button>
+                    {mat.status === "DRAFT" ? (
+                      <button type="button" onClick={() => void setStatus(mat.id, "PUBLISHED")} className={actionButton} aria-label={`Publish draft: ${mat.title}`}>
+                        Publish
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => void setStatus(mat.id, "DRAFT")} className={actionButton} aria-label={`Unpublish: ${mat.title}`}>
+                        Unpublish
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(mat.id, mat.title)}
+                      className="p-1 rounded text-danger-fg hover:bg-danger-bg text-xs font-medium focus:outline-none"
+                      aria-label={`Delete material ${mat.title}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {editing && (
+        <MaterialModal
+          isOpen={Boolean(editing)}
+          onClose={() => setEditing(null)}
+          onSuccess={() => {
+            setEditing(null);
+            void fetchMaterials();
+          }}
+          branchId={branchId}
+          subjects={subjects}
+          classGroups={classGroups}
+          material={editing}
+        />
       )}
 
       {isModalOpen && (
