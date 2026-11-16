@@ -624,3 +624,12 @@
 - [x] Not brought back: the old result portal (Firebase), the old forms that sent nothing (the admission form now writes a WhatsApp message), invented alumni
 - [x] Tests: unit, API, and browser (desktop and phone, axe in every page); the landing, sign-in and logo specs retargeted
 - [ ] Not done: see the task file section 4 (content review, a side-by-side look at the old pages, real alumni, mutation passes)
+
+## TASK-0081: CI goes green: `next typegen` before `tsc`, and the multipart test that Node 24.22 blames on its neighbour
+
+[Task file](0081-ci-typegen-and-read-body-test.md). Found by task 0079's first CI runs; the maintainer said "go". Built on `claude/ci-typegen-flake`; no application code, schema or migration change.
+
+- [x] `ci.yml`: `pnpm exec next typegen` before `pnpm typecheck`
+- [x] `tests/unit/read-body.spec.ts`: the multipart test sends encoded bytes instead of a `FormData` body (found by running the two specs on the runner under Node 24.11.1 and 24.22.2: the failure follows the version and that one test)
+- [ ] Not done: the build record (filled in from this branch's CI run); the mechanism inside Node is not confirmed, only the trigger
+
