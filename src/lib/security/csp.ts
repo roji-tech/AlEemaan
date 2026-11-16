@@ -18,9 +18,11 @@ export type CspOptions = {
   https?: boolean;
   /// The one other host the video guide's files may be loaded from (src/lib/video-guide/media-base.ts), for the `/video-guide` page only; null or absent for every other page.
   mediaOrigin?: string | null;
+  /// The host or hosts a page may embed in a frame (the school website's map on `/contact`, task 0080); null or absent for every other page. Adds `frame-src 'self' <origin>`.
+  frameOrigin?: string | readonly string[] | null;
 };
 
-export function buildCsp({ nonce, dev = false, https = false, mediaOrigin = null }: CspOptions): string {
+export function buildCsp({ nonce, dev = false, https = false, mediaOrigin = null, frameOrigin = null }: CspOptions): string {
   const directives = [
     "default-src 'self'",
     // 'strict-dynamic': the nonced bootstrap may load Next's chunks without a host allow-list.
@@ -32,6 +34,9 @@ export function buildCsp({ nonce, dev = false, https = false, mediaOrigin = null
     // The chapters list is fetched and the video and its captions are loaded from the other host, on the video guide page only.
     `connect-src 'self'${mediaOrigin ? ` ${mediaOrigin}` : ""}${dev ? " ws: wss:" : ""}`,
     ...(mediaOrigin ? [`media-src 'self' ${mediaOrigin}`] : []),
+    ...(frameOrigin && frameOrigin.length > 0
+      ? [`frame-src 'self' ${typeof frameOrigin === "string" ? frameOrigin : frameOrigin.join(" ")}`]
+      : []),
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

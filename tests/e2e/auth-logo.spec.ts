@@ -48,14 +48,16 @@ test("a keyboard reaches the logo, and it shows a focus ring", async ({ page }) 
   expect(ring.width).toBeGreaterThanOrEqual(2);
 });
 
-test("from another signed-out screen the logo takes the visitor back to the start, which for a signed-out visitor is the landing page, one press from sign-in", async ({
+test("from another signed-out screen the logo takes the visitor back to the start, which for a signed-out visitor is the school's website (task 0080), one press from sign-in", async ({
   page,
+  isMobile,
 }) => {
   await page.goto("/forgot-password");
   await logo(page).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { level: 1, name: brand.landing.headline })).toBeVisible();
-  await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: "AL-EEMAN SCHOOL OF SCIENCE & ARABIC STUDIES" })).toBeVisible();
+  if (isMobile) await page.getByRole("button", { name: "Open the menu" }).click(); // on a phone the links are behind the menu button
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });

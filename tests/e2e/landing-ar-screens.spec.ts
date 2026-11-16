@@ -143,7 +143,7 @@ test.describe("mirrored", () => {
     const name = await box(page.getByRole("banner").getByText(nameAr, { exact: true }));
     const signIn = await box(page.getByRole("banner").getByRole("link", { name: labelsAr.signIn }));
     expect(name.x).toBeGreaterThan(signIn.x);
-    await page.goto("/");
+    await page.goto("/product");
     const nameEn = await box(page.getByRole("banner").getByText(brand.name, { exact: true }));
     const signInEn = await box(page.getByRole("banner").getByRole("link", { name: "Sign in", exact: true }));
     expect(nameEn.x).toBeLessThan(signInEn.x);
@@ -187,16 +187,16 @@ test.describe("between the two languages", () => {
   test("from the Arabic page the English link says English, is marked as English, and opens the English page", async ({ page }) => {
     await page.goto("/ar");
     const link = page.getByRole("banner").getByRole("link", { name: "English", exact: true });
-    await expect(link).toHaveAttribute("href", "/");
+    await expect(link).toHaveAttribute("href", "/product");
     await expect(link).toHaveAttribute("lang", "en");
     await expect(link).toHaveAttribute("hreflang", "en");
     await link.click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/product$/);
     await expect(page.getByRole("heading", { level: 1, name: brand.landing.headline })).toBeVisible();
   });
 
   test("from the English page the Arabic link says Arabic in Arabic, is marked as Arabic, and opens the Arabic page", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const link = page.getByRole("banner").getByRole("link", { name: "العربية", exact: true });
     await expect(link).toHaveAttribute("href", "/ar");
     await expect(link).toHaveAttribute("lang", "ar");
@@ -261,7 +261,7 @@ test.describe("how it reads", () => {
   });
 
   test("the English page, with its new link, still passes Axe and overflow at 320 px", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     await page.setViewportSize({ width: 320, height: 700 });
     await checkBothThemes(page, "the English landing page at 320 px, with the link to Arabic");
     await page.evaluate(() => {
@@ -279,7 +279,7 @@ test.describe("without a script", () => {
     await expect(page.getByRole("heading", { level: 1, name: landingAr.headline })).toBeVisible();
     await expect(page.getByRole("region", { name: landingAr.coversHeading }).getByRole("listitem")).toHaveCount(landingAr.covers.length);
     await page.getByRole("banner").getByRole("link", { name: "English", exact: true }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/product$/);
   });
 });
 

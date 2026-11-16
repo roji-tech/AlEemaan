@@ -50,9 +50,9 @@ test.afterAll(async () => {
 
 test.describe("what a signed-out visitor sees", () => {
   test("a page with its own title, one h1, the headings in order, and the header, main and footer landmarks", async ({ page }) => {
-    const response = await page.goto("/");
+    const response = await page.goto("/product");
     expect(response!.status()).toBe(200);
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/product$/);
     await expect(page).toHaveTitle(landing.title);
 
     expect(await headings(page, 1)).toEqual([landing.headline]);
@@ -83,7 +83,7 @@ test.describe("what a signed-out visitor sees", () => {
   test("the school's branches and the kinds of people, each as a list item with its words, and no 'how it is run' section", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const section = (name: string) => page.getByRole("region", { name });
     await expect(section(landing.coversHeading).getByRole("listitem")).toHaveCount(landing.covers.length);
     await expect(section(landing.peopleHeading).getByRole("listitem")).toHaveCount(landing.people.length);
@@ -96,7 +96,7 @@ test.describe("what a signed-out visitor sees", () => {
   test("the page is about the school: its town and its four branches are on it, and none of the software features task 0048 listed is", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const main = page.getByRole("main");
     await expect(main).toContainText("Ibadan, Nigeria");
     for (const branch of ["Secondary (English)", "Primary (English)", "Secondary (Arabic)", "Primary (Arabic)"])
@@ -111,7 +111,7 @@ test.describe("what a signed-out visitor sees", () => {
     page,
     isMobile,
   }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const cards = page.getByRole("region", { name: landing.coversHeading }).getByRole("listitem");
     await expect(cards).toHaveCount(4);
     const spots = await cards.evaluateAll((items) =>
@@ -126,19 +126,19 @@ test.describe("what a signed-out visitor sees", () => {
   });
 
   test("the way in and the brand's own extra link each lead to a page that works", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).first().click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Sign in to your dashboard" })).toBeVisible();
 
-    await page.goto("/");
+    await page.goto("/product");
     await page.getByRole("main").getByRole("link", { name: extra.label }).click();
     await expect(page).toHaveURL(new RegExp(`${extra.href}$`));
     await expect(page.getByRole("heading", { level: 1, name: "AlEemaan Portal" })).toBeVisible(); // drawn once the page has asked whether a portal session exists
   });
 
   test("the sign-in link is in the header, the hero, the closing band and the footer, and always goes to /login", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const links = page.getByRole("link", { name: "Sign in", exact: true });
     await expect(links).toHaveCount(4);
     for (let i = 0; i < 4; i += 1) await expect(links.nth(i)).toHaveAttribute("href", "/login");
@@ -146,7 +146,7 @@ test.describe("what a signed-out visitor sees", () => {
   });
 
   test("the theme switch works, and the choice is kept for the next visit", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const toLight = page.getByRole("button", { name: "Switch to light theme" });
     await toLight.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -156,7 +156,7 @@ test.describe("what a signed-out visitor sees", () => {
   });
 
   test("a keyboard goes through every control in the order of the page, and each shows a focus ring", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const stops: { name: string; ring: number; style: string }[] = [];
     for (let presses = 0; presses < 9; presses += 1) {
       await page.keyboard.press("Tab");
@@ -197,7 +197,7 @@ test.describe("what a signed-out visitor sees", () => {
   });
 
   test("the school's programs and what it stands for are on the page, each as a list item with its words (task 0070)", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     const programs = page.getByRole("region", { name: landing.about.programsHeading });
     await expect(programs.getByRole("listitem")).toHaveCount(landing.about.programs.length);
     for (const item of landing.about.programs) await expect(programs).toContainText(item.text);
@@ -216,7 +216,7 @@ test.describe("what a signed-out visitor sees", () => {
       address: "12 Example Road, Ibadan",
       website: "https://school.example/home",
     });
-    await page.goto("/");
+    await page.goto("/product");
     await expect(
       page
         .getByRole("main")
@@ -239,19 +239,19 @@ test.describe("what a signed-out visitor sees", () => {
   }) => {
     // written straight into the row, as a row from before the settings schema refused such a value would be
     await setProfile({ website: "javascript:alert(1)" });
-    await page.goto("/");
+    await page.goto("/product");
     const contact = page.getByRole("region", { name: landing.about.contactHeading });
     await expect(contact).toContainText("javascript:alert(1)");
     await expect(contact.getByRole("link")).toHaveCount(0);
     await expect(page.locator('a[href^="javascript:"]')).toHaveCount(0);
     await setProfile({});
-    await page.goto("/");
+    await page.goto("/product");
     await expect(page.getByRole("heading", { name: landing.about.contactHeading })).toHaveCount(0);
     await expect(page.getByRole("main").getByText("Ibadan, Nigeria", { exact: true })).toBeVisible();
   });
 
   test("Axe and horizontal overflow in both themes, and at 320 px wide", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     await checkBothThemes(page, "the landing page");
     await page.setViewportSize({ width: 320, height: 700 });
     await checkBothThemes(page, "the landing page at 320 px");
@@ -303,7 +303,7 @@ test.describe("text on the deep brand band", () => {
   }
 
   test("the heading, the sentence and the link on it are all readable (4.5:1 or better), in both themes", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     for (const theme of ["dark", "light"]) {
       await setTheme(page, theme);
       const measured = await ratios(page);
@@ -317,7 +317,7 @@ test.describe("without a script", () => {
   test.use({ javaScriptEnabled: false });
 
   test("the page and its links are all there: it is written on the server", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/product");
     await expect(page.getByRole("heading", { level: 1, name: landing.headline })).toBeVisible();
     await expect(page.getByRole("region", { name: landing.coversHeading }).getByRole("listitem")).toHaveCount(landing.covers.length);
     await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).first().click();
@@ -329,7 +329,7 @@ test.describe("who does not see it", () => {
   test("a signed-in person who opens / is taken to their dashboard, and never sees the landing page", async ({ page }) => {
     const teacher = await createUser({ role: Role.TEACHING_STAFF, name: "Landing Teacher" });
     await signInThroughUi(page, teacher);
-    await page.goto("/");
+    await page.goto("/product");
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByRole("heading", { level: 1, name: landing.headline })).toHaveCount(0);
     await expect(page.getByRole("region", { name: landing.coversHeading })).toHaveCount(0);

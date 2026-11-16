@@ -1,6 +1,5 @@
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance, sha256Hex } from "../support/db";
-import { brand } from "@/lib/brand";
 import {
   alerts,
   emailField,
@@ -18,6 +17,9 @@ test.beforeAll(async () => {
 });
 
 const SESSION_COOKIE = "aleemaan.session-token";
+
+// The school website at `/` (task 0080): its own h1, not the product landing page's (that is `/product`).
+const SCHOOL_SITE_HEADLINE = "AL-EEMAN SCHOOL OF SCIENCE & ARABIC STUDIES";
 
 test.describe("signing in", () => {
   test("valid credentials land on the dashboard, showing who and which branch; the cookie is HttpOnly", async ({ page, context }) => {
@@ -514,16 +516,18 @@ test.describe("staying signed in, and signing out", () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test("a signed-out visitor is sent to /login from /dashboard, is shown the landing page (with the way in) at /, and never sees protected content", async ({
+  test("a signed-out visitor is sent to /login from /dashboard, is shown the school's website (with the way in) at /, and never sees protected content", async ({
     page,
+    isMobile,
   }) => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Sign in to your dashboard" })).toBeVisible();
     await page.goto("/");
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { level: 1, name: brand.landing.headline })).toBeVisible();
-    await page.getByRole("main").getByRole("link", { name: "Sign in", exact: true }).first().click();
+    await expect(page.getByRole("heading", { level: 1, name: SCHOOL_SITE_HEADLINE })).toBeVisible();
+    if (isMobile) await page.getByRole("button", { name: "Open the menu" }).click(); // on a phone the links are behind the menu button
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
   });
 

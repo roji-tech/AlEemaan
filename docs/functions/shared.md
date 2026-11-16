@@ -75,7 +75,18 @@ The page Content-Security-Policy, as pure functions.
 
 | File | Description |
 | --- | --- |
-| `csp.ts` | `generateNonce()` (16 random bytes, base64), `buildCsp({ nonce, dev, https })` and `API_CSP`. The page policy allows `'self'` for default, font, connect, base and form targets; scripts need the request's nonce (`'strict-dynamic'`, plus `'unsafe-eval'` only in dev) and so do styles (no `'unsafe-inline'`); images also allow `data:` and `blob:`; no objects, no framing. `upgrade-insecure-requests` is added only when `https` (it would break a plain-HTTP LAN install) and `ws:` and `wss:` only in dev. `API_CSP` (`default-src 'none'; frame-ancestors 'none'`) is what `next.config.ts` puts on `/api/*`; `src/proxy.ts` calls the other two. `buildCsp` also takes `mediaOrigin` (null for every page except `/video-guide`): when set it adds exactly that origin to `connect-src` and a `media-src 'self' <origin>`, so a video hosted elsewhere can load on that one page; nothing else in the policy changes. |
+| `csp.ts` | `generateNonce()` (16 random bytes, base64), `buildCsp({ nonce, dev, https })` and `API_CSP`. The page policy allows `'self'` for default, font, connect, base and form targets; scripts need the request's nonce (`'strict-dynamic'`, plus `'unsafe-eval'` only in dev) and so do styles (no `'unsafe-inline'`); images also allow `data:` and `blob:`; no objects, no framing. `upgrade-insecure-requests` is added only when `https` (it would break a plain-HTTP LAN install) and `ws:` and `wss:` only in dev. `API_CSP` (`default-src 'none'; frame-ancestors 'none'`) is what `next.config.ts` puts on `/api/*`; `src/proxy.ts` calls the other two. `buildCsp` also takes `frameOrigin` (task 0080: null except on `/contact`, where it adds exactly `frame-src 'self' <origin>` for the school website's map) and `mediaOrigin` (null for every page except `/video-guide`): when set it adds exactly that origin to `connect-src` and a `media-src 'self' <origin>`, so a video hosted elsewhere can load on that one page; nothing else in the policy changes. |
+
+## `src/lib/school-site/`
+
+The school's own website (task 0080); its pages are in `src/app/(marketing)/(site)`, see `docs/pages/public.md`.
+
+| File | Description |
+| --- | --- |
+| `paths.ts` | `SCHOOL_SITE_PAGES` (the nine pages), `SCHOOL_SITE_ASSET_PREFIX` (`/school-site/`, the pictures and recordings in `public/school-site/`) and `SCHOOL_MAP_ORIGINS` (`https://maps.google.com` and `https://www.google.com`, the only hosts the site frames; `src/proxy.ts` allows them on `/contact` only) and `SCHOOL_MAP_ORIGIN` (the first, where the map starts). |
+| `nav.ts` | `SITE_NAV` (Home, About Us, Academics at `/our-academics`, Admissions, Contact, School Anthem, Portal at the application's `/portal`), `SITE_SIGN_IN` (`/login`) and `SITE_CONTACT` (the school's place, telephone, e-mail and hours as the old footer gave them). |
+| `fees.ts` | `FEES` (the old site's fee file as typed data: three categories, their bills with columns, rows, totals, notes, materials and payment accounts; a fee is changed by editing its number), the types, and `naira(value)`. |
+| `alumni.ts` | `ALUMNI` (EMPTY until the school confirms real people; the old page's ten examples were invented), `ALUMNI_FIELDS` and the types. |
 
 ## `src/lib/video-guide/`
 
@@ -135,7 +146,7 @@ Small modules most of the app imports: the database client, brand strings, role 
 
 ## `src/` (top-level files)
 
-Next.js loads `instrumentation.ts` and `proxy.ts` by name; `instrumentation-node.ts` is the secret check the startup hook calls.
+Next.js loads `instrumentation.ts` and `proxy.ts` by name ; `instrumentation-node.ts` is the secret check the startup hook calls.
 
 | File | Description |
 | --- | --- |
