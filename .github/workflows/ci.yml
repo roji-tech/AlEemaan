@@ -31,6 +31,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
+      # `src/app/layout.tsx` uses the global `LayoutProps`, which `next typegen` writes (a build or `next dev` does too); a clean checkout has none, so `tsc` alone says "Cannot find name 'LayoutProps'".
+      - run: pnpm exec next typegen
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm tasks:check
