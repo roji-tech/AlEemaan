@@ -597,6 +597,15 @@
 - [x] `.env.example`, `docs/DEPLOYMENT.md`, `docs/HANDOVER.md`, the function catalogue
 - [ ] Not done: setting the variables on Vercel and running the migration (the maintainer's); the `api`, browser and https projects; mutation passes (deferred)
 
+## TASK-0078: The landing page is shown at `/` and `/ar` even before first-run setup is finished
+
+[Task file](0078-landing-before-setup.md). The maintainer, on the new production site (2026-11-16): `/` sent every visitor to `/setup` until an administrator existed ("can we exclude /"). Built on `claude/landing-before-setup`; one function, no schema, route or migration change.
+
+- [x] `leaveUnlessVisitor()` keeps one job, a signed-in person goes to the dashboard; it no longer asks whether setup is finished. `/login` still sends a visitor to `/setup`; `/setup` and `/api/v1/setup` are unchanged
+- [x] `tests/api/landing-router.spec.ts`: the two tests that pinned the old rule (`/` and `/ar`, task 0048) now expect the landing page (200, no `Location`) in both states, plus a control that `/login` still goes to the wizard; failing first on the unfixed build: 2 failed (307 where 200 was expected), 15 passed
+- [x] Docs: the function catalogue row, task 0048's note, the comment in `src/app/page.tsx`
+- [ ] Not done: a hint on the landing page that the instance is not set up yet; the browser landing specs were not rerun (they use a finished instance); mutation passes (deferred)
+
 ## TASK-0079: GitHub Actions: CI on every pull request, and the migrations run from GitHub
 
 [Task file](0079-github-actions-ci.md). The maintainer, after running the production migration by hand (2026-11-16): "can we do this kind of ci?" (proplity's workflows). Built on `claude/ci-workflows`; no code, schema or migration change.
