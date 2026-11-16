@@ -137,7 +137,7 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
 1. In a terminal that is not used for tests, with the connection string of the **Preview** database set for these commands only:
 
    ```bash
-   export DATABASE_URL='…'          # the Preview database; paste it, do not save it in .env
+   export DATABASE_URL='…'          # the Preview database, the DIRECT address (not the pooled one); paste it, do not save it in .env
    pnpm prisma migrate status       # what is pending
    pnpm db:migrate:deploy           # applies the pending ones, in order, and nothing else
    pnpm prisma migrate status       # must say: Database schema is up to date
