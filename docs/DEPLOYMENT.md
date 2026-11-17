@@ -138,7 +138,8 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
 
    ```bash
    export DATABASE_URL='…'          # the Preview database, the DIRECT address (not the pooled one); paste it, do not save it in .env
-   pnpm prisma migrate status       # what is pending
+   node -e 'const u=new URL(process.env.DATABASE_URL);console.log("host:",u.hostname,"| database:",u.pathname.slice(1))'   # is it the database you mean? (prints no password)
+   pnpm prisma migrate status       # what is pending: 3 on an empty database (baseline, branch_code, coursework_states), 2 if the baseline is already applied
    pnpm db:migrate:deploy           # applies the pending ones, in order, and nothing else
    pnpm prisma migrate status       # must say: Database schema is up to date
    unset DATABASE_URL
@@ -146,7 +147,7 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
 
 2. A migration that fails stops the run and leaves a failed row: read the error, do not rerun blindly, and do not deploy the code. Tell the helper, or fix it with a new migration.
 
-Today's pending migrations on a new empty database: the baseline `20260928081559_baseline` and then `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive). `migrate deploy` applies both in order.
+Today's pending migrations on a new empty database are **three**, applied in order by `migrate deploy`: the baseline `20260928081559_baseline`; `20261020120000_branch_code` (adds `Branch.code`, the prefix of invoice and receipt numbers, with a backfill and a trigger so a branch made without a code gets one; additive); and `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive). `migrate status` lists exactly these on an empty database, and the last two on one where the baseline was already applied. (This line said two until 2026-11-17: it left out `branch_code`, and a production database that had only the baseline failed on its first use with `The column code does not exist` on `Branch`, code `P2022`.)
 
 **Step 3, the quick way: GitHub Actions (task 0079).** Instead of the terminal commands above, a migration can run in GitHub with the same commands and the same checks:
 
@@ -205,7 +206,7 @@ A green "Ready" is **not** proof: a missing `SESSION_SECRET` also shows Ready. D
 | Every page is a 500, the deployment says Ready, the response header has `x-vercel-error: MIDDLEWARE_INVOCATION_FAILED` | `SESSION_SECRET` missing or weak (the log says "The server cannot start"). Add it for the right environment and redeploy. |
 | Sign-in works on one deployment and not another | A variable set for Production only (or Preview only). `vercel env ls` shows which environment each name is in. |
 | Links in emails open `http://localhost:3000` | `APP_URL` is not set for this environment (3.2). Set it, redeploy, and send the email again. |
-| A page says a table or column does not exist | The code is live but a migration was not run (step 3 was skipped). Run it; the old code still works meanwhile, so rolling back is an option. |
+| A page says a table or column does not exist | The code is live but a migration was not run (step 3 was skipped). Run it; the old code still works meanwhile, so rolling back is an option. Seen on 2026-11-17: the setup wizard failed with `The column code does not exist in the current database` (`P2022`, model `Branch`): `20261020120000_branch_code` had not been applied to production. Check with `migrate status` first (step 3). |
 | `migrate deploy` says the database is not empty or has a failed migration | The database is not a new empty one (2.3), or an earlier run failed. Read `prisma migrate status`; do not mark anything resolved until you know which. |
 | No emails arrive | `EMAIL_FROM` and `RESEND_API_KEY` missing (the link is in the server log), or the sending domain is not verified. |
 | A broadcast stays "Sending" | The Communication page must stay open; there is no scheduled sender in this app. Reopen it and it resumes. |

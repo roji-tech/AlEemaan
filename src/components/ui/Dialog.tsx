@@ -13,6 +13,7 @@ export function Dialog({
   description,
   children,
   wide = false,
+  confirmClose = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +22,8 @@ export function Dialog({
   children: ReactNode;
   /// A roomier panel for a form with a table of rows in it (assessment components, grade bands).
   wide?: boolean;
+  /// For a dialog that may hold work not yet saved: Escape does NOT close the platform dialog by itself; it is reported through `onClose` and the owner decides (ask first, or set `open` to false).
+  confirmClose?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -48,6 +51,14 @@ export function Dialog({
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       // React passes a nested dialog's `close` up to this one, so a dialog opened inside another would close its parent too: only this dialog's own close counts.
+      onCancel={
+        confirmClose
+          ? (event) => {
+              event.preventDefault();
+              onClose();
+            }
+          : undefined
+      }
       onClose={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

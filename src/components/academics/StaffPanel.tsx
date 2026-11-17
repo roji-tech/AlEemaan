@@ -8,6 +8,8 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
+import { staffEntity } from "@/lib/bulk/staff";
 import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
@@ -51,6 +53,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<Editing>(null);
+  const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
   const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
   const can = branch.standing ?? { suspend: false, remove: false };
@@ -115,7 +118,14 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
           <h2 id="staff-heading" className="text-lg font-semibold tracking-tight text-fg">
             Staff
           </h2>
-          {branch.canEdit && <Button onClick={() => setEditing({ kind: "record", item: null })}>New staff record</Button>}
+          {branch.canEdit && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                Add many
+              </Button>
+              <Button onClick={() => setEditing({ kind: "record", item: null })}>New staff record</Button>
+            </div>
+          )}
         </div>
         <p className="mt-1 text-sm text-fg-muted">
           Everyone the branch employs, whether or not they sign in. A record does not create a login.
@@ -254,6 +264,23 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
         onClose={() => setEditing(null)}
         onChanged={load}
       />
+      {branch.canEdit && (
+        <BulkImportDialog
+          key={bulk.key}
+          open={bulk.open}
+          onClose={() => setBulk((b) => ({ ...b, open: false }))}
+          entity={staffEntity}
+          title="Add staff in bulk"
+          description={`Into ${branch.name}. Nothing is saved until you press Save, and a record never creates a sign-in.`}
+          endpoint="/api/v1/staff/import"
+          context={{ branchId }}
+          noun={{ one: "staff record", many: "staff records" }}
+          onSaved={async (count) => {
+            setNotice({ variant: "success", text: `${count} staff ${count === 1 ? "record" : "records"} added.` });
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }
