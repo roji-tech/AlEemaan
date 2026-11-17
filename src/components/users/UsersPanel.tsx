@@ -17,6 +17,7 @@ import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDial
 import { KIND_TEXT, kindsFor, type StandingCan } from "@/components/standing/model";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { InvitationsList } from "./InvitationsList";
+import { BulkInviteDialog } from "./BulkInviteDialog";
 import { InviteDialog } from "./InviteDialog";
 import { SuperAdminDialog } from "./SuperAdminDialog";
 import { ROLE_OPTIONS, displayName, roleOptionsFor, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
@@ -70,6 +71,7 @@ export function UsersPanel({
   const [notice, setNotice] = useState<Notice>(null);
   const [inviting, setInviting] = useState(false);
   const [inviteKey, setInviteKey] = useState(0);
+  const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [editing, setEditing] = useState<Member | null>(null);
   const [deactivating, setDeactivating] = useState<Member | null>(null);
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
@@ -223,16 +225,21 @@ export function UsersPanel({
           <h2 id="people-heading" className="text-lg font-semibold tracking-tight text-fg">
             People
           </h2>
-          <Button
-            onClick={() => {
-              setNotice(null);
-              setInviteKey((k) => k + 1);
-              setInviting(true);
-            }}
-          >
-            <PlusIcon className="h-4 w-4" />
-            Invite someone
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+              Invite many
+            </Button>
+            <Button
+              onClick={() => {
+                setNotice(null);
+                setInviteKey((k) => k + 1);
+                setInviting(true);
+              }}
+            >
+              <PlusIcon className="h-4 w-4" />
+              Invite someone
+            </Button>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -497,6 +504,20 @@ export function UsersPanel({
         )}
       </section>
 
+      <BulkInviteDialog
+        key={`bulk-${bulk.key}`}
+        open={bulk.open}
+        onClose={() => setBulk((b) => ({ ...b, open: false }))}
+        branches={branches}
+        isSuperAdmin={isSuperAdmin}
+        onSaved={async (count) => {
+          setNotice({
+            variant: "success",
+            text: `${count} ${count === 1 ? "invitation" : "invitations"} created. The emails are on their way; each link works for 7 days.`,
+          });
+          await afterChange();
+        }}
+      />
       <InviteDialog
         key={inviteKey}
         open={inviting}

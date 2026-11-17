@@ -10,7 +10,15 @@ import { applyCorrections } from "@/lib/bulk/corrections";
 import { splitCsv } from "@/lib/bulk/csv";
 import { problemRowsTable } from "@/lib/bulk/export";
 import { mapTable } from "@/lib/bulk/table";
-import { CSV_MAX_BYTES, GRID_MAX_ROWS, XLSX_MAX_BYTES, type BulkEntityShape, type RowVerdict, type SourceRow } from "@/lib/bulk/types";
+import {
+  CSV_MAX_BYTES,
+  FILE_MAX_ROWS,
+  GRID_MAX_ROWS,
+  XLSX_MAX_BYTES,
+  type BulkEntityShape,
+  type RowVerdict,
+  type SourceRow,
+} from "@/lib/bulk/types";
 import { validateRows } from "@/lib/bulk/validate";
 import { BulkGrid, blankRow } from "./BulkGrid";
 import { BulkReview } from "./BulkReview";
@@ -31,6 +39,10 @@ type Props = {
   /// Sent with every request: which branch the rows are for.
   context: Record<string, unknown>;
   noun: { one: string; many: string };
+  /// A control the kind needs before anything can be read (which branch the rows are for). It is told when the rows are in and the choice must not change any more.
+  contextControl?: (locked: boolean) => ReactNode;
+  /// False while that control is not filled in: the file, the templates and the grid wait for it.
+  canStart?: boolean;
   onSaved: (count: number) => void | Promise<void>;
 };
 
@@ -42,7 +54,19 @@ const plain = (entity: BulkEntityShape, rows: SourceRow[]) => ({
   rows: rows.map((r) => entity.columns.map((c) => r.values[c.key] ?? "")),
 });
 
-export function BulkImportDialog({ open, onClose, entity, title, description, endpoint, context, noun, onSaved }: Props) {
+export function BulkImportDialog({
+  open,
+  onClose,
+  entity,
+  title,
+  description,
+  endpoint,
+  context,
+  noun,
+  contextControl,
+  canStart = true,
+  onSaved,
+}: Props) {
   const [stage, setStage] = useState<Stage>("start");
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [verdicts, setVerdicts] = useState<RowVerdict[]>([]);
@@ -112,7 +136,7 @@ export function BulkImportDialog({ open, onClose, entity, title, description, en
     try {
       const table = await readTable(file);
       if (typeof table === "string") return setError(table);
-      const mapped = mapTable(table, entity.columns, { allowRowColumn: corrections });
+      const mapped = mapTable(table, entity.columns, { allowRowColumn: corrections, maxRows: entity.maxRows });
       if (mapped.problems.length > 0) return setError(mapped.problems.map((p) => p.message).join(" "));
       if (mapped.rows.length === 0) return setError("The file has its first row but no people under it.");
       setWarnings(mapped.warnings);
@@ -223,6 +247,7 @@ export function BulkImportDialog({ open, onClose, entity, title, description, en
         wide
       >
         <div className="space-y-4">
+          {contextControl?.(stage !== "start")}
           {error && <Alert variant="error">{error}</Alert>}
 
           {stage === "start" && (
@@ -235,12 +260,13 @@ export function BulkImportDialog({ open, onClose, entity, title, description, en
                   id={`${entity.id}-file`}
                   type="file"
                   accept=".csv,.xlsx"
-                  disabled={busy}
+                  disabled={busy || !canStart}
                   onChange={(e) => void onFile(e, false)}
                   className="block w-full text-sm text-fg file:mr-3 file:min-h-11 file:rounded-lg file:border file:border-line-strong file:bg-surface file:px-4 file:text-sm file:font-semibold file:text-fg"
                 />
                 <p className="mt-1.5 text-xs text-fg-muted">
-                  The first row names the columns. Up to 1,000 rows. Excel files must be .xlsx (an old .xls: save it as .xlsx or CSV first).
+                  The first row names the columns. Up to {(entity.maxRows ?? FILE_MAX_ROWS).toLocaleString("en")} rows. Excel files must be
+                  .xlsx (an old .xls: save it as .xlsx or CSV first).
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -250,7 +276,7 @@ export function BulkImportDialog({ open, onClose, entity, title, description, en
                 <Button variant="secondary" onClick={() => void downloadTemplate("csv")}>
                   CSV template
                 </Button>
-                <Button variant="secondary" onClick={() => openGrid("new")}>
+                <Button variant="secondary" onClick={() => openGrid("new")} disabled={!canStart}>
                   Type or paste rows instead
                 </Button>
               </div>

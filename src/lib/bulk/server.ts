@@ -11,13 +11,19 @@ import type { BulkEntity, Problem, RowVerdict, SourceRow } from "./types";
 
 export type Tx = Prisma.TransactionClient | PrismaClient;
 export type CheckedRow<Row> = { line: number; row: Row };
+export type AfterCommit = () => Promise<void>;
+/// A save found that the data changed since it was checked: the transaction is rolled back and the caller is told to check again.
+export class BulkChangedError extends Error {}
 
 export type ServerKind<Row, Ctx> = {
   entity: BulkEntity<Row>;
   /// Problems that only the database knows, by row number (a clash with a saved record, a name that does not exist). Called with the transaction on a real run.
   check: (db: Tx, rows: CheckedRow<Row>[], ctx: Ctx) => Promise<Map<number, Problem[]>>;
-  /// Writes every row, inside the transaction, with one audit entry per row. The bulk's own audit entry is written by the caller of this function.
-  save: (tx: Prisma.TransactionClient, rows: CheckedRow<Row>[], ctx: Ctx, actorUserId: string) => Promise<void>;
+  /// What a save would CHANGE without refusing it (it replaces an open invitation): a sentence per row, shown in the dry run. Optional.
+  notes?: (db: Tx, rows: CheckedRow<Row>[], ctx: Ctx) => Promise<Map<number, string>>;
+  /// Writes every row, inside the transaction, with one audit entry per row. The bulk's own audit entry is written by the caller of this function. May return work to do AFTER the
+  /// commit (send the e-mails): it never runs for a save that rolled back. Throw `BulkChangedError` when something that was true at the check is no longer true.
+  save: (tx: Prisma.TransactionClient, rows: CheckedRow<Row>[], ctx: Ctx, actorUserId: string) => Promise<void | AfterCommit>;
   /// The action name of the one audit entry for the whole bulk.
   auditAction: string;
   /// What the bulk entry records about itself besides the count.
@@ -27,7 +33,7 @@ export type ServerKind<Row, Ctx> = {
 export type BulkRequest = { dryRun: boolean; rows: { line: number; values: Record<string, string> }[] };
 export type BulkOutcome =
   | { kind: "dry-run"; verdicts: RowVerdict[] }
-  | { kind: "saved"; saved: number; verdicts: RowVerdict[] }
+  | { kind: "saved"; saved: number; verdicts: RowVerdict[]; afterCommit?: AfterCommit }
   | { kind: "blocked"; verdicts: RowVerdict[] }
   | { kind: "changed" };
 
@@ -41,7 +47,15 @@ function merge(verdicts: RowVerdict[], found: Map<number, Problem[]>): RowVerdic
 async function verdictsFor<Row, Ctx>(kind: ServerKind<Row, Ctx>, db: Tx, ctx: Ctx, rows: SourceRow[]) {
   const checked = validateRows(kind.entity, rows);
   const found = checked.ok.length > 0 ? await kind.check(db, checked.ok, ctx) : new Map<number, Problem[]>();
-  return { verdicts: merge(checked.verdicts, found), ok: checked.ok };
+  const verdicts = merge(checked.verdicts, found);
+  const clear = checked.ok.filter((o) => !found.has(o.line));
+  const notes = kind.notes && clear.length > 0 ? await kind.notes(db, clear, ctx) : new Map<number, string>();
+  return {
+    verdicts: verdicts.map((v) =>
+      v.status === "ready" && notes.has(v.line) ? { line: v.line, status: "note" as const, problems: [], note: notes.get(v.line) } : v,
+    ),
+    ok: checked.ok,
+  };
 }
 
 export async function runBulk<Row, Ctx>(
@@ -57,7 +71,7 @@ export async function runBulk<Row, Ctx>(
     return await prisma.$transaction(async (tx): Promise<BulkOutcome> => {
       const { verdicts, ok } = await verdictsFor(kind, tx, ctx, rows);
       if (verdicts.some((v) => v.status === "error")) return { kind: "blocked", verdicts };
-      await kind.save(tx, ok, ctx, actorUserId);
+      const afterCommit = await kind.save(tx, ok, ctx, actorUserId);
       await tx.auditLog.create({
         data: {
           actorUserId,
@@ -67,10 +81,11 @@ export async function runBulk<Row, Ctx>(
           afterValue: { count: ok.length, ...(kind.auditDetail?.(ctx) ?? {}) },
         },
       });
-      return { kind: "saved", saved: ok.length, verdicts };
+      return { kind: "saved", saved: ok.length, verdicts, ...(afterCommit ? { afterCommit } : {}) };
     });
   } catch (error) {
     // The database's own unique rules are the last word under a race: a second administrator saving the same email at the same instant. Nothing was written.
+    if (error instanceof BulkChangedError) return { kind: "changed" };
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { kind: "changed" };
     throw error;
   }

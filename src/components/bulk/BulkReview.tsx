@@ -74,7 +74,10 @@ export function BulkReview({ entity, rows, verdicts }: { entity: BulkEntityShape
                         </ul>
                       </div>
                     ) : (
-                      <p className="font-semibold text-ok-fg">Ready</p>
+                      <div>
+                        <p className="font-semibold text-ok-fg">Ready</p>
+                        {verdict?.note && <p className="mt-1 text-xs text-fg-muted">{verdict.note}</p>}
+                      </div>
                     )}
                   </td>
                   {entity.columns.map((c) => {
