@@ -29,12 +29,12 @@ type Place = { key: InfoTipKey; go: (page: Page) => Promise<void>; neighbour: (p
 const PLACES: Place[] = [
   {
     key: "academics.classes",
-    go: (page) => academics(page, "Classes and subjects"),
+    go: (page) => academics(page, "Classes"),
     neighbour: (page) => page.getByRole("button", { name: "New class" }),
   },
   {
     key: "academics.subjects",
-    go: (page) => academics(page, "Classes and subjects"),
+    go: (page) => academics(page, "Subjects"),
     neighbour: (page) => page.getByRole("button", { name: "New subject" }),
   },
   {
@@ -201,7 +201,7 @@ for (const place of PLACES) {
 test("desktop: it opens when the mouse points at it and closes when the mouse leaves", async ({ page, isMobile }) => {
   test.skip(isMobile, "a phone has no hover");
   await signedInAdmin(page);
-  await academics(page, "Classes and subjects");
+  await academics(page, "Classes");
   const icon = tipButton(page, "academics.classes");
   await expect(tooltip(page)).toHaveCount(0);
   await icon.hover();
@@ -219,7 +219,7 @@ test("desktop: it opens when the keyboard reaches it, Escape closes it with the 
 }) => {
   test.skip(isMobile, "the keyboard path is the desktop one");
   await signedInAdmin(page);
-  await academics(page, "Classes and subjects");
+  await academics(page, "Classes");
   const icon = tipButton(page, "academics.classes");
   for (let i = 0; i < 80; i += 1) {
     await page.keyboard.press("Tab");
@@ -242,7 +242,7 @@ test("desktop: it opens when the keyboard reaches it, Escape closes it with the 
 test("desktop: Escape closes a tip that was opened by the mouse, with the mouse still on it", async ({ page, isMobile }) => {
   test.skip(isMobile, "a phone has no hover");
   await signedInAdmin(page);
-  await academics(page, "Classes and subjects");
+  await academics(page, "Subjects");
   await tipButton(page, "academics.subjects").hover();
   await expect(tooltip(page)).toBeVisible();
   await page.keyboard.press("Escape");
@@ -251,18 +251,18 @@ test("desktop: Escape closes a tip that was opened by the mouse, with the mouse 
 
 test("only one is open at a time", async ({ page, isMobile }) => {
   await signedInAdmin(page);
-  await academics(page, "Classes and subjects");
-  await openIt(page, tipButton(page, "academics.classes"), isMobile);
-  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.classes"]);
-  await openIt(page, tipButton(page, "academics.subjects"), isMobile);
+  await academics(page, "Assessment and grading");
+  await openIt(page, tipButton(page, "academics.schemes"), isMobile);
+  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.schemes"]);
+  await openIt(page, tipButton(page, "academics.scales"), isMobile);
   await expect(tooltip(page)).toHaveCount(1);
-  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.subjects"]);
+  await expect(tooltip(page)).toHaveText(INFO_TIPS["academics.scales"]);
 });
 
 test("phone: a tap opens it, a second tap closes it, and a tap elsewhere closes it", async ({ page, isMobile }) => {
   test.skip(!isMobile, "a tap is the phone path");
   await signedInAdmin(page);
-  await academics(page, "Classes and subjects");
+  await academics(page, "Classes");
   const icon = tipButton(page, "academics.classes");
   await icon.tap();
   await expect(tooltip(page)).toBeVisible();
@@ -295,7 +295,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`axe finds nothing on a page with a tip open (${theme} theme)`, async ({ page, baseURL, isMobile }) => {
     if (theme === "light") await page.context().addCookies([{ name: "theme", value: "light", url: baseURL! }]);
     await signedInAdmin(page);
-    await academics(page, "Classes and subjects");
+    await academics(page, "Classes");
     await openIt(page, tipButton(page, "academics.classes"), isMobile);
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(

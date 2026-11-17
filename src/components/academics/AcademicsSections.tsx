@@ -11,7 +11,8 @@ import type { BranchChoice } from "@/components/academics/common";
 // The Academics page's sections behind one tab list (Slice P1 & P7). Only the active section is mounted. Left/Right/Home/End move between tabs, as the
 // ARIA tabs pattern asks; Tab then goes into the panel. Presentation only - every list and button calls an API that decides who may do what.
 const SECTIONS = [
-  { id: "classes", label: "Classes and subjects" },
+  { id: "classes", label: "Classes" },
+  { id: "subjects", label: "Subjects" },
   { id: "grading", label: "Assessment and grading" },
   { id: "staff", label: "Staff" },
   { id: "promotion", label: "Promotion & rollover" },
@@ -20,6 +21,8 @@ type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function AcademicsSections({ branches, isSuperAdmin = false }: { branches: BranchChoice[]; isSuperAdmin?: boolean }) {
   const [active, setActive] = useState<SectionId>("classes");
+  // The branch of the Classes and Subjects tabs is one choice: switching between the two keeps it.
+  const [branchId, setBranchId] = useState(branches[0].id);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -70,7 +73,9 @@ export function AcademicsSections({ branches, isSuperAdmin = false }: { branches
         ))}
       </div>
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
-        {active === "classes" && <ClassesPanel branches={branches} />}
+        {(active === "classes" || active === "subjects") && (
+          <ClassesPanel key={active} branches={branches} view={active} branchId={branchId} onBranchChange={setBranchId} />
+        )}
         {active === "grading" && (
           <div className="space-y-10">
             <GradingPanel branches={branches} />

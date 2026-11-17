@@ -59,26 +59,30 @@ export default function VideoGuidePage() {
     <div className="min-h-screen bg-canvas text-fg">
       {/* Top Header */}
       <header className="border-b border-line bg-surface/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        {/* Wraps instead of running out of room: at 575px and 395px the title, "Download PDF" and "Download Video" used to sit on top of each other. */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-fg hover:text-brand-strong transition-colors">
               <svg className="w-5 h-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
               <span>Back to App</span>
             </Link>
-            <span className="text-line-strong font-light">|</span>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-tint text-brand-strong">
+            <span aria-hidden="true" className="hidden text-line-strong font-light sm:inline">
+              |
+            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="inline-flex shrink-0 items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-tint text-brand-strong">
                 Product Guide
               </span>
-              <h1 className="text-sm font-semibold tracking-tight text-fg sm:text-base">AlEemaan End-to-End Walkthrough & Tour</h1>
+              <h1 className="min-w-0 text-sm font-semibold tracking-tight text-fg sm:text-base">AlEemaan End-to-End Walkthrough & Tour</h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <a
               href={`${MEDIA.base}/walkthrough.pdf`}
+              aria-label="Download PDF"
               download
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-surface hover:bg-surface-2 text-xs font-medium text-fg shadow-sm transition-all"
             >
@@ -89,17 +93,24 @@ export default function VideoGuidePage() {
                   d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                 />
               </svg>
-              <span>Download PDF</span>
+              <span className="sm:hidden" aria-hidden="true">
+                PDF
+              </span>
+              <span className="hidden sm:inline">Download PDF</span>
             </a>
             <a
               href={`${MEDIA.base}/walkthrough.webm`}
               download
+              aria-label="Download Video"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-strong hover:bg-brand-strong-hover text-white text-xs font-semibold shadow-sm transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span>Download Video</span>
+              <span className="sm:hidden" aria-hidden="true">
+                Video
+              </span>
+              <span className="hidden sm:inline">Download Video</span>
             </a>
           </div>
         </div>

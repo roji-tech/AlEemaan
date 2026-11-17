@@ -124,6 +124,22 @@ export function groupNav(items: readonly NavItem[]): NavGroup[] {
   return groups;
 }
 
+/// How many pages the phone's bottom bar holds besides More.
+export const PHONE_TAB_SLOTS = 4;
+
+/// The phone's bottom bar and its More sheet. The pages not marked `inMore` are the bar's own; when a role has fewer than `PHONE_TAB_SLOTS` of them (a member of staff has Overview and little
+/// else), the free slots are filled from the More pages in the order of `NAV`, so the bar is not nearly empty while the sheet holds everything. Bar entries keep the order of `items`; the sheet lists
+/// what is left. A page that cannot be linked (not built) is never a tab. Pure, so it is tested without a browser.
+export function phoneNav(items: readonly NavItem[], slots: number = PHONE_TAB_SLOTS): { tabs: NavItem[]; more: NavItem[] } {
+  const linked = items.filter((item) => item.href);
+  const own = linked.filter((item) => !item.inMore);
+  const promoted = new Set(linked.filter((item) => item.inMore).slice(0, Math.max(0, slots - own.length)));
+  return {
+    tabs: linked.filter((item) => !item.inMore || promoted.has(item)),
+    more: linked.filter((item) => item.inMore && !promoted.has(item)),
+  };
+}
+
 /// The section a page belongs to, or null (no section, or the path is not in the list). Used to open the folded section that holds the current page.
 export function sectionOfPath(pathname: string, items: readonly NavItem[]): SectionId | null {
   const item = items.find((candidate) => candidate.href && isActive(pathname, candidate.href));

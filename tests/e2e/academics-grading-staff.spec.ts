@@ -191,5 +191,5 @@ test("a teacher sees the grading and staff lists but none of the controls; the t
   await expect(page.getByRole("tab", { name: "Assessment and grading" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: /^New/ })).toHaveCount(0);
   await page.keyboard.press("Home");
-  await expect(page.getByRole("tab", { name: "Classes and subjects" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Classes", exact: true })).toHaveAttribute("aria-selected", "true");
 });

@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/TextField";
-import { BuildingIcon, PlusIcon } from "@/components/ui/icons";
+import { BuildingIcon, ChevronRightIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
+import { BranchDeleteDialog, BranchRenameDialog, type BranchRef } from "@/components/branches/BranchDialogs";
 import { memberLabel } from "@/lib/branches/labels";
 
-export type BranchRow = { id: string; name: string; members: number };
+export type BranchRow = { id: string; name: string; code: string; members: number };
 
 const NAME_MAX = 100; // mirrors the API's `createBranchSchema`
 
@@ -18,7 +20,7 @@ const NAME_MAX = 100; // mirrors the API's `createBranchSchema`
 /// `POST /api/v1/branches` everything else uses (admin-only, CSRF-checked, audit-logged, unique
 /// names); this component only presents it, and every outcome — created, duplicate, invalid,
 /// signed out, refused, server error, offline — has its own honest message.
-export function BranchesView({ branches }: { branches: BranchRow[] }) {
+export function BranchesView({ branches, deletedName = null }: { branches: BranchRow[]; deletedName?: string | null }) {
   const router = useRouter();
   const formId = useId();
 
@@ -27,7 +29,9 @@ export function BranchesView({ branches }: { branches: BranchRow[] }) {
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(deletedName ? `“${deletedName}” was deleted.` : null);
+  const [renaming, setRenaming] = useState<BranchRow | null>(null);
+  const [deleting, setDeleting] = useState<BranchRow | null>(null);
 
   const nameRef = useRef<HTMLInputElement>(null);
   const newButtonRef = useRef<HTMLButtonElement>(null);
@@ -174,20 +178,68 @@ export function BranchesView({ branches }: { branches: BranchRow[] }) {
       ) : (
         <ul aria-label="Branches" className="space-y-3">
           {branches.map((branch) => (
-            <li key={branch.id} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card">
-              <span
-                aria-hidden="true"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-fg"
+            <li
+              key={branch.id}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border border-line bg-surface p-2 shadow-card sm:flex-nowrap"
+            >
+              <Link
+                href={`/branches/${branch.id}`}
+                aria-label={`${branch.name}, open`}
+                className="flex min-h-14 min-w-0 flex-1 items-center gap-4 rounded-xl p-2 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                <BuildingIcon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-fg">{branch.name}</p>
-                <p className="mt-0.5 text-sm text-fg-muted">{memberLabel(branch.members)}</p>
+                <span
+                  aria-hidden="true"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-fg"
+                >
+                  <BuildingIcon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-fg">{branch.name}</span>
+                  <span className="mt-0.5 block text-sm text-fg-muted">
+                    {branch.code} · {memberLabel(branch.members)}
+                  </span>
+                </span>
+                <ChevronRightIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-fg-muted" />
+              </Link>
+              <div className="flex shrink-0 gap-1 pr-1">
+                <Button variant="ghost" aria-label={`Rename ${branch.name}`} onClick={() => setRenaming(branch)}>
+                  <PencilIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Rename</span>
+                </Button>
+                <Button variant="ghost" aria-label={`Delete ${branch.name}`} onClick={() => setDeleting(branch)}>
+                  <TrashIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Delete</span>
+                </Button>
               </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {renaming && (
+        <BranchRenameDialog
+          branch={renaming as BranchRef}
+          code={renaming.code}
+          open
+          onClose={() => setRenaming(null)}
+          onSaved={(saved) => {
+            setRenaming(null);
+            setNotice(`The branch is now called “${saved}”.`);
+            router.refresh();
+          }}
+        />
+      )}
+      {deleting && (
+        <BranchDeleteDialog
+          branch={deleting as BranchRef}
+          open
+          onClose={() => setDeleting(null)}
+          onDeleted={(removed) => {
+            setDeleting(null);
+            setNotice(`“${removed}” was deleted.`);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );
