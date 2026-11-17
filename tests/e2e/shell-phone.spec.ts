@@ -2,6 +2,11 @@ import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, seedInstance } from "../support/db";
 import { signInThroughUi } from "./helpers";
+import fs from "node:fs";
+import path from "node:path";
+
+const SHOTS = path.resolve(__dirname, "../../out/screenshots");
+fs.mkdirSync(SHOTS, { recursive: true });
 
 // The phone shell, as the maintainer saw it on screenshots: the green tools button must not sit on "More" at any width where the bottom bar is shown (it did from 640 px), the More
 // sheet is at most 80% of the screen and its sections fold, a role with few pages still has a bottom bar worth using, and the guide's header does not overlap itself.
@@ -47,12 +52,14 @@ test("the More sheet is at most 80% of the screen, scrolls inside, and each sect
   const sections = page.getByRole("dialog").getByRole("button", { expanded: true });
   expect(await sections.count(), "sections that can fold").toBeGreaterThan(0);
   const first = sections.first();
-  const target = await first.getAttribute("aria-controls");
+  const target = await first.getAttribute("aria-controls"); // read before the click: `first` is a live locator and points at the next open section once this one folds
   expect(target).toMatch(/^more-section-/);
-  await first.click();
+  const section = page.locator(`button[aria-controls="${target}"]`);
+  await section.click();
+  await expect(section).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(`#${target}`)).toBeHidden();
-  await expect(page.getByRole("dialog").getByRole("button", { name: await first.innerText(), expanded: false })).toBeVisible();
-  await page.getByRole("dialog").getByRole("button", { expanded: false }).first().click();
+  await section.click();
+  await expect(section).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator(`#${target}`)).toBeVisible();
 });
 
@@ -69,10 +76,11 @@ test("a role with few pages of its own still gets a bottom bar of more than Over
   await expect(page.getByRole("dialog").getByRole("button", { name: "Sign out" })).toBeVisible();
 });
 
-test("the video guide's header does not overlap itself, and the page does not scroll sideways, at 395, 575 and 700 px", async ({
+test('the video guide\'s header does not overlap itself, keeps "Back to App" on one line, and the page does not scroll sideways, from 320 to 700 px', async ({
   page,
 }) => {
-  for (const width of [395, 575, 700]) {
+  await signInThroughUi(page, await createUser({ role: Role.ADMIN })); // the guide is a superadmin's
+  for (const width of [320, 360, 395, 575, 700]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/video-guide");
     const header = page.locator("header").first();
@@ -85,6 +93,9 @@ test("the video guide's header does not overlap itself, and the page does not sc
     ];
     const boxes = [];
     for (const part of parts) boxes.push(await boxOf(part));
+    // "Back to App" is one line (a line of this text is about 20 px high; three lines was the fault).
+    expect(boxes[0].height, `"Back to App" on one line at ${width}px`).toBeLessThan(32);
+    await page.screenshot({ path: `${SHOTS}/video-guide-header-${width}.png`, clip: { x: 0, y: 0, width, height: 260 } });
     for (let i = 0; i < boxes.length; i += 1) {
       expect(boxes[i].x + boxes[i].width, `part ${i} inside the screen at ${width}px`).toBeLessThanOrEqual(width + 1);
       for (let j = i + 1; j < boxes.length; j += 1) expect(overlap(boxes[i], boxes[j]), `parts ${i} and ${j} at ${width}px`).toBe(false);
