@@ -261,57 +261,6 @@ test.describe("Students API & ADR-0011 Namesake Override", () => {
     });
     expect(restoreAllowed.status).toBe(200);
   });
-
-  test("POST /api/v1/students/import handles batch duplicates and override", async () => {
-    const { cookie } = await asRole(Role.ADMIN);
-    const branch = await db.branch.findFirstOrThrow({ where: { name: "Secondary (English)" } });
-
-    const rows = [
-      {
-        firstName: "Salim",
-        lastName: "Garba",
-        gender: "MALE" as const,
-        dateOfBirth: "2011-12-12",
-        className: "JSS 1",
-      },
-      {
-        firstName: "Khadija",
-        lastName: "Umar",
-        gender: "FEMALE" as const,
-        dateOfBirth: "2012-04-04",
-        className: "JSS 1",
-      },
-    ];
-
-    // Initial import
-    const imp1 = await api(`${STUDENTS_ROUTE}/import`, {
-      method: "POST",
-      cookie,
-      body: { branchId: branch.id, rows, allowDuplicates: false },
-    });
-    expect(imp1.status).toBe(200);
-    expect(imp1.json.data.summary.imported).toBe(2);
-
-    // Re-importing identical rows without allowDuplicates -> 2 conflicts
-    const impDup = await api(`${STUDENTS_ROUTE}/import`, {
-      method: "POST",
-      cookie,
-      body: { branchId: branch.id, rows, allowDuplicates: false },
-    });
-    expect(impDup.status).toBe(200);
-    expect(impDup.json.data.summary.imported).toBe(0);
-    expect(impDup.json.data.summary.conflicts.length).toBe(2);
-
-    // Re-importing with allowDuplicates: true -> imports with override
-    const impOverride = await api(`${STUDENTS_ROUTE}/import`, {
-      method: "POST",
-      cookie,
-      body: { branchId: branch.id, rows, allowDuplicates: true },
-    });
-    expect(impOverride.status).toBe(200);
-    expect(impOverride.json.data.summary.imported).toBe(2);
-    expect(impOverride.json.data.summary.overridden).toBe(2);
-  });
 });
 
 // Reads are staff-only and branch-scoped (plan "Design addendum — student reads are staff-only and branch-scoped", decisions A7-A9).

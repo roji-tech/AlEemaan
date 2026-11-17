@@ -168,7 +168,7 @@ export async function c06Students(walk: Walk, page: Page): Promise<void> {
       chapter,
       role: "Teacher",
       title: "A teacher can look at the pupils and change nothing",
-      caption: "A teacher sees the pupils of the branch. The buttons that register, import, edit and archive are not offered.",
+      caption: "A teacher sees the pupils of the branch. The buttons that register, add many, edit and archive are not offered.",
       covers: ["STU-06", "STU-03"],
     },
     async () => {
@@ -178,7 +178,7 @@ export async function c06Students(walk: Walk, page: Page): Promise<void> {
       await expect(pupilRows(page)).toHaveCount(4);
       await walk.type(page.getByLabel("Search students"), "Aisha");
       await expect(pupilRows(page)).toHaveCount(1);
-      for (const hidden of ["New student", "Import from spreadsheet"]) {
+      for (const hidden of ["New student", "Add many"]) {
         await expect(page.getByRole("button", { name: hidden, exact: true })).toHaveCount(0);
       }
       await expect(page.getByRole("button", { name: /^(Edit|Archive|Restore) / })).toHaveCount(0);

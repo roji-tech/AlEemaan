@@ -39,6 +39,7 @@
     ]
   },
   "dependencies": {
+    "@onparallel/write-excel-file-data-validation": "^1.0.2",
     "@prisma/client": "6.19.3",
     "bcryptjs": "^3.0.3",
     "cloudinary": "2.11.0",
@@ -46,7 +47,9 @@
     "qrcode": "1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "read-excel-file": "^9.3.17",
     "sharp": "0.35.5",
+    "write-excel-file": "^4.1.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

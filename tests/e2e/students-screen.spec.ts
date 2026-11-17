@@ -39,7 +39,7 @@ test.afterEach(async () => {
 });
 
 for (const theme of ["dark", "light"] as const) {
-  test(`students: register, namesake confirm, edit, archive, restore, import (${theme} theme)`, async ({ page, baseURL }, info) => {
+  test(`students: register, namesake confirm, edit, archive, restore, add many (${theme} theme)`, async ({ page, baseURL }, info) => {
     if (theme === "light") await page.context().addCookies([{ name: "theme", value: "light", url: baseURL! }]);
     const branch = await seedInstance();
     await db.academicSession.create({
@@ -115,18 +115,28 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByText(`${tag}Amina Yusuf restored.`)).toBeVisible();
     await page.getByLabel("Show").selectOption("live");
 
-    // Import: one good line, one bad line (reported by line number before anything is sent).
-    await page.getByRole("button", { name: "Import from spreadsheet" }).click();
+    // Add many: one good line, one bad line (found in the browser, shown row by row, before anything is saved).
+    await page.getByRole("button", { name: "Add many" }).click();
     await dialog(page)
-      .getByLabel("Or paste the rows here")
-      .fill(
-        `firstName,lastName,gender,dateOfBirth,className,arm\n${tag}Musa,Bello,M,2013-12-01,${tag} JSS 1,A\n${tag}X,Y,Q,2013-02-31,,\n`,
-      );
-    await expect(dialog(page).getByText("1 ready to import, 1 with problems.")).toBeVisible();
-    await expect(dialog(page).getByText(/Line 3:/)).toBeVisible();
-    await expectAccessible(page, `import dialog (${theme})`);
-    await dialog(page).getByRole("button", { name: "Import 1 students" }).click();
-    await expect(page.getByText(/Imported 1 students into/)).toBeVisible();
+      .getByLabel("CSV or Excel file")
+      .setInputFiles({
+        name: "pupils.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(
+          `firstName,lastName,gender,dateOfBirth,className,arm\n${tag}Musa,Bello,M,2013-12-01,${tag} JSS 1,A\n${tag}X,Y,Q,2013-02-31,,\n`,
+        ),
+      });
+    await expect(
+      dialog(page)
+        .getByRole("status")
+        .filter({ hasText: /rows?:/ }),
+    ).toContainText("2 rows: 1 ready, 1 with problems");
+    await expect(dialog(page).getByText("Use a real date, like 2014-03-21 or 21/03/2014.")).toBeVisible();
+    await expectAccessible(page, `bulk review (${theme})`);
+    await dialog(page).getByRole("button", { name: "Save the 1 good row now" }).click();
+    await expect(page.getByText(/1 pupil added to/)).toBeVisible();
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("dialog", { name: "Leave without saving?" }).getByRole("button", { name: "Leave without saving" }).click();
     await expect(page.getByRole("listitem").filter({ hasText: `${tag}Musa` })).toContainText(`${tag} JSS 1 A`);
   });
 }

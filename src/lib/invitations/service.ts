@@ -76,70 +76,78 @@ export async function createInvitation(
   input: { email: string; role: Role; branchId: string },
   scope: AdminScope,
 ): Promise<CreateInvitationResult> {
-  return prisma.$transaction(async (tx) => {
-    // (`$executeRaw`: the lock function returns `void`, which `$queryRaw` cannot deserialise.)
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invitation:${input.email}`}::text))`;
+  return prisma.$transaction((tx) => createInvitationIn(tx, actorUserId, input, scope));
+}
 
-    const branch = await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true } });
-    if (!branch) return { ok: false, reason: "INVALID_BRANCH" } as const;
-    if (!mayAdminister(scope, input.branchId)) return { ok: false, reason: "OUT_OF_SCOPE" } as const;
-    if (input.role === "ADMIN" && !scope.superAdmin) return { ok: false, reason: "ADMIN_ONLY" } as const; // only a superadmin makes an administrator
+/// `createInvitation` inside a transaction the caller owns, so a bulk can create many and roll all of them back together (task 0084). The advisory lock per address is held until that transaction ends.
+export async function createInvitationIn(
+  tx: Prisma.TransactionClient,
+  actorUserId: string,
+  input: { email: string; role: Role; branchId: string },
+  scope: AdminScope,
+): Promise<CreateInvitationResult> {
+  // (`$executeRaw`: the lock function returns `void`, which `$queryRaw` cannot deserialise.)
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invitation:${input.email}`}::text))`;
 
-    // The rule is per (person, branch): a person may belong to several branches (plan, "a person may belong to several branches"). Refused: an
-    // active membership in THIS branch; a deactivated one in this branch; or deactivated memberships and no active one anywhere (a
-    // deactivated person comes back by reactivation, never by a new link).
-    const memberships = await tx.membership.findMany({
-      where: { user: { email: input.email } },
-      select: { branchId: true, deactivatedAt: true },
-    });
-    if (memberships.some((m) => m.branchId === input.branchId && !m.deactivatedAt)) return { ok: false, reason: "ALREADY_MEMBER" } as const;
-    const anyActive = memberships.some((m) => !m.deactivatedAt);
-    if (memberships.some((m) => m.branchId === input.branchId) || (memberships.length > 0 && !anyActive)) {
-      return { ok: false, reason: "DEACTIVATED_MEMBER" } as const;
-    }
+  const branch = await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true } });
+  if (!branch) return { ok: false, reason: "INVALID_BRANCH" } as const;
+  if (!mayAdminister(scope, input.branchId)) return { ok: false, reason: "OUT_OF_SCOPE" } as const;
+  if (input.role === "ADMIN" && !scope.superAdmin) return { ok: false, reason: "ADMIN_ONLY" } as const; // only a superadmin makes an administrator
 
-    const now = new Date();
-    const earlier = await tx.invitation.findMany({
-      where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null }, // (a different branch's open invitation stays)
-      select: { id: true },
-    });
-    for (const old of earlier) {
-      await tx.invitation.update({ where: { id: old.id }, data: { revokedAt: now } });
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          action: "INVITATION_REVOKED",
-          targetType: "Invitation",
-          targetId: old.id,
-          afterValue: { email: input.email },
-          reason: "replaced by a new invitation",
-        },
-      });
-    }
+  // The rule is per (person, branch): a person may belong to several branches (plan, "a person may belong to several branches"). Refused: an
+  // active membership in THIS branch; a deactivated one in this branch; or deactivated memberships and no active one anywhere (a
+  // deactivated person comes back by reactivation, never by a new link).
+  const memberships = await tx.membership.findMany({
+    where: { user: { email: input.email } },
+    select: { branchId: true, deactivatedAt: true },
+  });
+  if (memberships.some((m) => m.branchId === input.branchId && !m.deactivatedAt)) return { ok: false, reason: "ALREADY_MEMBER" } as const;
+  const anyActive = memberships.some((m) => !m.deactivatedAt);
+  if (memberships.some((m) => m.branchId === input.branchId) || (memberships.length > 0 && !anyActive)) {
+    return { ok: false, reason: "DEACTIVATED_MEMBER" } as const;
+  }
 
-    const token = newInvitationToken();
-    const created = await tx.invitation.create({
-      data: {
-        email: input.email,
-        role: input.role,
-        branchId: input.branchId,
-        tokenHash: hashInvitationToken(token),
-        invitedById: actorUserId,
-        expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
-      },
-      select: PUBLIC_SELECT,
-    });
+  const now = new Date();
+  const earlier = await tx.invitation.findMany({
+    where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null }, // (a different branch's open invitation stays)
+    select: { id: true },
+  });
+  for (const old of earlier) {
+    await tx.invitation.update({ where: { id: old.id }, data: { revokedAt: now } });
     await tx.auditLog.create({
       data: {
         actorUserId,
-        action: "INVITATION_CREATED",
+        action: "INVITATION_REVOKED",
         targetType: "Invitation",
-        targetId: created.id,
-        afterValue: { email: input.email, role: input.role, branchId: input.branchId },
+        targetId: old.id,
+        afterValue: { email: input.email },
+        reason: "replaced by a new invitation",
       },
     });
-    return { ok: true, invitation: toPublic(created, now), token } as const;
+  }
+
+  const token = newInvitationToken();
+  const created = await tx.invitation.create({
+    data: {
+      email: input.email,
+      role: input.role,
+      branchId: input.branchId,
+      tokenHash: hashInvitationToken(token),
+      invitedById: actorUserId,
+      expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
+    },
+    select: PUBLIC_SELECT,
   });
+  await tx.auditLog.create({
+    data: {
+      actorUserId,
+      action: "INVITATION_CREATED",
+      targetType: "Invitation",
+      targetId: created.id,
+      afterValue: { email: input.email, role: input.role, branchId: input.branchId },
+    },
+  });
+  return { ok: true, invitation: toPublic(created, now), token } as const;
 }
 
 /// A fresh link and a fresh seven days for an invitation that is still open (pending OR expired); the earlier link stops working at once.

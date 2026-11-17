@@ -649,3 +649,18 @@
 - [x] `PortalLoginCard.tsx`: the logo tile on the sign-in card is a `<Link href="/" aria-label="AlEemaan School website">`
 - [x] Tests: two browser tests, failing first on the old markup (2 failed, 1 passed), then 21 passed on desktop and phone with the portal axe spec
 - [ ] Not done: mutation passes (deferred to the end of PHASE 2)
+
+## TASK-0084: One bulk-entry engine for staff, invitations, pupils and fees (file or grid, checked in the browser and again on the server)
+
+[Task file](0084-bulk-import-engine.md). The maintainer: bulk add for staff first, then bulk inviting, the pupil import brought to the same standard, and fees; a CSV or Excel file or a grid of at most 50 rows; every row reviewed before saving; the rows with problems downloadable and correctable; "make it a template for general use". Slice 1 (the engine and staff) is built on `claude/bulk-staff`; no schema or migration change.
+
+- [x] Engine in `src/lib/bulk/`: shared row rules run by the browser and the server, CSV and .xlsx reading, header mapping with the spreadsheet's own row numbers, formula-safe downloads, the problem-rows file and the corrections rule, Excel template with dropdowns
+- [x] Staff kind and `POST /api/v1/staff/import`: dry run writes nothing; the real run checks again inside one transaction and saves all rows or none
+- [x] Screen: "Add many" on the Staff tab: file, review row by row, "Save the good rows now", grid of 50 rows with paste, upload the corrections, leave guard; table from the `md` width, cards on a phone
+- [x] Tests, failing first: unit 27 (against stubs 22 failed, 1 passed) and Excel 4 (4 failed), API 6 (6 failed without the route), browser 10 on desktop and phone (8 failed without the screen)
+- [x] Slice 2, invitations: `POST /api/v1/invitations/import`, "Invite many" (branch first; a branch administrator is not offered Administrator; "Will replace the open invitation."; e-mails after the commit; 200 rows, 2 saves per 5 minutes)
+- [x] Slice 3, pupils: `POST /api/v1/students/import` replaced (all or nothing, a dry run, a class and arm that must exist, an admission number that must be free, a namesake only with the override); the gaps of the old import are listed in the task file; "Add many" replaces "Import from spreadsheet"
+- [x] Slice 4, fees: `POST /api/v1/finance/fee-structures/import` and "Add many" on the Fee schedule tab (period and class by name, exact money in whole kobo, a repeated line refused, the review's total per period and class)
+- [x] Tests, failing first: slice 2 unit and API 12 failed, browser 4 failed; slices 3 and 4 unit 16 failed, API and browser 19 failed; with the first version of the code the real result was API 96 passed, browser 8 failed, unit 1 failed, walkthrough support 2 failed (reported wrongly as all passed; see the correction in section 8 of the task file); after the fix-forward: API 96, browser 97 passed, 0 failed, unit 1187, walkthrough support 58, 0 failed
+- [ ] Not done: the rest of the browser suite, integration and https; mutation passes (deferred to the end of PHASE 2)
+
