@@ -319,12 +319,14 @@ Display helpers for branches.
 | File | Description |
 | --- | --- |
 | `labels.ts` | `memberLabel(count)`: the one wording for a branch's size ("No members yet" for 0 or less, "1 member", "N members"), used by the Overview page and `BranchesView`. |
+| `holdings.ts` | Task 0085. `branchHoldings(db, branchId)`: everything that points at the branch and is not empty, counted in ONE query over the foreign keys read from the database catalog (so a table added later is counted); `toHolding(table, count, deactivated)` (pure) and `FOLDS_WITH_BRANCH` (the tables that are set-up and go with the branch; every other table, and an active membership, blocks the deletion); `holdingLabel`. |
 
 ## API routes: Branches (`/api/v1/branches/`)
 
 | Method | Route | File | Who | Description |
 | --- | --- | --- | --- | --- |
 | GET, POST | `/api/v1/branches` | `branches/route.ts` | GET: administrators, own branches only (superadmin: all); POST: superadmin | GET lists branches as `{ id, name }`, oldest first: every branch for a superadmin, only those where they hold an `ADMIN` membership for a branch administrator (`scopeOrForbidden`; `403` if they administer none). No page in `src` calls it (the Users page reads the database directly); tests do. POST body `{ name }` (trimmed, 1 to 100 characters) creates a branch and, in the same transaction, an `AuditLog` row `BRANCH_CREATED`: `201 { branch }`, `409 DUPLICATE_NAME` for a name that exists, `400` for a bad body. There is no PATCH or DELETE. |
+| GET, PATCH, DELETE | `/api/v1/branches/[id]` | `branches/[id]/route.ts` | Superadmin (task 0085) | GET: `{ branch: { id, name, code, createdAt }, holdings: [{ label, count, blocks }], onlyBranch, canDelete }`. PATCH `{ name }` (strict; code cannot be set): renames, 409 `DUPLICATE_NAME`, the same name is `changed: false` with no audit row, audited `BRANCH_RENAMED`. DELETE `{ confirmName }`: 400 unless it is the exact name, 409 `LAST_BRANCH`, 409 `BRANCH_NOT_EMPTY` (names what it holds) when anything that is not set-up points at it; otherwise deleted with its set-up in one transaction with the branch row locked, audited `BRANCH_DELETED`. An unknown or malformed id is 404. |
 
 ## `src/lib/settings/`
 

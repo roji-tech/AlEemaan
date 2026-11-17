@@ -96,3 +96,21 @@ test("the video guide's header does not overlap itself, and the page does not sc
     expect(scroll, `${width}px`).toBeLessThanOrEqual(client);
   }
 });
+
+test("the video guide is a superadmin's: signed out goes to sign-in; a branch administrator and a teacher are told so and are not offered the link", async ({
+  page,
+}) => {
+  await page.goto("/video-guide");
+  await expect(page).toHaveURL(/\/login/);
+  for (const who of [{ role: Role.ADMIN, superAdmin: false }, { role: Role.TEACHING_STAFF }]) {
+    await page.context().clearCookies();
+    await signInThroughUi(page, await createUser(who));
+    await page.goto("/video-guide");
+    await expect(page.getByText("You don't have access to this page")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "AlEemaan End-to-End Walkthrough & Tour" })).toHaveCount(0);
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: /^Account menu for/ }).click();
+    await expect(page.getByRole("link", { name: "Profile" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Video guide" })).toHaveCount(0);
+  }
+});

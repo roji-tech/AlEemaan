@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -34,9 +33,25 @@ export default async function BranchPage({ params }: { params: Promise<{ id: str
     );
   }
   const { id } = await params;
-  if (!isPlausibleId(id)) notFound();
-  const branch = await prisma.branch.findUnique({ where: { id }, select: { id: true, name: true, code: true, createdAt: true } });
-  if (!branch) notFound();
+  const branch = isPlausibleId(id)
+    ? await prisma.branch.findUnique({ where: { id }, select: { id: true, name: true, code: true, createdAt: true } })
+    : null;
+  // A sentence and not `notFound()`: the app has no not-found page of its own and Next's default one carries an inline style the CSP refuses (see programs/[id]/page.tsx). A malformed id
+  // and an unknown one get the same words.
+  if (!branch) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Branch" />
+        <p role="alert" className="rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
+          We could not find that branch.
+        </p>
+        <Link href="/branches" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-fg hover:underline">
+          <span aria-hidden="true">←</span>
+          All branches
+        </Link>
+      </div>
+    );
+  }
   const [holdings, branches] = await Promise.all([branchHoldings(prisma, id), prisma.branch.count()]);
   return (
     <BranchDetailView

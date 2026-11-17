@@ -141,7 +141,7 @@ test("the single-branch page lists what the branch holds, renames it, and deleti
   expect(await db.branch.count({ where: { id: branch.id } })).toBe(0);
 });
 
-test("the page is a superadmin's: a branch administrator is told so, and an unknown branch is not found", async ({ page }) => {
+test("the page is a superadmin's: a branch administrator is told so, and an unknown branch gets a sentence", async ({ page }) => {
   const branch = await db.branch.create({ data: { name: unique("Private") } });
   const admin = await createUser({ role: Role.ADMIN, superAdmin: false });
   await signInThroughUi(page, admin);
@@ -151,13 +151,17 @@ test("the page is a superadmin's: a branch administrator is told so, and an unkn
   const boss = await createUser({ role: Role.ADMIN });
   await page.context().clearCookies();
   await signInThroughUi(page, boss);
-  const res = await page.goto("/branches/does-not-exist");
-  expect(res?.status()).toBe(404);
+  // The same words for an id that does not exist and one that cannot be an id.
+  for (const id of ["does-not-exist", "a%20b%2Fc"]) {
+    await page.goto(`/branches/${id}`);
+    await expect(page.getByRole("alert").filter({ hasText: "We could not find that branch." })).toBeVisible();
+    await expect(page.getByRole("link", { name: "All branches" })).toBeVisible();
+  }
 });
 
 test("on a phone width the rows and the page do not scroll sideways", async ({ page }) => {
   const branch = await db.branch.create({
-    data: { name: unique("A rather long branch name that must wrap or truncate and never push the page wider") },
+    data: { name: unique("An extremely long name that has to wrap or be cut short and never push the page wider than the screen") },
   });
   await openList(page);
   for (const url of ["/branches", `/branches/${branch.id}`]) {
@@ -169,4 +173,5 @@ test("on a phone width the rows and the page do not scroll sideways", async ({ p
     }));
     expect(scroll, url).toBeLessThanOrEqual(client);
   }
+  await db.branch.delete({ where: { id: branch.id } }); // not left behind for the other specs' lists
 });
