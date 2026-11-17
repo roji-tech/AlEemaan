@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   branchId = (await db.branch.findFirstOrThrow({ where: { name: "Primary (English)" } })).id;
 });
 
-const row = (n: number) => ({ firstName: `Kid${n}`, lastName: "Cap", gender: "MALE" as const, dateOfBirth: "2012-01-01" });
+const row = (n: number) => ({ line: n + 2, values: { firstName: `Kid${n}`, lastName: "Cap", gender: "Male", dateOfBirth: "2012-01-01" } });
 const padding = "x".repeat(1024 * 1024 + 10); // just over MAX_BODY_BYTES (1 MiB)
 
 test.describe("student import", () => {
@@ -24,7 +24,7 @@ test.describe("student import", () => {
     const tooMany = await api("/api/v1/students/import", {
       method: "POST",
       cookie,
-      body: { branchId, rows: Array.from({ length: 1001 }, (_, i) => row(i)) },
+      body: { branchId, dryRun: false, rows: Array.from({ length: 1001 }, (_, i) => row(i)) },
     });
     expect([tooMany.status, tooMany.json.error.code]).toEqual([400, "VALIDATION"]);
     expect(JSON.stringify(tooMany.json.error)).toMatch(/1000/);
@@ -32,7 +32,11 @@ test.describe("student import", () => {
   });
 
   test("an oversized body is 413 and bad JSON is 400 INVALID_BODY", async () => {
-    const big = await api("/api/v1/students/import", { method: "POST", cookie, body: { branchId, rows: [row(1)], note: padding } });
+    const big = await api("/api/v1/students/import", {
+      method: "POST",
+      cookie,
+      body: { branchId, dryRun: true, rows: [row(1)], note: padding },
+    });
     expect(big.status).toBe(413);
     const bad = await api("/api/v1/students/import", { method: "POST", cookie, rawBody: "{" });
     expect([bad.status, bad.json.error.code]).toEqual([400, "INVALID_BODY"]);

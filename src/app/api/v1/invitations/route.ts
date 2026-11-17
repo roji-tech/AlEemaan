@@ -5,12 +5,9 @@ import { offsetMeta, parseOffsetPagination } from "@/lib/api/pagination";
 import { validate } from "@/lib/api/validate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
-import { invitationEmail } from "@/lib/email/messages";
-import { sendEmailQuietly } from "@/lib/email/transport";
 import { createInvitation, listOpenInvitations } from "@/lib/invitations/service";
-import { INVITATION_TTL_DAYS } from "@/lib/invitations/token";
+import { mailInvitation } from "@/lib/invitations/mail";
 import { branchIdField, emailField, roleField, scopeOrForbidden } from "@/lib/members/http";
-import { ROLE_LABELS } from "@/lib/roles";
 
 // /api/v1/invitations                                                  (Users pages — a port of Octalve Edu's 0.5.4)
 //   GET   the open invitations (pending, and expired ones that can be resent) — never a token or its hash
@@ -19,7 +16,6 @@ import { ROLE_LABELS } from "@/lib/roles";
 // membership here (or had one deactivated), never who is registered.
 const CREATES_PER_WINDOW = 30; // per administrator per 5 minutes
 const PER_ADDRESS = 3; // per address per 5 minutes: you can resend, not hammer
-const MAIL_PER_ADDRESS = 5; // nobody's inbox is a target (beyond it the invitation exists, the mail is withheld — Resend later)
 
 const body = z.strictObject({ email: emailField, role: roleField, branchId: branchIdField });
 
@@ -75,17 +71,13 @@ export const POST = withAuth(
 
     after(async () => {
       try {
-        if (!(await reserveAttempt(`invite:mail:${input.email}`, MAIL_PER_ADDRESS))) return;
-        await sendEmailQuietly(
-          invitationEmail({
-            to: input.email,
-            token: result.token,
-            branchName: result.invitation.branchName,
-            roleLabel: ROLE_LABELS[input.role],
-            inviterName: auth.user.name,
-            days: INVITATION_TTL_DAYS,
-          }),
-        );
+        await mailInvitation({
+          email: input.email,
+          token: result.token,
+          branchName: result.invitation.branchName,
+          role: input.role,
+          inviterName: auth.user.name,
+        });
       } catch (error) {
         console.error("[invitations] mail failed:", error instanceof Error ? error.message : error);
       }

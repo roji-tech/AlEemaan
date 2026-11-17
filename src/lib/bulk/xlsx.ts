@@ -20,6 +20,11 @@ export async function readXlsx(buffer: ArrayBuffer): Promise<string[][]> {
   return data.map((row) => row.map(asText));
 }
 
+/// Excel stores an inline dropdown as one comma-separated string of at most 255 characters: a longer list, or a value with a comma in it, would make Excel report the file as damaged.
+/// Such a column gets no dropdown (its cells stay free text and the import still checks them).
+export const fitsInlineList = (values: string[]): boolean =>
+  values.length > 0 && values.join(",").length <= 255 && values.every((v) => !v.includes(","));
+
 /// A workbook of `headers` and `rows` (all written as text, so a phone keeps its leading zero), with a dropdown on every column that has fixed values, down to the file's last
 /// allowed row. The dropdown's values are the option LABELS: the import accepts them. The template is this with no rows.
 export async function buildWorkbook(columns: BulkColumn[], headers: string[], rows: string[][]): Promise<Blob> {
@@ -34,7 +39,7 @@ export async function buildWorkbook(columns: BulkColumn[], headers: string[], ro
   const lastRow = FILE_MAX_ROWS + 1;
   const dropdowns = columns.flatMap((c) => {
     const at = headers.indexOf(c.label);
-    if (!c.options || at === -1) return [];
+    if (!c.options || at === -1 || !fitsInlineList(c.options.map((o) => o.label))) return [];
     return [
       {
         cellRange: { from: { row: 2, column: at + 1 }, to: { row: lastRow, column: at + 1 } },

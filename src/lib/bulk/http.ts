@@ -6,7 +6,8 @@ import type { BulkOutcome } from "./server";
 
 // What every bulk route accepts and answers (task 0084). The row's values are strings, as typed or uploaded: the rules turn them into types.
 
-export const bulkBodyShape = {
+/// `max` is the kind's own row cap (default: the file limit).
+export const bulkBodyShape = (max: number = FILE_MAX_ROWS) => ({
   dryRun: z.boolean(),
   rows: z
     .array(
@@ -18,8 +19,8 @@ export const bulkBodyShape = {
       }),
     )
     .min(1, "Send at least one row.")
-    .max(FILE_MAX_ROWS, `Send at most ${FILE_MAX_ROWS} rows at a time.`),
-};
+    .max(max, `Send at most ${max} rows at a time.`),
+});
 
 /// 200 for a dry run; 201 when everything was saved; 422 with EVERY row's verdict when nothing was saved because of problems; 409 when the data changed under a save.
 export function bulkResponse(outcome: BulkOutcome): Response {

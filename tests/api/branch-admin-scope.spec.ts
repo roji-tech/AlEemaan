@@ -84,7 +84,10 @@ test.describe("students", () => {
   });
 
   test("import: own branch only (403 for another); a superadmin anywhere", async () => {
-    const rows = (n: string) => ({ rows: [{ firstName: "Imp", lastName: `Import${n}`, gender: "MALE", dateOfBirth: "2015-03-03" }] });
+    const rows = (n: string) => ({
+      dryRun: false,
+      rows: [{ line: 2, values: { firstName: "Imp", lastName: `Import${n}`, gender: "Male", dateOfBirth: "2015-03-03" } }],
+    });
     expect(
       (await api("/api/v1/students/import", { method: "POST", cookie: cookie.branch, body: { branchId: primary.id, ...rows("a") } }))
         .status,
@@ -92,10 +95,10 @@ test.describe("students", () => {
     expect(
       (await api("/api/v1/students/import", { method: "POST", cookie: cookie.branch, body: { branchId: secondary.id, ...rows("b") } }))
         .status,
-    ).toBe(200);
+    ).toBe(201);
     expect(
       (await api("/api/v1/students/import", { method: "POST", cookie: cookie.super, body: { branchId: primary.id, ...rows("c") } })).status,
-    ).toBe(200);
+    ).toBe(201);
   });
 });
 

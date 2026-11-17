@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -8,7 +8,9 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
-import { CSV_TEMPLATE, parseStudentCsv } from "@/lib/students/csv";
+import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
+import { CheckboxField } from "@/components/ui/CheckboxField";
+import { pupilEntityFor } from "@/lib/bulk/pupils";
 import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
@@ -37,7 +39,7 @@ type Student = {
 };
 type ClassOption = { id: string; name: string; arms: { id: string; name: string }[] };
 type Paging = { page: number; totalPages: number; total: number };
-type Editing = { kind: "form"; item: Student | null } | { kind: "import" } | null;
+type Editing = { kind: "form"; item: Student | null } | null;
 
 const PAGE_SIZE = 25;
 
@@ -49,6 +51,9 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [students, setStudents] = useState<Student[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
+  const [allowDuplicates, setAllowDuplicates] = useState(false);
+  const pupilEntity = useMemo(() => pupilEntityFor(classes.map((c) => c.name)), [classes]);
   const [paging, setPaging] = useState<Paging>({ page: 1, totalPages: 1, total: 0 });
   const [show, setShow] = useState<Show>("live");
   const status = show === "archived" ? "archived" : "live";
@@ -148,8 +153,8 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
           </h2>
           {branch.canEdit && (
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setEditing({ kind: "import" })}>
-                Import from spreadsheet
+              <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                Add many
               </Button>
               <Button onClick={() => setEditing({ kind: "form", item: null })}>New student</Button>
             </div>
@@ -300,14 +305,31 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
         onClose={() => setEditing(null)}
         onDone={done}
       />
-      <ImportDialog
-        key={editing?.kind === "import" ? "import" : "none-import"}
-        open={editing?.kind === "import"}
-        branchId={branchId}
-        branchName={branch.name}
-        onClose={() => setEditing(null)}
-        onDone={done}
-      />
+      {branch.canEdit && (
+        <BulkImportDialog
+          key={`bulk-${bulk.key}`}
+          open={bulk.open}
+          onClose={() => setBulk((b) => ({ ...b, open: false }))}
+          entity={pupilEntity}
+          title="Add pupils in bulk"
+          description={`Into ${branch.name}. Nothing is saved until you press Save. A pupil is placed in a class only when a class of this branch is named and the branch has an active academic session.`}
+          endpoint="/api/v1/students/import"
+          context={{ branchId, allowDuplicates }}
+          contextControl={(locked) => (
+            <CheckboxField
+              label="Add even if a pupil with the same name and date of birth is already here (recorded against your name)"
+              checked={allowDuplicates}
+              disabled={locked}
+              onChange={(e) => setAllowDuplicates(e.target.checked)}
+            />
+          )}
+          noun={{ one: "pupil", many: "pupils" }}
+          onSaved={async (count) => {
+            setNotice({ variant: "success", text: `${count} ${count === 1 ? "pupil" : "pupils"} added to ${branch.name}.` });
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -538,153 +560,6 @@ function StudentDialog({
             </Button>
           </div>
         </form>
-      )}
-    </Dialog>
-  );
-}
-
-type ImportSummary = {
-  total: number;
-  imported: number;
-  overridden: number;
-  failed: number;
-  conflicts: { row: number; name: string; existingAdmissionNo: string }[];
-  errors: { row: number; error: string }[];
-};
-
-function ImportDialog({
-  open,
-  branchId,
-  branchName,
-  onClose,
-  onDone,
-}: {
-  open: boolean;
-  branchId: string;
-  branchName: string;
-  onClose: () => void;
-  onDone: (text: string) => Promise<void>;
-}) {
-  const [text, setText] = useState("");
-  const [allowDuplicates, setAllowDuplicates] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [summary, setSummary] = useState<ImportSummary | null>(null);
-  const parsed = text.trim() ? parseStudentCsv(text) : null;
-
-  async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) setText(await file.text());
-    setSummary(null);
-  }
-  async function run() {
-    if (!parsed || parsed.rows.length === 0 || pending) return;
-    setPending(true);
-    setProblem(null);
-    const reply = await sendJson("/api/v1/students/import", "POST", { branchId, allowDuplicates, rows: parsed.rows });
-    setPending(false);
-    if (!reply.ok) return setProblem(say(reply, "The import didn't run. Nothing was imported."));
-    const result = reply.data!.summary as ImportSummary;
-    setSummary(result);
-    if (result.failed === 0 && result.conflicts.length === 0) await onDone(`Imported ${result.imported} students into ${branchName}.`);
-  }
-  const template = `data:text/csv;charset=utf-8,${encodeURIComponent(CSV_TEMPLATE)}`;
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      wide
-      title="Import students from a spreadsheet"
-      description={`Into ${branchName}. Save your sheet as CSV, then choose the file or paste its contents. Nothing is saved until you press Import.`}
-    >
-      {open && (
-        <div className="space-y-4">
-          <p className="text-sm text-fg-muted">
-            Needed columns: first name, last name, gender, date of birth. Optional: admission number, class, arm, guardian name, phone and
-            email.{" "}
-            <a href={template} download="students-template.csv" className="font-semibold text-brand-fg underline">
-              Download a template
-            </a>
-          </p>
-          <div>
-            <label htmlFor="student-csv-file" className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
-              CSV file
-            </label>
-            <input
-              id="student-csv-file"
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => void chooseFile(e)}
-              className="block w-full text-sm text-fg"
-            />
-          </div>
-          <div>
-            <label htmlFor="student-csv-text" className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
-              Or paste the rows here
-            </label>
-            <textarea
-              id="student-csv-text"
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setSummary(null);
-              }}
-              rows={6}
-              className="w-full rounded-xl border border-line bg-field p-3 font-mono text-xs text-fg focus-visible:outline-2 focus-visible:outline-ring"
-              placeholder={CSV_TEMPLATE}
-            />
-          </div>
-          {parsed && (
-            <div aria-live="polite" className="space-y-2">
-              <p className="text-sm text-fg">
-                {parsed.rows.length} ready to import{parsed.problems.length > 0 ? `, ${parsed.problems.length} with problems` : ""}.
-              </p>
-              {parsed.problems.length > 0 && (
-                <ul className="max-h-40 overflow-auto rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-fg">
-                  {parsed.problems.slice(0, 50).map((p) => (
-                    <li key={`${p.line}-${p.message}`}>
-                      Line {p.line}: {p.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          <label className="flex items-start gap-2 text-sm text-fg">
-            <input type="checkbox" checked={allowDuplicates} onChange={(e) => setAllowDuplicates(e.target.checked)} className="mt-1" />
-            <span>
-              Import a pupil even if one with the same name and date of birth is already in this branch (recorded against your name).
-            </span>
-          </label>
-          {problem && <Alert variant="error">{problem}</Alert>}
-          {summary && (
-            <Alert variant={summary.failed === 0 && summary.conflicts.length === 0 ? "success" : "error"}>
-              <p>
-                {summary.imported} of {summary.total} imported
-                {summary.overridden ? `, ${summary.overridden} as namesakes you confirmed` : ""}.
-              </p>
-              {summary.conflicts.map((c) => (
-                <p key={`c${c.row}`} className="text-xs">
-                  Row {c.row}: {c.name} already exists ({c.existingAdmissionNo}).
-                </p>
-              ))}
-              {summary.errors.map((e) => (
-                <p key={`e${e.row}`} className="text-xs">
-                  Row {e.row}: {e.error}
-                </p>
-              ))}
-            </Alert>
-          )}
-          <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
-            <Button variant="ghost" onClick={onClose} disabled={pending}>
-              {summary ? "Close" : "Cancel"}
-            </Button>
-            <Button onClick={() => void run()} loading={pending} disabled={!parsed || parsed.rows.length === 0 || summary !== null}>
-              {pending ? "Importing…" : `Import ${parsed?.rows.length ?? 0} students`}
-            </Button>
-          </div>
-        </div>
       )}
     </Dialog>
   );

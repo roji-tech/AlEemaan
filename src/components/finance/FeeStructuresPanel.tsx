@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatNaira } from "@/lib/finance/format";
+import { BulkFeesDialog } from "./BulkFeesDialog";
 import { FeeStructureModal, type FeeStructureItem } from "./FeeStructureModal";
 
 export interface FeeStructuresPanelProps {
@@ -21,6 +22,7 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
   // the first render; the panel keeps the dialog mounted, so without this "Edit" opened with an empty name, the first term and "All Classes", and a second opening showed the first one's leftovers.
   const [openings, setOpenings] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
 
   const filteredItems = selectedPeriodId === "ALL" ? items : items.filter((item) => item.periodId === selectedPeriodId);
 
@@ -79,13 +81,22 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
         </div>
 
         {canManage && (
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="flex items-center gap-1.5 rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            <span>+</span> Add Fee Item
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}
+              className="flex items-center gap-1.5 rounded-xl border border-line-strong bg-surface px-4 py-2 text-xs font-semibold text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              Add many
+            </button>
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="flex items-center gap-1.5 rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-strong-hover focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <span>+</span> Add Fee Item
+            </button>
+          </div>
         )}
       </div>
 
@@ -170,6 +181,17 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
         classGroups={classGroups}
         initialItem={editingItem}
       />
+      {canManage && (
+        <BulkFeesDialog
+          key={`bulk-${bulk.key}`}
+          open={bulk.open}
+          onClose={() => setBulk((b) => ({ ...b, open: false }))}
+          branchId={branchId}
+          periods={periods}
+          classGroups={classGroups}
+          onSaved={() => onRefresh()}
+        />
+      )}
     </div>
   );
 }

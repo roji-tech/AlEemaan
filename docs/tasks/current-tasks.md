@@ -658,5 +658,9 @@
 - [x] Staff kind and `POST /api/v1/staff/import`: dry run writes nothing; the real run checks again inside one transaction and saves all rows or none
 - [x] Screen: "Add many" on the Staff tab: file, review row by row, "Save the good rows now", grid of 50 rows with paste, upload the corrections, leave guard; table from the `md` width, cards on a phone
 - [x] Tests, failing first: unit 27 (against stubs 22 failed, 1 passed) and Excel 4 (4 failed), API 6 (6 failed without the route), browser 10 on desktop and phone (8 failed without the screen)
-- [ ] Not done: invitations, pupils and fees (slices 2 to 4); the full browser suite; mutation passes (deferred to the end of PHASE 2)
+- [x] Slice 2, invitations: `POST /api/v1/invitations/import`, "Invite many" (branch first; a branch administrator is not offered Administrator; "Will replace the open invitation."; e-mails after the commit; 200 rows, 2 saves per 5 minutes)
+- [x] Slice 3, pupils: `POST /api/v1/students/import` replaced (all or nothing, a dry run, a class and arm that must exist, an admission number that must be free, a namesake only with the override); the gaps of the old import are listed in the task file; "Add many" replaces "Import from spreadsheet"
+- [x] Slice 4, fees: `POST /api/v1/finance/fee-structures/import` and "Add many" on the Fee schedule tab (period and class by name, exact money in whole kobo, a repeated line refused, the review's total per period and class)
+- [x] Tests, failing first: slice 2 unit and API 12 failed, browser 4 failed; slices 3 and 4 unit 16 failed, API and browser 19 failed; with the code: API 96, browser (desktop and phone) 89, unit 1186, walkthrough support 56
+- [ ] Not done: the rest of the browser suite, integration and https; mutation passes (deferred to the end of PHASE 2)
 

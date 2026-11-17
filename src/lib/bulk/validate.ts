@@ -44,6 +44,16 @@ export function validateRows<Row>(
         else firstSeen.set(id, source.line);
       }
     }
+    if (row && problems.length === 0 && entity.repeats) {
+      const key = entity.repeats.of(row);
+      if (key !== null) {
+        const id = `repeats:${key.toLowerCase()}`;
+        const first = firstSeen.get(id);
+        if (first !== undefined)
+          problems.push({ ...(entity.repeats.column ? { column: entity.repeats.column } : {}), message: entity.repeats.message(first) });
+        else firstSeen.set(id, source.line);
+      }
+    }
     if (problems.length === 0 && row) {
       verdicts.push({ line: source.line, status: "ready", problems: [] });
       ok.push({ line: source.line, row });

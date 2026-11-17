@@ -36,6 +36,10 @@ export type BulkEntityShape<Row = unknown> = {
   columns: BulkColumn[];
   rowSchema: z.ZodType<Row>;
   uniqueKeys: readonly string[];
+  /// The most rows one file or request may hold, when a kind needs fewer than `FILE_MAX_ROWS` (invitations send e-mail: 200).
+  maxRows?: number;
+  /// A repeat that is not one column's value but a combination (a fee line is the same when its period, class and name are). `of` returns the combination, or null when the row has none.
+  repeats?: { column?: string; of(row: Row): string | null; message(firstLine: number): string };
 };
 /// A kind of bulk entry. The row schema is shared by the browser and the server; `uniqueKeys` are checked inside one file. What only the database can know (a clash with a saved record)
 /// and the save itself live on the server side of the kind, not here.

@@ -1,56 +1,45 @@
 import { Role } from "@prisma/client";
-import { ok, fail } from "@/lib/api/envelope";
-import { validate, type Parsed } from "@/lib/api/validate";
-import { withAuth } from "@/lib/auth/with-auth";
-import { withBranch } from "@/lib/auth/with-branch";
-import { importStudents, type ImportStudentRow } from "@/lib/students/import";
 import { z } from "zod";
+import { fail } from "@/lib/api/envelope";
+import { validate, type Parsed } from "@/lib/api/validate";
+import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
+import { withBranch } from "@/lib/auth/with-branch";
+import { reserveAttempt } from "@/lib/auth/rate-limit";
+import { structureCall } from "@/lib/academics/structure-http";
+import { bulkBodyShape, bulkResponse } from "@/lib/bulk/http";
+import { pupilKind } from "@/lib/bulk/pupils-server";
+import { runBulk } from "@/lib/bulk/server";
 
-/// One import is one transaction-sized batch: more rows than this is split by the caller (ISS-0006).
-export const IMPORT_MAX_ROWS = 1000;
-
-const importPayloadSchema = z.object({
+// POST /api/v1/students/import { branchId, dryRun, allowDuplicates?, rows: [{ line, values: { firstName, lastName, gender, dateOfBirth, ... } }] }   (task 0084)
+// Administrators of that branch (a branch named in the body that is not theirs: 403). `dryRun: true` checks every row (the shared rules, repeats inside the file, a class and arm of
+// this branch, an admission number already taken, a namesake) and writes nothing: 200, a verdict per row. `dryRun: false` checks again inside one transaction and saves ALL the rows
+// or NONE: 201, or 422 `BULK_PROBLEMS` with every row's verdict. `allowDuplicates` adds a pupil whose name and date of birth are already in the branch, recorded against the caller.
+// (This used to save every good row and skip the rest, with no dry run: that is gone, and so is the body it took.)
+const body = z.strictObject({
   branchId: z.string().min(1, "Branch ID is required"),
   allowDuplicates: z.boolean().optional().default(false),
-  rows: z
-    .array(
-      z.object({
-        firstName: z.string().trim().min(1),
-        middleName: z.string().trim().nullable().optional(),
-        lastName: z.string().trim().min(1),
-        gender: z.enum(["MALE", "FEMALE"]),
-        dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        admissionNo: z.string().trim().nullable().optional(),
-        className: z.string().trim().nullable().optional(),
-        arm: z.string().trim().nullable().optional(),
-        guardianName: z.string().trim().nullable().optional(),
-        guardianPhone: z.string().trim().nullable().optional(),
-        guardianEmail: z.string().trim().nullable().optional(),
-      }),
-    )
-    .min(1, "At least one student row is required")
-    .max(IMPORT_MAX_ROWS, `Import at most ${IMPORT_MAX_ROWS} students at a time.`),
+  ...bulkBodyShape(),
 });
+const PER_WINDOW = 30; // per administrator per 5 minutes: a dry run and a save are both requests
 
-/**
- * POST /api/v1/students/import
- * Admin-only. Bulk imports students with duplicate detection and override capability.
- */
 export const POST = withAuth(
   validate(
-    { body: importPayloadSchema },
-    withBranch<Parsed<z.infer<typeof importPayloadSchema>, undefined>, { userId: string }, unknown>(
+    { body },
+    withBranch<Parsed<z.infer<typeof body>, undefined>, AuthContext, unknown>(
       { of: ({ body }) => body.branchId, as: "administer", where: "body" },
-      async (_req, admin: { userId: string }, _ctx: unknown, { body }) => {
-        try {
-          const rows: ImportStudentRow[] = body.rows.map((r) => ({ ...r, branchId: body.branchId }));
-          const summary = await importStudents(admin.userId, body.branchId, rows, body.allowDuplicates);
-          return ok({ summary });
-        } catch (error: unknown) {
-          // Never hand the exception's own text to the caller (ISS-0006): it can name tables, columns and values.
-          console.error("[STUDENT_IMPORT_ERROR]", error);
-          return fail("The import could not be completed. Nothing was imported.", 500, "INTERNAL");
-        }
+      async (_req, auth, _ctx, { body }) => {
+        if (!(await reserveAttempt(`bulk:pupils:${auth.userId}`, PER_WINDOW)))
+          return fail("Too many bulk requests. Please try again in a few minutes.", 429, "RATE_LIMITED");
+        return structureCall("STUDENTS_BULK", async () =>
+          bulkResponse(
+            await runBulk(
+              pupilKind,
+              { branchId: body.branchId, allowDuplicates: body.allowDuplicates },
+              { dryRun: body.dryRun, rows: body.rows },
+              auth.userId,
+            ),
+          ),
+        );
       },
     ),
   ),
