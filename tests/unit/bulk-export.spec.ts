@@ -21,7 +21,7 @@ test("toCsv: a BOM, CRLF line ends, quotes around commas, quotes and line breaks
       ["two\nlines", "=1+1"],
     ],
   );
-  expect(csv.startsWith("﻿")).toBe(true);
+  expect(csv.startsWith("\ufeff")).toBe(true);
   expect(csv.includes("\r\n")).toBe(true);
   expect(splitCsv(csv)).toEqual([
     ["a", "b"],

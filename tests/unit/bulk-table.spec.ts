@@ -12,7 +12,7 @@ test.describe("splitCsv", () => {
       ["x, y", 'say "hi"'],
       ["two\nlines", "z"],
     ]);
-    expect(splitCsv("﻿a,b\n1,2\n")).toEqual([
+    expect(splitCsv("\ufeffa,b\n1,2\n")).toEqual([
       ["a", "b"],
       ["1", "2"],
     ]);

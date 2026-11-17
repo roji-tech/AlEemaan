@@ -15,7 +15,7 @@ export const restoreCell = (cell: string): string => (/^'[=@\t\r+-]/.test(cell) 
 const quote = (cell: string) => (/[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell);
 /// UTF-8 with a byte-order mark (so Excel reads accents), CRLF line ends, quotes where needed, every cell neutralised.
 export const toCsv = (headers: string[], rows: string[][]): string =>
-  `﻿${[headers, ...rows].map((r) => r.map((c) => quote(neutralise(c))).join(",")).join("\r\n")}\r\n`;
+  `\ufeff${[headers, ...rows].map((r) => r.map((c) => quote(neutralise(c))).join(",")).join("\r\n")}\r\n`;
 
 /// The rows with problems, for fixing in a spreadsheet and uploading back: their original row numbers first, then the template's columns, then what is wrong.
 export function problemRowsTable(

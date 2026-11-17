@@ -1,7 +1,7 @@
 # 0084: One bulk-entry engine (file or grid, checked in the browser and again on the server), used for staff, invitations and pupils
 
 - **Period / Focus:** 2026-11-17 (the maintainer: bulk add for staff first, then bulk inviting, then the pupil import brought up to the same standard; "make it a template for general use")
-- **Status:** In progress (the record is section 8)
+- **Status:** In progress (slice 1 done; the record is section 8)
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/bulk-import-*` (one branch and PR per slice, section 6) / PRs into `dev`
@@ -80,4 +80,21 @@ Failing first, every slice. **Unit:** the parser (quotes, line breaks, BOM, alia
 
 ## 8. Build record and tests
 
-(Filled in per slice.)
+### Slice 1: the engine and staff (branch `claude/bulk-staff`, worktree `AlEemaan-bulk`, 2026-11-17)
+
+**Failing first** (against signature-only stubs, and without the route and the screen):
+- unit: `bulk-table`, `bulk-validate`, `bulk-export`, `bulk-corrections` against stubs: **22 failed, 1 passed** (the empty-file case, where `[]` is already right); `bulk-xlsx`: **4 failed**.
+- API `staff-bulk.spec.ts` without the route: **6 failed** (the setup step passed).
+- browser `staff-bulk.spec.ts`, desktop, without the screen: **8 failed, 2 passed**: "a teacher does not get the button" passes trivially before the screen exists; it guards after.
+
+**With the code:** unit 23 + 4 passed; API 7 passed (6 and setup); browser, desktop and phone, `staff-bulk.spec.ts` (10) with `academics-grading-staff.spec.ts` (the existing Staff screen spec): 27 passed and 2 failed, both the leave test (my locator matched "Download as CSV" in the grid and in the leave dialog: the test, not the screen); fixed and re-run on setup, desktop and phone: 3 passed.
+
+**Found and fixed while building:**
+- **A CSP violation from zod.** Every browser test failed on "the browser reported Content-Security-Policy violations: eval": zod 4 probes `new Function` when the first object schema is built, and the pages' CSP reports it. These are the first schemas the browser runs. `src/lib/zod-csp.ts` sets `jitless` in the browser; the files that build schemas import it first. The test fixture that fails on any CSP violation is the guard.
+- **Escape closed the dialog under the "leave?" question.** `Dialog` is controlled, but the platform closes a `<dialog>` on Escape before the owner can object. `Dialog` got an opt-in `confirmClose` (Escape is reported through `onClose`; the owner decides). Existing dialogs are unchanged.
+- **Literal byte-order marks in four files** (the `\ufeff` escape had become the character): found by the repo's own `source-hygiene.spec.ts` in the full unit run, replaced by the escape.
+
+**Gates, in order, on the final tree:** `tsc --noEmit` exit 0; `eslint` 0 errors (2 warnings in files this task did not touch); `pnpm build` exit 0; Prettier `--check` clean on the changed files (`staff.ts`, `StaffPanel.tsx` and `Dialog.tsx` were clean at `dev` before they were formatted). The whole `unit` project: **1185 passed, 1 failed** (the BOM above); after the fix the guard and the five bulk specs: **29 passed**. API: `staff-assignments`, `staff-bulk`, `hardening-input`: passed in the same run.
+
+**Not run, and not claimed:** the rest of the browser suite, `integration`, `https`, the rest of the `api` project, the walkthrough support project (no page, navigation entry or matrix file was removed), mutation passes (deferred to the end of PHASE 2). **No migration, no environment change.** Two new dependencies' advisories were checked first (`npm audit`: 0 for `read-excel-file`, `write-excel-file` and the data-validation plugin; `exceljs` had 2 moderate and was not used).
+
