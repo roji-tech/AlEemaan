@@ -9,6 +9,7 @@ import { completeSignIn } from "@/lib/auth/complete-sign-in";
 import { createChallenge } from "@/lib/auth/mfa/challenge";
 import { hasActiveMfa } from "@/lib/auth/mfa/service";
 import { readJsonBody } from "@/lib/api/validate";
+import { portalAdmitsRequest } from "@/lib/auth/portal-gate";
 
 const loginSchema = z.object({
   // 254 = the practical RFC 5321 maximum; also bounds the size of the
@@ -80,11 +81,14 @@ async function handleLogin(req: NextRequest): Promise<NextResponse> {
   const accountThrottled = !(await checkRateLimit(accountKey, LOGIN_ACCOUNT_SOFT_LIMIT));
 
   const user = await prisma.user.findUnique({ where: { email } });
+  // Sign-in portals (task 0086): when they are on, the person must hold a role this portal admits. Asked before the password is checked and for a non-existent account too, so the
+  // answer below is the SAME for "no such account", "wrong password" and "right password on the wrong portal" (no message, status, timing or rate-limit count tells them apart).
+  const admitted = await portalAdmitsRequest(req, user?.id ?? null, user?.isSuperAdmin ?? false);
   // Always runs bcrypt.compare (against a dummy hash if there's no user or no
   // passwordHash), so "no such account" costs the same as "wrong password".
   const valid = await verifyPassword(password, user?.passwordHash ?? null);
 
-  if (!user?.passwordHash || !valid) {
+  if (!user?.passwordHash || !valid || !admitted) {
     await reserveAttempt(accountKey, LOGIN_ACCOUNT_SOFT_LIMIT);
     // Identical body for "no such user" and "wrong password" — enumeration
     // can't tell them apart from the content or the timing.

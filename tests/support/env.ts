@@ -26,11 +26,15 @@ export const DEVTOOLS_PORT = 3202;
 /// (tests/support/pwned-stub.mjs), because nothing in the suite may talk to the real one.
 export const BREACH_PORT = 3203;
 export const PWNED_STUB_PORT = 3204;
+/// A SIXTH server (task 0086): the same build with the four sign-in portals ON (admin., staff., student., parent. of `localhost`; Chromium resolves `*.localhost` to this machine, and API tests
+/// name the portal with X-Forwarded-Host, which this server is told to trust). The other servers have the portals OFF.
+export const PORTALS_PORT = 3205;
 export const DEV_TOOLS_TEST_TOKEN = "test-dev-tools-token-0123456789";
 
 export const HTTP_URL = `http://localhost:${HTTP_PORT}`;
 export const DEVTOOLS_URL = `http://localhost:${DEVTOOLS_PORT}`;
 export const BREACH_URL = `http://localhost:${BREACH_PORT}`;
+export const PORTALS_URL = `http://localhost:${PORTALS_PORT}`;
 export const PWNED_STUB_URL = `http://127.0.0.1:${PWNED_STUB_PORT}`;
 export const HTTPS_URL = `https://localhost:${TLS_PORT}`;
 
@@ -118,6 +122,11 @@ export function serverEnv(appUrl: string): Record<string, string> {
     DEV_TOOLS: "",
     DEV_TOOLS_TOKEN: "",
     PWNED_PASSWORD_CHECK: "off",
+    // Sign-in portals are OFF on every server but the portals one, whatever a developer's own .env says.
+    ADMIN_SUBDOMAIN: "",
+    STAFF_SUBDOMAIN: "",
+    STUDENT_SUBDOMAIN: "",
+    PARENT_SUBDOMAIN: "",
     SESSION_SECRET: TEST_PORTAL_SECRET,
     FORCE_MOCK_PAYSTACK: "true",
     ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: "true",
@@ -151,5 +160,17 @@ export function devToolsServerEnv(): Record<string, string> {
     DEV_TOOLS_TOKEN: DEV_TOOLS_TEST_TOKEN,
     // The one server with NO image store: the pictures routes must answer 503 there.
     IMAGE_STORE: "",
+  };
+}
+
+/// The portals server: the four portals on, and X-Forwarded-Host trusted so an API test can say which portal it is calling.
+export function portalsServerEnv(): Record<string, string> {
+  return {
+    ...serverEnv(PORTALS_URL),
+    ADMIN_SUBDOMAIN: "admin",
+    STAFF_SUBDOMAIN: "staff",
+    STUDENT_SUBDOMAIN: "student",
+    PARENT_SUBDOMAIN: "parent",
+    TRUST_FORWARDED_HOST: "true",
   };
 }

@@ -3,6 +3,8 @@ import { isMalformedPath } from "@/lib/api/ids";
 import { SCHOOL_MAP_ORIGINS } from "@/lib/school-site/paths";
 import { buildCsp, generateNonce } from "@/lib/security/csp";
 import { videoGuideMedia } from "@/lib/video-guide/media-base";
+import { requestHost } from "@/lib/auth/csrf";
+import { apexOrigin, classifyHost, isLandingPath, readPortalConfig } from "@/lib/portals";
 
 // Per-request nonce-based CSP (domain-implementation-plan.md §0.5.B). Next 16 calls this file `proxy`
 // (it was `middleware`). The nonce goes on the REQUEST headers — Next reads the policy from there and
@@ -12,6 +14,9 @@ import { videoGuideMedia } from "@/lib/video-guide/media-base";
 // CSP_REPORT_ONLY=true sends the same policy as Content-Security-Policy-Report-Only: violations show
 // in the browser console but nothing is blocked. It is a valve for diagnosing an unforeseen violation
 // on a live deployment without an outage; the default is enforcing.
+// The sign-in portals (task 0086): read once; none of the four `*_SUBDOMAIN` variables set means the feature is off.
+const PORTALS = readPortalConfig().config;
+
 export function proxy(request: NextRequest) {
   // Broken percent-encoding in the path ("%ff", "%ED%A0%80") makes Next answer 500 before any route runs. It is a bad request, not a server fault.
   if (isMalformedPath(request.nextUrl.pathname))
@@ -21,6 +26,15 @@ export function proxy(request: NextRequest) {
     });
   // The API has its own static policy (next.config.ts); it comes through here only for the check above.
   if (request.nextUrl.pathname.startsWith("/api/")) return NextResponse.next();
+
+  // The school's public website lives on its own host only: asked for on a sign-in portal (admin., staff., ...), the same path is sent to the school's host. A temporary redirect
+  // (307), so a browser never pins it if the portals are changed.
+  const host = requestHost(request);
+  const info = classifyHost(host, PORTALS);
+  if (info.kind === "portal" && isLandingPath(request.nextUrl.pathname)) {
+    const protocol = (process.env.APP_URL ?? "").startsWith("https://") ? "https:" : "http:";
+    return NextResponse.redirect(`${apexOrigin(info, host, protocol)}${request.nextUrl.pathname}${request.nextUrl.search}`, 307);
+  }
 
   const nonce = generateNonce();
   const policy = buildCsp({

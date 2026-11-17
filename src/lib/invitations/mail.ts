@@ -1,3 +1,4 @@
+import { portalFor } from "@/lib/portals";
 import type { Role } from "@prisma/client";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
 import { invitationEmail } from "@/lib/email/messages";
@@ -25,6 +26,7 @@ export async function mailInvitation(input: {
       roleLabel: ROLE_LABELS[input.role],
       inviterName: input.inviterName,
       days: INVITATION_TTL_DAYS,
+      portal: portalFor({ roles: [input.role], isSuperAdmin: false }),
     }),
   );
 }

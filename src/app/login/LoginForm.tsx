@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { TextField } from "@/components/ui/TextField";
+import { PORTAL_ICONS } from "./PortalChooser";
+import type { Portal } from "@/lib/portals";
 
 type Status = "idle" | "submitting" | "success" | "paused";
 
@@ -18,8 +20,10 @@ type Status = "idle" | "submitting" | "success" | "paused";
 const PAUSE_SECONDS = 30;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function LoginForm() {
+/// `portal` is set on a sign-in portal (task 0086): the page then says which one it is, in its heading and a small badge. It comes from the address, not from anything typed.
+export function LoginForm({ portal }: { portal?: { id: Portal; title: string; line: string } }) {
   const router = useRouter();
+  const PortalIcon = portal ? PORTAL_ICONS[portal.id] : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -155,8 +159,19 @@ export function LoginForm() {
         <MfaStep challenge={challenge} onBack={() => leaveMfaStep(null)} onExpired={(message) => leaveMfaStep(message)} />
       ) : (
         <>
-          <h1 className="text-[22px] font-bold tracking-tight text-fg">Sign in to your dashboard</h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">Enter your credentials to continue.</p>
+          {PortalIcon && portal && (
+            <span
+              data-portal={portal.id}
+              className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold tracking-wide text-brand-fg uppercase"
+            >
+              <PortalIcon aria-hidden="true" className="h-4 w-4" />
+              {portal.id}
+            </span>
+          )}
+          <h1 className="text-[22px] font-bold tracking-tight text-fg">{portal ? portal.title : "Sign in to your dashboard"}</h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
+            {portal ? `${portal.line} Enter your credentials to continue.` : "Enter your credentials to continue."}
+          </p>
 
           {/* method="post": if the form is ever submitted natively (JavaScript failed to load, or the
               user hits Enter before hydration finishes) a default GET would put the password in the

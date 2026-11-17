@@ -1,3 +1,4 @@
+import { portalForUser } from "@/lib/auth/portal-gate";
 import { after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -63,7 +64,7 @@ export const POST = withAuth(async (req, auth) => {
   after(async () => {
     try {
       await auditPersonEvent(auth.userId, "PASSWORD_CHANGED");
-      if (user?.email) await sendEmailQuietly(passwordChangedEmail(user.email));
+      if (user?.email) await sendEmailQuietly(passwordChangedEmail(user.email, await portalForUser(auth.userId)));
     } catch (error) {
       console.error("[change-password] follow-up failed:", error instanceof Error ? error.message : error);
     }
