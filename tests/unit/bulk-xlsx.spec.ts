@@ -32,19 +32,30 @@ const bufferOf = async (blob: Blob) => Buffer.from(await blob.arrayBuffer());
 
 test("a workbook reads back as the same text, cell for cell, first sheet only", async () => {
   const headers = ["First name", "Last name", "Phone"];
-  const rows = [["Amina", "Yusuf", "08031234567"], ["Bala", "", "+2348031234567"]];
+  const rows = [
+    ["Amina", "Yusuf", "08031234567"],
+    ["Bala", "", "+2348031234567"],
+  ];
   const blob = await buildWorkbook(staffColumns, headers, rows);
   const back = await readXlsx(await blob.arrayBuffer());
   expect(back.slice(0, 3)).toEqual([headers, rows[0], rows[1]]);
 });
 
 test("the phone typed as text keeps its leading zero, and a number cell comes out as plain digits, never an exponent", async () => {
-  const blob = await writeXlsxFile([[{ value: "Phone", type: String }], [{ value: 8031234567, type: Number }], [{ value: "08031234567", type: String }]]).toBlob();
+  const blob = await writeXlsxFile([
+    [{ value: "Phone", type: String }],
+    [{ value: 8031234567, type: Number }],
+    [{ value: "08031234567", type: String }],
+  ]).toBlob();
   expect(await readXlsx(await blob.arrayBuffer())).toEqual([["Phone"], ["8031234567"], ["08031234567"]]);
 });
 
 test("the fixed-value columns are dropdowns in the workbook: the category's list is its labels, and nothing else is a list", async () => {
-  const blob = await buildWorkbook(staffColumns, staffColumns.map((c) => c.label), []);
+  const blob = await buildWorkbook(
+    staffColumns,
+    staffColumns.map((c) => c.label),
+    [],
+  );
   const xml = unzipText(await bufferOf(blob), "xl/worksheets/sheet1.xml");
   const lists = xml.match(/<dataValidation [^>]*type="list"[^>]*>/g) ?? [];
   expect(lists).toHaveLength(1);

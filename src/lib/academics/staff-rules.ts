@@ -1,3 +1,4 @@
+import "@/lib/zod-csp";
 import { z } from "zod";
 
 // The rules for the fields of a staff record, with NO database in them, so the browser (the single form, the bulk screen) and the server run the very same ones. `staff.ts`

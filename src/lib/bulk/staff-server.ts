@@ -16,19 +16,36 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
     const emails = rows.flatMap((r) => (r.row.email ? [r.row.email] : []));
     if (emails.length === 0) return found;
     // A live record's email is unique per branch, case-insensitively (the partial index StaffRecord_email_live): archived records do not count.
-    const taken = await db.staffRecord.findMany({ where: { branchId: ctx.branchId, archivedAt: null, email: { in: emails, mode: "insensitive" } }, select: { email: true } });
+    const taken = await db.staffRecord.findMany({
+      where: { branchId: ctx.branchId, archivedAt: null, email: { in: emails, mode: "insensitive" } },
+      select: { email: true },
+    });
     const used = new Set(taken.map((t) => t.email?.toLowerCase()));
-    for (const r of rows) if (r.row.email && used.has(r.row.email.toLowerCase())) found.set(r.line, [{ column: "email", message: EMAIL_TAKEN }]);
+    for (const r of rows)
+      if (r.row.email && used.has(r.row.email.toLowerCase())) found.set(r.line, [{ column: "email", message: EMAIL_TAKEN }]);
     return found;
   },
   async save(tx, rows, ctx, actorUserId) {
     for (const { row } of rows) {
       const created = await tx.staffRecord.create({
-        data: { branchId: ctx.branchId, category: row.category, firstName: row.firstName, lastName: row.lastName, phone: row.phone ?? null, email: row.email ?? null },
+        data: {
+          branchId: ctx.branchId,
+          category: row.category,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          phone: row.phone ?? null,
+          email: row.email ?? null,
+        },
         select: { id: true },
       });
       await tx.auditLog.create({
-        data: { actorUserId, action: "STAFF_CREATED", targetType: "StaffRecord", targetId: created.id, afterValue: { category: row.category, branchId: ctx.branchId } },
+        data: {
+          actorUserId,
+          action: "STAFF_CREATED",
+          targetType: "StaffRecord",
+          targetId: created.id,
+          afterValue: { category: row.category, branchId: ctx.branchId },
+        },
       });
     }
   },

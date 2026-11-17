@@ -18,14 +18,20 @@ export const toCsv = (headers: string[], rows: string[][]): string =>
   `﻿${[headers, ...rows].map((r) => r.map((c) => quote(neutralise(c))).join(",")).join("\r\n")}\r\n`;
 
 /// The rows with problems, for fixing in a spreadsheet and uploading back: their original row numbers first, then the template's columns, then what is wrong.
-export function problemRowsTable(columns: BulkColumn[], rows: SourceRow[], verdicts: RowVerdict[]): { headers: string[]; rows: string[][] } {
+export function problemRowsTable(
+  columns: BulkColumn[],
+  rows: SourceRow[],
+  verdicts: RowVerdict[],
+): { headers: string[]; rows: string[][] } {
   const label = new Map(columns.map((c) => [c.key, c.label]));
   const byLine = new Map(verdicts.map((v) => [v.line, v]));
   const out: string[][] = [];
   for (const row of rows) {
     const verdict = byLine.get(row.line);
     if (verdict?.status !== "error") continue;
-    const why = verdict.problems.map((p) => (p.column && label.get(p.column) ? `${label.get(p.column)}: ${p.message}` : p.message)).join(" ");
+    const why = verdict.problems
+      .map((p) => (p.column && label.get(p.column) ? `${label.get(p.column)}: ${p.message}` : p.message))
+      .join(" ");
     out.push([String(row.line), ...columns.map((c) => row.values[c.key] ?? ""), why]);
   }
   return { headers: ["Row", ...columns.map((c) => c.label), "Problem"], rows: out };

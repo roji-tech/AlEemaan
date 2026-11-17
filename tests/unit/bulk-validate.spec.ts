@@ -13,7 +13,10 @@ const row = (line: number, values: Record<string, string>, extra: Partial<Source
 
 test("a good row is ready and comes out normalised: the category word mapped, the email lower-cased, empty optional cells absent", () => {
   const out = validateRows(staffEntity, [row(2, { category: " non-teaching ", email: "A@X.com" }), row(3, { category: "T" })]);
-  expect(out.verdicts.map((v) => [v.line, v.status])).toEqual([[2, "ready"], [3, "ready"]]);
+  expect(out.verdicts.map((v) => [v.line, v.status])).toEqual([
+    [2, "ready"],
+    [3, "ready"],
+  ]);
   expect(out.ok[0].row).toEqual({ category: "NON_TEACHING", firstName: "Amina", lastName: "Yusuf", email: "a@x.com" });
   expect(out.ok[1].row).toEqual({ category: "TEACHING", firstName: "Amina", lastName: "Yusuf" });
 });
@@ -29,7 +32,10 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
 test("every column has samples, and each passing value passes while each failing value is a problem on that column", () => {
   expect(Object.keys(SAMPLES).sort()).toEqual(staffColumns.map((c) => c.key).sort());
   for (const [column, { pass, fail }] of Object.entries(SAMPLES)) {
-    for (const value of pass) expect(validateRows(staffEntity, [row(2, { [column]: value })]).verdicts[0].status, `${column}=${JSON.stringify(value)}`).toBe("ready");
+    for (const value of pass)
+      expect(validateRows(staffEntity, [row(2, { [column]: value })]).verdicts[0].status, `${column}=${JSON.stringify(value)}`).toBe(
+        "ready",
+      );
     for (const value of fail) {
       const v = validateRows(staffEntity, [row(2, { [column]: value })]).verdicts[0];
       expect([v.status, v.problems.map((p) => p.column)], `${column}=${JSON.stringify(value)}`).toEqual(["error", [column]]);
@@ -47,7 +53,12 @@ test("one row can have several problems, each on its own column", () => {
 });
 
 test("an email repeated inside the file is a problem on the later row only, naming the earlier row; case does not hide it", () => {
-  const out = validateRows(staffEntity, [row(2, { email: "a@x.com" }), row(3, { firstName: "B", email: "A@X.com" }), row(4, { firstName: "C", email: "" }), row(5, { firstName: "D", email: "" })]);
+  const out = validateRows(staffEntity, [
+    row(2, { email: "a@x.com" }),
+    row(3, { firstName: "B", email: "A@X.com" }),
+    row(4, { firstName: "C", email: "" }),
+    row(5, { firstName: "D", email: "" }),
+  ]);
   expect(out.verdicts.map((v) => v.status)).toEqual(["ready", "error", "ready", "ready"]);
   expect(out.verdicts[1].problems).toEqual([{ column: "email", message: "Repeats row 2." }]);
   expect(out.ok.map((o) => o.line)).toEqual([2, 4, 5]);

@@ -44,7 +44,12 @@ async function verdictsFor<Row, Ctx>(kind: ServerKind<Row, Ctx>, db: Tx, ctx: Ct
   return { verdicts: merge(checked.verdicts, found), ok: checked.ok };
 }
 
-export async function runBulk<Row, Ctx>(kind: ServerKind<Row, Ctx>, ctx: Ctx, request: BulkRequest, actorUserId: string): Promise<BulkOutcome> {
+export async function runBulk<Row, Ctx>(
+  kind: ServerKind<Row, Ctx>,
+  ctx: Ctx,
+  request: BulkRequest,
+  actorUserId: string,
+): Promise<BulkOutcome> {
   const rows: SourceRow[] = request.rows.map((r) => ({ line: r.line, values: r.values }));
   if (request.dryRun) return { kind: "dry-run", verdicts: (await verdictsFor(kind, prisma, ctx, rows)).verdicts };
 

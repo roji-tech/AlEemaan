@@ -29,7 +29,11 @@ export function mapTable(table: string[][], columns: BulkColumn[], opts: { maxRo
     const n = norm(raw);
     const column = lookup.get(n);
     if (column) {
-      if (at.has(column.key)) out.problems.push({ line: head.line, message: `The "${column.label}" column appears twice ("${seenAs.get(column.key)}" and "${raw.trim()}"): keep one.` });
+      if (at.has(column.key))
+        out.problems.push({
+          line: head.line,
+          message: `The "${column.label}" column appears twice ("${seenAs.get(column.key)}" and "${raw.trim()}"): keep one.`,
+        });
       else {
         at.set(column.key, i);
         seenAs.set(column.key, raw.trim());
@@ -37,8 +41,11 @@ export function mapTable(table: string[][], columns: BulkColumn[], opts: { maxRo
     } else if (opts.allowRowColumn && ROW_HEADERS.has(n) && rowAt === -1) rowAt = i;
     else if (!SILENT_HEADERS.has(n) && n !== "") out.warnings.push(`The column "${raw.trim()}" is not recognised and was ignored.`);
   });
-  for (const c of columns) if (c.required && !at.has(c.key)) out.problems.push({ line: head.line, message: `A "${c.label}" column is missing from the first row.` });
-  if (opts.allowRowColumn && rowAt === -1) out.problems.push({ line: head.line, message: 'The corrections file needs the "Row" column from the download.' });
+  for (const c of columns)
+    if (c.required && !at.has(c.key))
+      out.problems.push({ line: head.line, message: `A "${c.label}" column is missing from the first row.` });
+  if (opts.allowRowColumn && rowAt === -1)
+    out.problems.push({ line: head.line, message: 'The corrections file needs the "Row" column from the download.' });
   if (out.problems.length > 0) return out;
 
   const body = numbered.slice(1);

@@ -22,7 +22,8 @@ export const POST = withAuth(
     withBranch<Parsed<z.infer<typeof body>, undefined>, AuthContext, unknown>(
       { of: ({ body }) => body.branchId, as: "administer", where: "body" },
       async (_req, auth, _ctx, { body }) => {
-        if (!(await reserveAttempt(`bulk:staff:${auth.userId}`, PER_WINDOW))) return fail("Too many bulk requests. Please try again in a few minutes.", 429, "RATE_LIMITED");
+        if (!(await reserveAttempt(`bulk:staff:${auth.userId}`, PER_WINDOW)))
+          return fail("Too many bulk requests. Please try again in a few minutes.", 429, "RATE_LIMITED");
         return structureCall("STAFF_BULK", async () =>
           bulkResponse(await runBulk(staffKind, { branchId: body.branchId }, { dryRun: body.dryRun, rows: body.rows }, auth.userId)),
         );

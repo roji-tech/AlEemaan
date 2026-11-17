@@ -1,15 +1,19 @@
-import { CELL_MAX_CHARS, type BulkEntity, type Problem, type RowVerdict, type SourceRow } from "./types";
+import { CELL_MAX_CHARS, type BulkEntityShape, type Problem, type RowVerdict, type SourceRow } from "./types";
 
 /// The shared row rules (task 0084 D2 b and c): the kind's schema on every row, then repeated keys inside the file. The SAME function runs in the browser (to show problems at once)
 /// and on the server (which never trusts what the browser says it checked). Returns one verdict per row, and the normalised rows that passed.
-export function validateRows<Row>(entity: BulkEntity<Row>, rows: SourceRow[]): { verdicts: RowVerdict[]; ok: { line: number; row: Row }[] } {
+export function validateRows<Row>(
+  entity: BulkEntityShape<Row>,
+  rows: SourceRow[],
+): { verdicts: RowVerdict[]; ok: { line: number; row: Row }[] } {
   const verdicts: RowVerdict[] = [];
   const ok: { line: number; row: Row }[] = [];
   const firstSeen = new Map<string, number>(); // `${key}:${value}` -> line
 
   for (const source of rows) {
     const problems: Problem[] = [];
-    if (source.overflow) problems.push({ message: "This row has more cells than the header has columns (a comma inside a value must be in quotes)." });
+    if (source.overflow)
+      problems.push({ message: "This row has more cells than the header has columns (a comma inside a value must be in quotes)." });
     const input: Record<string, string> = {};
     for (const c of entity.columns) {
       const v = source.values[c.key] ?? "";

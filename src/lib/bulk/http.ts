@@ -12,7 +12,9 @@ export const bulkBodyShape = {
     .array(
       z.strictObject({
         line: z.number().int().min(1).max(1_000_000),
-        values: z.record(z.string().max(2000), z.string().max(2000)).refine((v) => Object.keys(v).length <= 40, "Too many cells in one row."),
+        values: z
+          .record(z.string().max(2000), z.string().max(2000))
+          .refine((v) => Object.keys(v).length <= 40, "Too many cells in one row."),
       }),
     )
     .min(1, "Send at least one row.")

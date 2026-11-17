@@ -12,7 +12,6 @@ import { personName, staffCategory as category, staffEmail as email, staffPhone 
 
 export const roleForCategory = (category: StaffCategory): Role => (category === "TEACHING" ? Role.TEACHING_STAFF : Role.NON_TEACHING_STAFF);
 
-
 export const staffInput = z.strictObject({
   branchId: z.string().min(1),
   category,

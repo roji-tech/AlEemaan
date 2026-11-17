@@ -1,3 +1,4 @@
+import "@/lib/zod-csp";
 import { z } from "zod";
 import { personName, staffCategory, staffEmail, staffPhone, STAFF_CATEGORY_LABELS } from "@/lib/academics/staff-rules";
 import type { BulkColumn, BulkEntity } from "./types";
@@ -38,12 +39,27 @@ export const staffColumns: BulkColumn[] = [
     aliases: ["type", "staffcategory", "kind"],
     required: true,
     help: "Teaching or Non-teaching",
-    options: (Object.keys(STAFF_CATEGORY_LABELS) as (keyof typeof STAFF_CATEGORY_LABELS)[]).map((value) => ({ value, label: STAFF_CATEGORY_LABELS[value] })),
+    options: (Object.keys(STAFF_CATEGORY_LABELS) as (keyof typeof STAFF_CATEGORY_LABELS)[]).map((value) => ({
+      value,
+      label: STAFF_CATEGORY_LABELS[value],
+    })),
   },
   { key: "firstName", label: "First name", aliases: ["givenname", "forename"], required: true, help: "Up to 80 characters" },
   { key: "lastName", label: "Last name", aliases: ["surname", "familyname"], required: true, help: "Up to 80 characters" },
-  { key: "phone", label: "Phone", aliases: ["phonenumber", "mobile", "telephone", "tel"], required: false, help: "7 to 20 digits; may be left empty" },
-  { key: "email", label: "Email", aliases: ["emailaddress", "mail"], required: false, help: "Must be unused by another live staff record in the branch; may be left empty" },
+  {
+    key: "phone",
+    label: "Phone",
+    aliases: ["phonenumber", "mobile", "telephone", "tel"],
+    required: false,
+    help: "7 to 20 digits; may be left empty",
+  },
+  {
+    key: "email",
+    label: "Email",
+    aliases: ["emailaddress", "mail"],
+    required: false,
+    help: "Must be unused by another live staff record in the branch; may be left empty",
+  },
 ];
 
 export const staffRowSchema: z.ZodType<StaffRow> = z.object({

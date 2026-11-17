@@ -16,7 +16,12 @@ const verdicts: RowVerdict[] = [
 
 test("a corrected row replaces the problem row with the same row number and keeps that number; everything else is untouched", () => {
   const out = applyCorrections(current, verdicts, [fix(3, "fixed3"), fix(4, "fixed4")]);
-  expect(out.next.map((x) => [x.line, x.values.firstName])).toEqual([[2, "ok"], [3, "fixed3"], [4, "fixed4"], [5, "ok2"]]);
+  expect(out.next.map((x) => [x.line, x.values.firstName])).toEqual([
+    [2, "ok"],
+    [3, "fixed3"],
+    [4, "fixed4"],
+    [5, "ok2"],
+  ]);
   expect([out.replaced, out.refused]).toEqual([2, []]);
 });
 test("a row with no number, a number that is not in the file, or a row that had no problem is refused with its own sentence and changes nothing", () => {

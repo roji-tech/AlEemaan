@@ -38,7 +38,11 @@ export async function buildWorkbook(columns: BulkColumn[], headers: string[], ro
     return [
       {
         cellRange: { from: { row: 2, column: at + 1 }, to: { row: lastRow, column: at + 1 } },
-        validation: { type: "list" as const, values: c.options.map((o) => o.label), error: `Choose one of: ${c.options.map((o) => o.label).join(", ")}.` },
+        validation: {
+          type: "list" as const,
+          values: c.options.map((o) => o.label),
+          error: `Choose one of: ${c.options.map((o) => o.label).join(", ")}.`,
+        },
       },
     ];
   });
