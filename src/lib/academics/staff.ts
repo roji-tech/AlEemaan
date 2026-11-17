@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
 import { ConflictError, audit } from "@/lib/academics/structure";
+import { personName, staffCategory as category, staffEmail as email, staffPhone as phone } from "@/lib/academics/staff-rules";
 
 // Staff records and teaching assignments (Slice P1c). A record is how the BRANCH knows a person (a security guard has one and never an account); a sign-in
 // account is a member of the same branch it may be linked to - once, by an administrator, and only to a member whose role fits the record's category. The
@@ -11,18 +12,6 @@ import { ConflictError, audit } from "@/lib/academics/structure";
 
 export const roleForCategory = (category: StaffCategory): Role => (category === "TEACHING" ? Role.TEACHING_STAFF : Role.NON_TEACHING_STAFF);
 
-const personName = z.string().trim().min(1, "Give a name.").max(80, "Use at most 80 characters.");
-const phone = z
-  .string()
-  .trim()
-  .regex(/^[0-9+() -]{7,20}$/, "Use 7 to 20 digits (spaces, +, - and brackets are fine).");
-const email = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .max(254)
-  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "That does not look like an email address.");
-const category = z.enum(["TEACHING", "NON_TEACHING"]);
 
 export const staffInput = z.strictObject({
   branchId: z.string().min(1),
@@ -47,7 +36,7 @@ export const assignmentInput = z.strictObject({ subjectId: z.string().min(1), cl
 export const staffBranchId = async (id: string) =>
   (await prisma.staffRecord.findUnique({ where: { id }, select: { branchId: true } }))?.branchId ?? null;
 
-const EMAIL_TAKEN = "Another staff record in this branch already uses that email.";
+export const EMAIL_TAKEN = "Another staff record in this branch already uses that email.";
 const duplicate = (error: unknown, message: string): never => {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ConflictError(message);
   throw error;
