@@ -10,7 +10,7 @@
     "kind": "positive",
     "proof": "The first and only page load of the recording: the address lands on First-run setup",
     "source": [
-      "src/app/page.tsx"
+      "src/app/(marketing)/(site)/page.tsx"
     ],
     "status": "planned"
   },
@@ -26,7 +26,7 @@
     "kind": "positive",
     "proof": "In a new tab, type the site address once (one goto for that tab): signed out shows the front page with its Sign in link; signed in lands on the overview",
     "source": [
-      "src/app/page.tsx",
+      "src/app/(marketing)/(site)/page.tsx",
       "src/lib/landing/start.ts"
     ],
     "status": "planned",
@@ -60,7 +60,7 @@
     "kind": "positive",
     "proof": "Read the hero, each section, the closing and the footer; the Sign in entries (header, hero, closing, footer) lead to sign-in and the Parent and pupil portal links lead to the portal",
     "source": [
-      "src/app/page.tsx",
+      "src/app/(marketing)/(site)/page.tsx",
       "src/components/landing/LandingPage.tsx",
       "src/lib/brand.ts"
     ],
@@ -5384,6 +5384,142 @@
       "src/components/programs/ProgressWeekGrid.tsx",
       "src/lib/programs/progress-rules.ts",
       "src/lib/programs/progress-service.ts"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-01",
+    "area": "Start",
+    "feature": "About the school: its history, mission, vision and leadership",
+    "route": "/about",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /about from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/about/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-02",
+    "area": "Start",
+    "feature": "Admissions: how a family applies to the school",
+    "route": "/admissions",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /admissions from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/admissions/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-03",
+    "area": "Start",
+    "feature": "The school anthem",
+    "route": "/anthem",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /anthem from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/anthem/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-04",
+    "area": "Start",
+    "feature": "Contact: how to reach the school, and the WhatsApp message",
+    "route": "/contact",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /contact from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/contact/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-05",
+    "area": "Start",
+    "feature": "Old students: the alumni page",
+    "route": "/oldstudents",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /oldstudents from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/oldstudents/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-06",
+    "area": "Start",
+    "feature": "Our academics: what the school teaches",
+    "route": "/our-academics",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /our-academics from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/our-academics/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-07",
+    "area": "Start",
+    "feature": "Subjects: the list the school teaches",
+    "route": "/subjects",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /subjects from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/subjects/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-08",
+    "area": "Start",
+    "feature": "Vacancies: the posts the school is hiring for",
+    "route": "/vacancy",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /vacancy from the school website's navigation: the page reads, and its header links lead to the other pages and to sign-in",
+    "source": [
+      "src/app/(marketing)/(site)/vacancy/page.tsx"
+    ],
+    "status": "planned"
+  },
+  {
+    "id": "SIT-09",
+    "area": "Start",
+    "feature": "The product landing page, moved from the site address to /product",
+    "route": "/product",
+    "roles": [
+      "Visitor"
+    ],
+    "kind": "positive",
+    "proof": "Open /product: the product landing page shows what the product offers and every way in (the page row LND-01 was written for it when it was the front page)",
+    "source": [
+      "src/app/(marketing)/product/page.tsx",
+      "src/components/landing/LandingPage.tsx"
     ],
     "status": "planned"
   }

@@ -58,7 +58,7 @@ test("the branch comes first; a file is reviewed with what it would replace, and
     data: {
       email: email("open"),
       role: "PARENT",
-      branchId: branch.id,
+      branchId: branch.branchId,
       tokenHash: "h".repeat(64),
       invitedById: admin.id,
       expiresAt: new Date(Date.now() + 86_400_000),
@@ -81,7 +81,11 @@ test("a branch administrator is not offered Administrator and is told why a file
   await expect(summary(page)).toContainText("2 rows: 1 ready, 1 with problems");
   await expect(dialog(page).getByText("Only a superadmin can invite an administrator.")).toBeVisible();
   await dialog(page).getByRole("button", { name: "Edit the 1 problem row" }).click();
-  expect(await dialog(page).getByLabel("Role, row 2").locator("option").allInnerTexts()).not.toContain("Administrator");
+  // The value that was written stays in the cell (so the row reads true) but is disabled: Administrator is not among what can be chosen.
+  const choices = await dialog(page).getByLabel("Role, row 2").locator("option:not([disabled])").allInnerTexts();
+  expect(choices).toContain("Teaching staff");
+  expect(choices).not.toContain("Administrator");
+  await expect(dialog(page).getByLabel("Role, row 2").locator("option[disabled]")).toHaveText("Administrator");
 });
 
 test("a superadmin sees Administrator among the roles", async ({ page }) => {

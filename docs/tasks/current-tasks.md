@@ -661,6 +661,6 @@
 - [x] Slice 2, invitations: `POST /api/v1/invitations/import`, "Invite many" (branch first; a branch administrator is not offered Administrator; "Will replace the open invitation."; e-mails after the commit; 200 rows, 2 saves per 5 minutes)
 - [x] Slice 3, pupils: `POST /api/v1/students/import` replaced (all or nothing, a dry run, a class and arm that must exist, an admission number that must be free, a namesake only with the override); the gaps of the old import are listed in the task file; "Add many" replaces "Import from spreadsheet"
 - [x] Slice 4, fees: `POST /api/v1/finance/fee-structures/import` and "Add many" on the Fee schedule tab (period and class by name, exact money in whole kobo, a repeated line refused, the review's total per period and class)
-- [x] Tests, failing first: slice 2 unit and API 12 failed, browser 4 failed; slices 3 and 4 unit 16 failed, API and browser 19 failed; with the code: API 96, browser (desktop and phone) 89, unit 1186, walkthrough support 56
+- [x] Tests, failing first: slice 2 unit and API 12 failed, browser 4 failed; slices 3 and 4 unit 16 failed, API and browser 19 failed; with the first version of the code the real result was API 96 passed, browser 8 failed, unit 1 failed, walkthrough support 2 failed (reported wrongly as all passed; see the correction in section 8 of the task file); after the fix-forward: API 96, browser 97 passed, 0 failed, unit 1187, walkthrough support 58, 0 failed
 - [ ] Not done: the rest of the browser suite, integration and https; mutation passes (deferred to the end of PHASE 2)
 

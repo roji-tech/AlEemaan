@@ -145,7 +145,12 @@ export function BulkGrid({
                                 {o.label}
                               </option>
                             ))}
-                            {value !== "" && !c.options.some((o) => o.label === value) && <option value={value}>{value}</option>}
+                            {value !== "" && !c.options.some((o) => o.label === value) && (
+                              // What was written stays visible so the row reads true, but it can't be chosen again.
+                              <option value={value} disabled>
+                                {value}
+                              </option>
+                            )}
                           </select>
                         ) : (
                           <input

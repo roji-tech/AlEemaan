@@ -38,6 +38,8 @@ const dateOfBirth = z.preprocess(
   z
     .string({ error: "Give the date of birth." })
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a real date, like 2014-03-21 or 21/03/2014.")
+    // A date that only looks right ("2014-02-31") is not on the calendar: `toIsoDate` returned null for it, so the text came through unchanged and the pattern alone accepted it.
+    .refine((v) => toIsoDate(v) !== null, "Use a real date, like 2014-03-21 or 21/03/2014.")
     .refine((v) => Number(v.slice(0, 4)) >= MIN_YEAR, `The year must be ${MIN_YEAR} or later.`)
     .refine((v) => v <= new Date().toISOString().slice(0, 10), "The date of birth can't be in the future."),
 );
