@@ -1,12 +1,12 @@
 import "@/lib/zod-csp";
 import { z } from "zod";
 import { personName, staffCategory, staffEmail, staffPhone, STAFF_CATEGORY_LABELS } from "@/lib/academics/staff-rules";
+import { blankToUndefined, letters, phoneText } from "./fields";
 import type { BulkColumn, BulkEntity } from "./types";
 
 // The staff kind of the bulk entry (task 0084), client-safe: columns and the row's rules, which are the SAME field rules as the single form (`staff-rules.ts`).
 // The server side (what the database knows, and the save) is `staff-server.ts`.
 
-const letters = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
 /// Teaching / Teacher / T and Non-teaching / Support / NT, in any capitals, with spaces, hyphens or underscores. Anything else is left as it is, so the rule below refuses it.
 function toCategory(v: unknown): unknown {
   if (typeof v !== "string") return v;
@@ -15,13 +15,6 @@ function toCategory(v: unknown): unknown {
   if (["nonteaching", "nonteachingstaff", "support", "supportstaff", "nt"].includes(w)) return "NON_TEACHING";
   return v.trim() === "" ? undefined : v;
 }
-const blankToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
-/// Excel keeps a phone typed as 08031234567 as a NUMBER and drops the zero: ten digits that do not start with 0 get it back.
-const phoneText = (v: unknown) => {
-  const t = blankToUndefined(v);
-  return typeof t === "string" && /^[1-9]\d{9}$/.test(t.trim()) ? `0${t.trim()}` : t;
-};
-
 const CATEGORY_MESSAGE = "Choose Teaching or Non-teaching.";
 
 export type StaffRow = {

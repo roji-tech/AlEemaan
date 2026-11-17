@@ -43,6 +43,8 @@ type Props = {
   contextControl?: (locked: boolean) => ReactNode;
   /// False while that control is not filled in: the file, the templates and the grid wait for it.
   canStart?: boolean;
+  /// Something the kind wants shown above the rows of a review (a fee file's totals per class).
+  reviewExtra?: (rows: SourceRow[], verdicts: RowVerdict[]) => ReactNode;
   onSaved: (count: number) => void | Promise<void>;
 };
 
@@ -65,6 +67,7 @@ export function BulkImportDialog({
   noun,
   contextControl,
   canStart = true,
+  reviewExtra,
   onSaved,
 }: Props) {
   const [stage, setStage] = useState<Stage>("start");
@@ -318,6 +321,7 @@ export function BulkImportDialog({
                   </ul>
                 </Alert>
               )}
+              {reviewExtra?.(rows, verdicts)}
               <BulkReview entity={entity} rows={rows} verdicts={verdicts} />
               <div className="flex flex-wrap items-center gap-2">
                 {bad === 0 && rows.length > 0 && (

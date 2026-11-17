@@ -19,6 +19,8 @@ export type ServerKind<Row, Ctx> = {
   entity: BulkEntity<Row>;
   /// Problems that only the database knows, by row number (a clash with a saved record, a name that does not exist). Called with the transaction on a real run.
   check: (db: Tx, rows: CheckedRow<Row>[], ctx: Ctx) => Promise<Map<number, Problem[]>>;
+  /// Runs first inside a real run's transaction, before anything is checked (take a lock that serialises two people saving at once). Optional.
+  prepare?: (tx: Prisma.TransactionClient, ctx: Ctx) => Promise<void>;
   /// What a save would CHANGE without refusing it (it replaces an open invitation): a sentence per row, shown in the dry run. Optional.
   notes?: (db: Tx, rows: CheckedRow<Row>[], ctx: Ctx) => Promise<Map<number, string>>;
   /// Writes every row, inside the transaction, with one audit entry per row. The bulk's own audit entry is written by the caller of this function. May return work to do AFTER the
@@ -69,6 +71,7 @@ export async function runBulk<Row, Ctx>(
 
   try {
     return await prisma.$transaction(async (tx): Promise<BulkOutcome> => {
+      await kind.prepare?.(tx, ctx);
       const { verdicts, ok } = await verdictsFor(kind, tx, ctx, rows);
       if (verdicts.some((v) => v.status === "error")) return { kind: "blocked", verdicts };
       const afterCommit = await kind.save(tx, ok, ctx, actorUserId);

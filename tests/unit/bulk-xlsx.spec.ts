@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { inflateRawSync } from "node:zlib";
 import writeXlsxFile from "write-excel-file/universal";
-import { buildWorkbook, readXlsx } from "@/lib/bulk/xlsx";
+import { buildWorkbook, fitsInlineList, readXlsx } from "@/lib/bulk/xlsx";
 import { staffColumns } from "@/lib/bulk/staff";
 
 // Excel files (task 0084 D5, D10): read the first sheet as text, write a workbook whose fixed-value columns are dropdowns.
@@ -66,4 +66,18 @@ test("the fixed-value columns are dropdowns in the workbook: the category's list
 
 test("something that is not an .xlsx file is refused, not read as garbage", async () => {
   await expect(readXlsx(new TextEncoder().encode("a,b\n1,2").buffer as ArrayBuffer)).rejects.toThrow();
+});
+
+test("Excel keeps a dropdown as one comma-separated string of at most 255 characters: a longer list, or a value with a comma, gets no dropdown instead of a damaged file", async () => {
+  expect(fitsInlineList(["Male", "Female"])).toBe(true);
+  expect(fitsInlineList([])).toBe(false);
+  expect(fitsInlineList(["JSS 1", "Hifz, A"])).toBe(false);
+  const many = Array.from({ length: 40 }, (_, i) => `Class number ${i}`);
+  expect(many.join(",").length).toBeGreaterThan(255);
+  expect(fitsInlineList(many)).toBe(false);
+  const columns = [
+    { key: "c", label: "Class", aliases: [], required: false, help: "", options: many.map((v) => ({ value: v, label: v })) },
+  ];
+  const xml = unzipText(await bufferOf(await buildWorkbook(columns, ["Class"], [])), "xl/worksheets/sheet1.xml");
+  expect(xml).not.toContain('type="list"');
 });
