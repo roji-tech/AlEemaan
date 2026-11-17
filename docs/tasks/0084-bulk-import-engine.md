@@ -1,0 +1,100 @@
+# 0084: One bulk-entry engine (file or grid, checked in the browser and again on the server), used for staff, invitations and pupils
+
+- **Period / Focus:** 2026-11-17 (the maintainer: bulk add for staff first, then bulk inviting, then the pupil import brought up to the same standard; "make it a template for general use")
+- **Status:** In progress (slice 1 done; the record is section 8)
+- **Priority:** High
+- **Assignee:** Claude
+- **Target Branch / PR:** `claude/bulk-import-*` (one branch and PR per slice, section 6) / PRs into `dev`
+- **Started:** 2026-11-17
+
+> **How to tick:** change `[ ]` to `[x]`. The table shows the characters, not a clickable box.
+
+---
+
+## 1. Objective
+
+An administrator can add many people at once, three ways, and the three share one engine so a new kind of import is a definition, not a new screen:
+
+1. **Single**: the form that exists today (unchanged).
+2. **File**: a CSV or Excel (.xlsx) file, read in the browser, checked, **shown row by row**, dry-run on the server, then saved.
+3. **Grid**: a spreadsheet-like editor of at most **50 rows**: add, delete, edit cells, paste from Excel, download what is on screen.
+
+Kinds in this task: **staff** (first), **invitations**, **pupils** (the existing import moved onto the engine), **fees**. Nothing is saved that either side has not checked.
+
+## 2. What is there today (read from the code, 2026-11-17)
+
+- **Pupil import** (`students/import`): the browser parses CSV (`lib/students/csv.ts`); the API takes up to 1,000 rows and saves **every good row and skips the bad ones in one transaction** (partial success); there is no dry run; a duplicate (same name and birth date in the branch) is skipped unless `allowDuplicates`.
+- **Gaps in it** (each is a gap this task closes): the browser requires first and last names of at least 2 letters, the server only 1; the server checks the date of birth with a pattern (`YYYY-MM-DD`), not as a calendar date, and not against the future; `guardianEmail` and `guardianPhone` are not checked by the server at all (the browser checks the email only); no maximum lengths on any text; an unknown class or arm still creates the enrolment, with the class as text and no link to a real class; with no active session the enrolment is skipped **without a word**; rows that the browser finds wrong are left out of what it sends, so the screen can say "imported 40 of 40" about a file of 50.
+- **Staff** (`POST /staff`): one record per call, strict schema (`staffInput`: name 1 to 80, phone `7 to 20 digits`, email pattern, category), a unique email per record (the database answers a clash). A record is never a sign-in.
+- **Invitations** (`POST /invitations`): one per call; it **revokes any earlier open invitation of the same address in the same branch** and issues a new link; refused for an existing or deactivated member, a branch the caller does not administer, an `ADMIN` role unless a superadmin; limits of 30 per administrator and 3 per address per 5 minutes; the e-mail is sent after the response and a failure is only logged.
+
+## 3. Decisions
+
+- **D1. One definition per kind** (`BulkEntity`): columns (key, label, accepted spellings, required, help), a **row schema** (zod), unique keys inside the file, a **database check** (the rules only the database can answer: already a member, name taken, class not found) and a **save** step. The browser and the server run the **same row schema** from the same file in `lib/bulk/`, which holds no database client, so the two cannot drift apart. The server never trusts what the browser says it checked.
+- **D2. Layers, in order, none optional.** (a) File: type, size, empty, header has the required columns, row count. (b) Row, in the browser, with the shared schema: every column, with the sentence beside its cell. (c) Within the file: repeated keys (two rows with one e-mail). (d) **Server, dry run**: the shared schema again, then the database check, for every row; nothing is written. (e) **Server, real run**: all of it again inside the transaction (the data may have changed since the dry run), then the save. A row that passes (b) and fails (d) is shown the same way as one that fails (b).
+- **D3. A save is all-or-nothing per request.** One request saves every row it contains or none. After a dry run with problems, the screen offers **"Save the N good rows now"** (a second request, all-or-nothing over those N, which the dry run checked) **or** fix the problems first. Choosing to save the good rows is the administrator's decision, stated on the button and in the result; nothing is half-saved by accident. (The old behaviour, a silent skip, is gone.)
+- **D4. Edit only the problem rows.** After a dry run, **"Edit the M problem rows"** opens the grid with those rows, when M is 50 or fewer; **"Edit all the rows"** needs the whole file to be 50 or fewer. Otherwise the button is disabled and says why ("Fix the 120 problem rows in the file: download them below"). **"Download the problem rows"** gives a CSV (or .xlsx) of just those rows, with their original row numbers and a "problem" column that the importer ignores, ready to fix in a spreadsheet. **While the review is still open, "Upload the corrections" takes that file back:** each row of it replaces the problem row with the same original row number (a `row` column, which the importer recognises and an ordinary file does not need), and the whole file is checked again, in the browser and on the server, before anything is shown as fixed. A row of the corrections file with no row number, or a number that was not a problem row, is refused with its own sentence (it is never added silently, and it never overwrites a row that was fine). The good rows stay in the review until they are saved.
+- **D5. File limits.** CSV or .xlsx only (legacy .xls is not read: save as .xlsx or CSV, said on the screen); first sheet only; at most **1,000 rows** and a byte cap (1 MiB for CSV, 2 MiB for .xlsx); the grid holds **50**. Row numbers in every message are the **spreadsheet's own** (the header is row 1), so a person can find them.
+- **D6. The grid is real inputs in a table**, not a canvas library: labelled inputs, a dropdown where the values are fixed (category, gender, role, class), paste of a copied block (tab and line breaks fill cells, rows are added up to 50), add and delete row, a visible "23 of 50", the problem under its cell (`aria-describedby`), keyboard: Tab and Shift+Tab move between cells, Enter moves down. This keeps WCAG 2.2 AA (the repo's axe checks) and phone keyboards working.
+- **D7. Responsive.** Desktop: the table. Tablet: the table, scrolling sideways inside its own region with the first column fixed (and that region keyboard-focusable). Phone: **each row is a card** of labelled fields with the row number, Delete and its problems; "Add row" below. The preview of a file is the same: a table, cards on a phone. A long file (up to 1,000 rows) is shown in pages of 50 so a phone does not draw 1,000 cards.
+- **D8. Leaving.** While the grid holds edits that are not saved, closing the dialog, Cancel, or a link inside the app opens our own dialog: **Download first / Leave / Stay**. A closed tab or a refresh gets the browser's own generic prompt (a page cannot put a button in it). Nothing is stored in the browser (a draft would hold names and phones on a possibly shared computer).
+- **D9. Download is safe.** Cells that start with `=`, `+`, `-` or `@` are written with a leading apostrophe so that Excel does not run them as a formula. CSV is UTF-8 with a byte-order mark so Excel reads accents; .xlsx is written with a small maintained writer.
+- **D10. Excel library.** A small maintained reader and writer for .xlsx, loaded only when a file or a download needs it (a dynamic import), picked after checking its advisories and size at install time and recorded in section 8. Parsing is in the browser, as the CSV is today.
+- **D11. Who.** Staff and pupils: an administrator of that branch (the existing `withBranch` rule: a branch not theirs is 403). Invitations: administrators as today, with the same scope rules per row (an `ADMIN` role is refused unless a superadmin). One branch per file for staff, pupils and invitations (chosen on the screen, as the pupil import does), so a file never decides authority by itself.
+- **D12. Invitations are special in three ways**, and the engine has a hook for each: (1) the dry run says per row **"will replace the open invitation"** (the real run would revoke it), so a re-import does not silently re-issue everyone's link; (2) e-mails are sent **after** the save, so a send that fails cannot undo an invitation: the result lists per row "invited, e-mail sent" or "invited, e-mail not sent (resend)"; (3) a bulk request has **its own limit** (one bulk of up to 200 invitations per administrator per hour, counted apart from the 30 per 5 minutes of single invitations), and the e-mail send still obeys the per-address mail limit.
+- **D13. Audit.** One audit entry per row saved, as the single routes write them, plus one entry for the bulk itself (kind, branch, row count, who). Nothing in an audit entry holds a token.
+- **D13a. Fees** (`FeeStructure`: branch, period, optional class group, name, amount `Decimal(12,2)`). One row is one fee line of one class for one period. Money gets the strictest column rules: an amount is accepted as `150000`, `150,000` or `150000.50` (a leading naira sign is accepted and dropped), must be above zero, at most two decimals, below a stated ceiling, and is stored from the text, never from a floating point number; the **period and the class group are chosen by name** and looked up on the server (not found is a problem on that row; an empty class group means the whole branch, as the single form does); the database has no unique index on (period, class group, name), so the engine's unique key and its database check refuse a **repeated line** both inside the file and against what is already saved. The review shows **the total per class group** before saving, so a misplaced decimal point is seen. Saving a fee line does not change an invoice already issued (an invoice keeps its own line-item snapshot); that is said on the screen.
+- **D14. Errors say what and where, never why the system failed.** An unexpected failure answers "Nothing was saved" and is logged; the exception's text is never sent (ISS-0006).
+
+## 4. Interface (the template)
+
+```ts
+type BulkColumn = { key: string; label: string; aliases: string[]; required: boolean; help: string; options?: { value: string; label: string }[] };
+type BulkEntity<Row, Ctx> = {
+  id: "staff" | "invitations" | "pupils" | "fees";
+  columns: BulkColumn[];
+  rowSchema: z.ZodType<Row>;               // shared by browser and server (lib/bulk, no database client)
+  uniqueKeys: (keyof Row)[];               // repeated inside one file
+  check: (rows: Row[], ctx: Ctx) => Promise<RowNote[]>;   // server only: what only the database knows
+  save: (tx, rows: Row[], ctx: Ctx) => Promise<void>;     // server only, inside one transaction
+};
+type RowVerdict = { line: number; status: "ready" | "error" | "note"; problems: { column?: string; message: string }[]; note?: string };
+```
+
+Routes: `POST /api/v1/{staff|invitations|students|finance/fee-structures}/import { branchId, dryRun, rows }` answer `{ verdicts }` for a dry run and `{ saved, verdicts }` for a real one. The browser side is one `BulkImportDialog` taking the entity's columns.
+
+## 5. Not in this task
+
+Legacy `.xls`; more than one sheet; importing guardians on their own (a guardian is three text fields on the pupil, not a record); copying one period's fees into the next (a different and probably better feature for the same job, noted for later); the people of a program; marks; Octalve Edu (the maintainer's order: AlEemaan first, the same engine ported afterwards); background jobs and polling (1,000 rows is one request).
+
+## 6. Slices (each its own branch and PR; tests written before the code)
+
+1. **Engine + staff**: `lib/bulk/` (parse, table mapping, shared validate, export), the staff entity and `POST /staff/import`, the `BulkImportDialog` (file, preview, errors, grid, download, leave guard), on the Staff screen.
+2. **Invitations**: the invitation entity, its hooks (D12) and the dialog on the Users screen.
+3. **Pupils**: the pupil import moved onto the engine; `students/import` becomes all-or-nothing with a dry run; the gaps in section 2 closed; `students.spec.ts` updated on purpose.
+4. **Fees**: the fee entity (D13a) and its dialog on the Finance screen; small once the engine exists.
+
+## 7. How it is tested
+
+Failing first, every slice. **Unit:** the parser (quotes, line breaks, BOM, aliases, row cap, the spreadsheet row numbers), the shared schema per kind (every column has a passing and a failing example, so a column cannot be added without its rule), the formula neutralising, the unique-key check, the 50-row rule, the corrections upload (a corrected row replaces its problem row; an unknown or missing row number is refused; a good row is never overwritten), fee amounts (`150,000`, `₦1,500.50`, `0`, `-5`, `10.999`, text). **API:** dry run writes nothing; real run saves all or none (one bad row among many saves nothing); a clash created between dry run and real run is caught; scope (a branch not yours is 403; a branch administrator cannot invite an `ADMIN`); the rate limits; invitations replaced; audit rows. **Browser, on desktop, tablet and phone viewports, with axe:** upload a CSV and an .xlsx, see every row, see the problems, download the problem rows, edit them in the grid, paste a block, 51st row refused, the leave dialog, cards on a phone, no horizontal page scroll.
+
+## 8. Build record and tests
+
+### Slice 1: the engine and staff (branch `claude/bulk-staff`, worktree `AlEemaan-bulk`, 2026-11-17)
+
+**Failing first** (against signature-only stubs, and without the route and the screen):
+- unit: `bulk-table`, `bulk-validate`, `bulk-export`, `bulk-corrections` against stubs: **22 failed, 1 passed** (the empty-file case, where `[]` is already right); `bulk-xlsx`: **4 failed**.
+- API `staff-bulk.spec.ts` without the route: **6 failed** (the setup step passed).
+- browser `staff-bulk.spec.ts`, desktop, without the screen: **8 failed, 2 passed**: "a teacher does not get the button" passes trivially before the screen exists; it guards after.
+
+**With the code:** unit 23 + 4 passed; API 7 passed (6 and setup); browser, desktop and phone, `staff-bulk.spec.ts` (10) with `academics-grading-staff.spec.ts` (the existing Staff screen spec): 27 passed and 2 failed, both the leave test (my locator matched "Download as CSV" in the grid and in the leave dialog: the test, not the screen); fixed and re-run on setup, desktop and phone: 3 passed.
+
+**Found and fixed while building:**
+- **A CSP violation from zod.** Every browser test failed on "the browser reported Content-Security-Policy violations: eval": zod 4 probes `new Function` when the first object schema is built, and the pages' CSP reports it. These are the first schemas the browser runs. `src/lib/zod-csp.ts` sets `jitless` in the browser; the files that build schemas import it first. The test fixture that fails on any CSP violation is the guard.
+- **Escape closed the dialog under the "leave?" question.** `Dialog` is controlled, but the platform closes a `<dialog>` on Escape before the owner can object. `Dialog` got an opt-in `confirmClose` (Escape is reported through `onClose`; the owner decides). Existing dialogs are unchanged.
+- **Literal byte-order marks in four files** (the `\ufeff` escape had become the character): found by the repo's own `source-hygiene.spec.ts` in the full unit run, replaced by the escape.
+
+**Gates, in order, on the final tree:** `tsc --noEmit` exit 0; `eslint` 0 errors (2 warnings in files this task did not touch); `pnpm build` exit 0; Prettier `--check` clean on the changed files (`staff.ts`, `StaffPanel.tsx` and `Dialog.tsx` were clean at `dev` before they were formatted). The whole `unit` project: **1185 passed, 1 failed** (the BOM above); after the fix the guard and the five bulk specs: **29 passed**. API: `staff-assignments`, `staff-bulk`, `hardening-input`: passed in the same run.
+
+**Not run, and not claimed:** the rest of the browser suite, `integration`, `https`, the rest of the `api` project, the walkthrough support project (no page, navigation entry or matrix file was removed), mutation passes (deferred to the end of PHASE 2). **No migration, no environment change.** Two new dependencies' advisories were checked first (`npm audit`: 0 for `read-excel-file`, `write-excel-file` and the data-validation plugin; `exceljs` had 2 moderate and was not used).
+

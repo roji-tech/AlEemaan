@@ -649,3 +649,14 @@
 - [x] `PortalLoginCard.tsx`: the logo tile on the sign-in card is a `<Link href="/" aria-label="AlEemaan School website">`
 - [x] Tests: two browser tests, failing first on the old markup (2 failed, 1 passed), then 21 passed on desktop and phone with the portal axe spec
 - [ ] Not done: mutation passes (deferred to the end of PHASE 2)
+
+## TASK-0084: One bulk-entry engine for staff, invitations, pupils and fees (file or grid, checked in the browser and again on the server)
+
+[Task file](0084-bulk-import-engine.md). The maintainer: bulk add for staff first, then bulk inviting, the pupil import brought to the same standard, and fees; a CSV or Excel file or a grid of at most 50 rows; every row reviewed before saving; the rows with problems downloadable and correctable; "make it a template for general use". Slice 1 (the engine and staff) is built on `claude/bulk-staff`; no schema or migration change.
+
+- [x] Engine in `src/lib/bulk/`: shared row rules run by the browser and the server, CSV and .xlsx reading, header mapping with the spreadsheet's own row numbers, formula-safe downloads, the problem-rows file and the corrections rule, Excel template with dropdowns
+- [x] Staff kind and `POST /api/v1/staff/import`: dry run writes nothing; the real run checks again inside one transaction and saves all rows or none
+- [x] Screen: "Add many" on the Staff tab: file, review row by row, "Save the good rows now", grid of 50 rows with paste, upload the corrections, leave guard; table from the `md` width, cards on a phone
+- [x] Tests, failing first: unit 27 (against stubs 22 failed, 1 passed) and Excel 4 (4 failed), API 6 (6 failed without the route), browser 10 on desktop and phone (8 failed without the screen)
+- [ ] Not done: invitations, pupils and fees (slices 2 to 4); the full browser suite; mutation passes (deferred to the end of PHASE 2)
+
