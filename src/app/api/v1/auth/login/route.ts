@@ -10,6 +10,8 @@ import { createChallenge } from "@/lib/auth/mfa/challenge";
 import { hasActiveMfa } from "@/lib/auth/mfa/service";
 import { readJsonBody } from "@/lib/api/validate";
 import { portalAdmitsRequest } from "@/lib/auth/portal-gate";
+import { loginOpenFor } from "@/lib/auth/login-switch";
+import { LOGIN_CLOSED_CODE, LOGIN_CLOSED_MESSAGE } from "@/lib/auth/login-switch-rules";
 
 const loginSchema = z.object({
   // 254 = the practical RFC 5321 maximum; also bounds the size of the
@@ -99,6 +101,11 @@ async function handleLogin(req: NextRequest): Promise<NextResponse> {
   // counts against the user's own future attempts.
   await refundAttempt(ipKey);
   await refundAttempt(pairKey);
+
+  // Student and parent sign-in, per branch (task 0091): a person whose only roles are student and/or parent, and none of whose branches has the switch on for their role, cannot sign in. Asked
+  // only HERE, after the password and the portal have passed, so every refusal before this point is still the one generic answer and nothing is revealed about an account to someone who does
+  // not hold its password. The person who does is told the plain reason (and is not counted as a failed attempt: the credentials were right). No two-step challenge is made for them.
+  if (!(await loginOpenFor(user.id, user.isSuperAdmin))) return fail(LOGIN_CLOSED_MESSAGE, 403, LOGIN_CLOSED_CODE);
 
   // Two-step verification (plan §0.5.D): the password is proven, but for a person with an ACTIVE second
   // factor that is only the first step. No session is created here — no cookie, nothing withAuth can see —

@@ -693,3 +693,12 @@
 - [x] "Add many" on both tabs
 - [ ] The record of the runs
 
+
+## TASK-0091: Student and parent sign-in switches, per branch (off by default)
+
+[Task file](0091-student-parent-login-switch.md). The maintainer: superadmin and administrators can turn student and parent login on and off, off by default; an administrator only for their own branch(es), a superadmin for all or some.
+
+- [x] Two switches on each `Branch` (migration `20261118160000_student_parent_login_switch`, the maintainer's to run, after the merge to `prod`), the pure rule, the sign-in refusal (generic before the password, plain after it) and the per-request check folded into the session join (no cache)
+- [x] `GET`/`PATCH /api/v1/settings/login-switches` (administrator: own branches only, refused whole otherwise; superadmin: any, several or all; one audit entry per branch, all or nothing)
+- [x] `LoginSwitchPanel` (Settings > Sign-in access, and the Users page for a branch administrator), the closed notice on the student and parent portals when no branch is open
+- [ ] The record of the runs, and the maintainer's migration (**DEFAULT OFF locks out every existing student and parent account until an administrator switches it on**)
