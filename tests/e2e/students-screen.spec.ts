@@ -21,6 +21,12 @@ async function expectAccessible(page: Page, what: string) {
 const SHOTS = path.resolve(__dirname, "../../out/screenshots");
 fs.mkdirSync(SHOTS, { recursive: true });
 const dialog = (page: Page) => page.getByRole("dialog");
+// The "Show" choice lives behind the toolbar's Filters button (task 0089, like every other list); opening it twice would close it, so this opens it only when it is closed.
+async function showFilter(page: Page) {
+  const button = page.getByRole("button", { name: /^Filters/ });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  return page.getByLabel("Show");
+}
 
 let tag = "";
 test.beforeAll(async () => {
@@ -72,7 +78,7 @@ for (const theme of ["dark", "light"] as const) {
     await dialog(page).getByRole("button", { name: "Register student" }).click();
     const row = page.getByRole("listitem").filter({ hasText: `${tag}Amina` });
     await expect(row).toContainText(`${tag} JSS 1 A`);
-    await expect(row).toContainText("Guardian Mr Yusuf");
+    await expect(row).toContainText(/Guardian\s*Mr Yusuf/); // the guardian is a labelled fact of the row
     await page.screenshot({ path: path.join(SHOTS, `students-list-${theme}-${info.project.name}.png`) });
 
     // The same name and birth date again: refused until the administrator confirms; the confirmation is audited.
@@ -106,14 +112,14 @@ for (const theme of ["dark", "light"] as const) {
       .first()
       .click();
     await expect(page.getByText(`${tag}Amina Yusuf archived.`)).toBeVisible();
-    await page.getByLabel("Show").selectOption("archived");
+    await (await showFilter(page)).selectOption("archived");
     await expect(page.getByRole("button", { name: `Restore ${tag}Amina Yusuf` })).toBeVisible();
     await page.getByRole("button", { name: `Restore ${tag}Amina Yusuf` }).click();
     // A current namesake exists, so restoring asks before it goes through.
     await expect(page.getByText(/An active student with this name/)).toBeVisible();
     await page.getByRole("button", { name: "Restore anyway" }).click();
     await expect(page.getByText(`${tag}Amina Yusuf restored.`)).toBeVisible();
-    await page.getByLabel("Show").selectOption("live");
+    await (await showFilter(page)).selectOption("live");
 
     // Add many: one good line, one bad line (found in the browser, shown row by row, before anything is saved).
     await page.getByRole("button", { name: "Add many" }).click();

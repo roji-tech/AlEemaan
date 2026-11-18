@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Role } from "@prisma/client";
+import { Collection, Item, ItemInitials } from "@/components/ui/Collection";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager, paginate } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
+import { useNotice } from "@/components/ui/Toaster";
+import { useCollectionView } from "@/components/ui/useCollectionView";
+import { ViewToggle } from "@/components/ui/ViewToggle";
 import { ROLE_LABELS } from "@/lib/roles";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Alert } from "@/components/ui/Alert";
@@ -25,7 +29,6 @@ type Person = {
   role: Role;
   status: "active" | "deactivated" | "suspended" | "terminated";
 };
-const PAGE_SIZE = 10;
 const STATUS_TEXT: Record<Person["status"], string> = {
   active: "Active",
   deactivated: "Deactivated",
@@ -47,7 +50,8 @@ export function BranchDetailView({
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  // What just happened is a toast (task 0096).
+  const [notice, setNotice] = useNotice();
 
   const active = holdings.filter((h) => h.blocks);
   const setUp = holdings.filter((h) => !h.blocks);
@@ -77,7 +81,7 @@ export function BranchDetailView({
           </div>
         }
       />
-      {notice && <Alert variant="success">{notice}</Alert>}
+      {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
 
       <Card>
         <h2 className="text-lg font-semibold text-fg">What this branch holds</h2>
@@ -107,7 +111,7 @@ export function BranchDetailView({
         onClose={() => setRenaming(false)}
         onSaved={(name) => {
           setRenaming(false);
-          setNotice(`The branch is now called “${name}”.`);
+          setNotice({ variant: "success", text: `The branch is now called “${name}”.` });
           router.refresh();
         }}
       />
@@ -143,18 +147,30 @@ function HoldingList({ title, items, empty }: { title: string; items: Holding[];
   );
 }
 
-/// Who belongs to this branch: a search, a role filter, ten to a page, each person a separate row with their role and status. Read only: people are changed on the Users page.
+/// "HB" for Hauwa Bello (the first letters of the first and the last word of the name); a person with no name is the first letter of their email.
+function initialsOfPerson(p: Person): string {
+  const words = (p.name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return (Array.from((p.email ?? "").trim())[0] ?? "?").toUpperCase();
+  const first = Array.from(words[0])[0];
+  const last = words.length > 1 ? Array.from(words[words.length - 1])[0] : "";
+  return `${first}${last}`.toUpperCase();
+}
+
+/// Who belongs to this branch: a search, a role filter, a list or a grid (ten to a page in the list, as it always was), each person with their role and status. Read only: people are changed
+/// on the Users page.
 function PeopleCard({ people }: { people: Person[] }) {
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [page, setPage] = useState(1);
+  // List or grid, and how many to a page: remembered in this browser (task 0089).
+  const layout = useCollectionView("branch-people", { defaultView: "list", page, onPage: setPage });
   const found = useMemo(() => {
     const q = search.trim().toLowerCase();
     return people.filter(
       (p) => (!role || p.role === role) && (!q || (p.name ?? "").toLowerCase().includes(q) || (p.email ?? "").toLowerCase().includes(q)),
     );
   }, [people, search, role]);
-  const view = paginate(found, page, PAGE_SIZE);
+  const view = paginate(found, page, layout.size);
   const roles = [...new Set(people.map((p) => p.role))];
   return (
     <Card>
@@ -181,6 +197,7 @@ function PeopleCard({ people }: { people: Person[] }) {
               setRole("");
               setPage(1);
             }}
+            trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
           >
             <SelectField
               label="Role"
@@ -192,34 +209,43 @@ function PeopleCard({ people }: { people: Person[] }) {
               options={[{ value: "", label: "Every role" }, ...roles.map((r) => ({ value: r, label: ROLE_LABELS[r] }))]}
             />
           </ListToolbar>
-          {found.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-              No one matches these filters.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {view.rows.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-line bg-surface p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold break-words text-fg">{p.name?.trim() || p.email || "Unnamed person"}</p>
-                    {p.name?.trim() && p.email && <p className="text-xs break-all text-fg-muted">{p.email}</p>}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-fg-2">{ROLE_LABELS[p.role]}</span>
+          <Collection
+            label="People in this branch"
+            view={layout.view}
+            state={found.length === 0 ? "nomatch" : "ready"}
+            noMatchText="No one matches these filters."
+          >
+            {view.rows.map((p) => (
+              <Item
+                key={p.id}
+                leading={<ItemInitials text={initialsOfPerson(p)} />}
+                title={p.name?.trim() || p.email || "Unnamed person"}
+                subtitle={p.name?.trim() && p.email ? p.email : undefined}
+                badges={
+                  <>
+                    <span className="inline-flex rounded-full border border-line-strong bg-surface-2 px-2.5 py-1 text-xs font-semibold text-fg-2">
+                      {ROLE_LABELS[p.role]}
+                    </span>
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${p.status === "active" ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"}`}
                     >
                       {STATUS_TEXT[p.status]}
                     </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Pager page={view.page} pages={view.pages} onPage={setPage} label="Pages of people" />
+                  </>
+                }
+              />
+            ))}
+          </Collection>
+          <Pager
+            page={view.page}
+            pages={view.pages}
+            onPage={setPage}
+            label="Pages of people"
+            total={found.length}
+            size={layout.size}
+            sizes={layout.sizes}
+            onSize={layout.setSize}
+          />
         </div>
       )}
       <Link href="/users" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand-fg hover:underline">

@@ -70,7 +70,7 @@ Each sentence was read against the source of the screen it sits on. The words ar
 | `academics.schemes` | Beside "Assessment schemes" (Assessment and grading tab) | `lib/academics/assessment.ts` refuses a second default ("This branch already has a default scheme.") and a second for a class ("That class already has a scheme."); `GradingPanel.tsx` has `total = 100` |
 | `academics.scales` | Beside "Grade scales" | the scale dialog says "Results already use this scale, so it can't change. Saving makes a new version."; `lib/academics/assessment.ts` refuses an edit of a locked scale (line 351) and a new version is a new row with `supersedesId` pointing at the old one, which is kept ("Nothing is deleted", line 10) |
 | `scheme.applies` | `SelectField` "Applies to" in the new-scheme dialog | its options are "Branch default (every class)" and the branch's classes |
-| `students.show` | `SelectField` "Show" on Students | options Current / Suspended / Expelled / Archived; the row button says "Restore" for an archived pupil (`StudentsPanel.tsx`) |
+| `students.show` | `SelectField` "Show" on Students (in the panel of the toolbar's Filters button since task 0089) | options Current / Suspended / Expelled / Archived; the row button says "Restore" for an archived pupil (`StudentsPanel.tsx`) |
 | `attendance.window` | Beside the "Date" label (Attendance) | `lib/attendance/rules.ts` `canEditAttendance`: an administrator may edit any past day, staff within `TEACHER_EDIT_WINDOW_DAYS = 7`, a future day nobody; the screen's own notice says the same |
 | `communication.status` | Beside the "Filter by status" select (Message Logs) | `DispatchLogsView.tsx`: "View" opens "Dispatch Details" with the error message; "Retry" shows on a FAILED row |
 

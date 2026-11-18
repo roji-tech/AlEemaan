@@ -105,6 +105,24 @@ async function seedSchool() {
 const row = (page: Page, name: string) => page.getByRole("listitem").filter({ hasText: name }).first();
 const dialog = (page: Page) => page.getByRole("dialog");
 
+// On the Students page a pupil's standing actions and the history are in the row's "Actions for <pupil>" list (task 0089); Edit and Archive stay buttons. A pupil whose list is open is not
+// toggled shut by asking again.
+async function openPupilActions(page: Page, pupil: string) {
+  const button = page.getByRole("button", { name: `Actions for ${pupil}`, exact: true });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+}
+/// Clicks a standing action of a pupil by its full accessible name ("Suspend Amina Musa"), opening that pupil's Actions list first.
+async function pupilAction(page: Page, pupil: string, label: string) {
+  await openPupilActions(page, pupil);
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+/// The pupils' "Show" choice is behind the toolbar's Filters button; it is opened only when it is closed.
+async function showFilter(page: Page) {
+  const button = page.getByRole("button", { name: /^Filters/ });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  return page.getByLabel("Show");
+}
+
 /// A super admin's Students page opens on the first branch ALPHABETICALLY, and the pupils seeded here are in the first branch SEEDED, so a super admin picks the branch (a
 /// branch administrator or a teacher is already in theirs).
 async function openStudents(page: Page) {
@@ -120,7 +138,7 @@ test.describe("students: a super admin", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Students" })).toBeVisible();
 
     // Suspend: the reason is asked for, and what it does is said first.
-    await page.getByRole("button", { name: "Suspend Amina Musa" }).click();
+    await pupilAction(page, "Amina Musa", "Suspend Amina Musa");
     const suspend = dialog(page);
     await expect(suspend.getByRole("heading", { name: "Suspend Amina Musa?" })).toBeVisible();
     await expect(suspend.getByText(/hand in work, take quizzes or practise/)).toBeVisible();
@@ -135,7 +153,7 @@ test.describe("students: a super admin", () => {
     await expect(row(page, "Binta Musa").getByText(/Suspended/)).toHaveCount(0);
 
     // The history says what, who and why.
-    await page.getByRole("button", { name: "Standing history of Amina Musa" }).click();
+    await pupilAction(page, "Amina Musa", "Standing history of Amina Musa");
     const history = dialog(page);
     await expect(history.getByRole("heading", { name: "History of Amina Musa" })).toBeVisible();
     await expect(history.getByText("Fighting in the corridor")).toBeVisible();
@@ -143,35 +161,37 @@ test.describe("students: a super admin", () => {
     await history.getByRole("button", { name: "Close" }).last().click();
 
     // Lift.
-    await page.getByRole("button", { name: "Lift suspension Amina Musa" }).click();
+    await pupilAction(page, "Amina Musa", "Lift suspension Amina Musa");
     await dialog(page).getByLabel("Why are you lifting it?").fill("Parents met the head");
     await dialog(page).getByRole("button", { name: "Lift suspension", exact: true }).click();
     await expect(page.getByText("Amina Musa is no longer suspended.")).toBeVisible();
     await expect(row(page, "Amina Musa").getByText(/Suspended/)).toHaveCount(0);
 
     // Expel: says what it does, names the guardian's invoices, and stays in the list with a Reinstate button.
-    await page.getByRole("button", { name: "Expel Amina Musa" }).click();
+    await pupilAction(page, "Amina Musa", "Expel Amina Musa");
     await expect(dialog(page).getByText(/guardian can still see the invoices/)).toBeVisible();
     await dialog(page).getByLabel("Why are you expelling them?").fill("Serious misconduct");
     await dialog(page).getByRole("button", { name: "Expel", exact: true }).click();
     await expect(page.getByText("Amina Musa is expelled.")).toBeVisible();
     await expect(row(page, "Amina Musa").getByText("Expelled", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Suspend Amina Musa" })).toHaveCount(0);
+    await openPupilActions(page, "Amina Musa");
+    await expect(page.getByRole("button", { name: "Suspend Amina Musa" })).toHaveCount(0); // an expelled pupil is offered Reinstate, not Suspend
+    await expect(page.getByRole("button", { name: "Reinstate Amina Musa" })).toBeVisible();
 
     // The filter finds them.
-    await page.getByLabel("Show").selectOption("expelled");
+    await (await showFilter(page)).selectOption("expelled");
     await expect(row(page, "Amina Musa")).toBeVisible();
     await expect(page.getByText("Binta Musa")).toHaveCount(0);
-    await page.getByLabel("Show").selectOption("suspended");
+    await (await showFilter(page)).selectOption("suspended");
     await expect(page.getByText("No students match.")).toBeVisible();
-    await page.getByLabel("Show").selectOption("expelled");
+    await (await showFilter(page)).selectOption("expelled");
 
     // Reinstate.
-    await page.getByRole("button", { name: "Reinstate Amina Musa" }).click();
+    await pupilAction(page, "Amina Musa", "Reinstate Amina Musa");
     await dialog(page).getByLabel("Why are you reinstating them?").fill("Appeal upheld");
     await dialog(page).getByRole("button", { name: "Reinstate", exact: true }).click();
     await expect(page.getByText("Amina Musa is reinstated.")).toBeVisible();
-    await page.getByLabel("Show").selectOption("live");
+    await (await showFilter(page)).selectOption("live");
     await expect(row(page, "Amina Musa").getByText("Expelled")).toHaveCount(0);
   });
 
@@ -180,7 +200,7 @@ test.describe("students: a super admin", () => {
     await signInThroughUi(page, await createUser({ role: Role.ADMIN, name: "Amina Yusuf" }));
     await openStudents(page);
     await expect(row(page, "Amina Musa")).toBeVisible();
-    await page.getByRole("button", { name: "Suspend Amina Musa" }).click();
+    await pupilAction(page, "Amina Musa", "Suspend Amina Musa");
     // meanwhile someone else suspends the same pupil
     await db.studentRecord.update({ where: { id: amina.id }, data: { standing: "SUSPENDED" } });
     await dialog(page).getByLabel("Why are you suspending them?").fill("Fighting in the corridor");
@@ -195,6 +215,7 @@ test.describe("students: a branch administrator", () => {
     await seedSchool();
     await signInThroughUi(page, await createUser({ role: Role.ADMIN, superAdmin: false, name: "Branch Admin" }));
     await page.goto("/students");
+    await openPupilActions(page, "Amina Musa");
     await expect(page.getByRole("button", { name: "Suspend Amina Musa" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Expel Amina Musa" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Standing history of Amina Musa" })).toBeVisible();
@@ -202,6 +223,8 @@ test.describe("students: a branch administrator", () => {
     await db.settingValue.create({ data: { scope: "GLOBAL", key: "standing.branchAdminMaySuspend", value: false, status: "APPROVED" } });
     await page.reload();
     await expect(row(page, "Amina Musa")).toBeVisible();
+    await openPupilActions(page, "Amina Musa"); // the list is still there (the history), with no standing action in it
+    await expect(page.getByRole("button", { name: "Standing history of Amina Musa" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Suspend Amina Musa" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Expel Amina Musa" })).toHaveCount(0);
   });
@@ -212,7 +235,7 @@ test.describe("students: a branch administrator", () => {
     await signInThroughUi(page, await createUser({ role: Role.TEACHING_STAFF, name: "Hassan Teacher" }));
     await page.goto("/students");
     await expect(row(page, "Amina Musa").getByText("Suspended", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Suspend|Lift suspension|Expel|Reinstate|Standing history/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Suspend|Lift suspension|Expel|Reinstate|Standing history|Actions for/ })).toHaveCount(0);
   });
 });
 
@@ -426,7 +449,7 @@ test.describe("accessible and fits the width, in both themes", () => {
 
       await openStudents(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-      await page.getByRole("button", { name: "Suspend Amina Musa" }).click();
+      await pupilAction(page, "Amina Musa", "Suspend Amina Musa");
       await expect(dialog(page)).toBeVisible();
       await expectAccessible(page, `${theme} suspend dialog`);
       await dialog(page).getByRole("button", { name: "Cancel" }).click();
@@ -439,7 +462,7 @@ test.describe("accessible and fits the width, in both themes", () => {
       await expect(row(page, "Amina Musa").getByText(/Suspended until/)).toBeVisible();
       await expectAccessible(page, `${theme} students list with a suspension`);
       await expectFits(page, `${theme} students list with a suspension`);
-      await page.getByRole("button", { name: "Standing history of Amina Musa" }).click();
+      await pupilAction(page, "Amina Musa", "Standing history of Amina Musa");
       await expectAccessible(page, `${theme} history dialog`);
       await dialog(page).getByRole("button", { name: "Close" }).last().click();
 
