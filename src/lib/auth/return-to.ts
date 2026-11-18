@@ -3,7 +3,14 @@
 // part of signing in or are not pages (the sign-in page itself, the API, setup), which would loop or leak.
 
 const MAX_LENGTH = 512;
-const NEVER = [/^\/login(\/|\?|$)/, /^\/api(\/|\?|$)/, /^\/setup(\/|\?|$)/, /^\/logout(\/|\?|$)/, /^\/forgot-password(\/|\?|$)/, /^\/reset-password(\/|\?|$)/];
+const NEVER = [
+  /^\/login(\/|\?|$)/,
+  /^\/api(\/|\?|$)/,
+  /^\/setup(\/|\?|$)/,
+  /^\/logout(\/|\?|$)/,
+  /^\/forgot-password(\/|\?|$)/,
+  /^\/reset-password(\/|\?|$)/,
+];
 
 /// The path to return to, or null when `value` is not a safe in-site path (the caller then goes to the dashboard as before).
 export function safeReturnTo(value: unknown): string | null {
