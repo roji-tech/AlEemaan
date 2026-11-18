@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { safeReturnTo } from "@/lib/auth/return-to";
 import { isSetupComplete } from "@/lib/setup/status";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { classifyHost, PORTAL_COPY, PORTALS, portalOrigin, readPortalConfig } from "@/lib/portals";
@@ -12,9 +13,11 @@ export const metadata: Metadata = { title: "Sign in" };
 // Depends on the request's cookies and the database — never statically cached.
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
-  // Already signed in: nothing to do here.
-  if (await getSession()) redirect("/dashboard");
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const { next } = await searchParams;
+  const returnTo = safeReturnTo(Array.isArray(next) ? next[0] : next);
+  // Already signed in: nothing to do here (back to the page they asked for, if any).
+  if (await getSession()) redirect(returnTo ?? "/dashboard");
 
   // A fresh install has no accounts yet — sending the deployer to a sign-in
   // form that can never succeed is a dead end; send them to setup.
@@ -28,7 +31,7 @@ export default async function LoginPage() {
   if (info.kind === "portal") {
     return (
       <AuthShell>
-        <LoginForm portal={{ id: info.portal, ...PORTAL_COPY[info.portal] }} />
+        <LoginForm portal={{ id: info.portal, ...PORTAL_COPY[info.portal] }} returnTo={returnTo} />
       </AuthShell>
     );
   }
@@ -46,7 +49,7 @@ export default async function LoginPage() {
   }
   return (
     <AuthShell>
-      <LoginForm />
+      <LoginForm returnTo={returnTo} />
     </AuthShell>
   );
 }
