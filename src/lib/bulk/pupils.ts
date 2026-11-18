@@ -4,14 +4,14 @@ import { blankToUndefined, letters, optionalEmail, optionalPhone, optionalText }
 import type { BulkColumn, BulkEntity } from "./types";
 
 // The pupil kind of the bulk entry (task 0084), client-safe: the columns and the rules of a row. The server half (what the database knows, and the save) is `pupils-server.ts`.
-// Only first name, last name, gender and date of birth must be in the file; everything else may be missing or empty.
+// Only first name, last name and gender must be in the file (the maintainer, 2026-11-18); everything else, the date of birth included, may be missing or empty.
 
 export type PupilRow = {
   firstName: string;
   middleName?: string;
   lastName: string;
   gender: "MALE" | "FEMALE";
-  dateOfBirth: string;
+  dateOfBirth?: string;
   admissionNo?: string;
   className?: string;
   arm?: string;
@@ -34,14 +34,15 @@ export function toIsoDate(raw: string): string | null {
 }
 const MIN_YEAR = 1900;
 const dateOfBirth = z.preprocess(
-  (v) => (typeof v === "string" ? (toIsoDate(v) ?? v) : v),
+  (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : (toIsoDate(v) ?? v)) : v),
   z
-    .string({ error: "Give the date of birth." })
+    .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a real date, like 2014-03-21 or 21/03/2014.")
     // A date that only looks right ("2014-02-31") is not on the calendar: `toIsoDate` returned null for it, so the text came through unchanged and the pattern alone accepted it.
     .refine((v) => toIsoDate(v) !== null, "Use a real date, like 2014-03-21 or 21/03/2014.")
     .refine((v) => Number(v.slice(0, 4)) >= MIN_YEAR, `The year must be ${MIN_YEAR} or later.`)
-    .refine((v) => v <= new Date().toISOString().slice(0, 10), "The date of birth can't be in the future."),
+    .refine((v) => v <= new Date().toISOString().slice(0, 10), "The date of birth can't be in the future.")
+    .optional(),
 );
 
 const toGender = (v: unknown): unknown => {
@@ -100,8 +101,8 @@ const columns = (classNames: readonly string[]): BulkColumn[] => [
     key: "dateOfBirth",
     label: "Date of birth",
     aliases: ["dob", "birthdate", "born"],
-    required: true,
-    help: "Like 2014-03-21 or 21/03/2014; not in the future",
+    required: false,
+    help: "May be left empty. Like 2014-03-21 or 21/03/2014; not in the future",
   },
   {
     key: "admissionNo",
