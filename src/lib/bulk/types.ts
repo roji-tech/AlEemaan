@@ -40,6 +40,9 @@ export type BulkEntityShape<Row = unknown> = {
   maxRows?: number;
   /// A repeat that is not one column's value but a combination (a fee line is the same when its period, class and name are). `of` returns the combination, or null when the row has none.
   repeats?: { column?: string; of(row: Row): string | null; message(firstLine: number): string };
+  /// A file may give ONE name column (any of `aliases`, such as "Name", "Full name", "full_name") instead of separate first, middle and last name columns: it is split by
+  /// `splitFullName` into the three keys named here. Separate columns, when the file has them, win. `note` is shown with the column help.
+  fullName?: { aliases: readonly string[]; first: string; middle: string; last: string; note: string };
 };
 /// A kind of bulk entry. The row schema is shared by the browser and the server; `uniqueKeys` are checked inside one file. What only the database can know (a clash with a saved record)
 /// and the save itself live on the server side of the kind, not here.
