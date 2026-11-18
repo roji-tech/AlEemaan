@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSignOut } from "@/components/auth/useSignOut";
 import { Button } from "@/components/ui/Button";
-import { LogOutIcon, MoreIcon, UserIcon, XIcon } from "@/components/ui/icons";
+import { ChevronDownIcon, LogOutIcon, MoreIcon, UserIcon, XIcon } from "@/components/ui/icons";
 import { SoonTag } from "./SoonTag";
-import { FOCUS_RING, groupNav, initialsOf, isActive, navFor, type PageOverrides } from "./nav";
+import { FOCUS_RING, groupNav, initialsOf, isActive, navFor, phoneNav, type PageOverrides } from "./nav";
 
 type MobileNavProps = {
   name: string | null;
@@ -34,11 +34,19 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // The sections the person has folded in this sheet (all open to begin with: nothing is hidden until they choose to).
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  const toggleSection = (id: string) =>
+    setFolded((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const { signOut, pending, error } = useSignOut();
 
   const items = navFor(isAdmin, isSuperAdmin, isTeacher, isStaff, pages);
-  const tabs = items.filter((item) => item.href && !item.inMore);
-  const moreGroups = groupNav(items.filter((item) => item.href && item.inMore));
+  const { tabs, more } = phoneNav(items);
+  const moreGroups = groupNav(more);
   const soon = items.filter((item) => !item.href);
   const displayName = name?.trim() || email || "Account";
 
@@ -88,8 +96,8 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
         }}
         className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-fg backdrop:bg-black/60 open:flex open:flex-col lg:hidden"
       >
-        {/* The sheet never grows past the screen: a strip of the dimmed page is always left above it (so a tap outside still closes it), and what does not fit scrolls. */}
-        <div className="mt-auto max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line bg-surface px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-menu">
+        {/* The sheet is at most 80% of the screen tall: a strip of the dimmed page is always left above it (so a tap outside still closes it), and what does not fit scrolls. */}
+        <div className="mt-auto max-h-[80dvh] overflow-y-auto overscroll-contain rounded-t-3xl border border-b-0 border-line bg-surface px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-menu">
           <div className="flex items-start gap-3">
             <span
               aria-hidden="true"
@@ -121,9 +129,25 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
                 className={!group.section && index > 0 ? "mt-1 border-t border-line pt-1" : undefined}
               >
                 {group.section && (
-                  <h3 className="px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">{group.section.label}</h3>
+                  <h3>
+                    <button
+                      type="button"
+                      aria-expanded={!folded.has(group.section.id)}
+                      aria-controls={`more-section-${group.section.id}`}
+                      onClick={() => toggleSection(group.section!.id)}
+                      className={`mt-2 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-left text-xs font-semibold tracking-wide text-fg-muted uppercase transition-colors hover:bg-surface-2 hover:text-fg ${FOCUS_RING}`}
+                    >
+                      {group.section.label}
+                      <ChevronDownIcon
+                        className={`h-4 w-4 shrink-0 transition-transform motion-reduce:transition-none ${folded.has(group.section.id) ? "-rotate-90" : ""}`}
+                      />
+                    </button>
+                  </h3>
                 )}
-                <ul>
+                <ul
+                  id={group.section ? `more-section-${group.section.id}` : undefined}
+                  hidden={group.section ? folded.has(group.section.id) : false}
+                >
                   {group.items.map(({ label, href, icon: Icon }) => (
                     <li key={label}>
                       <Link

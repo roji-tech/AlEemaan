@@ -664,3 +664,32 @@
 - [x] Tests, failing first: slice 2 unit and API 12 failed, browser 4 failed; slices 3 and 4 unit 16 failed, API and browser 19 failed; with the first version of the code the real result was API 96 passed, browser 8 failed, unit 1 failed, walkthrough support 2 failed (reported wrongly as all passed; see the correction in section 8 of the task file); after the fix-forward: API 96, browser 97 passed, 0 failed, unit 1187, walkthrough support 58, 0 failed
 - [ ] Not done: the rest of the browser suite, integration and https; mutation passes (deferred to the end of PHASE 2)
 
+## TASK-0085: A page for each branch (rename, guarded delete), Classes and Subjects as two tabs, a Filters button and paging on lists, the phone shell, the video guide for superadmins
+
+[Task file](0085-branches-academics-lists-shell.md). The maintainer, from screenshots: edit and delete branches; a page per branch; the floating tools button covers "More" from 640 px; the video guide's header overlaps; Academics needs a better design with Classes and Subjects as tabs, paging and filtering; the filter should be a button beside search that opens and collapses; the More sheet at most 80% high with collapsible sections; the bottom bar has one item; the video guide for superadmins only.
+
+- [x] `GET/PATCH/DELETE /api/v1/branches/[id]` (superadmin): rename (name only, the code stays), delete only a branch that holds no people or history (read from the database's foreign keys), the exact name typed back, the last branch refused, audited
+- [x] `/branches/[id]` and rows that link to it, with Rename and Delete beside each row
+- [x] Classes and Subjects as separate tabs sharing the branch choice, search, a Filters button, paging (`ListToolbar`, `Pager`); the same toolbar on the Users page
+- [x] Phone shell: the tools button above the bottom bar below `lg`, the More sheet at most 80% high with folding sections, the bottom bar filled from More, the guide's header wraps
+- [x] `/video-guide` is a superadmin's: the page checks, the menu offers the link to superadmins only
+- [ ] The record of the runs (section 6 of the task file), and the walkthrough chapters that name the old tab and the Users filters (the maintainer put the walkthrough last)
+
+## TASK-0086: Sign-in portals on subdomains (admin., staff., student., parent.), the landing pages on the school's own address only
+
+[Task file](0086-sign-in-portals.md). The maintainer: several subdomains on the one app without hardcoding the domain, named by environment variables; the apex shows the public website only; a wrong-portal sign-in must give nothing away; no e-mail may carry a wrong subdomain; staging nests (`admin.staging.<domain>`).
+
+- [x] `src/lib/portals.ts` (host rules, labels, who each portal admits, e-mail base) and `portal-gate.ts`; the landing redirect in `src/proxy.ts`; the portal rule in the sign-in route and `completeSignIn` (the refusal is the same answer as a wrong password)
+- [x] Per-portal sign-in pages and the "Who is signing in?" list on the school's own host
+- [x] Every e-mail that has a link opens on the recipient's portal; a test builds every one for every kind of recipient
+- [x] `docs/DEPLOYMENT.md` 3.3a (DNS and Vercel first, the four variables last), `.env.example`, catalogues
+- [ ] The record of the runs, and the maintainer's DNS, Vercel domains and the four variables
+
+## TASK-0087: Add many classes and add many subjects (task 0084, requested 2026-11-17)
+
+[Task file](0084-bulk-import-engine.md). Two more kinds on the bulk-entry engine: *Add many* on the Classes tab (a class with its arms and the subjects it studies, one row each; the subjects must exist) and on the Subjects tab (a name and an optional code); the rules are the single forms' (`structure-rules.ts`).
+
+- [x] `src/lib/bulk/{classes,subjects}.ts`, `{classes,subjects}-server.ts`, `POST /api/v1/academics/class-groups/import` and `.../subjects/import`
+- [x] "Add many" on both tabs
+- [ ] The record of the runs
+

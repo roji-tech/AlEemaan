@@ -33,13 +33,13 @@ export function QuickToolsTrigger() {
 
   return (
     <>
-      {/* Floating Action Button */}
+      {/* Floating Action Button. The phone's bottom tab bar (and its More button at the right end) is shown below `lg`, so the button stays above it until `lg`: at `sm` it used to drop to the corner and sit on More. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open Quick Tools (Cmd+K)"
         title="Quick Tools (Cmd+K or Alt+T)"
-        className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/25 transition-all duration-200 hover:scale-105 hover:bg-brand/90 hover:shadow-xl active:scale-95 sm:bottom-6 sm:right-6 sm:h-12 sm:w-12 focus:outline-none focus:ring-2 focus:ring-brand-strong focus:ring-offset-2"
+        className="fixed right-4 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/25 transition-all duration-200 hover:scale-105 hover:bg-brand/90 hover:shadow-xl active:scale-95 lg:right-6 lg:bottom-6 focus:outline-none focus:ring-2 focus:ring-brand-strong focus:ring-offset-2"
       >
         <WrenchIcon className="h-5 w-5" />
       </button>
