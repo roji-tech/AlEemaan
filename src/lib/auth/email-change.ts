@@ -15,13 +15,16 @@ const hashToken = (token: string) => crypto.createHash("sha256").update(token).d
 /// A new request for `userId` to switch to `newEmail` (already lower-cased); returns the plaintext token for the
 /// link. Any earlier request of theirs — used, expired or still live — is deleted first.
 export async function createEmailChangeToken(userId: string, newEmail: string): Promise<string> {
+  return prisma.$transaction((tx) => issueEmailChangeToken(tx, userId, newEmail));
+}
+
+/// The same, inside a transaction the caller already holds (an approval claims the request and issues the link in one).
+export async function issueEmailChangeToken(tx: Prisma.TransactionClient, userId: string, newEmail: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("base64url"); // 256-bit, server-generated
-  await prisma.$transaction([
-    prisma.emailChangeToken.deleteMany({ where: { userId } }),
-    prisma.emailChangeToken.create({
-      data: { tokenHash: hashToken(token), userId, newEmail, expiresAt: new Date(Date.now() + EMAIL_CHANGE_TTL_MS) },
-    }),
-  ]);
+  await tx.emailChangeToken.deleteMany({ where: { userId } });
+  await tx.emailChangeToken.create({
+    data: { tokenHash: hashToken(token), userId, newEmail, expiresAt: new Date(Date.now() + EMAIL_CHANGE_TTL_MS) },
+  });
   return token;
 }
 

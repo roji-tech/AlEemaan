@@ -161,7 +161,7 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
    ```bash
    export DATABASE_URL='…'          # the Preview database, the DIRECT address (not the pooled one); paste it, do not save it in .env
    node -e 'const u=new URL(process.env.DATABASE_URL);console.log("host:",u.hostname,"| database:",u.pathname.slice(1))'   # is it the database you mean? (prints no password)
-   pnpm prisma migrate status       # what is pending: 3 on an empty database (baseline, branch_code, coursework_states), 2 if the baseline is already applied
+   pnpm prisma migrate status       # what is pending: 4 on an empty database (baseline, branch_code, coursework_states, email_change_approval), fewer where some are applied
    pnpm db:migrate:deploy           # applies the pending ones, in order, and nothing else
    pnpm prisma migrate status       # must say: Database schema is up to date
    unset DATABASE_URL
@@ -169,7 +169,7 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
 
 2. A migration that fails stops the run and leaves a failed row: read the error, do not rerun blindly, and do not deploy the code. Tell the helper, or fix it with a new migration.
 
-Today's pending migrations on a new empty database are **three**, applied in order by `migrate deploy`: the baseline `20260928081559_baseline`; `20261020120000_branch_code` (adds `Branch.code`, the prefix of invoice and receipt numbers, with a backfill and a trigger so a branch made without a code gets one; additive); and `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive). `migrate status` lists exactly these on an empty database, and the last two on one where the baseline was already applied. (This line said two until 2026-11-17: it left out `branch_code`, and a production database that had only the baseline failed on its first use with `The column code does not exist` on `Branch`, code `P2022`.)
+Today's pending migrations on a new empty database are **four**, applied in order by `migrate deploy`: the baseline `20260928081559_baseline`; `20261020120000_branch_code` (adds `Branch.code`, the prefix of invoice and receipt numbers, with a backfill and a trigger so a branch made without a code gets one; additive); `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive); and `20261118120000_email_change_approval` (task 0088: one enum and one table for email-address changes that wait for approval; additive, and **run it before the code that reads it**, or the Account and Approvals pages fail on the missing table). `migrate status` lists exactly these on an empty database, and the later ones on one where the baseline was already applied. (This line said two until 2026-11-17: it left out `branch_code`, and a production database that had only the baseline failed on its first use with `The column code does not exist` on `Branch`, code `P2022`.)
 
 **Step 3, the quick way: GitHub Actions (task 0079).** Instead of the terminal commands above, a migration can run in GitHub with the same commands and the same checks:
 
