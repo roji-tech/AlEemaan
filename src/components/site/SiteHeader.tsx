@@ -9,7 +9,7 @@ import { SiteIcon } from "./icons";
 
 // The school website's header (task 0080): the logo, the links, and a menu button on a narrow screen. The menu closes on a link, on Escape and on a press outside it; the bar's shadow deepens once the page is scrolled.
 const LINK =
-  "relative py-2 font-medium text-[#333] transition-colors hover:text-[#2a7f4f] after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-[#2a7f4f] after:transition-all hover:after:w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7f4f]";
+  "relative py-2 font-medium whitespace-nowrap text-[#333] transition-colors hover:text-[#2a7f4f] after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-[#2a7f4f] after:transition-all hover:after:w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7f4f]";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -45,7 +45,7 @@ export function SiteHeader() {
         <Link
           href="/"
           prefetch={false}
-          className="flex items-center text-2xl font-bold text-[#006400] transition-transform hover:scale-105"
+          className="flex shrink-0 items-center text-xl font-bold whitespace-nowrap text-[#006400] transition-transform hover:scale-105 sm:text-2xl"
         >
           <SiteImage
             src="/school-site/aleeman-logo.png"
@@ -58,7 +58,7 @@ export function SiteHeader() {
         </Link>
         <button
           type="button"
-          className="rounded p-1 text-[#2a7f4f] md:hidden"
+          className="rounded p-1 text-[#2a7f4f] xl:hidden"
           aria-label={open ? "Close the menu" : "Open the menu"}
           aria-expanded={open}
           aria-controls="site-menu"
@@ -69,7 +69,7 @@ export function SiteHeader() {
         <nav
           id="site-menu"
           aria-label="Main"
-          className={`${open ? "flex" : "hidden"} absolute inset-x-0 top-full flex-col gap-1 bg-white px-5 pb-4 shadow-[0_8px_24px_rgba(0,0,0,0.15)] md:static md:flex md:flex-row md:items-center md:gap-8 md:p-0 md:shadow-none`}
+          className={`${open ? "flex" : "hidden"} absolute inset-x-0 top-full flex-col gap-1 bg-white px-5 pb-4 shadow-[0_8px_24px_rgba(0,0,0,0.15)] xl:static xl:flex xl:flex-row xl:items-center xl:gap-6 xl:p-0 xl:shadow-none`}
         >
           {SITE_NAV.map((item) => (
             <Link
@@ -86,7 +86,7 @@ export function SiteHeader() {
           <Link
             href={SITE_SIGN_IN.href}
             prefetch={false}
-            className="rounded-full border-2 border-[#2a7f4f] px-5 py-1.5 text-center font-semibold text-[#2a7f4f] transition-colors hover:bg-[#2a7f4f] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7f4f]"
+            className="rounded-full border-2 border-[#2a7f4f] px-5 py-1.5 text-center font-semibold whitespace-nowrap text-[#2a7f4f] transition-colors hover:bg-[#2a7f4f] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7f4f]"
           >
             {SITE_SIGN_IN.label}
           </Link>
