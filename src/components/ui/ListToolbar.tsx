@@ -28,7 +28,7 @@ export function ListToolbar({
   activeCount: number;
   /// Puts every filter and the search back to their defaults.
   onClear: () => void;
-  /// Sits at the end of the search line (a count, an export).
+  /// Sits at the end of the toolbar (the List / Grid toggle, a count, an export); on a phone the search takes the first line and this shares the second with Filters.
   trailing?: ReactNode;
   /// The filter controls (SelectFields).
   children: ReactNode;
@@ -37,8 +37,8 @@ export function ListToolbar({
   const panelId = useId();
   return (
     <div className="space-y-3">
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
           <TextField
             label={searchLabel}
             hideLabel
@@ -62,7 +62,7 @@ export function ListToolbar({
             </span>
           )}
         </Button>
-        {trailing}
+        {trailing && <div className="ml-auto flex items-end gap-2">{trailing}</div>}
       </div>
       {open && (
         <div

@@ -4,20 +4,24 @@ import { useState, type FormEvent } from "react";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { Collection, Item, ItemInitials } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
 import { Pager } from "@/components/ui/Pager";
+import { useCollectionView } from "@/components/ui/useCollectionView";
 import { usePagedList } from "@/components/ui/usePagedList";
+import { ViewToggle } from "@/components/ui/ViewToggle";
+import { pageAfterResize, sizeAfterViewChange, type ViewMode } from "@/components/ui/collection-model";
+import { initialsOf } from "@/components/shell/nav";
 import { say } from "@/components/academics/common";
 import { ROLE_LABELS } from "@/lib/roles";
 import type { Role } from "@prisma/client";
 
 // Email-address changes waiting for a decision (task 0088). The list is already narrowed by the server to the people this administrator may
 // decide for: members of their branches (a superadmin: everyone, including administrators). The API refuses anything else.
+// Drawn by the shared list/grid kit (task 0089): a row each by default, cards if the person chooses, remembered in this browser.
 
-const PAGE_SIZE = 10;
-
-type Item = {
+type EmailChange = {
   id: string;
   newEmail: string;
   createdAt: string;
@@ -27,12 +31,26 @@ type Item = {
 };
 
 export function EmailChangesPanel() {
-  const list = usePagedList<Item>({ endpoint: "/api/v1/email-change-requests", key: "requests", limit: PAGE_SIZE });
+  // List or grid, and how many to a page: remembered in this browser (task 0089). The server pages this list, so the size goes to it as the `limit`.
+  const layout = useCollectionView("approvals-email-changes", { defaultView: "list" });
+  const list = usePagedList<EmailChange>({ endpoint: "/api/v1/email-change-requests", key: "requests", limit: layout.size });
   const { items, error } = list;
   const [notice, setNotice] = useNotice();
-  const [deciding, setDeciding] = useState<{ item: Item; decision: "approve" | "deny" } | null>(null);
+  const [deciding, setDeciding] = useState<{ item: EmailChange; decision: "approve" | "deny" } | null>(null);
 
-  const who = (i: Item) => i.person.name ?? i.person.email ?? "someone";
+  const who = (i: EmailChange) => i.person.name ?? i.person.email ?? "someone";
+  const total = list.meta?.total ?? items?.length ?? 0;
+
+  // The page the list is on belongs to usePagedList, which needs the size first, so the view hook cannot be handed the page up front. A change of view or size keeps the first item the
+  // person was looking at on screen by the same rules the hook uses (collection-model), applied here.
+  const changeView = (view: ViewMode) => {
+    list.setPage(pageAfterResize(list.page, layout.size, sizeAfterViewChange(layout.view, layout.size, view)));
+    layout.setView(view);
+  };
+  const changeSize = (size: number) => {
+    list.setPage(pageAfterResize(list.page, layout.size, size));
+    layout.setSize(size);
+  };
 
   return (
     <div className="space-y-4">
@@ -44,50 +62,61 @@ export function EmailChangesPanel() {
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
       </div>
-      {items === null ? (
-        <p className="text-sm text-fg-muted" aria-busy="true">
-          Loading…
-        </p>
-      ) : items.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-          No email changes are waiting for you.
-        </p>
-      ) : (
-        <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
-          {items.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-start justify-between gap-3 p-4">
-              <div className="min-w-0 space-y-1">
-                <p className="font-semibold text-fg">{who(i)}</p>
-                <p className="text-sm text-fg-muted">
-                  {i.roles.length > 0 ? i.roles.map((r) => ROLE_LABELS[r]).join(", ") : "No branch"} · asked on{" "}
-                  {new Date(i.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                </p>
-                <p className="text-sm break-words text-fg">
-                  <span className="text-fg-muted">From</span> {i.person.email ?? "no address"} <span className="text-fg-muted">to</span>{" "}
-                  <strong className="font-semibold">{i.newEmail}</strong>
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => setDeciding({ item: i, decision: "approve" })}
-                  aria-label={`Approve the email change for ${who(i)}`}
-                >
-                  Approve
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setDeciding({ item: i, decision: "deny" })}
-                  aria-label={`Deny the email change for ${who(i)}`}
-                >
-                  Deny
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+      {items !== null && items.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-fg-muted" aria-live="polite">
+            {total} {total === 1 ? "email change" : "email changes"} waiting
+          </p>
+          <ViewToggle view={layout.view} onChange={changeView} />
+        </div>
       )}
-      {list.meta && <Pager page={list.page} pages={list.meta.pages} onPage={list.setPage} label="Pages of email changes" />}
+      <Collection
+        label="Email changes"
+        view={layout.view}
+        state={items === null ? "loading" : items.length === 0 ? "empty" : "ready"}
+        emptyText="No email changes are waiting for you."
+      >
+        {(items ?? []).map((i) => (
+          <Item
+            key={i.id}
+            leading={<ItemInitials text={initialsOf(i.person.name, i.person.email)} />}
+            title={who(i)}
+            subtitle={`${i.roles.length > 0 ? i.roles.map((r) => ROLE_LABELS[r]).join(", ") : "No branch"} · asked on ${new Date(i.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
+            actions={[
+              {
+                id: "approve",
+                label: "Approve",
+                ariaLabel: `Approve the email change for ${who(i)}`,
+                onClick: () => setDeciding({ item: i, decision: "approve" }),
+              },
+              {
+                id: "deny",
+                label: "Deny",
+                ariaLabel: `Deny the email change for ${who(i)}`,
+                variant: "ghost",
+                onClick: () => setDeciding({ item: i, decision: "deny" }),
+              },
+            ]}
+          >
+            <p className="break-words text-fg">
+              <span className="text-fg-muted">From</span> {i.person.email ?? "no address"} <span className="text-fg-muted">to</span>{" "}
+              <strong className="font-semibold">{i.newEmail}</strong>
+            </p>
+          </Item>
+        ))}
+      </Collection>
+      {list.meta && (
+        <Pager
+          page={list.page}
+          pages={list.meta.pages}
+          onPage={list.setPage}
+          label="Pages of email changes"
+          total={list.meta.total}
+          size={layout.size}
+          sizes={layout.sizes}
+          onSize={changeSize}
+        />
+      )}
       <DecideDialog
         key={deciding ? `${deciding.item.id}-${deciding.decision}` : "none"}
         deciding={deciding}
@@ -109,7 +138,7 @@ function DecideDialog({
   onClose,
   onDone,
 }: {
-  deciding: { item: Item; decision: "approve" | "deny" } | null;
+  deciding: { item: EmailChange; decision: "approve" | "deny" } | null;
   who: string;
   onClose: () => void;
   onDone: (text: string) => Promise<void>;

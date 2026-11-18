@@ -80,6 +80,7 @@ A new variable reaches **new deployments only**: redeploy after adding one (sect
 | `MFA_ENCRYPTION_KEY` | Yes, if anyone is to use two-step verification | The account page says it is unavailable; enrolment answers 503. | `openssl rand -base64 32`. **Back it up privately: losing it means everyone sets two-step verification up again.** |
 | `SETUP_TOKEN` | Recommended for the first day | `/setup` is open to whoever finds the address until setup is done. | `openssl rand -hex 24`; you type it once into the wizard. |
 | `EMAIL_FROM`, `RESEND_API_KEY` | **Yes, for any email** | Invitations, password resets and notices are printed to the server log and reach **no one**. You cannot invite staff. | A domain verified with Resend; the sender `School Name <no-reply@yourdomain>`; Resend's API key. |
+| `DEVELOPER_EMAIL` | No | Problem reports from Quick Tools > Report (task 0099) are recorded in the database but mailed to no one. Nothing breaks. | The developer's address, one address. |
 | `PAYSTACK_SECRET_KEY` | If the school takes online payments | Online payments and the webhook answer 503; a production server never falls back to a mock. | Paystack's secret key. Webhook address to give Paystack: `https://<your domain>/api/v1/webhooks/paystack`. |
 | `FLUTTERWAVE_SECRET_KEY`, `FLUTTERWAVE_SECRET_HASH` | Only if Flutterwave is used | | The provider's dashboard. |
 | `TERMII_API_KEY`, `TERMII_SENDER_ID` | If the school sends SMS or WhatsApp | A message is recorded as failed ("is not set up on this server"); Retry works once the keys are set. | Termii's dashboard. |

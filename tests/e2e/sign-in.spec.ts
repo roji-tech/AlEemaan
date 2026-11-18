@@ -27,7 +27,7 @@ test.describe("signing in", () => {
     await signInThroughUi(page, user);
 
     await expect(page.getByRole("heading", { name: "Welcome, Amina" })).toBeVisible();
-    await expect(page.getByText("Secondary (English)")).toBeVisible();
+    await expect(page.getByText("in Secondary (English)").first()).toBeVisible();
     await expect(page.getByRole("region", { name: "Totals" })).toContainText("Administrator");
     // Who is signed in, and the way out, live in the shell's account menu.
     await expect(page.getByRole("button", { name: "Account menu for Amina Yusuf" })).toBeVisible();
@@ -396,7 +396,9 @@ test.describe("credentials never travel in the URL", () => {
 });
 
 test.describe("staying signed in, and signing out", () => {
-  test("the session survives a reload; /login and / send a signed-in user straight to the dashboard", async ({ page }) => {
+  test("the session survives a reload; /login sends a signed-in user straight to the dashboard, and / (the school's website) is shown to them too", async ({
+    page,
+  }) => {
     const user = await createUser({ role: Role.ADMIN });
     await signInThroughUi(page, user);
 
@@ -406,8 +408,10 @@ test.describe("staying signed in, and signing out", () => {
 
     await page.goto("/login");
     await expect(page).toHaveURL(/\/dashboard$/);
+    // `/` is the school's website, shown to everyone, signed in or not (task 0080): a signed-in person stays on it.
     await page.goto("/");
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { level: 1, name: SCHOOL_SITE_HEADLINE })).toBeVisible();
   });
 
   test("sign out: back at /login, the session is gone server-side AND in the browser, and the protected page is not left in this tab's history", async ({
@@ -527,8 +531,9 @@ test.describe("staying signed in, and signing out", () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { level: 1, name: SCHOOL_SITE_HEADLINE })).toBeVisible();
     if (isMobile) await page.getByRole("button", { name: "Open the menu" }).click(); // on a phone the links are behind the menu button
+    // The website's way in is the page that offers each portal (task 0086); with the portals off, its one button leads to /login.
     await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Sign in", exact: true }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/select-role$/);
   });
 
   test("two people can be signed in on two browsers at once without seeing each other", async ({ browser }) => {

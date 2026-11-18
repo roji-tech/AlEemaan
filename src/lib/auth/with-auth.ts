@@ -3,7 +3,8 @@ import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
-import { getSessionFromRequest, type ResolvedSession } from "@/lib/auth/session";
+import { lookupSessionFromRequest, type ResolvedSession } from "@/lib/auth/session";
+import { LOGIN_CLOSED_CODE, LOGIN_CLOSED_MESSAGE } from "@/lib/auth/login-switch-rules";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
 import { sanitizePathParams } from "@/lib/api/ids";
 import { holdsNul, NUL_MESSAGE } from "@/lib/api/no-nul";
@@ -73,7 +74,9 @@ export function withAuth<C = unknown>(
       return noStore(fail("Cross-origin request blocked", 403, "CSRF"));
     }
 
-    const session = await getSessionFromRequest(req);
+    const session = await lookupSessionFromRequest(req);
+    // A student or parent whose branch has switched their sign-in off (task 0091): signed out, with the reason. 401 like any ended session, so every client already treats it as one.
+    if (session === "closed") return noStore(fail(LOGIN_CLOSED_MESSAGE, 401, LOGIN_CLOSED_CODE));
     if (!session) {
       return noStore(fail("Authentication required", 401, "UNAUTHENTICATED"));
     }

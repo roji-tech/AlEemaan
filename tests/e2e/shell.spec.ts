@@ -56,7 +56,7 @@ test.describe("signed-out visitors never see the shell", () => {
   for (const path of ["/dashboard", "/branches", "/account"]) {
     test(`${path} sends them to /login`, async ({ page }) => {
       await page.goto(path);
-      await expect(page).toHaveURL(/\/login$/);
+      await expect(page).toHaveURL(/\/login(\?next=[^&]*)?$/);
     });
   }
 });
@@ -592,12 +592,12 @@ test.describe("the account menu (top bar)", () => {
 
     await accountMenuButton(page).click();
     await page.getByRole("button", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(\?next=[^&]*)?$/);
     expect(await db.session.count({ where: { userId: admin.id } })).toBe(0);
     expect((await context.cookies()).find((c) => c.name === "aleemaan.session-token")).toBeUndefined();
 
     await page.goto("/branches");
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(\?next=[^&]*)?$/);
   });
 });
 
@@ -609,7 +609,7 @@ test.describe("a session that ends underneath the shell", () => {
 
     for (const path of ["/branches", "/account", "/dashboard"]) {
       await page.goto(path);
-      await expect(page).toHaveURL(/\/login$/);
+      await expect(page).toHaveURL(/\/login(\?next=[^&]*)?$/);
     }
   });
 
@@ -620,7 +620,7 @@ test.describe("a session that ends underneath the shell", () => {
 
     // Not a page load: a client-side navigation to a page whose layout is already on screen (Users: a tab on a phone as well as in the sidebar).
     await mainNav(page).getByRole("link", { name: "Users" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(\?next=[^&]*)?$/);
     await expect(page.getByText("Secondary (English)")).toHaveCount(0); // and no branch data was ever shown
   });
 });
@@ -817,7 +817,7 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
 
     await moreButton(page).click();
     await page.getByRole("dialog").getByRole("button", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(\?next=[^&]*)?$/);
     expect(await db.session.count({ where: { tokenHash: sha256Hex(token) } })).toBe(0);
   });
 
