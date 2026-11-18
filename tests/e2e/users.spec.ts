@@ -28,7 +28,8 @@ test.beforeEach(async () => {
 const heading = (page: Page) => page.getByRole("heading", { level: 1, name: "Users" });
 const row = (page: Page, text: string | RegExp) => page.getByRole("listitem").filter({ hasText: text });
 const dialog = (page: Page) => page.getByRole("dialog");
-const notice = (page: Page) => page.getByRole("status").filter({ hasText: /\S/ });
+// Toasts stack, so the one that just appeared is the last.
+const notice = (page: Page) => page.getByRole("status").filter({ hasText: /\S/ }).last();
 
 async function signedInAdmin(page: Page, name = "Amina Yusuf") {
   admin = await createUser({ name, role: Role.ADMIN });
@@ -140,12 +141,14 @@ test.describe("the page", () => {
   });
 
   test("a long list is paged: Page 1 of 2, Next and Previous, no one repeated", async ({ page }) => {
-    for (let i = 0; i < 22; i++) await member(Role.PARENT, `Parent ${String(i).padStart(2, "0")}`, 0);
+    // The People list opens as rows, ten to a page (list/grid kit, task 0089): the administrator and twelve parents are two pages.
+    for (let i = 0; i < 12; i++) await member(Role.PARENT, `Parent ${String(i).padStart(2, "0")}`, 0);
     await signedInAdmin(page);
     const pages = page.getByRole("navigation", { name: "Pages of people" });
-    await expect(pages.getByText("Page 1 of 2")).toBeVisible();
+    await expect(pages).toContainText("Page 1 of 2");
+    await expect(pages).toContainText("Showing 1 to 10 of 13");
     await expect(pages.getByRole("button", { name: "Previous" })).toBeDisabled();
-    await expect(page.getByText("23 people")).toBeVisible();
+    await expect(page.getByText("13 people")).toBeVisible();
     const peopleRows = () =>
       page
         .getByRole("listitem")
@@ -153,13 +156,38 @@ test.describe("the page", () => {
         .allTextContents();
     const firstPage = await peopleRows();
     await pages.getByRole("button", { name: "Next" }).click();
-    await expect(pages.getByText("Page 2 of 2")).toBeVisible();
+    await expect(pages).toContainText("Page 2 of 2");
+    await expect(pages).toContainText("Showing 11 to 13 of 13");
     await expect(pages.getByRole("button", { name: "Next" })).toBeDisabled();
     const secondPage = await peopleRows();
     expect(secondPage.length).toBeGreaterThan(0);
     expect(secondPage.some((text) => firstPage.includes(text))).toBe(false);
     await pages.getByRole("button", { name: "Previous" }).click();
-    await expect(pages.getByText("Page 1 of 2")).toBeVisible();
+    await expect(pages).toContainText("Page 1 of 2");
+  });
+
+  test("the People list is rows or cards by choice, the choice is remembered, and a card keeps the person's Actions button", async ({
+    page,
+  }) => {
+    await member(Role.TEACHING_STAFF, "Tola Teacher", 1);
+    await signedInAdmin(page);
+    const people = page.getByRole("list", { name: "People" });
+    const toggle = page.getByRole("group", { name: "View" });
+    await expect(toggle.getByRole("button", { name: "List view" })).toHaveAttribute("aria-pressed", "true"); // people open as rows
+    expect(await people.evaluate((el) => getComputedStyle(el).display)).toBe("block");
+
+    await toggle.getByRole("button", { name: "Grid view" }).click();
+    await expect(toggle.getByRole("button", { name: "Grid view" })).toHaveAttribute("aria-pressed", "true");
+    expect(await people.evaluate((el) => getComputedStyle(el).display)).toBe("grid");
+    await expect(row(page, "Tola Teacher").getByRole("button", { name: "Actions for Tola Teacher" })).toBeVisible();
+    await expect(row(page, "Tola Teacher")).toContainText(BRANCH_NAMES[1]);
+    expect(await hasRowAction(page, "Deactivate Tola Teacher")).toBe(true); // the same names in a card as in a row
+
+    await page.reload(); // remembered
+    await expect(page.getByRole("group", { name: "View" }).getByRole("button", { name: "Grid view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });
 

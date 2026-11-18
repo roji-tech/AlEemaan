@@ -1,18 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { InfoTip } from "@/components/ui/InfoTip";
+import { Collection, Item, ItemTile } from "@/components/ui/Collection";
+import { BookOpenIcon, GraduationCapIcon } from "@/components/ui/icons";
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager, paginate } from "@/components/ui/Pager";
+import { useCollectionView } from "@/components/ui/useCollectionView";
+import { ViewToggle } from "@/components/ui/ViewToggle";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { classEntity } from "@/lib/bulk/classes";
 import { subjectEntity } from "@/lib/bulk/subjects";
 
@@ -29,8 +35,6 @@ type Editing =
   | { kind: "offerings"; classGroup: ClassGroup }
   | null;
 
-const CLASS_PAGE = 8;
-const SUBJECT_PAGE = 12;
 const same = (text: string, query: string) => text.toLowerCase().includes(query.trim().toLowerCase());
 
 /// One view of the branch's academic set-up: its classes (with arms and the subjects each studies) or its subjects. The Academics page puts them on their own tabs; both load the
@@ -40,24 +44,34 @@ export function ClassesPanel({
   view,
   branchId,
   onBranchChange,
+  autoNew = false,
+  onAutoNewDone,
 }: {
   branches: BranchChoice[];
   view: "classes" | "subjects";
   branchId: string;
   onBranchChange: (id: string) => void;
+  /// Open the New class form at once (a shortcut from the Overview). Used once.
+  autoNew?: boolean;
+  onAutoNewDone?: () => void;
 }) {
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [groups, setGroups] = useState<ClassGroup[] | null>(null);
   const [subjects, setSubjects] = useState<Subject[] | null>(null);
   const [unmatched, setUnmatched] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [editing, setEditing] = useState<Editing>(null);
+  const [notice, setNotice] = useNotice();
+  const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
+  useEffect(() => {
+    if (autoNew) onAutoNewDone?.();
+  }, [autoNew, onAutoNewDone]);
   // "Add many" (task 0084): whether the dialog is open, and a key that gives each opening a clean dialog.
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [search, setSearch] = useState("");
   const [gap, setGap] = useState(""); // classes: "" | "noSubjects" | "noArms"; subjects: "" | "unused"
   const [page, setPage] = useState(1);
+  // List or grid, and how many to a page: remembered per list (task 0089). Classes read best as cards, subjects as rows.
+  const layout = useCollectionView(`academics-${view}`, { defaultView: view === "classes" ? "grid" : "list", page, onPage: setPage });
 
   const load = useCallback(async () => {
     const [g, s] = await Promise.all([
@@ -116,23 +130,24 @@ export function ClassesPanel({
   const shownSubjects = (subjects ?? []).filter(
     (s) => (search.trim() === "" || same(s.name, search) || same(s.code ?? "", search)) && (gap === "" || usedBy(s.id) === 0),
   );
-  const classPage = paginate(shownGroups, page, CLASS_PAGE);
-  const subjectPage = paginate(shownSubjects, page, SUBJECT_PAGE);
+  const classPage = paginate(shownGroups, page, layout.size);
+  const subjectPage = paginate(shownSubjects, page, layout.size);
+
+  const picker = (
+    <BranchPicker
+      branches={branches}
+      value={branchId}
+      onChange={(id) => {
+        setNotice(null);
+        clearFilters();
+        onBranchChange(id);
+      }}
+    />
+  );
 
   return (
     <div className="space-y-6">
-      {branches.length > 1 && (
-        <SelectField
-          label="Branch"
-          value={branchId}
-          onChange={(e) => {
-            setNotice(null);
-            clearFilters();
-            onBranchChange(e.target.value);
-          }}
-          options={branches.map((b) => ({ value: b.id, label: b.name }))}
-        />
-      )}
+      {picker}
       <div aria-live="polite" className="empty:hidden">
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
@@ -147,14 +162,16 @@ export function ClassesPanel({
               </h2>
               <InfoTip tip="academics.classes" />
             </div>
-            {branch.canEdit && (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                  Add many
-                </Button>
-                <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {branch.canEdit && (
+                <>
+                  <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                    Add many
+                  </Button>
+                  <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>
+                </>
+              )}
+            </div>
           </div>
           <ListToolbar
             searchValue={search}
@@ -162,6 +179,7 @@ export function ClassesPanel({
             searchPlaceholder="Search classes, arms or subjects"
             activeCount={gap === "" ? 0 : 1}
             onClear={clearFilters}
+            trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
           >
             <SelectField
               label="Set-up"
@@ -182,101 +200,110 @@ export function ClassesPanel({
           <p className="text-sm text-fg-muted" aria-live="polite">
             {groups === null ? " " : `${shownGroups.length} ${shownGroups.length === 1 ? "class" : "classes"}${filtered ? " match" : ""}`}
           </p>
-          {groups === null ? (
-            <p className="text-sm text-fg-muted" aria-busy="true">
-              Loading…
-            </p>
-          ) : groups.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">No classes yet.</p>
-          ) : shownGroups.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-              <p>No class matches.</p>
-              <Button variant="secondary" className="mt-3" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            </div>
-          ) : (
-            <ul aria-label="Classes" className="grid gap-3 lg:grid-cols-2">
-              {classPage.rows.map((g) => {
-                const pupils = g.arms.reduce((n, a) => n + a.enrolments, 0);
-                const names = g.subjectIds.map(subjectName).filter(Boolean);
-                return (
-                  <li key={g.id} className="flex flex-col rounded-2xl border border-line bg-surface p-4 shadow-card">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-fg">{g.name}</p>
-                        <p className="mt-0.5 text-sm text-fg-muted">
-                          {g.arms.length} {g.arms.length === 1 ? "arm" : "arms"} · {g.subjectIds.length}{" "}
-                          {g.subjectIds.length === 1 ? "subject" : "subjects"} · {pupils} {pupils === 1 ? "pupil" : "pupils"}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm text-fg-muted">
-                      {names.length === 0 ? (
-                        "No subjects set"
-                      ) : (
-                        <>
-                          {names.slice(0, 6).join(", ")}
-                          {names.length > 6 && <span className="text-fg-2"> and {names.length - 6} more</span>}
-                        </>
-                      )}
-                    </p>
-                    {g.arms.length > 0 && (
-                      <ul className="mt-3 flex flex-wrap gap-2">
-                        {g.arms.map((a) => (
-                          <li key={a.id} className="flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1 text-sm text-fg-2">
-                            <span>
-                              {a.name}
-                              {a.capacity ? ` · cap ${a.capacity}` : ""} · {a.enrolments}
-                            </span>
-                            {branch.canEdit && (
-                              <button
-                                type="button"
-                                onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
-                                aria-label={`Edit arm ${a.name} of ${g.name}`}
-                                className="ml-1 min-h-6 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+          <Collection
+            label="Classes"
+            view={layout.view}
+            state={groups === null ? "loading" : groups.length === 0 ? "empty" : shownGroups.length === 0 ? "nomatch" : "ready"}
+            emptyText="No classes yet."
+            noMatchText="No class matches."
+            onClear={clearFilters}
+          >
+            {classPage.rows.map((g) => {
+              const pupils = g.arms.reduce((n, a) => n + a.enrolments, 0);
+              const names = g.subjectIds.map(subjectName).filter(Boolean);
+              return (
+                <Item
+                  key={g.id}
+                  leading={
+                    <ItemTile>
+                      <GraduationCapIcon className="h-5 w-5" />
+                    </ItemTile>
+                  }
+                  title={g.name}
+                  factsStyle="stats"
+                  facts={[
+                    { label: g.arms.length === 1 ? "arm" : "arms", value: g.arms.length },
+                    { label: g.subjectIds.length === 1 ? "subject" : "subjects", value: g.subjectIds.length },
+                    { label: pupils === 1 ? "pupil" : "pupils", value: pupils },
+                  ]}
+                  actions={
+                    branch.canEdit
+                      ? [
+                          {
+                            id: "arm",
+                            label: "Add arm",
+                            ariaLabel: `Add an arm to ${g.name}`,
+                            onClick: () => setEditing({ kind: "arm", classGroup: g, item: null }),
+                          },
+                          {
+                            id: "subjects",
+                            label: "Subjects",
+                            ariaLabel: `Subjects of ${g.name}`,
+                            onClick: () => setEditing({ kind: "offerings", classGroup: g }),
+                          },
+                          {
+                            id: "edit",
+                            label: "Edit",
+                            ariaLabel: `Rename ${g.name}`,
+                            onClick: () => setEditing({ kind: "class", item: g }),
+                          },
+                          {
+                            id: "archive",
+                            label: "Archive",
+                            ariaLabel: `Archive ${g.name}`,
+                            variant: "ghost",
+                            onClick: () => archive(`/api/v1/academics/class-groups/${g.id}`, true, g.name),
+                          },
+                        ]
+                      : undefined
+                  }
+                >
+                  <p className="text-fg-muted">
+                    {names.length === 0 ? (
+                      "No subjects set"
+                    ) : (
+                      <>
+                        {names.slice(0, 6).join(", ")}
+                        {names.length > 6 && <span className="text-fg-2"> and {names.length - 6} more</span>}
+                      </>
                     )}
-                    {branch.canEdit && (
-                      <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3">
-                        <Button
-                          variant="secondary"
-                          onClick={() => setEditing({ kind: "arm", classGroup: g, item: null })}
-                          aria-label={`Add an arm to ${g.name}`}
-                        >
-                          Add arm
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => setEditing({ kind: "offerings", classGroup: g })}
-                          aria-label={`Subjects of ${g.name}`}
-                        >
-                          Subjects
-                        </Button>
-                        <Button variant="secondary" onClick={() => setEditing({ kind: "class", item: g })} aria-label={`Rename ${g.name}`}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => archive(`/api/v1/academics/class-groups/${g.id}`, true, g.name)}
-                          aria-label={`Archive ${g.name}`}
-                        >
-                          Archive
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <Pager page={classPage.page} pages={classPage.pages} onPage={setPage} label="Pages of classes" />
+                  </p>
+                  {g.arms.length > 0 && (
+                    <ul className="mt-3 flex flex-wrap gap-2">
+                      {g.arms.map((a) => (
+                        <li key={a.id} className="flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1 text-sm text-fg-2">
+                          <span>
+                            {a.name}
+                            {a.capacity ? ` · cap ${a.capacity}` : ""} · {a.enrolments}
+                          </span>
+                          {branch.canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
+                              aria-label={`Edit arm ${a.name} of ${g.name}`}
+                              className="relative z-10 ml-1 min-h-6 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Item>
+              );
+            })}
+          </Collection>
+          <Pager
+            page={classPage.page}
+            pages={classPage.pages}
+            onPage={setPage}
+            label="Pages of classes"
+            total={shownGroups.length}
+            size={layout.size}
+            sizes={layout.sizes}
+            onSize={layout.setSize}
+          />
         </section>
       ) : (
         <section aria-labelledby="subjects-heading" className="space-y-4">
@@ -287,14 +314,16 @@ export function ClassesPanel({
               </h2>
               <InfoTip tip="academics.subjects" />
             </div>
-            {branch.canEdit && (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                  Add many
-                </Button>
-                <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {branch.canEdit && (
+                <>
+                  <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                    Add many
+                  </Button>
+                  <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>
+                </>
+              )}
+            </div>
           </div>
           <ListToolbar
             searchValue={search}
@@ -302,6 +331,7 @@ export function ClassesPanel({
             searchPlaceholder="Search subjects by name or code"
             activeCount={gap === "" ? 0 : 1}
             onClear={clearFilters}
+            trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
           >
             <SelectField
               label="Used by"
@@ -318,54 +348,62 @@ export function ClassesPanel({
               ? " "
               : `${shownSubjects.length} ${shownSubjects.length === 1 ? "subject" : "subjects"}${filtered ? " match" : ""}`}
           </p>
-          {subjects === null ? (
-            <p className="text-sm text-fg-muted" aria-busy="true">
-              Loading…
-            </p>
-          ) : subjects.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">No subjects yet.</p>
-          ) : shownSubjects.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-              <p>No subject matches.</p>
-              <Button variant="secondary" className="mt-3" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            </div>
-          ) : (
-            <ul aria-label="Subjects" className="divide-y divide-line rounded-2xl border border-line bg-surface shadow-card">
-              {subjectPage.rows.map((s) => {
-                const classes = usedBy(s.id);
-                return (
-                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
-                    <div className="min-w-0">
-                      <p className="text-fg">
-                        {s.name}
-                        {s.code && <span className="ml-2 font-mono text-xs text-fg-muted">{s.code}</span>}
-                      </p>
-                      <p className="text-sm text-fg-muted">
-                        {classes === 0 ? "No class studies it yet" : `${classes} ${classes === 1 ? "class" : "classes"}`}
-                      </p>
-                    </div>
-                    {branch.canEdit && (
-                      <div className="flex gap-2">
-                        <Button variant="secondary" onClick={() => setEditing({ kind: "subject", item: s })} aria-label={`Edit ${s.name}`}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => archive(`/api/v1/academics/subjects/${s.id}`, true, s.name)}
-                          aria-label={`Archive ${s.name}`}
-                        >
-                          Archive
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <Pager page={subjectPage.page} pages={subjectPage.pages} onPage={setPage} label="Pages of subjects" />
+          <Collection
+            label="Subjects"
+            view={layout.view}
+            state={subjects === null ? "loading" : subjects.length === 0 ? "empty" : shownSubjects.length === 0 ? "nomatch" : "ready"}
+            emptyText="No subjects yet."
+            noMatchText="No subject matches."
+            onClear={clearFilters}
+          >
+            {subjectPage.rows.map((s) => {
+              const classes = usedBy(s.id);
+              return (
+                <Item
+                  key={s.id}
+                  leading={
+                    <ItemTile>
+                      <BookOpenIcon className="h-5 w-5" />
+                    </ItemTile>
+                  }
+                  title={s.name}
+                  subtitle={s.code ? <span className="font-mono text-xs">{s.code}</span> : undefined}
+                  facts={[
+                    { label: "Studied by", value: classes === 0 ? "No class yet" : `${classes} ${classes === 1 ? "class" : "classes"}` },
+                  ]}
+                  actions={
+                    branch.canEdit
+                      ? [
+                          {
+                            id: "edit",
+                            label: "Edit",
+                            ariaLabel: `Edit ${s.name}`,
+                            onClick: () => setEditing({ kind: "subject", item: s }),
+                          },
+                          {
+                            id: "archive",
+                            label: "Archive",
+                            ariaLabel: `Archive ${s.name}`,
+                            variant: "ghost",
+                            onClick: () => archive(`/api/v1/academics/subjects/${s.id}`, true, s.name),
+                          },
+                        ]
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </Collection>
+          <Pager
+            page={subjectPage.page}
+            pages={subjectPage.pages}
+            onPage={setPage}
+            label="Pages of subjects"
+            total={shownSubjects.length}
+            size={layout.size}
+            sizes={layout.sizes}
+            onSize={layout.setSize}
+          />
         </section>
       )}
 

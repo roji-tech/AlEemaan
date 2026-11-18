@@ -1,13 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { BranchPicker } from "@/components/ui/BranchPicker";
+import { Collection, Item, ItemInitials, type ItemAction } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import { Pager, paginate } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
+import { useCollectionView } from "@/components/ui/useCollectionView";
+import { ViewToggle } from "@/components/ui/ViewToggle";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
+import { initialsOf } from "@/components/shell/nav";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { staffEntity } from "@/lib/bulk/staff";
 import { StandingBadge } from "@/components/standing/StandingBadge";
@@ -42,6 +50,10 @@ type Editing = { kind: "record"; item: Staff | null } | { kind: "manage"; item: 
 
 const CATEGORY = { TEACHING: "Teaching", NON_TEACHING: "Non-teaching" } as const;
 
+// The kit's Item keeps its actions at z-10, in a card at the left of the footer. An Actions list opened there would sit under the next item's own actions and, from `md`, run off the
+// card's left edge (it opens leftwards from the button). Until Item handles it, the item that holds an open list is raised and a card's footer is right-aligned (reported to the kit's owner).
+const MENU_ROOM = "[&_li:has([aria-expanded=true])]:z-20 [&_li>div.border-t]:justify-end";
+
 export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [branchId, setBranchId] = useState(branches[0].id);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
@@ -50,8 +62,11 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [status, setStatus] = useState<"live" | "archived">("live");
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  // List or grid, and how many to a page: remembered for this list (task 0089). The branch's staff all come in one answer, so the pages are cut here.
+  const layout = useCollectionView("academics-staff", { defaultView: "list", page, onPage: setPage });
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
@@ -94,146 +109,157 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
     await load();
   }
 
+  const filtered = q !== "" || status !== "live";
+  const clearFilters = () => {
+    setQ("");
+    setStatus("live");
+    setPage(1);
+  };
+  const shown = paginate(staff ?? [], page, layout.size);
+
   return (
     <div className="space-y-6">
-      {branches.length > 1 && (
-        <SelectField
-          label="Branch"
-          value={branchId}
-          onChange={(e) => {
-            setNotice(null);
-            setStaff(null);
-            setBranchId(e.target.value);
-          }}
-          options={branches.map((b) => ({ value: b.id, label: b.name }))}
-        />
-      )}
+      <BranchPicker
+        branches={branches}
+        value={branchId}
+        onChange={(id) => {
+          setNotice(null);
+          setStaff(null);
+          setPage(1);
+          setBranchId(id);
+        }}
+      />
       <div aria-live="polite" className="empty:hidden">
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
       </div>
 
-      <section aria-labelledby="staff-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="staff-heading" className="text-lg font-semibold tracking-tight text-fg">
-            Staff
-          </h2>
-          {branch.canEdit && (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                Add many
-              </Button>
-              <Button onClick={() => setEditing({ kind: "record", item: null })}>New staff record</Button>
-            </div>
-          )}
+      <section aria-labelledby="staff-heading" className={`space-y-4 ${MENU_ROOM}`}>
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="staff-heading" className="text-lg font-semibold tracking-tight text-fg">
+              Staff
+            </h2>
+            {branch.canEdit && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                  Add many
+                </Button>
+                <Button onClick={() => setEditing({ kind: "record", item: null })}>New staff record</Button>
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-fg-muted">
+            Everyone the branch employs, whether or not they sign in. A record does not create a login.
+          </p>
         </div>
-        <p className="mt-1 text-sm text-fg-muted">
-          Everyone the branch employs, whether or not they sign in. A record does not create a login.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_12rem]">
-          <TextField
-            label="Search staff"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Name, email or phone"
-            autoComplete="off"
-          />
+        <ListToolbar
+          searchLabel="Search staff"
+          searchValue={q}
+          onSearch={(v) => (setQ(v), setPage(1))}
+          searchPlaceholder="Name, email or phone"
+          searchMaxLength={100}
+          activeCount={status === "live" ? 0 : 1}
+          onClear={clearFilters}
+          trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+        >
           <SelectField
             label="Show"
             value={status}
-            onChange={(e) => setStatus(e.target.value as "live" | "archived")}
+            onChange={(e) => (setStatus(e.target.value as "live" | "archived"), setPage(1))}
             options={[
               { value: "live", label: "Current staff" },
               { value: "archived", label: "Archived" },
             ]}
           />
-        </div>
-        {staff === null ? (
-          <p className="mt-3 text-sm text-fg-muted" aria-busy="true">
-            Loading…
-          </p>
-        ) : staff.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-            {q || status === "archived" ? "No staff match." : "No staff records yet."}
-          </p>
-        ) : (
-          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
-            {staff.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 font-semibold text-fg">
-                    <span>
-                      {p.firstName} {p.lastName}
-                    </span>
-                    <StandingBadge standing={p.standing} until={p.standingUntil} />
-                  </p>
-                  <p className="text-sm text-fg-muted">
-                    {CATEGORY[p.category]} · {p.account.state === "linked" ? "Can sign in" : "No sign-in"} · {p.assignmentCount}{" "}
-                    {p.assignmentCount === 1 ? "assignment" : "assignments"}
-                    {p.email ? ` · ${p.email}` : ""}
-                    {p.phone ? ` · ${p.phone}` : ""}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setEditing({ kind: "manage", item: p })}
-                    aria-label={`${branch.canEdit ? "Manage" : "View"} ${p.firstName} ${p.lastName}`}
-                  >
-                    {branch.canEdit ? "Manage" : "View"}
-                  </Button>
-                  {branch.canEdit && (
-                    <>
-                      {!p.archived && (
-                        <Button
-                          variant="secondary"
-                          onClick={() => setEditing({ kind: "record", item: p })}
-                          aria-label={`Edit ${p.firstName} ${p.lastName}`}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                      {kindsFor("staff", p.standing, can).map((kind) => (
-                        <Button
-                          key={kind}
-                          variant={kind === "terminate" ? "danger" : "secondary"}
-                          onClick={() =>
-                            setStandingAsk({
-                              kind,
-                              subject: "staff",
-                              endpoint: `/api/v1/staff/${p.id}/standing`,
-                              name: `${p.firstName} ${p.lastName}`,
-                              canSchoolWide: can.remove && p.account.state === "linked",
-                            })
-                          }
-                          aria-label={`${KIND_TEXT[kind]} ${p.firstName} ${p.lastName}`}
-                        >
-                          {KIND_TEXT[kind]}
-                        </Button>
-                      ))}
-                      <Button
-                        variant="ghost"
-                        onClick={() => setHistoryOf({ endpoint: `/api/v1/staff/${p.id}/standing`, name: `${p.firstName} ${p.lastName}` })}
-                        aria-label={`Standing history of ${p.firstName} ${p.lastName}`}
-                      >
-                        History
-                      </Button>
-                      {p.standing !== "TERMINATED" && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => setArchived(p, !p.archived)}
-                          aria-label={`${p.archived ? "Restore" : "Archive"} ${p.firstName} ${p.lastName}`}
-                        >
-                          {p.archived ? "Restore" : "Archive"}
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        </ListToolbar>
+        <p className="text-sm text-fg-muted" aria-live="polite">
+          {staff === null ? " " : `${staff.length} staff ${staff.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
+        </p>
+        <Collection
+          label="Staff"
+          view={layout.view}
+          state={staff === null ? "loading" : staff.length === 0 ? (filtered ? "nomatch" : "empty") : "ready"}
+          emptyText="No staff records yet."
+          noMatchText="No staff match."
+          onClear={clearFilters}
+        >
+          {shown.rows.map((p) => {
+            const who = `${p.firstName} ${p.lastName}`;
+            const contact = [p.email, p.phone].filter(Boolean).join(" · ");
+            // Manage (or View) and Edit stay as buttons; the rest of what can be done to a record is one Actions list, so a row never runs six buttons wide (the kit's rule for many actions).
+            const buttons: ItemAction[] = [
+              {
+                id: "manage",
+                label: branch.canEdit ? "Manage" : "View",
+                ariaLabel: `${branch.canEdit ? "Manage" : "View"} ${who}`,
+                onClick: () => setEditing({ kind: "manage", item: p }),
+              },
+            ];
+            if (branch.canEdit && !p.archived) {
+              buttons.push({ id: "edit", label: "Edit", ariaLabel: `Edit ${who}`, onClick: () => setEditing({ kind: "record", item: p }) });
+            }
+            const more = branch.canEdit
+              ? [
+                  ...kindsFor("staff", p.standing, can).map((kind) => ({
+                    id: kind,
+                    label: KIND_TEXT[kind],
+                    ariaLabel: `${KIND_TEXT[kind]} ${who}`,
+                    onSelect: () =>
+                      setStandingAsk({
+                        kind,
+                        subject: "staff",
+                        endpoint: `/api/v1/staff/${p.id}/standing`,
+                        name: who,
+                        canSchoolWide: can.remove && p.account.state === "linked",
+                      }),
+                  })),
+                  {
+                    id: "history",
+                    label: "History",
+                    ariaLabel: `Standing history of ${who}`,
+                    onSelect: () => setHistoryOf({ endpoint: `/api/v1/staff/${p.id}/standing`, name: who }),
+                  },
+                  ...(p.standing !== "TERMINATED"
+                    ? [
+                        {
+                          id: "archive",
+                          label: p.archived ? "Restore" : "Archive",
+                          ariaLabel: `${p.archived ? "Restore" : "Archive"} ${who}`,
+                          onSelect: () => setArchived(p, !p.archived),
+                        },
+                      ]
+                    : []),
+                ]
+              : [];
+            return (
+              <Item
+                key={p.id}
+                leading={<ItemInitials text={initialsOf(who, p.email)} />}
+                title={who}
+                subtitle={contact || undefined}
+                badges={p.standing !== "ACTIVE" ? <StandingBadge standing={p.standing} until={p.standingUntil} /> : undefined}
+                facts={[
+                  { label: "Kind", value: CATEGORY[p.category] },
+                  { label: "Account", value: p.account.state === "linked" ? "Can sign in" : "No sign-in" },
+                  { label: "Assignments", value: p.assignmentCount },
+                ]}
+                actions={buttons}
+                menu={{ name: who, actions: more }}
+              />
+            );
+          })}
+        </Collection>
+        <Pager
+          page={shown.page}
+          pages={shown.pages}
+          onPage={setPage}
+          label="Pages of staff"
+          total={staff?.length ?? 0}
+          size={layout.size}
+          sizes={layout.sizes}
+          onSize={layout.setSize}
+        />
       </section>
 
       <StandingDialog

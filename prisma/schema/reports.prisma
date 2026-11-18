@@ -1,0 +1,31 @@
+// A problem report sent from the Quick Tools drawer (task 0099): a signed-in person tells the developer something is wrong, confusing, or could be better.
+// Each one is recorded here AND mailed to DEVELOPER_EMAIL. The reporter's name, address, roles and branches are copied (a snapshot) so the record still reads right after they change.
+
+enum ReportCategory {
+  PROBLEM
+  CONFUSING
+  IDEA
+  OTHER
+}
+
+model ProblemReport {
+  id            String         @id @default(cuid())
+  userId        String? // null once the person is gone: the report stays
+  reporterName  String?
+  reporterEmail String?
+  reporterRoles String? // "Teaching staff, Administrator"
+  branches      String? // "Secondary (English), Primary (English)"
+  category      ReportCategory
+  message       String         @db.Text
+  pagePath      String // the page they were on: the path only, never the query (it can hold a token)
+  userAgent     String?
+  viewport      String?
+  /// True once the mail to DEVELOPER_EMAIL was handed to the mail service. False: the address is not set, or the send failed (it is logged); the report itself is safe.
+  emailed       Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId])
+}

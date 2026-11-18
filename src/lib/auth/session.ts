@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { cookies as nextCookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { loginClosedFor, toLoginMembership } from "@/lib/auth/login-switch-rules";
 
 // Hand-rolled database sessions (Auth.js is not used). Synced to Octalve Edu's built-and-
 // verified implementation — domain-implementation-plan.md §0.5.1.6: two-level expiry,
@@ -152,33 +153,68 @@ export async function purgeExpiredSessions(now: Date = new Date()): Promise<numb
   return count;
 }
 
-/// Reads the session cookie from an incoming request, hashes it, and looks up
-/// the (session, user) pair — null if no cookie, no matching row, or expired.
-export async function getSessionFromRequest(req: NextRequest): Promise<ResolvedSession | null> {
+/// What a lookup finds: a live session, `"closed"` (there is a live session but the student and parent sign-in of the person's branches is switched off, task 0091: the caller answers with
+/// the clear "closed" message instead of the plain signed-out one), or nothing.
+export type SessionLookup = ResolvedSession | "closed" | null;
+
+/// Reads the session cookie from an incoming request, hashes it, and looks up the (session, user) pair, telling "closed" apart from "no session". `getSessionFromRequest` is this
+/// with "closed" as null, for everything that only asks "is someone signed in".
+export async function lookupSessionFromRequest(req: NextRequest): Promise<SessionLookup> {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   return token ? resolveToken(token) : null;
 }
 
-/// Same as getSessionFromRequest, for Server Components that only have the
-/// cookies() API, not a NextRequest.
-export async function getSession(): Promise<ResolvedSession | null> {
+/// Same as lookupSessionFromRequest, for Server Components that only have the cookies() API, not a NextRequest.
+export async function lookupSession(): Promise<SessionLookup> {
   const store = await nextCookies();
   const token = store.get(SESSION_COOKIE_NAME)?.value;
   return token ? resolveToken(token) : null;
 }
 
-async function resolveToken(token: string): Promise<ResolvedSession | null> {
+/// The (session, user) pair for a request — null if no cookie, no matching row, expired, or closed by the branch switches.
+export async function getSessionFromRequest(req: NextRequest): Promise<ResolvedSession | null> {
+  const found = await lookupSessionFromRequest(req);
+  return found === "closed" ? null : found;
+}
+
+/// Same as getSessionFromRequest, for Server Components.
+export async function getSession(): Promise<ResolvedSession | null> {
+  const found = await lookupSession();
+  return found === "closed" ? null : found;
+}
+
+async function resolveToken(token: string): Promise<SessionLookup> {
   // `relationLoadStrategy: "join"`: the person comes back in the SAME database round trip as the session (the default is a second query after the first). This runs on every page
   // and every API call, and a round trip to a hosted database costs about 200 ms.
+  // Student and parent sign-in, per branch (task 0091): the person's active memberships come in the SAME round trip, each with its branch's two switches (a nested join of a few small rows), because
+  // the rule needs them and a second query would add a round trip to every request of every signed-in person.
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashToken(token) },
     relationLoadStrategy: "join",
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          isSuperAdmin: true,
+          memberships: {
+            where: { deactivatedAt: null },
+            select: { role: true, branch: { select: { studentLoginEnabled: true, parentLoginEnabled: true } } },
+          },
+        },
+      },
+    },
   });
   if (!session) return null;
 
   const now = new Date();
   if (session.expires <= now || session.absoluteExpires <= now) return null;
+
+  // A person whose only roles are student and/or parent has no session, from this request on, while none of their branches is open for their role. The row is left alone (opening the branch again
+  // resumes it; it expires like any other), and nothing below runs for it, so it is not even touched. Staff and superadmins never fail this; it is a pure check on what was just read, so it costs nothing.
+  const { isSuperAdmin, memberships, ...user } = session.user;
+  if (loginClosedFor({ isSuperAdmin, memberships: memberships.map(toLoginMembership) })) return "closed";
 
   // Slide the idle expiry (never past the absolute cap), throttled. Best-
   // effort: a failed touch must never fail the request it rides along with —
@@ -188,7 +224,7 @@ async function resolveToken(token: string): Promise<ResolvedSession | null> {
     await prisma.session.update({ where: { id: session.id }, data: { lastUsedAt: now, expires: idleExpiry } }).catch(() => undefined);
   }
 
-  return { sessionId: session.id, userId: session.userId, user: session.user };
+  return { sessionId: session.id, userId: session.userId, user };
 }
 
 /// `expires` null → a browser-session cookie (no Expires / Max-Age attribute): the

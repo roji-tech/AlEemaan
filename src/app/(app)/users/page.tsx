@@ -7,6 +7,8 @@ import { hasActiveMfa } from "@/lib/auth/mfa/service";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { UsersPanel } from "@/components/users/UsersPanel";
 import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
+import { LoginSwitchPanel } from "@/components/settings/LoginSwitchPanel";
+import { switchableBranches } from "@/lib/auth/login-switch";
 
 export const metadata: Metadata = { title: "Users" };
 export const dynamic = "force-dynamic";
@@ -60,6 +62,8 @@ export default async function UsersPage() {
         title="Users"
         description="The people who can sign in to AlEemaan: invite someone, change a role or branch, or deactivate an account."
       />
+      {/* Student and parent sign-in, per branch (task 0091). A superadmin finds it under Settings; an administrator cannot open Settings, so it is here, where the people who sign in are managed: their own branches only. */}
+      {!isSuperAdmin && <LoginSwitchPanel initial={await switchableBranches(scope)} canBulk={false} />}
       <UsersPanel
         branches={branches}
         standingCan={standingCan}

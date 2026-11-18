@@ -1,80 +1,64 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useState } from "react";
 import { ClassesPanel } from "@/components/academics/ClassesPanel";
 import { GradingPanel } from "@/components/academics/GradingPanel";
 import { SchemeLevelsPanel } from "@/components/academics/SchemeLevelsPanel";
+import { SessionsPanel } from "@/components/academics/SessionsPanel";
 import { StaffPanel } from "@/components/academics/StaffPanel";
 import { PromotionConsole } from "@/components/academics/promotion/PromotionConsole";
 import type { BranchChoice } from "@/components/academics/common";
+import { Tabs, panelId, tabId } from "@/components/ui/Tabs";
+import { SECTIONS, type SectionId } from "./sections";
 
-// The Academics page's sections behind one tab list (Slice P1 & P7). Only the active section is mounted. Left/Right/Home/End move between tabs, as the
-// ARIA tabs pattern asks; Tab then goes into the panel. Presentation only - every list and button calls an API that decides who may do what.
-const SECTIONS = [
-  { id: "classes", label: "Classes" },
-  { id: "subjects", label: "Subjects" },
-  { id: "grading", label: "Assessment and grading" },
-  { id: "staff", label: "Staff" },
-  { id: "promotion", label: "Promotion & rollover" },
-] as const;
-type SectionId = (typeof SECTIONS)[number]["id"];
-
-export function AcademicsSections({ branches, isSuperAdmin = false }: { branches: BranchChoice[]; isSuperAdmin?: boolean }) {
-  const [active, setActive] = useState<SectionId>("classes");
-  // The branch of the Classes and Subjects tabs is one choice: switching between the two keeps it.
-  const [branchId, setBranchId] = useState(branches[0].id);
-  const refs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const at = SECTIONS.findIndex((s) => s.id === active);
-    const next =
-      event.key === "ArrowRight"
-        ? (at + 1) % SECTIONS.length
-        : event.key === "ArrowLeft"
-          ? (at - 1 + SECTIONS.length) % SECTIONS.length
-          : event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? SECTIONS.length - 1
-              : -1;
-    if (next < 0) return;
-    event.preventDefault();
-    setActive(SECTIONS[next].id);
-    refs.current[SECTIONS[next].id]?.focus();
-  }
+// The Academics page's sections behind one tab list (Slice P1 & P7), drawn by the shared Tabs (task 0089: a margin above the strip, and a strip that scrolls sideways on a phone instead of
+// squeezing five labels). Only the active section is mounted. Presentation only - every list and button calls an API that decides who may do what.
+export function AcademicsSections({
+  branches,
+  isSuperAdmin = false,
+  initialSection = "classes",
+  initialBranchId,
+  openNew = false,
+}: {
+  branches: BranchChoice[];
+  isSuperAdmin?: boolean;
+  /// Which tab opens first (a link from the Overview, or /academics/sessions).
+  initialSection?: SectionId;
+  initialBranchId?: string;
+  /// Open the "new" form of the first tab at once (a shortcut from the Overview): New session or New class. Used once.
+  openNew?: boolean;
+}) {
+  const [active, setActive] = useState<SectionId>(initialSection);
+  // The branch of the Classes, Subjects and Sessions tabs is one choice: switching between them keeps it.
+  const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
+  const [pendingNew, setPendingNew] = useState(openNew);
+  const autoNew = pendingNew && active === initialSection;
+  const autoNewDone = useCallback(() => setPendingNew(false), []);
 
   return (
     <div className="space-y-6">
-      <div
-        role="tablist"
-        aria-label="Academics sections"
-        onKeyDown={onKeyDown}
-        className="-mx-1 flex gap-1 overflow-x-auto border-b border-line px-1"
-      >
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            ref={(el) => {
-              refs.current[s.id] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`tab-${s.id}`}
-            aria-selected={active === s.id}
-            aria-controls={`panel-${s.id}`}
-            tabIndex={active === s.id ? 0 : -1}
-            onClick={() => setActive(s.id)}
-            className={`min-h-11 flex-1 border-b-2 px-2 text-center text-sm font-semibold sm:flex-none sm:px-4 sm:whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
-              active === s.id ? "border-brand-strong text-fg" : "border-transparent text-fg-muted hover:text-fg"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
+      <Tabs label="Academics sections" prefix="academics" tabs={SECTIONS} active={active} onChange={setActive} />
+      <div role="tabpanel" id={panelId("academics", active)} aria-labelledby={tabId("academics", active)}>
         {(active === "classes" || active === "subjects") && (
-          <ClassesPanel key={active} branches={branches} view={active} branchId={branchId} onBranchChange={setBranchId} />
+          <ClassesPanel
+            key={active}
+            branches={branches}
+            view={active}
+            branchId={branchId}
+            onBranchChange={setBranchId}
+            autoNew={autoNew}
+            onAutoNewDone={autoNewDone}
+          />
+        )}
+        {active === "sessions" && (
+          <SessionsPanel
+            key={active}
+            branches={branches}
+            branchId={branchId}
+            onBranchChange={setBranchId}
+            autoNew={autoNew}
+            onAutoNewDone={autoNewDone}
+          />
         )}
         {active === "grading" && (
           <div className="space-y-10">

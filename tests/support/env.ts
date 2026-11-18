@@ -105,6 +105,9 @@ process.env.PORTALS_ENABLED = "false";
 
 /// Environment for the Next.js servers under test. Explicit and complete on
 /// purpose: nothing from a developer's shell or .env may change what is tested.
+/// Where the servers under test mail problem reports (task 0099).
+export const TEST_DEVELOPER_EMAIL = "developer@test.example";
+
 export function serverEnv(appUrl: string): Record<string, string> {
   const inherited = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   return {
@@ -119,6 +122,7 @@ export function serverEnv(appUrl: string): Record<string, string> {
     SETUP_TOKEN: "",
     EMAIL_TRANSPORT: "file",
     EMAIL_FILE,
+    DEVELOPER_EMAIL: TEST_DEVELOPER_EMAIL, // where problem reports are mailed (task 0099)
     // Production-shaped, whatever the developer's own .env says: no dev tools on these servers.
     APP_ENV: "production",
     DEV_TOOLS: "",

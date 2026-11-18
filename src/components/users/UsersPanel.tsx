@@ -1,23 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Tabs, panelId, tabId } from "@/components/ui/Tabs";
+import { Collection } from "@/components/ui/Collection";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
+import { useCollectionView } from "@/components/ui/useCollectionView";
+import { ViewToggle } from "@/components/ui/ViewToggle";
 import { PlusIcon } from "@/components/ui/icons";
 import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, getJson, sendJson } from "@/components/auth/postJson";
-import { initialsOf } from "@/components/shell/nav";
 import { ROLE_LABELS } from "@/lib/roles";
 import { DeactivateDialog } from "./DeactivateDialog";
-import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
 import { type StandingCan } from "@/components/standing/model";
-import { MemberActions } from "./MemberActions";
+import { MemberItem } from "./MemberItem";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { InvitationsList } from "./InvitationsList";
 import { BulkInviteDialog } from "./BulkInviteDialog";
@@ -25,16 +27,9 @@ import { InviteDialog } from "./InviteDialog";
 import { SuperAdminDialog } from "./SuperAdminDialog";
 import { ROLE_OPTIONS, displayName, roleOptionsFor, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
 
-const PAGE_SIZE = 20;
-
-function Badge({ children }: { children: string }) {
-  return (
-    <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-brand-fg">{children}</span>
-  );
-}
-const ROW = "md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.2fr)_6.5rem_8rem] md:items-center md:gap-4";
-
-type Notice = { variant: "success" | "error"; text: string } | null;
+// The kit's Item keeps its actions at z-10, in a card at the left of the footer. An Actions list opened there would sit under the next item's own actions and, from `md`, run off the
+// card's left edge (it opens leftwards from the button). Until Item handles it, the item that holds an open list is raised and a card's footer is right-aligned (reported to the kit's owner).
+const MENU_ROOM = "[&_li:has([aria-expanded=true])]:z-20 [&_li>div.border-t]:justify-end";
 
 const failureText = (status: number, message?: string) =>
   status === 401
@@ -44,6 +39,12 @@ const failureText = (status: number, message?: string) =>
       : status === 0
         ? NETWORK_ERROR
         : (message ?? "That didn't work. Please try again in a moment.");
+
+/// What the page says after an invitation went out: one branch keeps the original sentence; several say how many and which (one e-mail lists them all).
+const invitedText = (sent: Invitation[]) =>
+  sent.length === 1
+    ? `Invitation sent to ${sent[0].email}. The link works for 7 days.`
+    : `${sent.length} invitations created for ${sent[0].email}: ${sent.map((i) => i.branchName).join(", ")}. One email lists a link for each branch; each link works for 7 days.`;
 
 /// The Users page (plan §0.5.4): the school's people with filters and paging, the open invitations, and the four things an administrator does —
 /// invite, change role/branch, deactivate, reactivate; a superadmin also makes or removes superadmins. A branch administrator sees and acts on
@@ -71,6 +72,8 @@ export function UsersPanel({
   const [access, setAccess] = useState(""); // "" = anyone, "formResults" = only the people who may read form results
   const [branchId, setBranchId] = useState("");
   const [page, setPage] = useState(1);
+  // List or grid, and how many to a page: remembered for this list (task 0089). The size is the request's `limit` (the API's cap is 50; every size the kit offers is 50 or less).
+  const layout = useCollectionView("users-people", { defaultView: "list", page, onPage: setPage });
   const [tab, setTab] = useState<"people" | "invitations">("people");
 
   const [members, setMembers] = useState<Member[] | null>(null);
@@ -78,9 +81,10 @@ export function UsersPanel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [invitations, setInvitations] = useState<Invitation[] | null>(null);
 
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [inviting, setInviting] = useState(false);
   const [inviteKey, setInviteKey] = useState(0);
+  const [adding, setAdding] = useState<{ member: Member | null; key: number }>({ member: null, key: 0 });
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [editing, setEditing] = useState<Member | null>(null);
   const [deactivating, setDeactivating] = useState<Member | null>(null);
@@ -106,7 +110,7 @@ export function UsersPanel({
   // when it resumes) instead of guessing with a timer how long the refresh takes.
   const loadMembers = useCallback(
     async (signal?: AbortSignal, flush = false) => {
-      const params = new URLSearchParams({ status, page: String(page), limit: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ status, page: String(page), limit: String(layout.size) });
       if (role) params.set("role", role);
       if (branchId) params.set("branchId", branchId);
       if (access === "formResults") params.set("readsFormResults", "true");
@@ -125,7 +129,7 @@ export function UsersPanel({
       if (flush) flushSync(apply);
       else apply();
     },
-    [status, role, branchId, access, q, page],
+    [status, role, branchId, access, q, page, layout.size],
   );
   const loadInvitations = useCallback(async (signal?: AbortSignal, flush = false) => {
     const reply = await getJson(`/api/v1/invitations?limit=100`, signal);
@@ -220,7 +224,7 @@ export function UsersPanel({
   };
 
   return (
-    <div className="mt-8 space-y-10">
+    <div className="space-y-10">
       <div role="status" aria-live="polite" className="empty:hidden">
         {notice && notice.variant === "success" && (
           <Alert variant="success" announce={false}>
@@ -261,180 +265,118 @@ export function UsersPanel({
       </div>
 
       {tab === "people" && (
-        <section role="tabpanel" id={panelId("users", "people")} aria-labelledby={tabId("users", "people")}>
-          <div className="mt-4">
-            <ListToolbar
-              searchValue={searchText}
-              onSearch={setSearchText}
-              searchPlaceholder="Search by name or email"
-              activeCount={[role !== "", branchId !== "", access !== "", status !== "active"].filter(Boolean).length}
-              onClear={clearFilters}
-            >
-              <SelectField
-                label="Role"
-                value={role}
-                onChange={(e) => (setRole(e.target.value), setPage(1))}
-                options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
-              />
-              <SelectField
-                label="Branch"
-                value={branchId}
-                onChange={(e) => (setBranchId(e.target.value), setPage(1))}
-                options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
-              />
-              <SelectField
-                label="Access"
-                value={access}
-                onChange={(e) => (setAccess(e.target.value), setPage(1))}
-                options={[
-                  { value: "", label: "Anyone" },
-                  { value: "formResults", label: "Reads form results" },
-                ]}
-              />
-              <SelectField
-                label="Status"
-                value={status}
-                onChange={(e) => (setStatus(e.target.value), setPage(1))}
-                options={[
-                  { value: "active", label: "Active" },
-                  { value: "deactivated", label: "Deactivated" },
-                  { value: "all", label: "Everyone" },
-                ]}
-              />
-            </ListToolbar>
-          </div>
+        <section
+          role="tabpanel"
+          id={panelId("users", "people")}
+          aria-labelledby={tabId("users", "people")}
+          className={`space-y-4 ${MENU_ROOM}`}
+        >
+          <ListToolbar
+            searchValue={searchText}
+            onSearch={setSearchText}
+            searchPlaceholder="Search by name or email"
+            activeCount={[role !== "", branchId !== "", access !== "", status !== "active"].filter(Boolean).length}
+            onClear={clearFilters}
+            trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+          >
+            <SelectField
+              label="Role"
+              value={role}
+              onChange={(e) => (setRole(e.target.value), setPage(1))}
+              options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
+            />
+            <SelectField
+              label="Branch"
+              value={branchId}
+              onChange={(e) => (setBranchId(e.target.value), setPage(1))}
+              options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
+            />
+            <SelectField
+              label="Access"
+              value={access}
+              onChange={(e) => (setAccess(e.target.value), setPage(1))}
+              options={[
+                { value: "", label: "Anyone" },
+                { value: "formResults", label: "Reads form results" },
+              ]}
+            />
+            <SelectField
+              label="Status"
+              value={status}
+              onChange={(e) => (setStatus(e.target.value), setPage(1))}
+              options={[
+                { value: "active", label: "Active" },
+                { value: "deactivated", label: "Deactivated" },
+                { value: "all", label: "Everyone" },
+              ]}
+            />
+          </ListToolbar>
 
-          <p ref={summaryRef} tabIndex={-1} className="mt-4 text-sm text-fg-muted focus:outline-none" aria-live="polite">
-            {meta ? `${meta.total} ${meta.total === 1 ? "person" : "people"}${filtered ? " match" : ""}` : " "}
+          <p ref={summaryRef} tabIndex={-1} className="text-sm text-fg-muted focus:outline-none" aria-live="polite">
+            {meta ? `${meta.total} ${meta.total === 1 ? "person" : "people"}${filtered ? " match" : ""}` : " "}
           </p>
 
           {loadError ? (
-            <Alert variant="error" className="mt-3">
+            <Alert variant="error">
               <p>{loadError}</p>
               <Button variant="secondary" className="mt-3" onClick={() => void refresh()}>
                 Try again
               </Button>
             </Alert>
-          ) : members === null ? (
-            <p className="mt-3 rounded-2xl border border-line bg-surface p-6 text-sm text-fg-muted" aria-busy="true">
-              Loading people…
-            </p>
-          ) : members.length === 0 ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-              <p>{filtered ? "No one matches these filters." : "No one has joined yet."}</p>
-              {filtered && (
-                <Button variant="secondary" className="mt-4" onClick={clearFilters}>
-                  Clear filters
-                </Button>
-              )}
-            </div>
           ) : (
-            <div className="mt-3 md:rounded-2xl md:border md:border-line md:bg-surface">
-              <div
-                aria-hidden="true"
-                className={`hidden border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-semibold tracking-wide text-fg-muted uppercase md:rounded-t-2xl ${ROW}`}
-              >
-                <span>Person</span>
-                <span>Role</span>
-                <span>Branch</span>
-                <span>Status</span>
-                <span className="text-right">Actions</span>
-              </div>
-              <ul className="space-y-4 md:space-y-0 md:divide-y md:divide-line">
-                {members.map((member) => {
-                  const name = displayName(member);
-                  const self = member.userId === currentUserId;
+            <Collection
+              label="People"
+              view={layout.view}
+              state={members === null ? "loading" : members.length === 0 ? (filtered ? "nomatch" : "empty") : "ready"}
+              loadingText="Loading people…"
+              emptyText="No one has joined yet."
+              noMatchText="No one matches these filters."
+              onClear={clearFilters}
+            >
+              {(members ?? []).map((member) => (
+                <MemberItem
+                  key={member.id}
+                  member={member}
+                  self={member.userId === currentUserId}
                   // Only a superadmin touches an administrator or a superadmin (the API refuses a branch administrator who tries).
-                  const locked = !isSuperAdmin && (member.role === "ADMIN" || member.isSuperAdmin);
-                  return (
-                    <li
-                      key={member.id}
-                      className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:shadow-none ${ROW}`}
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          aria-hidden="true"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tint text-xs font-bold text-brand-fg"
-                        >
-                          {initialsOf(member.name, member.email)}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold break-words text-fg">
-                            {name}
-                            {self && (
-                              <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
-                                You
-                              </span>
-                            )}
-                          </p>
-                          {member.name?.trim() && member.email && <p className="text-xs break-all text-fg-muted">{member.email}</p>}
-                        </div>
-                      </div>
-                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-2">
-                        <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Role: </span>
-                        <span>{ROLE_LABELS[member.role]}</span>
-                        {member.isSuperAdmin && <Badge>Superadmin</Badge>}
-                        {member.canApproveResults && <Badge>Approves results</Badge>}
-                        {member.canViewFormResults && <Badge>Reads form results</Badge>}
-                      </div>
-                      <p className="text-sm text-fg-2">
-                        <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Branch: </span>
-                        {member.isSuperAdmin ? "All branches" : member.branchName}
-                      </p>
-                      <p>
-                        {member.standing !== "ACTIVE" ? (
-                          <StandingBadge standing={member.standing} until={member.standingUntil} />
-                        ) : (
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${member.status === "active" ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"}`}
-                          >
-                            {member.status === "active" ? "Active" : "Deactivated"}
-                          </span>
-                        )}
-                      </p>
-                      <div className="md:flex md:w-32 md:justify-end">
-                        <MemberActions
-                          member={member}
-                          name={name}
-                          self={self}
-                          locked={locked}
-                          can={standingCan[member.branchId] ?? { suspend: false, remove: false }}
-                          isSuperAdmin={isSuperAdmin}
-                          busy={busyUser === member.id}
-                          onEdit={setEditing}
-                          onDeactivate={setDeactivating}
-                          onStanding={ask}
-                          onSuperAdmin={setSuperAdminFor}
-                          onReactivate={reactivate}
-                          onHistory={(m) => setHistoryOf({ endpoint: `/api/v1/members/${m.id}/standing`, name: displayName(m) })}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                  locked={!isSuperAdmin && (member.role === "ADMIN" || member.isSuperAdmin)}
+                  can={standingCan[member.branchId] ?? { suspend: false, remove: false }}
+                  isSuperAdmin={isSuperAdmin}
+                  canAddBranch={branches.length > 1}
+                  busy={busyUser === member.id}
+                  onEdit={setEditing}
+                  onAddBranch={(m) => {
+                    setNotice(null);
+                    setAdding((a) => ({ member: m, key: a.key + 1 }));
+                  }}
+                  onDeactivate={setDeactivating}
+                  onStanding={ask}
+                  onSuperAdmin={setSuperAdminFor}
+                  onReactivate={reactivate}
+                  onHistory={(m) => setHistoryOf({ endpoint: `/api/v1/members/${m.id}/standing`, name: displayName(m) })}
+                />
+              ))}
+            </Collection>
           )}
 
-          {meta && <Pager page={meta.page} pages={meta.pages} onPage={setPage} label="Pages of people" />}
+          {meta && (
+            <Pager
+              page={meta.page}
+              pages={meta.pages}
+              onPage={setPage}
+              label="Pages of people"
+              total={meta.total}
+              size={layout.size}
+              sizes={layout.sizes}
+              onSize={layout.setSize}
+            />
+          )}
         </section>
       )}
 
       {tab === "invitations" && (
         <section role="tabpanel" id={panelId("users", "invitations")} aria-labelledby={tabId("users", "invitations")}>
-          {invitations === null ? (
-            <p className="mt-3 text-sm text-fg-muted" aria-busy="true">
-              Loading invitations…
-            </p>
-          ) : invitations.length === 0 ? (
-            <p className="mt-3 rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-              No invitations are waiting. People you invite appear here until they accept.
-            </p>
-          ) : (
-            <div className="mt-3">
-              <InvitationsList invitations={invitations} busyId={busyInvitation} onResend={resend} onRevoke={revoke} />
-            </div>
-          )}
+          <InvitationsList invitations={invitations} busyId={busyInvitation} onResend={resend} onRevoke={revoke} />
         </section>
       )}
 
@@ -458,9 +400,23 @@ export function UsersPanel({
         onClose={() => setInviting(false)}
         branches={branches}
         roleOptions={roleOptionsFor(isSuperAdmin)}
-        onInvited={(invitation) => {
+        onInvited={(sent) => {
           flushSync(() => setInviting(false)); // the dialog is closed (and focus handed back) before the lists are reloaded
-          setNotice({ variant: "success", text: `Invitation sent to ${invitation.email}. The link works for 7 days.` });
+          setNotice({ variant: "success", text: invitedText(sent) });
+          void afterChange();
+        }}
+      />
+      <InviteDialog
+        key={`add-${adding.key}`}
+        open={adding.member !== null}
+        onClose={() => setAdding((a) => ({ ...a, member: null }))}
+        branches={branches}
+        roleOptions={roleOptionsFor(isSuperAdmin)}
+        invitations={invitations ?? []}
+        person={adding.member}
+        onInvited={(sent) => {
+          flushSync(() => setAdding((a) => ({ ...a, member: null })));
+          setNotice({ variant: "success", text: invitedText(sent) });
           void afterChange();
         }}
       />

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // Review (Slice P2d, administrators): the term's queue - each arm and subject with how many results are in each status - and the actions for a whole group. The
 // server decides every rule (including "not your own entries"); a refusal is shown in its own words. Presentation only.
@@ -70,7 +71,7 @@ export function ReviewPanel({
   const [periodId, setPeriodId] = useState("");
   const [queue, setQueue] = useState<Group[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [pending, setPending] = useState(false);
   const [unlocking, setUnlocking] = useState<{ group: Group; status: string } | null>(null);
   const [historyGroup, setHistoryGroup] = useState<Group | null>(null);

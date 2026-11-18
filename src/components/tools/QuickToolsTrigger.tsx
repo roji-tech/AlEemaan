@@ -10,7 +10,8 @@ import type { QuickToolId } from "./types";
 export function QuickToolsTrigger() {
   const searchParams = useSearchParams();
   const requestedTool = searchParams.get("tool");
-  const isPwaTool = requestedTool === "calculator" || requestedTool === "lookup" || requestedTool === "scratchpad";
+  const isPwaTool =
+    requestedTool === "calculator" || requestedTool === "lookup" || requestedTool === "scratchpad" || requestedTool === "report";
 
   const [open, setOpen] = useState(isPwaTool);
   const [initialTool] = useState<QuickToolId>(isPwaTool ? (requestedTool as QuickToolId) : "calculator");

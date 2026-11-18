@@ -36,21 +36,21 @@ test.describe("groupNav: sections for each kind of person", () => {
     const groups = groupNav(superAdmin());
     expect(groups.map((group) => group.section?.label ?? null)).toEqual([
       null,
+      "Administration",
       "Classroom",
       "Assessment",
       "Communication",
-      "Administration",
     ]);
     expect(labels(groups[0].items)).toEqual(["Overview"]);
-    expect(labels(groups[1].items)).toEqual(["Students", "Coursework", "Attendance", "Timetable", "Programs"]);
-    expect(labels(groups[2].items)).toEqual(["Results", "Question bank", "Forms"]);
-    expect(labels(groups[3].items)).toEqual(["Announcements", "Communication"]);
-    expect(labels(groups[4].items)).toEqual(["Branches", "Settings", "Academics", "Finance", "Approvals", "Users"]);
+    expect(labels(groups[1].items)).toEqual(["Branches", "Settings", "Academics", "Finance", "Approvals", "Users"]);
+    expect(labels(groups[2].items)).toEqual(["Students", "Coursework", "Attendance", "Timetable", "Programs"]);
+    expect(labels(groups[3].items)).toEqual(["Results", "Question bank", "Forms"]);
+    expect(labels(groups[4].items)).toEqual(["Announcements", "Communication"]);
   });
 
   test("a branch administrator has no Branches or Settings, and the rest stays where it was", () => {
     const groups = groupNav(admin());
-    expect(labels(groups[4].items)).toEqual(["Academics", "Finance", "Approvals", "Users"]);
+    expect(labels(groups[1].items)).toEqual(["Academics", "Finance", "Approvals", "Users"]);
   });
 
   test("a teacher: a section of one entry (Announcements) comes out as a plain link, in its place, with no heading", () => {
@@ -135,8 +135,8 @@ test.describe("groupNav: sections for each kind of person", () => {
 
   test("the phone's More sheet groups a subset the same way (it passes only the entries that live there)", () => {
     const groups = groupNav(superAdmin().filter((item) => item.href && item.inMore));
-    expect(groups.map((group) => group.section?.label ?? null)).toEqual(["Classroom", "Assessment", "Communication", "Administration"]);
-    expect(labels(groups[1].items)).toEqual(["Question bank", "Forms"]); // Results is a tab, not in the sheet
+    expect(groups.map((group) => group.section?.label ?? null)).toEqual(["Administration", "Classroom", "Assessment", "Communication"]);
+    expect(labels(groups[2].items)).toEqual(["Question bank", "Forms"]); // Results is a tab, not in the sheet
   });
 });
 
@@ -155,7 +155,7 @@ test.describe("the list itself", () => {
 
   test("section ids are unique and are what the cookie stores", () => {
     expect(new Set(IDS).size).toBe(IDS.length);
-    expect(IDS).toEqual(["classroom", "assessment", "communication", "administration"]);
+    expect(IDS).toEqual(["administration", "classroom", "assessment", "communication"]); // Administration first (2026-11-18)
   });
 });
 
@@ -194,7 +194,7 @@ test.describe("the remembered choices (cookies) are read strictly", () => {
   });
 
   test("folded sections: only known ids, each once, in the order of the sections", () => {
-    expect(parseFoldedSections("administration,classroom", IDS)).toEqual(["classroom", "administration"]);
+    expect(parseFoldedSections("classroom,administration", IDS)).toEqual(["administration", "classroom"]);
     expect(parseFoldedSections("classroom,classroom,classroom", IDS)).toEqual(["classroom"]);
     expect(parseFoldedSections("classroom,<script>,__proto__,constructor,", IDS)).toEqual(["classroom"]);
     expect(parseFoldedSections("Classroom", IDS)).toEqual([]);

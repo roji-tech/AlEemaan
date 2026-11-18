@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { FormBuilderDialog } from "@/components/forms/FormBuilderDialog";
 import { PublicLinkBox } from "@/components/forms/PublicLinkBox";
 import { StatusBadge } from "@/components/forms/StatusBadge";
@@ -22,7 +23,7 @@ export function FormsList({ kind, branchId, classGroups }: { kind: FormKindKey; 
   const noun = KIND_NOUN[kind];
   const [forms, setForms] = useState<ListedForm[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [building, setBuilding] = useState(false);
   const [closing, setClosing] = useState<ListedForm | null>(null);
   const [busy, setBusy] = useState<string | null>(null);

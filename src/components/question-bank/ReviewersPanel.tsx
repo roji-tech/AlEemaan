@@ -2,6 +2,7 @@
 
 import { InfoTip } from "@/components/ui/InfoTip";
 import { useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -9,7 +10,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // Who may review question bank submissions. A branch administrator manages their own branch's reviewers; a superadmin also manages the "every branch" ones. A reviewer is
 // active staff (never a pupil or a parent). Presentation only: the reviewers API decides who may do what and says why not.
@@ -41,7 +42,7 @@ export function ReviewersPanel({ branches, isSuperAdmin }: { branches: BranchCho
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<Person | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [pending, setPending] = useState(false);
   const [removing, setRemoving] = useState<Reviewer | null>(null);
 

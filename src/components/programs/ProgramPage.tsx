@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { ArrowLeftIcon } from "@/components/ui/icons";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { SectionTabs } from "@/components/forms/SectionTabs";
 import { ProgramAssessmentsTab } from "@/components/programs/ProgramAssessmentsTab";
 import { ProgramProgressTab } from "@/components/programs/ProgramProgressTab";
@@ -52,7 +53,7 @@ type Branch = { id: string; name: string };
 export function ProgramPage({ id, allBranches }: { id: string; allBranches: Branch[] }) {
   const [program, setProgram] = useState<ProgramDetail | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [section, setSection] = useState<SectionId>("overview");
   const [archiving, setArchiving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -90,7 +91,7 @@ export function ProgramPage({ id, allBranches }: { id: string; allBranches: Bran
       if (reply.ok) await load();
       return reply.ok;
     },
-    [load],
+    [load, setNotice],
   );
 
   async function status(action: "activate" | "archive" | "restore") {

@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
+import { SpinnerIcon } from "@/components/ui/icons";
 import { PortalAccessPanel } from "@/components/settings/PortalAccessPanel";
 import { ProgramsSettingsPanel } from "@/components/programs/ProgramsSettingsPanel";
 import { StandingSettingsPanel } from "@/components/standing/StandingSettingsPanel";
 import { ResultsApprovalPanel } from "@/components/settings/ResultsApprovalPanel";
+import { LoginSwitchPanel } from "@/components/settings/LoginSwitchPanel";
+import type { BranchLoginRow } from "@/lib/auth/login-switch-rules";
 
 type SchoolSettingsState = {
   name: string;
@@ -48,10 +51,14 @@ type Props = {
   initialSessions: SessionItem[];
   /// Whether the signed-in superadmin has two-step verification on (what the confirmation dialog asks for).
   hasMfa: boolean;
+  /// Every branch with its student and parent sign-in switches, as the database says now (task 0091). Settings is a superadmin's page, so all of them, with the bulk controls.
+  loginBranches: BranchLoginRow[];
 };
 
-export function SettingsView({ initialSettings, branches, initialSessions, hasMfa }: Props) {
-  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval" | "programs" | "discipline">("profile");
+export function SettingsView({ initialSettings, branches, initialSessions, hasMfa, loginBranches }: Props) {
+  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval" | "programs" | "discipline" | "signin">(
+    "profile",
+  );
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
@@ -115,12 +122,20 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
     }
   };
 
+  // Which term is being made current right now: its button shows it, and no second change starts until this one is answered.
+  const [settingPeriod, setSettingPeriod] = useState<string | null>(null);
+  const [termProblem, setTermProblem] = useState<string | null>(null);
   const handleSetCurrentPeriod = async (branchId: string, periodId: string) => {
+    if (settingPeriod) return;
+    setSettingPeriod(periodId);
+    setTermProblem(null);
     const res = await sendJson(`/api/v1/academics/periods/${periodId}`, "PATCH", {
       branchId,
       isCurrent: true,
     });
 
+    setSettingPeriod(null);
+    if (!res.ok) setTermProblem(res.message || "Couldn't set the current term. Please try again.");
     if (res.ok) {
       // Refresh local sessions state
       setSessions((prev) =>
@@ -200,6 +215,15 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
         >
           Discipline
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("signin")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+            activeTab === "signin" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Sign-in access
+        </button>
       </div>
 
       {/* Tab 3: what a pupil and a guardian may do in the portal */}
@@ -210,6 +234,9 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
 
       {/* Tab 6: may branch administrators suspend (task 0045) */}
       {activeTab === "discipline" && <StandingSettingsPanel />}
+
+      {/* Tab 7: may students and parents sign in (task 0091) */}
+      {activeTab === "signin" && <LoginSwitchPanel initial={loginBranches} canBulk />}
 
       {/* Tab 4: who approves results, and where (task 0039) */}
       {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}
@@ -236,6 +263,7 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
                 label="Principal / Head of School"
+                info="settings.principal"
                 value={settings.principal}
                 onChange={(e) => setSettings({ ...settings, principal: e.target.value })}
               />
@@ -247,6 +275,7 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
             </div>
             <TextField
               label="Motto / Slogan"
+              info="settings.motto"
               value={settings.motto}
               onChange={(e) => setSettings({ ...settings, motto: e.target.value })}
             />
@@ -290,6 +319,7 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
             <Button onClick={() => setIsNewSessionOpen(true)}>New Academic Session</Button>
           </div>
 
+          {termProblem && <Alert variant="error">{termProblem}</Alert>}
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredSessions.map((session) => (
               <Card key={session.id} className="space-y-4">
@@ -329,9 +359,12 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
                           <button
                             type="button"
                             onClick={() => handleSetCurrentPeriod(session.branchId, period.id)}
-                            className="text-xs font-semibold text-brand-fg hover:underline"
+                            disabled={settingPeriod !== null}
+                            aria-busy={settingPeriod === period.id}
+                            className="inline-flex min-h-6 items-center gap-1.5 text-xs font-semibold text-brand-fg hover:underline disabled:opacity-60"
                           >
-                            Set Current
+                            {settingPeriod === period.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
+                            {settingPeriod === period.id ? "Setting…" : "Set Current"}
                           </button>
                         )}
                       </div>
@@ -371,6 +404,7 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
           />
           <TextField
             label="Session Label (e.g. 2026/2027)"
+            info="sessions.label"
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             placeholder="2026/2027"
@@ -379,6 +413,7 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               label="Session Start Date"
+              info="sessions.dates"
               type="date"
               value={newStartDate}
               onChange={(e) => setNewStartDate(e.target.value)}

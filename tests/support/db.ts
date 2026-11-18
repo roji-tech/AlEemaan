@@ -61,6 +61,13 @@ export const DEFAULT_PASSWORD = "correct-horse-battery-9";
 /// The four legacy sections, seeded once by the real setup wizard (PRD §3).
 export const BRANCH_NAMES = ["Secondary (English)", "Primary (English)", "Secondary (Arabic)", "Primary (Arabic)"] as const;
 
+let loginSwitchesManaged = false;
+/// A spec about the student and parent sign-in switches sets them itself: `manageLoginSwitches(true)` in its `beforeAll` makes `seedInstance` (and so `createUser`) leave them alone,
+/// `manageLoginSwitches(false)` in its `afterAll` gives the other specs their ON again. (Specs run one at a time in one worker, so the flag is never seen by another spec.)
+export function manageLoginSwitches(managed: boolean): void {
+  loginSwitchesManaged = managed;
+}
+
 /// Marks the instance as set up (so /login stops redirecting to /setup) and seeds
 /// the four branches exactly as the wizard does. Returns the first branch — the
 /// one test memberships are anchored to. Idempotent.
@@ -74,6 +81,10 @@ export async function seedInstance() {
   for (const name of BRANCH_NAMES) {
     branches.push(await db.branch.upsert({ where: { name }, update: {}, create: { name } }));
   }
+  // Student and parent sign-in is OFF by default for every branch in the product (task 0091), so a student or a parent a spec signs in would be refused: the test database has the switches ON for
+  // EVERY branch that exists (the four seeded ones and any a spec made before creating its users, since `createUser` calls this) unless a spec is about the switches themselves
+  // (`manageLoginSwitches(true)`). Written on every call, not only the first, so a spec that emptied the tables finds them on again.
+  if (!loginSwitchesManaged) await db.branch.updateMany({ data: { studentLoginEnabled: true, parentLoginEnabled: true } });
   return branches[0];
 }
 

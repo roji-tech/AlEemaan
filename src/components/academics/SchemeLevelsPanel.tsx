@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { SchemeForm, type SchemeBody, type SchemeInitial } from "@/components/academics/SchemeForm";
 
 // The levels above a branch's own default scheme: the school-wide default (a superadmin sets it) and a scheme for one class group (an administrator of the branch).
@@ -25,7 +26,7 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
   const [globals, setGlobals] = useState<GlobalRow[]>([]);
   const [groups, setGroups] = useState<(Group & { scheme: Scheme | null })[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
 
   const load = useCallback(async () => {

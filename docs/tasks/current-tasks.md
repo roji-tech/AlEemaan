@@ -701,3 +701,48 @@
 - [x] The browser run: 33 passed, 0 failed
 - [ ] Merged to `dev`, promoted to `master` and `prod`
 
+
+## TASK-0092: Attach one person to several branches (an "Add to another branch" row action, and an invitation that names several branches)
+
+[Task file](0092-attach-user-to-several-branches.md). The maintainer: "there are situations where we want to attach a user to more than one branch". Built as invitations, not an instant attach (the person's acceptance stays the proof): `POST /api/v1/invitations` takes an optional `branchIds` beside `branchId` (all or none, the single invitation's own authority rule asked of every branch first, ONE e-mail with a link per branch, no migration); the Users page gets `Add <name> to another branch` and the invite dialog can switch to several branches.
+
+- [x] `service.ts` (`authorityToInvite`, `membershipRefusal`, `writeInvitation`, `createInvitations`), `mail.ts`, `messages.ts`, the route
+- [x] `InviteDialog` (several branches), `MemberActions` + `UsersPanel` (Add to another branch)
+- [x] `tests/api/invitations-multi-branch.spec.ts`, `tests/e2e/multi-branch.spec.ts` (written, NOT run)
+- [ ] The record of the runs
+- [x] Decided (the coordinator, final): by invitation that the person accepts, not a silent attach (task file D1)
+- [ ] Merge order: `claude/toasts` (`@/components/ui/Toaster`) before this branch, or `tsc` fails on that import
+
+## TASK-0091: Student and parent sign-in switches, per branch (off by default)
+
+[Task file](0091-student-parent-login-switch.md). The maintainer: superadmin and administrators can turn student and parent login on and off, off by default; an administrator only for their own branch(es), a superadmin for all or some.
+
+- [x] Two switches on each `Branch` (migration `20261118160000_student_parent_login_switch`, the maintainer's to run, after the merge to `prod`), the pure rule, the sign-in refusal (generic before the password, plain after it) and the per-request check folded into the session join (no cache)
+- [x] `GET`/`PATCH /api/v1/settings/login-switches` (administrator: own branches only, refused whole otherwise; superadmin: any, several or all; one audit entry per branch, all or nothing)
+- [x] `LoginSwitchPanel` (Settings > Sign-in access, and the Users page for a branch administrator), the closed notice on the student and parent portals when no branch is open
+- [ ] The record of the runs, and the maintainer's migration (**DEFAULT OFF locks out every existing student and parent account until an administrator switches it on**)
+
+## TASK-0097: A session is made of terms or semesters, 2 or 3, with editable dates (requested 2026-11-18)
+
+[Task file](0097-session-terms-or-semesters-and-dates.md). Choose terms (2 or 3) or semesters (2) when a session is made, see and change the first and last day of each, and change all of the dates afterwards ("Edit dates", `PUT /api/v1/academics/sessions/[id]/schedule`). One pure rules module is shared by the form and the server; an overlap is refused with the reason, a gap (a holiday) is fine.
+
+- [x] `session-schedule.ts`, `createSession`/`updateSchedule`, the PUT route, the form and the Edit dates dialog, info tips
+- [x] Unit, API and browser specs written
+- [x] The run: API 41 passed; browser 76 passed, 0 failed; unit 48 passed (section 5 of the task file)
+- [ ] Merged to `dev`, promoted
+- [x] Mid-term and mid-semester holidays and their announcement: task 0098
+
+## TASK-0098: A break inside a term or semester, and its announcement (requested 2026-11-18)
+
+[Task file](0098-term-breaks-and-announcement.md). The mid-term or mid-semester holiday: add it to a term (inside it, no overlap), change or remove it, and be offered an announcement to the branch right after adding it, with the words written to read and change. A new table `AcademicBreak` (migration `20261118170000_academic_break`, the maintainer's to run).
+
+- [x] Schema and migration, the rules, the routes, the form and the announcement, specs
+- [x] The run: final pass 0 failed (section 5 of the task file)
+- [ ] Merged to `dev`, promoted
+## TASK-0099: A Report tool in Quick Tools (requested 2026-11-18)
+
+[Task file](0099-report-a-problem-quick-tool.md). Any signed-in person can report a problem from the Quick Tools drawer; it is recorded (`ProblemReport`, migration `20261118180000_problem_report`, the maintainer's to run) and mailed to `DEVELOPER_EMAIL` (optional; the maintainer sets it in Vercel).
+
+- [x] Table, rules, routes, the tab, docs and specs
+- [ ] The run (section 5), merged to `dev`, promoted
+

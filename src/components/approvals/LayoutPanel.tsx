@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // Which report-card layout a branch prints, and which of its optional parts it shows. A superadmin can also switch "an administrator's change needs my approval" on
 // (for every branch): then an administrator's save becomes a request with their reason, and the report cards keep the old layout until it is approved.
@@ -27,7 +28,7 @@ export function LayoutPanel({ branches, isSuperAdmin }: { branches: BranchChoice
   const [reason, setReason] = useState("");
   const [enforced, setEnforced] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [pending, setPending] = useState(false);
 
   const load = useCallback(async () => {
