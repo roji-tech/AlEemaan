@@ -4,7 +4,7 @@ import { Permission } from "@prisma/client";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance, type TestUser } from "../support/db";
 import { resultsWorld } from "../support/results-world";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, rowAction } from "./helpers";
 
 // Approvers in a real browser, desktop and phone (task 0039 slice 1): a superadmin says on the Users page who may approve results (with a fresh proof), and that person
 // then finds the Review tab on the Results page, sees the classes in their scope, approves them, and is not offered Unlock. Axe (WCAG 2.2 A/AA) on the dialog and the
@@ -63,7 +63,7 @@ test.describe("the Users page", () => {
     const superAdmin = await createUser({ name: "Sue Superadmin", role: Role.ADMIN });
     const tola = await member(Role.TEACHING_STAFF, "Tola Teacher");
     await openUsers(page, superAdmin);
-    await row(page, "Tola Teacher").getByRole("button", { name: "Change role or branch for Tola Teacher" }).click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await expect(dialog(page)).toBeVisible();
     const box = dialog(page).getByRole("checkbox", { name: "May approve results" });
     await expect(box).not.toBeChecked();
@@ -91,7 +91,7 @@ test.describe("the Users page", () => {
     // leaving and coming back shows the same; turning it off needs the proof again and removes the scope
     await page.goto("/users");
     await expect(row(page, "Tola Teacher")).toContainText("Approves results");
-    await row(page, "Tola Teacher").getByRole("button", { name: "Change role or branch for Tola Teacher" }).click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await dialog(page).getByRole("checkbox", { name: "May approve results" }).uncheck();
     await dialog(page).getByLabel("Your password").fill(superAdmin.password);
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
@@ -106,7 +106,7 @@ test.describe("the Users page", () => {
     await member(Role.TEACHING_STAFF, "Tola Teacher");
     await member(Role.PARENT, "Pat Parent");
     await openUsers(page, branchAdmin);
-    await row(page, "Tola Teacher").getByRole("button", { name: "Change role or branch for Tola Teacher" }).click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await expect(dialog(page).getByLabel("Role")).toBeVisible();
     await expect(dialog(page).getByRole("checkbox", { name: "May approve results" })).toHaveCount(0);
     await dialog(page).getByRole("button", { name: "Cancel" }).click();
@@ -115,7 +115,7 @@ test.describe("the Users page", () => {
     const superAdmin = await createUser({ name: "Sue Superadmin", role: Role.ADMIN });
     await page.context().clearCookies();
     await openUsers(page, superAdmin);
-    await row(page, "Pat Parent").getByRole("button", { name: "Change role or branch for Pat Parent" }).click();
+    await rowAction(page, "Change role or branch for Pat Parent");
     await expect(dialog(page).getByRole("checkbox", { name: "May approve results" })).toHaveCount(0);
     await dialog(page).getByLabel("Role").selectOption("TEACHING_STAFF");
     await expect(dialog(page).getByRole("checkbox", { name: "May approve results" })).toBeVisible(); // it follows the role chosen
