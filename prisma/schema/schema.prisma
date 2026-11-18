@@ -17,7 +17,9 @@
 // Run: pnpm prisma generate (after schema changes).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Lets a query fetch a relation in the SAME round trip (`relationLoadStrategy: "join"`); used where a page asks on every request. Client-side only: no migration.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
