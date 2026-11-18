@@ -4,7 +4,7 @@ import { Gender } from "@prisma/client";
 import { test, expect } from "../support/fixtures";
 import { BRANCH_NAMES, Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { HTTP_URL } from "../support/env";
-import { signInThroughUi } from "./helpers";
+import { openRowActions, rowAction, signInThroughUi } from "./helpers";
 
 // Suspension, expulsion and termination (task 0045) and part payment (task 0046) as a person sees and uses them, on a desktop and a phone, in both themes. What the API allows is
 // tested in tests/api/standing.spec.ts and tests/api/part-payment.spec.ts; here is what the screens offer, say and do, that nobody is shown a button they cannot use, and that
@@ -103,6 +103,11 @@ async function seedSchool() {
 }
 
 const row = (page: Page, name: string) => page.getByRole("listitem").filter({ hasText: name }).first();
+/// The Users page keeps its filters behind a Filters button; opens them only when they are closed.
+async function openFilters(page: Page) {
+  const button = page.getByRole("button", { name: /^Filters/ });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+}
 const dialog = (page: Page) => page.getByRole("dialog");
 
 /// A super admin's Students page opens on the first branch ALPHABETICALLY, and the pupils seeded here are in the first branch SEEDED, so a super admin picks the branch (a
@@ -226,30 +231,34 @@ test.describe("users", () => {
     await page.goto("/users");
     await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Suspend Hassan Teacher" }).click();
+    // On the Users page every action on a person is in that person's Actions list.
+    await rowAction(page, "Suspend Hassan Teacher");
     await expect(dialog(page).getByRole("checkbox", { name: /Everywhere in the school/ })).toBeVisible();
     await dialog(page).getByLabel("Why are you suspending them?").fill("Pending an inquiry");
     await dialog(page).getByRole("button", { name: "Suspend", exact: true }).click();
     await expect(page.getByText("Hassan Teacher is suspended.")).toBeVisible();
 
+    await openFilters(page);
     await page.getByLabel("Status", { exact: true }).selectOption("all");
     await expect(row(page, "Hassan Teacher").getByText("Suspended", { exact: true })).toBeVisible();
+    await openRowActions(page, "Hassan Teacher");
     await expect(page.getByRole("button", { name: "Reactivate Hassan Teacher" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Lift suspension Hassan Teacher" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Terminate Hassan Teacher" }).click();
+    await rowAction(page, "Terminate Hassan Teacher"); // the list is still open
     await dialog(page).getByLabel("Why are you terminating them?").fill("Contract ended");
     await dialog(page).getByRole("button", { name: "Terminate", exact: true }).click();
     await expect(page.getByText("Hassan Teacher is terminated.")).toBeVisible();
     await expect(row(page, "Hassan Teacher").getByText("Terminated", { exact: true })).toBeVisible();
 
+    await openRowActions(page, "Hassan Teacher");
     await page.getByRole("button", { name: "Reinstate Hassan Teacher" }).click();
     await dialog(page).getByLabel("Why are you reinstating them?").fill("Appeal upheld");
     await dialog(page).getByRole("button", { name: "Reinstate", exact: true }).click();
     await expect(page.getByText("Hassan Teacher is reinstated.")).toBeVisible();
     await expect(row(page, "Hassan Teacher").getByText("Active", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Standing history of Hassan Teacher" }).click();
+    await rowAction(page, "Standing history of Hassan Teacher");
     await expect(dialog(page).getByText("Contract ended")).toBeVisible();
     await expect(dialog(page).getByText("Appeal upheld")).toBeVisible();
   });
@@ -444,10 +453,10 @@ test.describe("accessible and fits the width, in both themes", () => {
       await dialog(page).getByRole("button", { name: "Close" }).last().click();
 
       await page.goto("/users");
-      await expect(page.getByRole("button", { name: "Suspend Hassan Teacher" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Actions for Hassan Teacher" })).toBeVisible();
       await expectAccessible(page, `${theme} users list`);
       await expectFits(page, `${theme} users list`);
-      await page.getByRole("button", { name: "Terminate Hassan Teacher" }).click();
+      await rowAction(page, "Terminate Hassan Teacher");
       await expectAccessible(page, `${theme} terminate dialog`);
       await dialog(page).getByRole("button", { name: "Cancel" }).click();
 
