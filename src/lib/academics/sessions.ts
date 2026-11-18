@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { SessionStatus, PeriodKind } from "@prisma/client";
+import { breaksOutside } from "./session-break-rules";
 import { MAX_PERIODS, defaultSchedule, isDay, periodLabel, usualCount, validateSchedule, type PeriodDates } from "./session-schedule";
 
 /// A refusal whose message is written FOR the caller (a missing branch, a duplicate label). Routes may return its text; any other exception's text is
@@ -284,6 +285,20 @@ export async function updateSchedule(id: string, input: UpdateScheduleInput) {
   if (problems.length > 0) throw new DomainError(problems[0].message);
   if (![data.startDate, data.endDate, ...ordered.flatMap((p) => [p.startDate, p.endDate])].every(isDay))
     throw new DomainError("Every date must be a calendar day.");
+
+  // A break is never left outside its term (task 0098): moving a term's days past one is refused, naming it. Read here, not in the transaction: breaks are only added or removed by an administrator of this branch.
+  const kept = await prisma.academicBreak.findMany({ where: { periodId: { in: ids }, archivedAt: null } });
+  for (const p of session.periods) {
+    const dates = byId.get(p.id)!;
+    const outside = breaksOutside(
+      dates,
+      kept.filter((b) => b.periodId === p.id).map((b) => ({ label: b.label, startDate: day(b.startDate), endDate: day(b.endDate) })),
+    );
+    if (outside.length > 0)
+      throw new DomainError(
+        `${outside[0].label} (${outside[0].startDate} to ${outside[0].endDate}) would fall outside ${p.label}. Move or remove the break first.`,
+      );
+  }
 
   const at = (d: string) => new Date(`${d}T00:00:00.000Z`);
   return prisma.$transaction(async (tx) => {

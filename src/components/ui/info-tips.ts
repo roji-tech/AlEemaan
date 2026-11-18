@@ -29,6 +29,8 @@ export const INFO_TIPS = {
     "How many terms the year has: 2 or 3. A branch with Arabic in its name starts at 2 and the others at 3; change it here if yours differs.",
   "sessions.periodDates":
     "The first and last day of each term or semester. They must sit inside the session, in order, without overlapping; a gap between two (a holiday) is fine. Change a date to set your own; changing the session's days or the number of terms shares the days equally again.",
+  "sessions.break":
+    "A stretch of days inside a term or semester when there is no school, such as the mid-term break. The term's own dates stay as they are.",
   "sessions.branches":
     "Choose every branch that should start this year. A branch that already has a session with this name is left out, and each branch is created and recorded on its own.",
 

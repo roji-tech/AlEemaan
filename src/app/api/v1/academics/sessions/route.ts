@@ -6,6 +6,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { withBranch } from "@/lib/auth/with-branch";
 import { listSessions, createSession, createSessionSchema, DomainError } from "@/lib/academics/sessions";
+import { attachBreaks } from "@/lib/academics/session-breaks";
 import { readJsonBody } from "@/lib/api/validate";
 
 /**
@@ -20,8 +21,9 @@ export const GET = withAuth(async (req, auth) => {
     // Only the caller's own branches (a superadmin: all). Found by the browser security run: with no `?branchId=` every branch's calendar came back to anyone.
     const mine = await branchIdsFor(auth.userId);
     if (mine !== "all" && branchId && !mine.includes(branchId)) return fail("Not found", 404, "NOT_FOUND");
-    const sessions = (await listSessions(branchId)).filter((s) => mine === "all" || mine.includes(s.branchId));
-    return ok({ sessions });
+    const visible = (await listSessions(branchId)).filter((s) => mine === "all" || mine.includes(s.branchId));
+    // Each term carries its breaks (task 0098).
+    return ok({ sessions: await attachBreaks(visible) });
   } catch (error) {
     console.error("[ACADEMIC_SESSIONS_GET_ERROR]", error);
     return fail("Unable to list academic sessions", 500, "INTERNAL");

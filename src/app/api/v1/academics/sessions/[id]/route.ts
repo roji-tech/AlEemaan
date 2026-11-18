@@ -5,6 +5,7 @@ import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { getSession, updateSession, updateSessionSchema, DomainError } from "@/lib/academics/sessions";
+import { attachBreaks } from "@/lib/academics/session-breaks";
 import { readJsonBody } from "@/lib/api/validate";
 
 type Context = { params: Promise<{ id: string }> };
@@ -20,7 +21,7 @@ export const GET = withAuth<Context>(async (_req, _auth, context) => {
     if (!session) {
       return fail(`Academic session "${id}" not found`, 404, "NOT_FOUND");
     }
-    return ok({ session });
+    return ok({ session: (await attachBreaks([session]))[0] });
   } catch (error) {
     console.error("[ACADEMIC_SESSION_GET_DETAIL_ERROR]", error);
     return fail("Unable to load academic session", 500, "INTERNAL");

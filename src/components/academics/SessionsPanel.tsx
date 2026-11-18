@@ -15,6 +15,13 @@ import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/pos
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 import { EditDatesDialog, PeriodDatesFields, problemAt } from "@/components/academics/SessionDates";
 import {
+  AnnounceBreakDialog,
+  BreakDialog,
+  type AnnounceTarget,
+  type BreakRow,
+  type BreakTarget,
+} from "@/components/academics/BreakDialogs";
+import {
   COUNTS,
   defaultSchedule,
   kindNoun,
@@ -30,12 +37,22 @@ import { suggestSession } from "@/lib/academics/session-suggest";
 // (a name that already exists, a signed-out person, a lost connection) has its own honest message.
 
 type Status = "PLANNED" | "ACTIVE" | "CLOSED";
-type Period = { id: string; kind: PeriodKindName; label: string; ordinal: number; startDate: string; endDate: string; isCurrent: boolean };
+type Period = {
+  id: string;
+  kind: PeriodKindName;
+  label: string;
+  ordinal: number;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  breaks: BreakRow[];
+};
 type SessionRow = { id: string; branchId: string; label: string; startDate: string; endDate: string; status: Status; periods: Period[] };
 type Action =
   | { kind: "create" }
   | { kind: "rename"; session: SessionRow }
   | { kind: "dates"; session: SessionRow }
+  | { kind: "removeBreak"; session: SessionRow; period: Period; brk: BreakRow }
   | { kind: "activate"; session: SessionRow }
   | { kind: "close"; session: SessionRow }
   | null;
@@ -111,6 +128,16 @@ export function SessionsPanel({
     await load();
     return reply;
   }
+  // Breaks (task 0098): the one being added or changed, and the announcement offered once a new one is saved.
+  const [breakTarget, setBreakTarget] = useState<BreakTarget | null>(null);
+  const [announce, setAnnounce] = useState<AnnounceTarget | null>(null);
+  const breakTargetOf = (session: SessionRow, period: Period, editing?: BreakRow): BreakTarget => ({
+    sessionLabel: session.label,
+    branchId: session.branchId,
+    branchName: branch.name,
+    period,
+    editing,
+  });
   // The term being made current right now: its button shows it, and no second change starts until this one is answered.
   const [settingTerm, setSettingTerm] = useState<string | null>(null);
   async function makeCurrent(session: SessionRow, period: Period) {
@@ -231,27 +258,72 @@ export function SessionsPanel({
                     {s.periods.map((p) => (
                       <li
                         key={p.id}
-                        className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-3 py-1.5 text-sm ${
+                        className={`rounded-xl border px-3 py-1.5 text-sm ${
                           p.isCurrent ? "border-ok-line bg-ok-bg text-ok-fg" : "border-line bg-surface-2 text-fg-2"
                         }`}
                       >
-                        <span className="font-semibold">{p.label}</span>
-                        <span className="text-xs">
-                          {day(p.startDate)} to {day(p.endDate)}
-                        </span>
-                        {p.isCurrent && <span className="text-xs font-semibold">Current</span>}
-                        {branch.canEdit && s.status === "ACTIVE" && !p.isCurrent && (
-                          <button
-                            type="button"
-                            onClick={() => makeCurrent(s, p)}
-                            disabled={settingTerm !== null}
-                            aria-busy={settingTerm === p.id}
-                            aria-label={`Make ${p.label} the current ${kindNoun(p.kind)} of ${s.label}`}
-                            className="relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-semibold">{p.label}</span>
+                          <span className="text-xs">
+                            {day(p.startDate)} to {day(p.endDate)}
+                          </span>
+                          {p.isCurrent && <span className="text-xs font-semibold">Current</span>}
+                          {branch.canEdit && s.status === "ACTIVE" && !p.isCurrent && (
+                            <button
+                              type="button"
+                              onClick={() => makeCurrent(s, p)}
+                              disabled={settingTerm !== null}
+                              aria-busy={settingTerm === p.id}
+                              aria-label={`Make ${p.label} the current ${kindNoun(p.kind)} of ${s.label}`}
+                              className="relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+                            >
+                              {settingTerm === p.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
+                              {settingTerm === p.id ? "Setting…" : "Make current"}
+                            </button>
+                          )}
+                          {branch.canEdit && s.status !== "CLOSED" && (
+                            <button
+                              type="button"
+                              onClick={() => setBreakTarget(breakTargetOf(s, p))}
+                              aria-label={`Add a break to the ${p.label} of ${s.label}`}
+                              className="relative z-10 inline-flex min-h-6 items-center rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            >
+                              Add a break
+                            </button>
+                          )}
+                        </div>
+                        {p.breaks.length > 0 && (
+                          <ul
+                            aria-label={`Breaks in the ${p.label} of ${s.label}`}
+                            className="mt-1.5 space-y-1 border-t border-line pt-1.5"
                           >
-                            {settingTerm === p.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
-                            {settingTerm === p.id ? "Setting…" : "Make current"}
-                          </button>
+                            {p.breaks.map((b) => (
+                              <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                                <span className="font-semibold">{b.label}</span>
+                                <span>{b.startDate === b.endDate ? day(b.startDate) : `${day(b.startDate)} to ${day(b.endDate)}`}</span>
+                                {branch.canEdit && s.status !== "CLOSED" && (
+                                  <span className="relative z-10 inline-flex gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setBreakTarget(breakTargetOf(s, p, b))}
+                                      aria-label={`Change ${b.label} in the ${p.label} of ${s.label}`}
+                                      className="min-h-6 rounded px-1 font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                    >
+                                      Change
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setAction({ kind: "removeBreak", session: s, period: p, brk: b })}
+                                      aria-label={`Remove ${b.label} from the ${p.label} of ${s.label}`}
+                                      className="min-h-6 rounded px-1 font-semibold text-danger-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                    >
+                                      Remove
+                                    </button>
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </li>
                     ))}
@@ -294,6 +366,62 @@ export function SessionsPanel({
           await load();
         }}
       />
+      <BreakDialog
+        target={breakTarget}
+        onClose={() => setBreakTarget(null)}
+        onSaved={async (saved, t) => {
+          setBreakTarget(null);
+          setNotice({
+            variant: "success",
+            text: saved.created ? `${saved.label} added to the ${t.period.label}.` : `${saved.label} saved.`,
+          });
+          await load();
+          // A new break is worth telling everyone about: offer the announcement (the person may send nothing).
+          if (saved.created)
+            setAnnounce({
+              branchId: t.branchId,
+              branchName: t.branchName,
+              sessionLabel: t.sessionLabel,
+              periodLabel: t.period.label,
+              label: saved.label,
+              startDate: saved.startDate,
+              endDate: saved.endDate,
+            });
+        }}
+      />
+      <AnnounceBreakDialog
+        target={announce}
+        onClose={() => setAnnounce(null)}
+        onSent={async (text) => {
+          setAnnounce(null);
+          setNotice({ variant: "success", text });
+        }}
+      />
+      <ConfirmDialog
+        open={action?.kind === "removeBreak"}
+        title={action?.kind === "removeBreak" ? `Remove ${action.brk.label}?` : "Remove break"}
+        confirmLabel="Remove the break"
+        onClose={() => setAction(null)}
+        onConfirm={async () => {
+          if (action?.kind !== "removeBreak") return null;
+          const reply = await sendJson(`/api/v1/academics/breaks/${action.brk.id}`, "DELETE", undefined);
+          setNotice(
+            reply.ok
+              ? { variant: "success", text: `${action.brk.label} removed.` }
+              : { variant: "error", text: say(reply, "That didn't work.") },
+          );
+          if (reply.ok) setAction(null);
+          await load();
+          return reply;
+        }}
+      >
+        {action?.kind === "removeBreak" && (
+          <p>
+            Classes will run on those days again. An announcement already sent about {action.brk.label} is not withdrawn: post a new one if
+            the dates changed.
+          </p>
+        )}
+      </ConfirmDialog>
       <RenameDialog
         open={action?.kind === "rename"}
         session={action?.kind === "rename" ? action.session : null}

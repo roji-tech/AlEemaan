@@ -60,10 +60,31 @@ model AcademicPeriod {
   remarks ReportRemark[]
   feeStructures FeeStructure[]
   invoices      Invoice[]
+  breaks        AcademicBreak[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
   @@index([branchId, sessionId])
+}
+
+/// A break inside a term or semester (task 0098): the mid-term or mid-semester holiday. School does not run between its first and last day (both included); the term itself is unchanged.
+/// It lies inside ONE period of the branch (the composite key keeps it in that period's branch) and breaks of a period never overlap (checked in the application: lib/academics/session-breaks.ts).
+/// Nothing is deleted: a removed break is archived. Making an announcement for it is a separate, optional step: no link is kept.
+model AcademicBreak {
+  id         String    @id @default(cuid())
+  branchId   String
+  periodId   String
+  label      String // e.g. "Mid-term break"
+  startDate  DateTime  @db.Date
+  endDate    DateTime  @db.Date // the last day of the break (a one-day break has the same first and last day)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  branch Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  period AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: Cascade)
+
+  @@index([branchId, periodId])
 }
 
 // --- Academic structure: classes, arms, subjects (Slice P1a; plan "Build design - Slice P1") ---
