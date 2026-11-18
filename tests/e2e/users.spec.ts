@@ -189,6 +189,7 @@ test.describe("inviting", () => {
     await expect(dialog(page)).toBeHidden();
     await expect(notice(page)).toContainText(`Invitation sent to ${to}`);
 
+    await openInvitationsTab(page); // pending invitations are their own tab, not rows among the people
     const pending = row(page, to);
     await expect(pending).toContainText("Parent");
     await expect(pending).toContainText(BRANCH_NAMES[1]);
@@ -210,6 +211,7 @@ test.describe("inviting", () => {
     await dialog(page).getByLabel("Branch").selectOption({ label: BRANCH_NAMES[1] });
     await dialog(page).getByRole("button", { name: "Send invitation" }).click();
     await expect(dialog(page)).toBeHidden();
+    await openInvitationsTab(page);
     await expect(row(page, tola.email).filter({ hasText: "invited by" })).toBeVisible();
     const token = tokenFrom((await waitForMail(tola.email))[0]);
     const joined = await api("/api/v1/invitations/accept", { body: { token }, cookie: cookieHeader((await loginAs(tola)).token!) });

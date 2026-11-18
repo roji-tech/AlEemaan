@@ -33,15 +33,30 @@ const HEADINGS: [string, string][] = [
   ["parent", "Parent sign-in"],
 ];
 
-test("the school's own host lists the four portals, with no form, and each link goes to its portal's sign-in", async ({ page }) => {
+test("the school's own host has no sign-in form: /login goes to the sign-in page, with a button for parent, student and staff, each to its portal", async ({
+  page,
+}) => {
   await page.goto(at("apex", "/login"));
-  await expect(page.getByRole("heading", { level: 1, name: "Who is signing in?" })).toBeVisible();
+  await expect(page).toHaveURL(at("apex", "/select-role"));
+  await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
-  for (const [portal, title] of HEADINGS) {
-    const link = page.getByRole("list", { name: "Sign-in portals" }).getByRole("link", { name: new RegExp(title) });
-    await expect(link).toHaveAttribute("href", at(portal, "/login"));
+  const list = page.getByRole("list", { name: "Sign-in portals" });
+  await expect(list.getByRole("link")).toHaveCount(3);
+  await expect(list.getByRole("link", { name: /Administrator/ })).toHaveCount(0);
+  for (const [portal, title] of HEADINGS.filter(([p]) => p !== "admin")) {
+    await expect(list.getByRole("link", { name: new RegExp(title) })).toHaveAttribute("href", at(portal, "/login"));
   }
-  await expectAccessible(page, "the portal chooser");
+  await expectAccessible(page, "the website's sign-in page");
+});
+
+test("a button on the sign-in page leads to that portal's own sign-in page", async ({ page }) => {
+  await page.goto(at("apex", "/select-role"));
+  await page
+    .getByRole("list", { name: "Sign-in portals" })
+    .getByRole("link", { name: /Parent sign-in/ })
+    .click();
+  await expect(page).toHaveURL(at("parent", "/login"));
+  await expect(page.getByRole("heading", { level: 1, name: "Parent sign-in" })).toBeVisible();
 });
 
 for (const [portal, title] of HEADINGS) {

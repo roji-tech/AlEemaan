@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { TextField } from "@/components/ui/TextField";
-import { PORTAL_ICONS } from "./PortalChooser";
+import { PORTAL_ICONS } from "@/components/auth/portalIcons";
 import type { Portal } from "@/lib/portals";
 
 type Status = "idle" | "submitting" | "success" | "paused";

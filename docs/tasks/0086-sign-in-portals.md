@@ -39,6 +39,17 @@ DNS and Vercel (the maintainer's, in the order of `docs/DEPLOYMENT.md` 3.3a); th
 
 `tests/unit/portals.spec.ts` (host rules, the label rules, who each portal admits), `tests/unit/email-portal-links.spec.ts` (every link of every e-mail), `tests/api/portals.spec.ts` against the portals server (redirects, who may sign in where for every role, byte-for-byte equality of a wrong-portal refusal with a wrong password and with no account, two-step not asked on the wrong portal, the same rate limit, e-mailed links), `tests/e2e/portals.spec.ts` in a browser on `admin.localhost` and the others.
 
+## 5a. Addition 2026-11-18: the switch, the apex rule and the Sign-in page
+
+The maintainer's rules: the portals are turned on and off in the environment, **on by default**; off, everything is on the school's address with no subdomain check; on, the school's address serves only the landing pages and `https://aleemanschool.com/login` is not reachable; the website gets a new Sign-in page with Parent, Student and Staff buttons that goes to the right place (and, off, to the one form on the same address), and the website's Sign-in links no longer go straight to `/login`.
+
+- `PORTALS_ENABLED` (`lib/portals.ts`, `readPortalConfig`): on unless false/0/off/no; any other value stays on and is said once. Labels default to `admin`, `staff`, `student`, `parent` (`DEFAULT_LABELS`), each renamed by its variable.
+- `apexServes(pathname)` and `APEX_OPEN`: on the school's own host the proxy sends everything that is not a landing page, an open page or a file to `/select-role` (307). Open pages: `/portal`, `/verify`, `/q`, `/offline`, `/icon`, `/apple-icon`, `/setup` and the four e-mailed token pages. A unit test reads `src/app` and fails when a new top-level route is neither open nor refused.
+- `/select-role` (`src/app/(marketing)/(site)/select-role/page.tsx`): parent, student, staff (no administrator button). `SITE_SIGN_IN` and the product page's links point to it. The login page on the school's host redirects to it; the old four-portal chooser (`PortalChooser`) is gone, its icons are in `components/auth/portalIcons.ts`.
+- `hostFromHeaders` (`lib/auth/csrf.ts`): the same host rule for server components as `requestHost` for requests.
+- Every test server but the portals one sets `PORTALS_ENABLED=false` (`tests/support/env.ts`); the unit process sets it too.
+- **Rollout risk:** on by default means a host without subdomains cannot sign anyone in. Production and Preview need `PORTALS_ENABLED=false` until the four subdomains work (`docs/DEPLOYMENT.md` 3.3a).
+
 ## 6. Build record and tests
 
 (filled in with the real counts when the suites have run)
