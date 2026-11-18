@@ -737,7 +737,8 @@
 [Task file](0098-term-breaks-and-announcement.md). The mid-term or mid-semester holiday: add it to a term (inside it, no overlap), change or remove it, and be offered an announcement to the branch right after adding it, with the words written to read and change. A new table `AcademicBreak` (migration `20261118170000_academic_break`, the maintainer's to run).
 
 - [x] Schema and migration, the rules, the routes, the form and the announcement, specs
-- [ ] The run (section 5 of the task file), merged to `dev`, promoted
+- [x] The run: final pass 0 failed (section 5 of the task file)
+- [ ] Merged to `dev`, promoted
 ## TASK-0099: A Report tool in Quick Tools (requested 2026-11-18)
 
 [Task file](0099-report-a-problem-quick-tool.md). Any signed-in person can report a problem from the Quick Tools drawer; it is recorded (`ProblemReport`, migration `20261118180000_problem_report`, the maintainer's to run) and mailed to `DEVELOPER_EMAIL` (optional; the maintainer sets it in Vercel).

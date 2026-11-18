@@ -40,6 +40,9 @@ Any signed-in person (staff, pupil, parent, administrator) can open Quick Tools,
 
 To receive the mail: `vercel env add DEVELOPER_EMAIL production --scope portfolio-frontend-react-team-2` (and Preview if wanted), then redeploy. I do not set environment variables.
 
-## 5. Record of the runs
+## 5. Record of the runs (2026-11-18, from the run summaries and logs)
 
-Filled in from the run's summary, not from memory; see the PR.
+- **First combined pass** (fresh build of the whole batch: unit with setup 1355 passed / 1 failed; API 254 passed / 1 failed; desktop browser, 34 specs of the touched screens, 291 passed / 10 failed). The failures: a literal U+2028 in a test; the break refusal said "inside 1st Term"; two locators that the new Overview made ambiguous; four tests that needed the Users list to load first or the newest toast; two sign-in tests that were already stale on `dev` (the website at `/` is for everyone, its Sign in link goes to `/select-role`); one race in the programs spec. All fixed in cf34410, not skipped.
+- **Rerun** (fresh build): unit 5 passed, API (breaks) 6 passed, desktop 103 passed, phone (new screens) 45 passed / 1 failed (the pager test looked for numbered pages, which a phone does not draw; fixed in 49c5e1d).
+- **Final pass** (fresh build, after merging the Report tool; the first try failed 56 tests with "the browser reported Content-Security-Policy violations: eval", because `src/lib/reports/report.ts` built a zod schema in the browser without `import "@/lib/zod-csp"` first; fixed in f7c5219): unit 21 passed, API 23 passed (reports, breaks, session schedule), desktop browser 38 passed, phone browser 20 passed, **0 failed**.
+- Not run: the whole browser suite (only the 34 specs of the touched screens plus the phone project for the new screens); the unit suite ran in full only in the first pass.
