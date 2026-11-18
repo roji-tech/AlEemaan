@@ -25,7 +25,8 @@ model StudentRecord {
   middleName  String?
   lastName    String
   gender      Gender
-  dateOfBirth DateTime  @db.Date
+  /// Not required (the maintainer, 2026-11-18: only the first name, the last name and the gender are).
+  dateOfBirth DateTime? @db.Date
   admissionNo String    @unique
   archivedAt  DateTime?
   /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`, or until lifted when null) or EXPELLED. Separate from archiving, which hides the record.

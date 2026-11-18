@@ -74,7 +74,8 @@ export interface MappedStudent {
   middleName: string | null;
   lastName: string;
   gender: Gender;
-  dateOfBirth: Date;
+  /// Null when the old record has none (the date of birth is not required, and a made-up one would also be guessable: the result portal accepts a pupil's date of birth as a secret).
+  dateOfBirth: Date | null;
   guardianName: string | null;
   guardianPhone: string | null;
   guardianEmail: string | null;
@@ -425,7 +426,7 @@ export function determineGrade(
 
 export function mapLegacyStudent(
   doc: LegacyStudentDoc,
-  branchName: string,
+  _branchName: string,
   defaultSessionLabel = "2024/2025",
 ): {
   student: MappedStudent;
@@ -436,10 +437,9 @@ export function mapLegacyStudent(
   const gender = normalizeGender(doc.gender);
   const now = new Date();
 
-  // Fallback DOB based on branch if missing
-  const isSecondary = branchName.toLowerCase().includes("secondary");
-  const fallbackDob = isSecondary ? new Date(Date.UTC(2010, 0, 1)) : new Date(Date.UTC(2016, 0, 1));
-  const dateOfBirth = doc.dateOfBirth ? parseFirestoreTimestamp(doc.dateOfBirth, fallbackDob) : fallbackDob;
+  // No invented date of birth: missing, or not a date, stays empty.
+  const parsedDob = doc.dateOfBirth ? parseFirestoreTimestamp(doc.dateOfBirth, new Date(Number.NaN)) : null;
+  const dateOfBirth = parsedDob && !Number.isNaN(parsedDob.getTime()) ? parsedDob : null;
 
   const createdAt = parseFirestoreTimestamp(doc.createdAt, now);
   const updatedAt = parseFirestoreTimestamp(doc.updatedAt, now);

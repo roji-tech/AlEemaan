@@ -10,7 +10,7 @@ const base = { firstName: "Amina", lastName: "Yusuf", gender: "Female", dateOfBi
 const row = (values: Record<string, string>, line = 2): SourceRow => ({ line, values: { ...base, ...values } });
 const one = (values: Record<string, string>) => validateRows(pupilEntity, [row(values)]);
 
-test("a row with only the four required columns is ready; the rest may be empty or missing", () => {
+test("a row with only the three required columns (first name, last name, gender) is ready; the rest, the date of birth too, may be empty or missing", () => {
   const out = validateRows(pupilEntity, [
     { line: 2, values: base },
     row({ middleName: "", admissionNo: "", className: "", arm: "", guardianName: "", guardianPhone: "", guardianEmail: "" }),
@@ -19,14 +19,34 @@ test("a row with only the four required columns is ready; the rest may be empty 
   expect(out.ok[0].row).toEqual({ firstName: "Amina", lastName: "Yusuf", gender: "FEMALE", dateOfBirth: "2014-03-21" });
 });
 
+test("the date of birth is not required: missing or blank is a ready row with no date, and a date that IS given must still be a real one", () => {
+  const { dateOfBirth: _unused, ...noDob } = base;
+  void _unused;
+  const out = validateRows(pupilEntity, [
+    { line: 2, values: noDob },
+    { line: 3, values: { ...noDob, dateOfBirth: "" } },
+    { line: 4, values: { ...noDob, dateOfBirth: "   " } },
+  ]);
+  expect(out.verdicts.map((v) => v.status)).toEqual(["ready", "ready", "ready"]);
+  for (const ok of out.ok) expect(ok.row.dateOfBirth).toBeUndefined();
+  expect(one({ dateOfBirth: "2014-02-31" }).verdicts[0].status).toBe("error");
+  expect(one({ dateOfBirth: "2999-01-01" }).verdicts[0].status).toBe("error");
+});
+
+test("gender is still required, and so are both names", () => {
+  expect(one({ gender: "" }).verdicts[0].status).toBe("error");
+  expect(one({ firstName: "" }).verdicts[0].status).toBe("error");
+  expect(one({ lastName: "" }).verdicts[0].status).toBe("error");
+});
+
 const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
   firstName: { pass: ["Amina", "Al"], fail: ["", "A", "   ", "x".repeat(61)] },
   middleName: { pass: ["", "Bola"], fail: ["x".repeat(61)] },
   lastName: { pass: ["Yusuf", "Ng"], fail: ["", "Y", "x".repeat(61)] },
   gender: { pass: ["Male", "m", "BOY", "Female", "F", "girl", "MALE"], fail: ["", "x", "other"] },
   dateOfBirth: {
-    pass: ["2014-03-21", "21/03/2014", "1/3/2014", "21-03-2014", "21.03.2014"],
-    fail: ["", "2014-02-31", "31/02/2014", "21 March 2014", "1899-12-31", "2999-01-01", "03-21-2014"],
+    pass: ["", "2014-03-21", "21/03/2014", "1/3/2014", "21-03-2014", "21.03.2014"],
+    fail: ["2014-02-31", "31/02/2014", "21 March 2014", "1899-12-31", "2999-01-01", "03-21-2014"],
   },
   admissionNo: { pass: ["", "2026/0001", "AE-19.045", "A 1"], fail: ["/bad", "x".repeat(41), "<script>"] },
   className: { pass: ["", "JSS 1"], fail: ["x".repeat(51)] },
@@ -80,7 +100,7 @@ test("an admission number repeated inside the file is a problem on the later row
   expect(out.verdicts[1].problems).toEqual([{ column: "admissionNo", message: "Repeats row 2." }]);
 });
 
-test("a file with its own spellings of the headers is mapped, and only the four required columns must be there", () => {
+test("a file with its own spellings of the headers is mapped, and only the three required columns must be there", () => {
   const t = mapTable(
     [
       ["Surname", "Given name", "Sex", "DOB", "Parent phone", "Extra"],
@@ -97,6 +117,7 @@ test("a file with its own spellings of the headers is mapped, and only the four 
     dateOfBirth: "21/03/2014",
     guardianPhone: "08030000000",
   });
+  // The date of birth column may be missing altogether; a missing Gender column may not.
   expect(
     mapTable(
       [
@@ -104,8 +125,17 @@ test("a file with its own spellings of the headers is mapped, and only the four 
         ["A", "B", "M"],
       ],
       pupilEntity.columns,
+    ).problems,
+  ).toEqual([]);
+  expect(
+    mapTable(
+      [
+        ["First name", "Last name", "Date of birth"],
+        ["A", "B", "2014-03-21"],
+      ],
+      pupilEntity.columns,
     ).problems[0].message,
-  ).toContain("Date of birth");
+  ).toContain("Gender");
 });
 
 test("the branch's classes become the Class dropdown, and every dropdown label is accepted by the rules", () => {

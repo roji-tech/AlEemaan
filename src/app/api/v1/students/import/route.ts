@@ -13,7 +13,7 @@ import { runBulk } from "@/lib/bulk/server";
 // POST /api/v1/students/import { branchId, dryRun, allowDuplicates?, rows: [{ line, values: { firstName, lastName, gender, dateOfBirth, ... } }] }   (task 0084)
 // Administrators of that branch (a branch named in the body that is not theirs: 403). `dryRun: true` checks every row (the shared rules, repeats inside the file, a class and arm of
 // this branch, an admission number already taken, a namesake) and writes nothing: 200, a verdict per row. `dryRun: false` checks again inside one transaction and saves ALL the rows
-// or NONE: 201, or 422 `BULK_PROBLEMS` with every row's verdict. `allowDuplicates` adds a pupil whose name and date of birth are already in the branch, recorded against the caller.
+// or NONE: 201, or 422 `BULK_PROBLEMS` with every row's verdict. `allowDuplicates` adds a pupil whose name (and date of birth, when both have one) is already in the branch, recorded against the caller. The date of birth is not required.
 // (This used to save every good row and skip the rest, with no dry run: that is gone, and so is the body it took.)
 const body = z.strictObject({
   branchId: z.string().min(1, "Branch ID is required"),

@@ -140,6 +140,32 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* The pointer on everything that can be pressed. Tailwind 4's base styles stopped giving buttons the pointer (a button shows the arrow), which made "Choose File", the template
+   buttons and every other button feel dead. One rule here instead of a class on each of them. A control that cannot be used right now shows the "not allowed" cursor instead. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  input[type="file"]:not(:disabled)::file-selector-button,
+  label:has(input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+  }
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  [aria-disabled="true"],
+  input[type="file"]:disabled::file-selector-button {
+    cursor: not-allowed;
+  }
+}
+
 /* The sign-in brand panel's faint dot-and-cross grid (the artifact draws it as an
    SVG pattern at 12 % opacity). Pure CSS gradients: no image, so nothing for a
    strict Content-Security-Policy to object to. */
