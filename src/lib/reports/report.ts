@@ -1,3 +1,4 @@
+import "@/lib/zod-csp";
 import { z } from "zod";
 import type { EmailMessage } from "@/lib/email/transport";
 
