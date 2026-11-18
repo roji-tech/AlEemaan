@@ -9,6 +9,7 @@ import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Collection, Item, ItemTile } from "@/components/ui/Collection";
 import { BookOpenIcon, GraduationCapIcon } from "@/components/ui/icons";
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager, paginate } from "@/components/ui/Pager";
 import { useCollectionView } from "@/components/ui/useCollectionView";
@@ -42,11 +43,16 @@ export function ClassesPanel({
   view,
   branchId,
   onBranchChange,
+  autoNew = false,
+  onAutoNewDone,
 }: {
   branches: BranchChoice[];
   view: "classes" | "subjects";
   branchId: string;
   onBranchChange: (id: string) => void;
+  /// Open the New class form at once (a shortcut from the Overview). Used once.
+  autoNew?: boolean;
+  onAutoNewDone?: () => void;
 }) {
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [groups, setGroups] = useState<ClassGroup[] | null>(null);
@@ -54,7 +60,10 @@ export function ClassesPanel({
   const [unmatched, setUnmatched] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
-  const [editing, setEditing] = useState<Editing>(null);
+  const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
+  useEffect(() => {
+    if (autoNew) onAutoNewDone?.();
+  }, [autoNew, onAutoNewDone]);
   // "Add many" (task 0084): whether the dialog is open, and a key that gives each opening a clean dialog.
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [search, setSearch] = useState("");
@@ -123,20 +132,21 @@ export function ClassesPanel({
   const classPage = paginate(shownGroups, page, layout.size);
   const subjectPage = paginate(shownSubjects, page, layout.size);
 
+  const picker = (
+    <BranchPicker
+      branches={branches}
+      value={branchId}
+      onChange={(id) => {
+        setNotice(null);
+        clearFilters();
+        onBranchChange(id);
+      }}
+    />
+  );
+
   return (
     <div className="space-y-6">
-      {branches.length > 1 && (
-        <SelectField
-          label="Branch"
-          value={branchId}
-          onChange={(e) => {
-            setNotice(null);
-            clearFilters();
-            onBranchChange(e.target.value);
-          }}
-          options={branches.map((b) => ({ value: b.id, label: b.name }))}
-        />
-      )}
+      {picker}
       <div aria-live="polite" className="empty:hidden">
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
@@ -151,14 +161,16 @@ export function ClassesPanel({
               </h2>
               <InfoTip tip="academics.classes" />
             </div>
-            {branch.canEdit && (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                  Add many
-                </Button>
-                <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {branch.canEdit && (
+                <>
+                  <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                    Add many
+                  </Button>
+                  <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>
+                </>
+              )}
+            </div>
           </div>
           <ListToolbar
             searchValue={search}
@@ -301,14 +313,16 @@ export function ClassesPanel({
               </h2>
               <InfoTip tip="academics.subjects" />
             </div>
-            {branch.canEdit && (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                  Add many
-                </Button>
-                <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {branch.canEdit && (
+                <>
+                  <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                    Add many
+                  </Button>
+                  <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>
+                </>
+              )}
+            </div>
           </div>
           <ListToolbar
             searchValue={search}

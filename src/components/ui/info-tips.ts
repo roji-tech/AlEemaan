@@ -17,6 +17,25 @@ export const INFO_TIPS = {
   "scheme.applies":
     "Branch default means every class that has no scheme of its own. Choose a class to give just that class its own scheme.",
 
+  // Academic sessions (task 0093)
+  "academics.sessions":
+    "A branch has one active session at a time, and pupils are placed in classes for the active one. Closing a session deletes nothing, and a closed session can be made active again.",
+  "sessions.label": "The school year, such as 2026/2027. A branch can have a session of a given name only once.",
+  "sessions.dates": "The first and last day of the school year. The terms share these days equally between them.",
+  "sessions.terms": "A branch with Arabic in its name starts with 2 terms and the others with 3, unless you choose a number here.",
+  "sessions.branches":
+    "Choose every branch that should start this year. A branch that already has a session with this name is left out, and each branch is created and recorded on its own.",
+
+  // Overview (task 0093)
+  "overview.todo":
+    "What is missing in the branches you administer, with the page that fixes it. A branch with no active session comes first, because pupils cannot be placed in a class without one.",
+  "overview.quickActions":
+    "Shortcuts for setting a school up. The new-session and new-class ones open their form straight away; the others open the page.",
+
+  // School profile
+  "settings.principal": "The name printed beside the principal's remark on a report card.",
+  "settings.motto": "The line printed under the school's name at the top of a report card.",
+
   // Students
   "students.show":
     "Choose which pupils the list shows. An archived pupil is no longer current, but the record is kept and Restore brings them back.",
