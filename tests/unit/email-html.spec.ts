@@ -97,10 +97,12 @@ test.describe("the real messages", () => {
     }
   });
 
-  test("a message with a link has exactly one button and the link twice (button and printed address), nothing else is a link", () => {
+  test("a message with a link has two anchors (the button and the printed address) and nothing else is a link", () => {
     const html = renderEmailHtml(resetEmail("a@b.test", TOKEN));
     expect((html.match(/<a /g) ?? []).length).toBe(2);
-    expect((html.match(new RegExp(TOKEN, "g")) ?? []).length).toBe(2);
+    // The address is written three times: the button's href, the printed address's href and the printed address itself.
+    expect((html.match(new RegExp(TOKEN, "g")) ?? []).length).toBe(3);
+    expect((html.match(new RegExp(`href="[^"]*${TOKEN}"`, "g")) ?? []).length).toBe(2);
   });
 
   test("nothing is fetched: no images, scripts, fonts, forms or tracking", () => {
