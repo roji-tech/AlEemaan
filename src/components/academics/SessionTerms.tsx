@@ -87,11 +87,12 @@ export function SessionTerms<P extends TermView>({
         return (
           <li
             key={p.id}
-            className={`relative min-w-0 overflow-hidden rounded-xl border py-3 pr-3 pl-5 ${
+            className={`relative min-w-0 rounded-xl border py-3 pr-3 pl-5 ${
               state === "current" ? "border-ok-line bg-ok-bg" : "border-line bg-surface-2"
             }`}
           >
-            <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${TONE[look.tone].rail}`} />
+            {/* Not `overflow-hidden` on the card to round the rail: it would clip the three-dots list, which opens outside the card. The rail rounds its own left corners. */}
+            <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 rounded-l-xl ${TONE[look.tone].rail}`} />
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold wrap-break-word text-fg">

@@ -1,7 +1,7 @@
 # 0105: Cards that read at a glance: a shared colour tone for state and for actions, a year timeline for a session, stat chips for a class
 
 - **Period / Focus:** 2026-11-18 (the maintainer, with two phone screenshots of the live Sessions and Classes screens: "can you use matching and blending different colors for the button", "please redesign the card, it needs a better UI/UX, redesign like a PRO")
-- **Status:** In progress (the record is section 5)
+- **Status:** Built; the record is section 5
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/ui-polish` / PR into `dev` (builds on task 0100, PR #284)
@@ -34,4 +34,17 @@ Re-colouring the buttons that stay visible (Approve / Reject keep their meaning 
 
 ## 5. Build record and tests
 
-(filled in with the real counts when the suites have run)
+Gates in this order: `tsc --noEmit` clean; `eslint` on the changed files clean; `next build` clean; `prettier --check` on every changed file clean.
+
+Unit: the whole project in the first run (1439 passed with the new `session-progress.spec.ts`: days and weeks, a term's state, how far through a term, the bar's segments, the one line of where the year is, and which tone and icon each menu action gets).
+
+Browser (Chromium, one worker, the shared test database, read from the logs):
+
+| Run | What | Result |
+| --- | --- | --- |
+| r9 | the new and the touched specs after the redesign (row-menu, academic-sessions, session-breaks, academics-structure, list-grid-views, students-screen) | 8 failed, the rest passed. **One real bug**: the new term card had `overflow-hidden` (to round its coloured rail), which clipped its own three-dots list, so the list's items sat under the text beneath and could not be clicked (five specs hit it: a menu item "intercepted" by the timeline's sentence). Fixed: the card no longer clips, the rail rounds its own left corners. **Two mistakes in my new tests**: "today" was computed in UTC and the page reads the viewer's own calendar day (they differ for an hour or two every night east of Greenwich: found because it is just past midnight in the maintainer's time zone), and axe's `target-size` flagged the view toggle that an open menu partly covers (the open menu is now checked on its own, the toolbar with the menu closed). |
+| r10 | row-menu, academic-sessions, session-breaks, academics-structure, list-grid-views, after the fixes and a rebuild | **43 of 43 passed** (3.6 minutes) |
+
+What the new browser tests prove, at 360, 850 and 1280 px in the dark and the light theme, each with axe at WCAG 2.2 AA: the session card says where the year stands in a sentence ("2nd Term, day 31 of 90, 59 days left."), draws one bar of three segments with the progress laid over the current one, shows Ended, Current and Upcoming in three different colours, shows a break as its own block with its own three dots, and does not scroll sideways; the class card's arms are one 44 px button each named as before, arms, subjects and pupils are three different colours, the open menu's Rename, Archive and Add arm items have three different tile colours, and neither the open menu nor the card has an accessibility violation.
+
+Not run: the `e2e-mobile` project; the walkthrough chapters (deferred).

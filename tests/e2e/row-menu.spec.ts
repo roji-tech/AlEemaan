@@ -239,9 +239,15 @@ test("Add pupils in bulk: the branch can be switched in the dialog until rows ar
 // ---- Task 0105: cards that read at a glance ----
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-const isoDay = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-async function violations(page: Page) {
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+// The browser's own calendar day (the page reads "today" as the viewer's local day), not the UTC date: they differ for an hour or two every night in a time zone east of Greenwich.
+const isoDay = (offset: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+async function violations(page: Page, within?: string) {
+  const builder = new AxeBuilder({ page }).withTags(WCAG);
+  const results = await (within ? builder.include(within) : builder).analyze();
   return results.violations.map(
     (v) =>
       `${v.id} [${v.impact}]: ${v.nodes
@@ -375,7 +381,10 @@ for (const theme of ["dark", "light"] as const) {
       ),
     );
     expect(new Set(backgrounds).size, "Edit, Archive and Add are three different tile colours").toBe(3);
-    expect(await violations(page), `accessibility of an open menu (${theme})`).toEqual([]);
+    expect(
+      await violations(page, `[id="${await trigger.getAttribute("aria-controls")}"]`),
+      `accessibility of an open menu (${theme})`,
+    ).toEqual([]);
     await page.keyboard.press("Escape");
     expect(await violations(page), `accessibility of the class card (${theme})`).toEqual([]);
   });
