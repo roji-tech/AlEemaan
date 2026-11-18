@@ -57,6 +57,8 @@ Two rules sit over every step:
 
 **Keep tests away from the hosted database.** `pnpm test` derives a `<name>_test` database from `DATABASE_URL` and creates it on whatever server that URL points at. Never run the tests, and never keep the hosted URL in a checkout's `.env`, in a shell where you also run tests.
 
+**Keep the functions in the database's region.** Vercel runs the server's functions in one region (Washington, `iad1`, unless told otherwise). Every database query is a network round trip, so a database in another region costs about 100 to 200 ms for each one; a page that makes ten queries, or a bulk save that makes a thousand, is slow or fails (task 0095: 144 pupils ran past the transaction's 60 seconds, `P2028`, with the functions in Washington and the production database in Frankfurt). `vercel.json` therefore sets `"regions": ["fra1"]` (Frankfurt), the region of the production Neon database (`eu-central-1`). **If a database is moved or a staging database is in another region, change that line to the nearest Vercel region** (the list is in the Vercel documentation under "Regions"); the Hobby plan allows one region. The setting applies to every deployment of the project, Preview and Production alike.
+
 ### 3.2 The environment variables
 
 Set each in Vercel for **Production**, and for **Preview** with its own, different, value where the value is a secret. Names only are listed here; make a value with the command given, and let it go straight into Vercel:
