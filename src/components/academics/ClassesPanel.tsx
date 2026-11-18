@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
+import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager, paginate } from "@/components/ui/Pager";
@@ -12,6 +13,8 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { classEntity } from "@/lib/bulk/classes";
+import { subjectEntity } from "@/lib/bulk/subjects";
 
 // The Academics page's lists and dialogs (Slice P1): classes with their arms and subjects, and the branch's subjects. Presentation only - the academics API
 // enforces who may read and change what, and every outcome (duplicate name, archived parent, signed out, offline) has its own honest message.
@@ -50,6 +53,8 @@ export function ClassesPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<Editing>(null);
+  // "Add many" (task 0084): whether the dialog is open, and a key that gives each opening a clean dialog.
+  const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [search, setSearch] = useState("");
   const [gap, setGap] = useState(""); // classes: "" | "noSubjects" | "noArms"; subjects: "" | "unused"
   const [page, setPage] = useState(1);
@@ -142,7 +147,14 @@ export function ClassesPanel({
               </h2>
               <InfoTip tip="academics.classes" />
             </div>
-            {branch.canEdit && <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>}
+            {branch.canEdit && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                  Add many
+                </Button>
+                <Button onClick={() => setEditing({ kind: "class", item: null })}>New class</Button>
+              </div>
+            )}
           </div>
           <ListToolbar
             searchValue={search}
@@ -275,7 +287,14 @@ export function ClassesPanel({
               </h2>
               <InfoTip tip="academics.subjects" />
             </div>
-            {branch.canEdit && <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>}
+            {branch.canEdit && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                  Add many
+                </Button>
+                <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>
+              </div>
+            )}
           </div>
           <ListToolbar
             searchValue={search}
@@ -350,6 +369,28 @@ export function ClassesPanel({
         </section>
       )}
 
+      {branch.canEdit && (
+        <BulkImportDialog
+          key={`${view}-${bulk.key}`}
+          open={bulk.open}
+          onClose={() => setBulk((b) => ({ ...b, open: false }))}
+          entity={view === "classes" ? classEntity : subjectEntity}
+          title={view === "classes" ? "Add classes in bulk" : "Add subjects in bulk"}
+          description={
+            view === "classes"
+              ? `Into ${branch.name}. One row is one class, with its arms and the subjects it studies in one cell each (A, B, C). The subjects must already exist. Nothing is saved until you press Save.`
+              : `Into ${branch.name}. Nothing is saved until you press Save.`
+          }
+          endpoint={view === "classes" ? "/api/v1/academics/class-groups/import" : "/api/v1/academics/subjects/import"}
+          context={{ branchId }}
+          noun={view === "classes" ? { one: "class", many: "classes" } : { one: "subject", many: "subjects" }}
+          onSaved={async (count) => {
+            const noun = view === "classes" ? (count === 1 ? "class" : "classes") : count === 1 ? "subject" : "subjects";
+            setNotice({ variant: "success", text: `${count} ${noun} added.` });
+            await load();
+          }}
+        />
+      )}
       <NameDialog
         open={editing?.kind === "class"}
         title={editing?.kind === "class" && editing.item ? `Edit ${editing.item.name}` : "New class"}

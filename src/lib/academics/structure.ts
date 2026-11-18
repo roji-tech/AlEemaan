@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
+import { CLASS_TAKEN, SUBJECT_TAKEN, structureName, subjectCode } from "@/lib/academics/structure-rules";
 
 // Academic structure (Slice P1a): the classes, arms, subjects and "this class studies this subject" of ONE branch. Every function here takes the branch (or an
 // entity that has one) and the caller's authority has ALREADY been checked by `withBranch` in the route (ADR 0015) - this module never decides who may act.
@@ -11,7 +12,7 @@ export class ConflictError extends DomainError {}
 /// The caller is signed in and in the branch but not allowed to do THIS (a 403), as opposed to a rule of the data (409 / 400).
 export class ForbiddenError extends DomainError {}
 
-const name = z.string().trim().min(1, "Give a name.").max(60, "Use at most 60 characters.");
+const name = structureName;
 export const classGroupInput = z.strictObject({
   branchId: z.string().min(1),
   name,
@@ -32,12 +33,7 @@ export const armPatch = z
     archived: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
-const code = z
-  .string()
-  .trim()
-  .max(12, "Use at most 12 characters.")
-  .regex(/^[A-Za-z0-9._-]+$/, "Letters, numbers, dots, dashes and underscores only.")
-  .transform((v) => v.toUpperCase());
+const code = subjectCode;
 export const subjectInput = z.strictObject({ branchId: z.string().min(1), name, code: code.nullable().optional() });
 export const subjectPatch = z
   .strictObject({ name: name.optional(), code: code.nullable().optional(), archived: z.boolean().optional() })
@@ -108,7 +104,7 @@ export async function createClassGroup(actorUserId: string, input: z.infer<typeo
     await audit(actorUserId, "CLASS_GROUP_CREATED", "ClassGroup", created.id, { name: created.name, branchId: created.branchId });
     return created;
   } catch (error) {
-    return duplicate(error, "This branch already has a class with that name.");
+    return duplicate(error, CLASS_TAKEN);
   }
 }
 
@@ -134,7 +130,7 @@ export async function updateClassGroup(actorUserId: string, id: string, patch: z
     );
     return updated;
   } catch (error) {
-    return duplicate(error, "This branch already has a class with that name.");
+    return duplicate(error, CLASS_TAKEN);
   }
 }
 
@@ -202,7 +198,7 @@ export async function createSubject(actorUserId: string, input: z.infer<typeof s
     });
     return created;
   } catch (error) {
-    return duplicate(error, "This branch already has a subject with that name or code.");
+    return duplicate(error, SUBJECT_TAKEN);
   }
 }
 
@@ -228,7 +224,7 @@ export async function updateSubject(actorUserId: string, id: string, patch: z.in
     );
     return updated;
   } catch (error) {
-    return duplicate(error, "This branch already has a subject with that name or code.");
+    return duplicate(error, SUBJECT_TAKEN);
   }
 }
 
