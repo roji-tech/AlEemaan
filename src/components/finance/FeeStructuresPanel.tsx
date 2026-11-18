@@ -7,6 +7,7 @@ import { FeeStructureModal, type FeeStructureItem } from "./FeeStructureModal";
 
 export interface FeeStructuresPanelProps {
   branchId: string;
+  branchName?: string;
   items: FeeStructureItem[];
   periods: { id: string; label: string }[];
   classGroups: { id: string; name: string }[];
@@ -14,7 +15,15 @@ export interface FeeStructuresPanelProps {
   onRefresh: () => void;
 }
 
-export function FeeStructuresPanel({ branchId, items, periods, classGroups, canManage = true, onRefresh }: FeeStructuresPanelProps) {
+export function FeeStructuresPanel({
+  branchId,
+  branchName,
+  items,
+  periods,
+  classGroups,
+  canManage = true,
+  onRefresh,
+}: FeeStructuresPanelProps) {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeeStructureItem | null>(null);
@@ -187,6 +196,7 @@ export function FeeStructuresPanel({ branchId, items, periods, classGroups, canM
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}
           branchId={branchId}
+          branchName={branchName}
           periods={periods}
           classGroups={classGroups}
           onSaved={() => onRefresh()}

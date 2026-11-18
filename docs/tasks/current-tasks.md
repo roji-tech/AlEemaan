@@ -693,3 +693,11 @@
 - [x] "Add many" on both tabs
 - [ ] The record of the runs
 
+## TASK-0095: A bulk file is saved in batches of 20, in the background (requested 2026-11-18)
+
+[Task file](0095-bulk-save-in-batches.md). A 144-pupil upload failed with `P2028` (one 60-second transaction, server in Washington, database in Frankfurt). The rows now go in batches of 20, each its own request, from the app shell, with a progress panel in the corner, a stop button and the rows not saved downloadable; the review is a responsive List/Grid.
+
+- [x] `src/lib/bulk/batches.ts`, `BulkJobs.tsx`, the dialog and the review, rate limits, specs
+- [x] The browser run: 33 passed, 0 failed
+- [ ] Merged to `dev`, promoted to `master` and `prod`
+

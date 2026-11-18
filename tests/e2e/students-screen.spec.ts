@@ -97,9 +97,7 @@ for (const theme of ["dark", "light"] as const) {
       .click();
     await dialog(page).getByLabel("Guardian phone (optional)").fill("08030000000");
     await dialog(page).getByRole("button", { name: "Save", exact: true }).click();
-    // Two pupils now share the name and birth date, so saving either asks again before it goes through.
-    await expect(dialog(page).getByText(/Another student with this name/)).toBeVisible();
-    await dialog(page).getByRole("button", { name: "Save anyway" }).click();
+    // Two pupils share the name and birth date, but changing a guardian's phone is not a new identity: it saves without asking again (task 0090: the namesake check runs only when the name or the date of birth changes).
     await expect(page.getByText(`${tag}Amina Yusuf saved.`)).toBeVisible();
     await page
       .getByRole("button", { name: `Archive ${tag}Amina Yusuf` })
