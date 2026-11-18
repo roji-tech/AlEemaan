@@ -1,14 +1,12 @@
-"use client";
-
-import { ActionsMenu, type MenuAction } from "@/components/ui/ActionsMenu";
+import type { MenuAction } from "@/components/ui/ActionsMenu";
 import { KIND_TEXT, kindsFor, type StandingCan } from "@/components/standing/model";
 import type { StandingAsk } from "@/components/standing/StandingDialog";
 import type { Member } from "./model";
 
-/// What can be done to one person, behind one Actions button (a list that opens and closes): change them, add them to another branch, then end or pause their access, then the superadmin switch, then their
-/// history. A person who is signed in as you, or whom you may not touch (a branch administrator and an administrator), has none, and no button is drawn. The accessible names are the
-/// ones the separate buttons had ("Deactivate Tola Teacher"), so a screen reader hears the same words.
-export function MemberActions({
+/// What can be done to one person, for the Actions button on their item (a list that opens and closes): change them, add them to another branch, then end or pause their access, then the superadmin switch, then
+/// their history. A person who is signed in as you, or whom you may not touch (a branch administrator and an administrator), has none (an empty list, so the item draws no button).
+/// The accessible names are the ones the separate buttons had ("Deactivate Tola Teacher"), so a screen reader hears the same words. The list goes to `<Item menu={{ name, actions }}>`.
+export function memberActions({
   member,
   name,
   self,
@@ -42,8 +40,8 @@ export function MemberActions({
   onSuperAdmin: (member: Member) => void;
   onReactivate: (member: Member) => void;
   onHistory: (member: Member) => void;
-}) {
-  if (self || locked) return null;
+}): MenuAction[] {
+  if (self || locked) return [];
   const actions: MenuAction[] = [];
   const standing = (kind: StandingAsk["kind"]): MenuAction => ({
     id: kind,
@@ -89,5 +87,5 @@ export function MemberActions({
     for (const kind of kindsFor("staff", member.standing === "SUSPENDED" ? "SUSPENDED" : "TERMINATED", can)) actions.push(standing(kind));
   }
   actions.push({ id: "history", label: "History", ariaLabel: `Standing history of ${name}`, onSelect: () => onHistory(member) });
-  return <ActionsMenu name={name} actions={actions} />;
+  return actions;
 }

@@ -146,7 +146,10 @@ for (const theme of ["dark", "light"] as const) {
       .getByRole("listitem")
       .filter({ hasText: `${tag}Amina Bello` })
       .first();
-    await expect(row).toContainText("Teaching · No sign-in · 0 assignments");
+    // The kit draws the three facts as label and value (task 0089): the kind, the account, and how many assignments.
+    await expect(row).toContainText("Teaching");
+    await expect(row).toContainText("No sign-in");
+    await expect(row).toContainText(/Assignments\s*0/);
 
     await row.getByRole("button", { name: `Manage ${tag}Amina Bello` }).click();
     await expectAccessible(page, `manage dialog (${theme})`);
@@ -170,7 +173,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(dialog(page).getByText("No subjects assigned.")).toBeVisible();
     await dialog(page).getByRole("button", { name: "Close" }).last().click();
 
-    await row.getByRole("button", { name: `Archive ${tag}Amina Bello` }).click();
+    await row.getByRole("button", { name: `Actions for ${tag}Amina Bello` }).click(); // Archive, Restore, the standing actions and History are one Actions list
+    await row.getByRole("button", { name: `Archive ${tag}Amina Bello`, exact: true }).click();
     await expect(page.getByText(`${tag}Amina Bello archived.`)).toBeVisible();
     expect(await db.staffRecord.count({ where: { firstName: `${tag}Amina`, archivedAt: { not: null } } })).toBe(1); // archived, not deleted
   });
