@@ -699,8 +699,9 @@
 
 - [x] `session-schedule.ts`, `createSession`/`updateSchedule`, the PUT route, the form and the Edit dates dialog, info tips
 - [x] Unit, API and browser specs written
-- [ ] The run (section 5 of the task file), merged to `dev`, promoted
-- [ ] Mid-term and mid-semester holidays and their announcement (task 0098)
+- [x] The run: API 41 passed; browser 76 passed, 0 failed; unit 48 passed (section 5 of the task file)
+- [ ] Merged to `dev`, promoted
+- [x] Mid-term and mid-semester holidays and their announcement: task 0098
 
 ## TASK-0098: A break inside a term or semester, and its announcement (requested 2026-11-18)
 

@@ -22,13 +22,12 @@ export const INFO_TIPS = {
     "A branch has one active session at a time, and pupils are placed in classes for the active one. Closing a session deletes nothing, and a closed session can be made active again.",
   "sessions.label": "The school year, such as 2026/2027. A branch can have a session of a given name only once.",
   "sessions.dates":
-    "The first and last day of the school year. Each term or semester starts with an equal share of these days, and you can change every one of them.",
+    "The first and last day of the school year. Each term or semester starts as an equal share of these days, and you can change them.",
   "sessions.kind":
-    "Whether the year is cut into terms or into semesters. Semesters are always two. You cannot switch a session from one to the other later.",
-  "sessions.terms":
-    "How many terms the year has: 2 or 3. A branch with Arabic in its name starts at 2 and the others at 3; change it here if yours differs.",
+    "Whether the year is cut into terms or semesters. A session of semesters has two, and the choice cannot be changed later.",
+  "sessions.terms": "How many terms the year has, 2 or 3. A branch with Arabic in its name starts at 2 and the others at 3.",
   "sessions.periodDates":
-    "The first and last day of each term or semester. They must sit inside the session, in order, without overlapping; a gap between two (a holiday) is fine. Change a date to set your own; changing the session's days or the number of terms shares the days equally again.",
+    "The first and last day of each term or semester. They stay inside the session and do not overlap; a gap between two is a holiday.",
   "sessions.break":
     "A stretch of days inside a term or semester when there is no school, such as the mid-term break. The term's own dates stay as they are.",
   "sessions.branches":
