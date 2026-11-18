@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // What anyone holding a report card's verification link sees about it. A fixed minimum is always shown; a superadmin chooses the rest, for every branch or for one.
 // An administrator can propose a change for their own branch: it needs a reason and a superadmin approves it under Requests.
@@ -24,7 +25,7 @@ export function VerificationPanel({ branches, isSuperAdmin }: { branches: Branch
   const [config, setConfig] = useState<Config | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [pending, setPending] = useState(false);
   const canEdit = isSuperAdmin || (branches.find((b) => b.id === scopeId)?.canEdit ?? false);
 

@@ -3,11 +3,12 @@
 import { InfoTip } from "@/components/ui/InfoTip";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { MarkingDialog } from "@/components/forms/MarkingDialog";
 
 // The practice-set attempts a teacher marks: across the branch's forms (the Marking section of the Forms page) or for one form (its Marking tab). Presentation only: the marking
@@ -52,7 +53,7 @@ export function MarkingQueue({ branchId, formId }: { branchId: string; formId?: 
   const [status, setStatus] = useState("");
   const [rows, setRows] = useState<QueueRow[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [marking, setMarking] = useState<QueueRow | null>(null);
 
   const load = useCallback(

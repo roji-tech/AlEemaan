@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { SchemeForm, type SchemeBody } from "@/components/academics/SchemeForm";
 
 // "My own scheme for this subject": a teacher can write a scheme for a subject they teach, give the reason, and use it straight away while an administrator decides.
@@ -32,7 +33,7 @@ const describe = (d: Draft) => `${d.components.map((c) => `${c.name} ${c.maxScor
 export function TeacherSchemePanel({ branchId, subjectId, subjectName }: { branchId: string; subjectId: string; subjectName: string }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<{ item: Draft | null } | null>(null);
 
   const load = useCallback(async () => {

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import type { SwitchesView } from "@/lib/settings/ceiling-switch";
 
 // A yes/no setting under the ceiling rule (tasks 0040, 0043, 0045), as a Settings tab: the school's value is the ceiling and each branch can only turn it off. One screen for every
@@ -40,7 +41,7 @@ export type SwitchCopy = {
 export function SwitchSettingsPanel({ copy }: { copy: SwitchCopy }) {
   const [view, setView] = useState<SwitchesView | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(

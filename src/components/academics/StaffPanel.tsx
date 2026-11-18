@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { staffEntity } from "@/lib/bulk/staff";
 import { StandingBadge } from "@/components/standing/StandingBadge";
@@ -51,7 +52,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [status, setStatus] = useState<"live" | "archived">("live");
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);

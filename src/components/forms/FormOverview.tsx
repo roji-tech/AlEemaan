@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { FormEditDialog, NOT_YOURS } from "@/components/forms/FormEditDialog";
 import { FormPrintDialog } from "@/components/forms/FormPrintDialog";
 import { PublicLinkBox } from "@/components/forms/PublicLinkBox";
@@ -51,7 +52,7 @@ export function FormOverview({
   onChanged: () => void;
 }) {
   const noun = KIND_NOUN[kind];
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [closing, setClosing] = useState(false);

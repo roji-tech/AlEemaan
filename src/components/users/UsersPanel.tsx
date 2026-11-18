@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -33,8 +34,6 @@ function Badge({ children }: { children: string }) {
   );
 }
 const ROW = "md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.2fr)_6.5rem_8rem] md:items-center md:gap-4";
-
-type Notice = { variant: "success" | "error"; text: string } | null;
 
 const failureText = (status: number, message?: string) =>
   status === 401
@@ -78,7 +77,7 @@ export function UsersPanel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [invitations, setInvitations] = useState<Invitation[] | null>(null);
 
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [inviting, setInviting] = useState(false);
   const [inviteKey, setInviteKey] = useState(0);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
