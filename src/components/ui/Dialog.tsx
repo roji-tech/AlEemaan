@@ -13,6 +13,7 @@ export function Dialog({
   description,
   children,
   wide = false,
+  extraWide = false,
   confirmClose = false,
 }: {
   open: boolean;
@@ -22,6 +23,8 @@ export function Dialog({
   children: ReactNode;
   /// A roomier panel for a form with a table of rows in it (assessment components, grade bands).
   wide?: boolean;
+  /// The roomiest panel, for a table of many columns (the bulk review): 64 rem, still never wider than the screen less a margin.
+  extraWide?: boolean;
   /// For a dialog that may hold work not yet saved: Escape does NOT close the platform dialog by itself; it is reported through `onClose` and the owner decides (ask first, or set `open` to false).
   confirmClose?: boolean;
 }) {
@@ -65,7 +68,7 @@ export function Dialog({
       onClose={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className={`fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] ${wide ? "max-w-3xl" : "max-w-lg"} overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-fg shadow-menu backdrop:bg-black/60`}
+      className={`fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] ${extraWide ? "max-w-5xl" : wide ? "max-w-3xl" : "max-w-lg"} overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-fg shadow-menu backdrop:bg-black/60`}
     >
       {open && (
         <div className="p-5 sm:p-6">

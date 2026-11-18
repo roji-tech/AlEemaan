@@ -18,7 +18,7 @@ import { branchIdField, scopeOrForbidden } from "@/lib/members/http";
 // invitations or NONE (201, or 422 `BULK_PROBLEMS` with every row's verdict); the e-mails are sent after the commit, so a failed send never undoes an invitation.
 const body = z.strictObject({ branchId: branchIdField, ...bulkBodyShape(invitationEntity.maxRows) });
 const DRY_PER_WINDOW = 30; // per administrator per 5 minutes
-const SAVE_PER_WINDOW = 2; // a save of up to 200 invitations: twice in five minutes, counted apart from the 30 single invitations
+const SAVE_PER_WINDOW = 20; // saving goes in batches of 20 rows (task 0095): 20 requests is the old ceiling of two saves of 200 invitations in five minutes, counted apart from the 30 single invitations
 
 export const POST = withAuth(
   validate(

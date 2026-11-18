@@ -12,6 +12,7 @@ export function BulkFeesDialog({
   open,
   onClose,
   branchId,
+  branchName,
   periods,
   classGroups,
   onSaved,
@@ -19,6 +20,7 @@ export function BulkFeesDialog({
   open: boolean;
   onClose: () => void;
   branchId: string;
+  branchName?: string;
   periods: { id: string; label: string }[];
   classGroups: { id: string; name: string }[];
   onSaved: (count: number) => void | Promise<void>;
@@ -51,6 +53,7 @@ export function BulkFeesDialog({
   };
   return (
     <BulkImportDialog
+      branchName={branchName}
       open={open}
       onClose={onClose}
       entity={entity}
