@@ -251,7 +251,7 @@ export function BulkImportDialog({
         onClose={() => open && guard(onClose)}
         title={title}
         description={description}
-        wide
+        extraWide
       >
         <div className="space-y-4">
           {contextControl?.(stage !== "start")}
