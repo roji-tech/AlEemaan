@@ -310,7 +310,7 @@ export function UsersPanel({
             )}
           </div>
         ) : (
-          <div className="mt-3 overflow-hidden rounded-2xl border border-line bg-surface">
+          <div className="mt-3 md:overflow-hidden md:rounded-2xl md:border md:border-line md:bg-surface">
             <div
               aria-hidden="true"
               className={`hidden border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-semibold tracking-wide text-fg-muted uppercase ${ROW}`}
@@ -321,7 +321,7 @@ export function UsersPanel({
               <span>Status</span>
               <span className="w-64 text-right">Actions</span>
             </div>
-            <ul className="divide-y divide-line">
+            <ul className="space-y-4 md:space-y-0 md:divide-y md:divide-line">
               {members.map((member) => {
                 const name = displayName(member);
                 const self = member.userId === currentUserId;
@@ -329,7 +329,10 @@ export function UsersPanel({
                 // Only a superadmin touches an administrator or a superadmin (the API refuses a branch administrator who tries).
                 const locked = !isSuperAdmin && (member.role === "ADMIN" || member.isSuperAdmin);
                 return (
-                  <li key={member.id} className={`flex flex-col gap-3 p-4 ${ROW}`}>
+                  <li
+                    key={member.id}
+                    className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:shadow-none ${ROW}`}
+                  >
                     <div className="flex min-w-0 items-center gap-3">
                       <span
                         aria-hidden="true"
@@ -381,12 +384,12 @@ export function UsersPanel({
                         </span>
                       )}
                     </p>
-                    <div className="flex flex-wrap gap-2 md:w-64 md:justify-end">
+                    <div className="mt-1 grid grid-cols-2 gap-2 border-t border-line pt-4 md:mt-0 md:flex md:w-64 md:flex-wrap md:justify-end md:border-0 md:pt-0 [&>*:last-child:nth-child(odd)]:col-span-2 md:[&>*:last-child:nth-child(odd)]:col-span-1">
                       {self || locked ? null : member.status === "active" ? (
                         <>
                           <Button
                             variant="secondary"
-                            className="flex-1 md:flex-none"
+                            className="md:flex-none"
                             onClick={() => setEditing(member)}
                             aria-label={`Change role or branch for ${name}`}
                           >
@@ -394,7 +397,7 @@ export function UsersPanel({
                           </Button>
                           <Button
                             variant="ghost"
-                            className="flex-1 md:flex-none"
+                            className="border border-line md:flex-none md:border-0"
                             onClick={() => setDeactivating(member)}
                             aria-label={`Deactivate ${name}`}
                           >
@@ -405,7 +408,7 @@ export function UsersPanel({
                               <Button
                                 key={kind}
                                 variant="ghost"
-                                className="flex-1 md:flex-none"
+                                className="border border-line md:flex-none md:border-0"
                                 onClick={() => ask(member, kind)}
                                 aria-label={`${KIND_TEXT[kind]} ${name}`}
                               >
@@ -416,7 +419,7 @@ export function UsersPanel({
                           {isSuperAdmin && (
                             <Button
                               variant="ghost"
-                              className="flex-1 md:flex-none"
+                              className="border border-line md:flex-none md:border-0"
                               onClick={() => setSuperAdminFor(member)}
                               aria-label={`${member.isSuperAdmin ? "Remove superadmin from" : "Make superadmin"} ${name}`}
                             >
@@ -427,7 +430,7 @@ export function UsersPanel({
                       ) : member.standing === "ACTIVE" ? (
                         <Button
                           variant="secondary"
-                          className="flex-1 md:flex-none"
+                          className="md:flex-none"
                           loading={busy}
                           onClick={() => reactivate(member)}
                           aria-label={`Reactivate ${name}`}
@@ -444,7 +447,7 @@ export function UsersPanel({
                           <Button
                             key={kind}
                             variant="secondary"
-                            className="flex-1 md:flex-none"
+                            className="md:flex-none"
                             onClick={() => ask(member, kind)}
                             aria-label={`${KIND_TEXT[kind]} ${name}`}
                           >
@@ -455,7 +458,7 @@ export function UsersPanel({
                       {!self && !locked && (
                         <Button
                           variant="ghost"
-                          className="flex-1 md:flex-none"
+                          className="border border-line md:flex-none md:border-0"
                           onClick={() => setHistoryOf({ endpoint: `/api/v1/members/${member.id}/standing`, name })}
                           aria-label={`Standing history of ${name}`}
                         >
