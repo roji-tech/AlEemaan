@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import { BulkJobsProvider } from "@/components/bulk/BulkJobs";
 import { AppShell } from "@/components/shell/AppShell";
 import { SECTIONS } from "@/components/shell/nav";
 import { requirePageSession } from "@/lib/auth/page-session";
@@ -17,24 +18,26 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const jar = await cookies();
 
   return (
-    <AppShell
-      user={{
-        name: session.user.name,
-        email: session.user.email,
-        roleLabel,
-        isAdmin,
-        isSuperAdmin,
-        isTeacher,
-        isStaff,
-        pages: session.user.pages,
-      }}
-      sidebarCollapsed={parseSidebarCollapsed(jar.get(SIDEBAR_COOKIE)?.value)}
-      foldedSections={parseFoldedSections(
-        jar.get(SIDEBAR_SECTIONS_COOKIE)?.value,
-        SECTIONS.map((section) => section.id),
-      )}
-    >
-      {children}
-    </AppShell>
+    <BulkJobsProvider>
+      <AppShell
+        user={{
+          name: session.user.name,
+          email: session.user.email,
+          roleLabel,
+          isAdmin,
+          isSuperAdmin,
+          isTeacher,
+          isStaff,
+          pages: session.user.pages,
+        }}
+        sidebarCollapsed={parseSidebarCollapsed(jar.get(SIDEBAR_COOKIE)?.value)}
+        foldedSections={parseFoldedSections(
+          jar.get(SIDEBAR_SECTIONS_COOKIE)?.value,
+          SECTIONS.map((section) => section.id),
+        )}
+      >
+        {children}
+      </AppShell>
+    </BulkJobsProvider>
   );
 }
