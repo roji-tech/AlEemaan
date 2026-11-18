@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { fail, ok } from "@/lib/api/envelope";
-import { offsetMeta, parseOffsetPagination } from "@/lib/api/pagination";
+import { pagedOk, readPage } from "@/lib/api/paged";
 import { validate } from "@/lib/api/validate";
 import { withAuth } from "@/lib/auth/with-auth";
 import { branchIdField, roleField, scopeOrForbidden } from "@/lib/members/http";
@@ -29,18 +28,12 @@ const query = z.object({
 
 export const GET = withAuth(
   validate({ query }, async (req, auth, _ctx: unknown, { query: filters }) => {
-    const page = parseOffsetPagination(req.nextUrl.searchParams);
-    if (!page.ok)
-      return fail(
-        "Some of the query parameters are not valid.",
-        400,
-        "VALIDATION",
-        page.issues.map((i) => ({ ...i, path: `query.${i.path}` })),
-      );
+    const page = readPage(req);
+    if (page instanceof Response) return page;
     const scope = await scopeOrForbidden(auth.userId);
     if (scope instanceof Response) return scope;
     const { members, total } = await listMembers(filters, page, scope);
-    return ok({ members }, offsetMeta({ page: page.page, limit: page.limit, total }));
+    return pagedOk("members", members, page, total);
   }),
   { roles: ["ADMIN"] },
 );

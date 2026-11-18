@@ -141,6 +141,25 @@ test.describe("the list an administrator sees", () => {
   });
 });
 
+test.describe("the list is paged (the shared shape: rows under requests, paging under meta)", () => {
+  test("limit and page cut the list, meta tells the rest, and a bad parameter is a 400 naming it", async () => {
+    const sa = await signedIn({ role: Role.ADMIN, superAdmin: true });
+    const members = [await signedIn(), await signedIn(), await signedIn()];
+    for (const m of members) await ask(m, uniqueEmail("n"));
+    const first = await api(`${REQUEST}?limit=2&page=1`, { cookie: sa.cookie });
+    expect(first.status).toBe(200);
+    expect(first.json.meta).toMatchObject({ page: 1, limit: 2, pages: Math.ceil(first.json.meta.total / 2), hasNext: true });
+    expect(first.json.data.requests).toHaveLength(2);
+    const last = await api(`${REQUEST}?limit=2&page=${first.json.meta.pages}`, { cookie: sa.cookie });
+    expect(last.json.meta.hasNext).toBe(false);
+    expect(last.json.data.requests.length).toBeGreaterThan(0);
+    const bad = await api(`${REQUEST}?limit=500`, { cookie: sa.cookie });
+    expect(bad.status).toBe(400);
+    expect(bad.json.error.details[0].path).toBe("query.limit");
+    expect((await api(`${REQUEST}?page=abc`, { cookie: sa.cookie })).status).toBe(400);
+  });
+});
+
 test.describe("deciding", () => {
   test("approve: the link goes to the NEW address, the old one is told, and following the link switches the address", async () => {
     const admin = await signedIn({ role: Role.ADMIN, superAdmin: false });
