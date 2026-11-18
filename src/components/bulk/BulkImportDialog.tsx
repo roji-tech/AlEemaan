@@ -43,6 +43,8 @@ type Props = {
   contextControl?: (locked: boolean) => ReactNode;
   /// False while that control is not filled in: the file, the templates and the grid wait for it.
   canStart?: boolean;
+  /// The branch the rows go into, shown as a labelled chip at the top of every step so nobody loads a file into the wrong branch (the maintainer, 2026-11-18).
+  branchName?: string;
   /// Something the kind wants shown above the rows of a review (a fee file's totals per class).
   reviewExtra?: (rows: SourceRow[], verdicts: RowVerdict[]) => ReactNode;
   onSaved: (count: number) => void | Promise<void>;
@@ -67,6 +69,7 @@ export function BulkImportDialog({
   noun,
   contextControl,
   canStart = true,
+  branchName,
   reviewExtra,
   onSaved,
 }: Props) {
@@ -254,6 +257,14 @@ export function BulkImportDialog({
         extraWide
       >
         <div className="space-y-4">
+          {branchName && (
+            <p className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-xs font-semibold tracking-wide text-fg-2 uppercase">Branch</span>
+              <span className="rounded-full border border-brand-strong/40 bg-brand-tint px-3 py-1 font-semibold text-brand-fg">
+                {branchName}
+              </span>
+            </p>
+          )}
           {contextControl?.(stage !== "start")}
           {error && <Alert variant="error">{error}</Alert>}
 

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
-import { Role, createUser, resetDatabase, seedInstance } from "../support/db";
+import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { signInThroughUi } from "./helpers";
 
 // The bulk review at every width (the maintainer, 2026-11-18, on a screenshot of 144 pupils refused for the same reason: the Result column was a few words wide, so each problem was a tall
@@ -33,6 +33,9 @@ for (const size of WIDTHS) {
     await signInThroughUi(page, admin);
     await page.goto("/students");
     await page.getByRole("button", { name: "Add many" }).click();
+    // the branch the rows go into is a labelled chip at the top of the dialog, not only a sentence in the grey description
+    const branch = await db.branch.findFirstOrThrow();
+    await expect(dialog(page).getByText(branch.name, { exact: true })).toBeVisible();
     await dialog(page)
       .getByLabel("CSV or Excel file")
       .setInputFiles({ name: "pupils.csv", mimeType: "text/csv", buffer: Buffer.from(rows(12)) });
