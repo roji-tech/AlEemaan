@@ -701,3 +701,10 @@
 - [x] The browser run: 33 passed, 0 failed
 - [ ] Merged to `dev`, promoted to `master` and `prod`
 
+## TASK-0099: A Report tool in Quick Tools (requested 2026-11-18)
+
+[Task file](0099-report-a-problem-quick-tool.md). Any signed-in person can report a problem from the Quick Tools drawer; it is recorded (`ProblemReport`, migration `20261118180000_problem_report`, the maintainer's to run) and mailed to `DEVELOPER_EMAIL` (optional; the maintainer sets it in Vercel).
+
+- [x] Table, rules, routes, the tab, docs and specs
+- [ ] The run (section 5), merged to `dev`, promoted
+
