@@ -152,7 +152,7 @@ test("the real run checks again: someone who became a member after the dry run b
   expect((await invitations()).length).toBe(0);
 });
 
-test("limits: at most 200 rows, and a body that is not exactly the shape is refused; saving is limited to twice in five minutes", async () => {
+test("limits: at most 200 rows, and a body that is not exactly the shape is refused; saving is limited to 20 batches in five minutes (the old two saves of 200)", async () => {
   const { cookie } = await asBranchAdmin();
   expect(
     (
@@ -164,9 +164,8 @@ test("limits: at most 200 rows, and a body that is not exactly the shape is refu
   ).toBe(400);
   expect((await send(cookie, [row(2, unique("x"))], { surprise: 1 })).status).toBe(400);
   expect((await send(cookie, [])).status).toBe(400);
-  expect((await send(cookie, [row(2, unique("one"))], { dryRun: false })).status).toBe(201);
-  expect((await send(cookie, [row(2, unique("two"))], { dryRun: false })).status).toBe(201);
-  const third = await send(cookie, [row(2, unique("three"))], { dryRun: false });
-  expect([third.status, third.json.error.code]).toEqual([429, "RATE_LIMITED"]);
+  for (let i = 0; i < 20; i++) expect((await send(cookie, [row(2, unique(`s${i}`))], { dryRun: false })).status, `save ${i + 1}`).toBe(201);
+  const next = await send(cookie, [row(2, unique("over"))], { dryRun: false });
+  expect([next.status, next.json.error.code]).toEqual([429, "RATE_LIMITED"]);
   expect((await send(cookie, [row(2, unique("dry"))])).status).toBe(200);
 });

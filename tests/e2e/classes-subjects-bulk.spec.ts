@@ -83,7 +83,9 @@ test("classes: an unknown subject is named on its row; once the subject exists t
   await dialog(page).getByRole("button", { name: "Save all 3 rows" }).click();
   await expect(page.getByText("3 classes added.")).toBeVisible();
   const card = page.getByRole("list", { name: "Classes" }).getByRole("listitem").filter({ hasText: "JSS 1" }).first();
-  await expect(card).toContainText("2 arms · 1 subject");
+  // the facts are numbers with their labels ("2 arms", "1 subject"), read by a screen reader as term and value
+  await expect(card.getByRole("term").filter({ hasText: /^arms$/ })).toBeVisible();
+  await expect(card.getByRole("definition").first()).toHaveText("2");
   await expect(card).toContainText("Mathematics");
   expect(await db.classArm.count()).toBe(3);
   expect(await db.subjectOffering.count()).toBe(2);

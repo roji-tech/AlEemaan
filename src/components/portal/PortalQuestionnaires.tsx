@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { AnswerFields, type AnswerValue, type AskedQuestion } from "@/components/forms/AnswerFields";
 import { plural } from "@/components/forms/model";
 
@@ -28,7 +29,7 @@ export function PortalQuestionnaires({ studentId }: { studentId: string }) {
   const base = `/api/v1/portal/students/${encodeURIComponent(studentId)}/forms/questionnaires`;
   const [list, setList] = useState<Listed[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [answering, setAnswering] = useState<Listed | null>(null);
 
   const load = useCallback(

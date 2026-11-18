@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -28,7 +29,6 @@ type StudentEntry = {
 };
 
 type OverrideMap = Record<string, { status?: AttendanceStatus; remarks?: string }>;
-type Notice = { variant: "success" | "error"; text: string } | null;
 
 export function AttendancePanel({
   branches,
@@ -45,7 +45,7 @@ export function AttendancePanel({
   const [className, setClassName] = useState("Primary 1");
   const [arm, setArm] = useState("");
   const [overrides, setOverrides] = useState<OverrideMap>({});
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [saving, setSaving] = useState(false);
 
   const [loading, setLoading] = useState(false);

@@ -38,7 +38,7 @@ test("Classes: a long list is paged, search narrows it, and the Filters button o
   page,
 }) => {
   const user = await openAcademics(page);
-  const classes = Array.from({ length: 10 }, (_, i) => ({
+  const classes = Array.from({ length: 14 }, (_, i) => ({
     branchId: user.branchId!,
     name: `${tag} Class ${String(i + 1).padStart(2, "0")}`,
     sortOrder: 100 + i,
@@ -51,7 +51,7 @@ test("Classes: a long list is paged, search narrows it, and the Filters button o
 
   await expect(page.getByRole("tab", { name: "Classes", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByLabel("Search").fill(tag); // only this run's classes
-  await expect(page.getByText("10 classes match")).toBeVisible();
+  await expect(page.getByText("14 classes match")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Pages of classes" })).toContainText("Page 1 of 2");
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByRole("navigation", { name: "Pages of classes" })).toContainText("Page 2 of 2");
@@ -59,7 +59,7 @@ test("Classes: a long list is paged, search narrows it, and the Filters button o
     page
       .getByRole("list", { name: "Classes" })
       .getByRole("listitem")
-      .filter({ hasText: `${tag} Class 10` }),
+      .filter({ hasText: `${tag} Class 14` }),
   ).toHaveCount(1);
 
   // The panel: closed at first, opens, filters, closes, and what was set stays set (and counted).
@@ -69,12 +69,12 @@ test("Classes: a long list is paged, search narrows it, and the Filters button o
   await expect(filtersButton(page)).toHaveAttribute("aria-expanded", "true");
   await expectAccessible(page, "the classes list with the filters open");
   await panel(page).getByLabel("Set-up").selectOption("noSubjects");
-  await expect(page.getByText("9 classes match")).toBeVisible();
+  await expect(page.getByText("13 classes match")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Pages of classes" })).toContainText("Page 1 of 2"); // a filter returns to the first page
   await filtersButton(page).click();
   await expect(panel(page)).toHaveCount(0);
   await expect(filtersButton(page)).toContainText("1");
-  await expect(page.getByText("9 classes match")).toBeVisible();
+  await expect(page.getByText("13 classes match")).toBeVisible();
   await filtersButton(page).click();
   await panel(page).getByRole("button", { name: "Clear filters" }).click();
   await expect(page.getByLabel("Search")).toHaveValue("");

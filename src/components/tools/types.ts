@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-export type QuickToolId = "calculator" | "lookup" | "scratchpad";
+export type QuickToolId = "calculator" | "lookup" | "scratchpad" | "report";
 
 export interface QuickToolDefinition {
   id: QuickToolId;

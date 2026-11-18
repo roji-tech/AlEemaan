@@ -83,6 +83,7 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  problemReports ProblemReport[]
 }
 
 /// tokenHash, not the plaintext token — the client's cookie holds the

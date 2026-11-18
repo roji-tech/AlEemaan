@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { downloadPdf } from "@/components/forms/pdf";
 import { plural } from "@/components/forms/model";
 import { PracticeAnswerItem } from "@/components/portal/PracticeAnswers";
@@ -51,7 +52,7 @@ export function PracticeHistory({
   const [archivedView, setArchivedView] = useState(false);
   const [history, setHistory] = useState<History | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [busy, setBusy] = useState<string | null>(null);
   const [reporting, setReporting] = useState<{ bankItemId: string; prompt: string } | null>(null);
 

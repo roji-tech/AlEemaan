@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { ROLE_LABELS } from "@/lib/roles";
 import { loadPageOverrides } from "@/lib/shell-pages";
 import { getUserMemberships } from "./memberships";
-import { getSession } from "./session";
+import { lookupSession } from "./session";
 import { RETURN_TO_HEADER, loginPathFor } from "./return-to";
 
 /// Most senior first: the role shown under a person's name when they hold several.
@@ -23,7 +23,9 @@ const ROLE_PRECEDENCE: readonly Role[] = [Role.ADMIN, Role.TEACHING_STAFF, Role.
 /// a superadmin. `isSuperAdmin` is school-wide authority (branches, school settings, other administrators); see ADR 0012 and the
 /// branch-administrator design. Both are display and routing; the API behind every page enforces the real rule.
 export const requirePageSession = cache(async () => {
-  const session = await getSession();
+  const session = await lookupSession();
+  // A student or parent whose branch has switched their sign-in off (task 0091): to sign-in with the reason, not back to the page they were on (they could not stay on it).
+  if (session === "closed") redirect("/login?closed=1");
   // Signed out (the session ended, or never was): to sign-in, remembering the page so signing in brings the person back to it.
   if (!session) redirect(loginPathFor((await headers()).get(RETURN_TO_HEADER)));
 

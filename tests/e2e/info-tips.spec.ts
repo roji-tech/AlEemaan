@@ -52,6 +52,9 @@ const PLACES: Place[] = [
     go: async (page) => {
       await page.goto("/students");
       await expect(page.getByRole("heading", { level: 1, name: "Students" })).toBeVisible();
+      // "Show" is a filter of the list, in the panel the toolbar's Filters button opens (task 0089). The panel slides in for 160 ms: wait for that, or a box measured during the slide moves.
+      await page.getByRole("button", { name: /^Filters/ }).click();
+      await page.getByRole("group", { name: "Filters" }).evaluate((panel) => Promise.all(panel.getAnimations().map((a) => a.finished)));
     },
     neighbour: (page) => page.getByLabel("Show", { exact: true }),
   },

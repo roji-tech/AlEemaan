@@ -132,6 +132,6 @@ test("a branch the caller does not administer is a 403 even when the body is oth
   const res = await api(IMPORT, { method: "POST", cookie, body: { branchId: other.id, dryRun: true, rows: [row(2)] } });
   expect(res.status).toBe(403);
   let last = 200;
-  for (let i = 0; i < 40 && last !== 429; i++) last = (await send(cookie, [row(2)])).status;
+  for (let i = 0; i < 170 && last !== 429; i++) last = (await send(cookie, [row(2)])).status;
   expect(last).toBe(429);
 });

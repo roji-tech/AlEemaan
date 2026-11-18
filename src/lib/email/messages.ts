@@ -229,3 +229,32 @@ export function invitationEmail(input: {
     ].join("\n"),
   };
 }
+
+/// To the invited address, when ONE person is invited to SEVERAL branches at once (task 0092): ONE message that names every branch and carries one link per branch, so each
+/// membership is accepted on its own (a link works once and adds that branch only; nothing about the invitation model changed). The text is the same whether or not the address has an
+/// account, like `invitationEmail`. Each branch is introduced by "For <branch>:" and the link is on its own line below it, so the HTML version draws a button under each name, and a branch
+/// whose name looks like an address can never turn into a link.
+export function invitationsEmail(input: {
+  to: string;
+  branches: readonly { branchName: string; token: string }[];
+  roleLabel: string;
+  inviterName: string | null;
+  days: number;
+  /// The portal of the invited role (task 0086): every link is for the same role, so every link opens where that person signs in.
+  portal?: Portal | null;
+}) {
+  const inviter = input.inviterName ? oneLine(input.inviterName) : "An administrator";
+  const names = input.branches.map((b) => oneLine(b.branchName));
+  return {
+    to: input.to,
+    subject: `You're invited to join ${brand.name}`,
+    text: [
+      `${inviter} invited you to join ${brand.name} as ${input.roleLabel} in ${names.length} branches: ${names.join(", ")}.`,
+      ``,
+      `To accept, open the link for each branch you want to join, within ${input.days} days. Each link works once and adds that branch only:`,
+      ...input.branches.flatMap((b, i) => [``, `For ${names[i]}:`, invitationLink(b.token, input.portal)]),
+      ``,
+      `If you weren't expecting this, ignore this message — nothing happens unless a link is opened, and each one stops working by itself.`,
+    ].join("\n"),
+  };
+}

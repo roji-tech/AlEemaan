@@ -104,7 +104,10 @@ test.describe("creating a branch", () => {
 
     await page.goto("/dashboard");
     const total = await db.branch.count();
-    const tile = page.getByRole("region", { name: "Totals" }).getByRole("listitem").filter({ hasText: "Branches" });
+    const tile = page
+      .getByRole("region", { name: "Totals" })
+      .getByRole("listitem")
+      .filter({ hasText: /^Branches\s*\d+$/ }); // not "Branches with an active session"
     await expect(tile).toHaveText(new RegExp(`^Branches\\s*${total}$`));
   });
 

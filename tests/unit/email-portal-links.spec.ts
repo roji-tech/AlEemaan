@@ -5,6 +5,7 @@ import {
   emailChangeRequestedNotice,
   emailChangeTakenNotice,
   invitationEmail,
+  invitationsEmail,
   passwordChangedEmail,
   resetEmail,
 } from "@/lib/email/messages";
@@ -54,6 +55,20 @@ const mails = (portal: Portal | null) =>
   [
     ["reset", resetEmail("a@x.test", "tok", portal)],
     ["invitation", invitationEmail({ to: "a@x.test", token: "tok", branchName: "B", roleLabel: "R", inviterName: null, days: 7, portal })],
+    [
+      "invitation to several branches",
+      invitationsEmail({
+        to: "a@x.test",
+        branches: [
+          { branchName: "B1", token: "tok1" },
+          { branchName: "B2", token: "tok2" },
+        ],
+        roleLabel: "R",
+        inviterName: null,
+        days: 7,
+        portal,
+      }),
+    ],
     ["password changed", passwordChangedEmail("a@x.test", portal)],
     ["change confirm", emailChangeConfirmEmail("a@x.test", "tok", portal)],
     ["change requested", emailChangeRequestedNotice("a@x.test", "b@x.test", portal)],

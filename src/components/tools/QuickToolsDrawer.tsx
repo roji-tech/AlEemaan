@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { CalculatorTool } from "./calculator/CalculatorTool";
 import { StudentLookupTool } from "./students/StudentLookupTool";
 import { QuickNotesTool } from "./QuickNotesTool";
-import { CalculatorIcon, FileTextIcon, GraduationCapIcon, XIcon } from "@/components/ui/icons";
+import { ReportTool } from "./ReportTool";
+import { AlertTriangleIcon, CalculatorIcon, FileTextIcon, GraduationCapIcon, XIcon } from "@/components/ui/icons";
 import type { QuickToolId } from "./types";
 
 interface QuickToolsDrawerProps {
@@ -32,6 +33,11 @@ export function QuickToolsDrawer({ open, onClose, initialTool = "calculator" }: 
       id: "scratchpad" as const,
       name: "Scratchpad",
       icon: FileTextIcon,
+    },
+    {
+      id: "report" as const,
+      name: "Report",
+      icon: AlertTriangleIcon,
     },
   ];
 
@@ -85,7 +91,7 @@ export function QuickToolsDrawer({ open, onClose, initialTool = "calculator" }: 
                   key={t.id}
                   type="button"
                   onClick={() => setSelectedTool(t.id)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                  className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-semibold transition-all sm:flex-row sm:gap-1.5 sm:text-xs ${
                     selected ? "bg-surface text-fg shadow-xs ring-1 ring-line" : "text-fg-muted hover:text-fg"
                   }`}
                 >
@@ -102,6 +108,7 @@ export function QuickToolsDrawer({ open, onClose, initialTool = "calculator" }: 
           {activeTool === "calculator" && <CalculatorTool />}
           {activeTool === "lookup" && <StudentLookupTool />}
           {activeTool === "scratchpad" && <QuickNotesTool />}
+          {activeTool === "report" && <ReportTool />}
         </div>
       </div>
     </div>

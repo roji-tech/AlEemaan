@@ -1,20 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { Button } from "@/components/ui/Button";
+import { Collection, Item, ItemInitials, type ItemAction, type ItemFact } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import type { MenuAction } from "@/components/ui/ActionsMenu";
+import { Pager } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
+import { useCollectionView } from "@/components/ui/useCollectionView";
+import { ViewToggle } from "@/components/ui/ViewToggle";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { pupilEntityFor } from "@/lib/bulk/pupils";
 import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
-import { KIND_TEXT, kindsFor, type StandingCan, type StandingValue } from "@/components/standing/model";
+import { KIND_TEXT, kindsFor, prettyDay, type StandingCan, type StandingValue } from "@/components/standing/model";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
 // decides who may read and change what, refuses a namesake unless an administrator confirms it (ADR 0011), and audits that confirmation.
@@ -42,9 +50,13 @@ type ClassOption = { id: string; name: string; arms: { id: string; name: string 
 type Paging = { page: number; totalPages: number; total: number };
 type Editing = { kind: "form"; item: Student | null } | null;
 
-const PAGE_SIZE = 25;
+/// How many pupils to a page when the person has not chosen: the 25 this list always had (a size the kit offers in the list view; the grid's equivalent is 24).
+const USUAL_SIZE = 25;
 
 type Show = "live" | "suspended" | "expelled" | "archived";
+
+/// "AY" for Amina Yusuf: the first letter of the first and the last name (whole characters, so an emoji or an accented letter is not cut in half).
+const initialsOf = (first: string, last: string) => `${Array.from(first.trim())[0] ?? ""}${Array.from(last.trim())[0] ?? ""}`.toUpperCase();
 
 /// `standingCan`: what the person may do about a pupil's standing in each branch (display only: the API decides).
 export function StudentsPanel({ branches, standingCan = {} }: { branches: BranchChoice[]; standingCan?: Record<string, StandingCan> }) {
@@ -60,29 +72,36 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
   const status = show === "archived" ? "archived" : "live";
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
+  // List or grid, and how many to a page: remembered in this browser (task 0089). The list is paged by the server, so the size is sent as `limit` (every size the kit offers is at most 50, the API's cap).
+  const layout = useCollectionView("students", { defaultView: "list", defaultSize: USUAL_SIZE, page, onPage: setPage });
+  const size = layout.size;
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
   const [restoreAsk, setRestoreAsk] = useState<{ student: Student; message: string } | null>(null);
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
   const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
   const can: StandingCan = standingCan[branchId] ?? { suspend: false, remove: false };
 
+  // Changing the page size or the view moves the page and the size in the same breath; an answer to the request before that must not land after the one that replaced it.
+  const latest = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++latest.current;
     const base = `branchId=${encodeURIComponent(branchId)}`;
     const [s, c] = await Promise.all([
       getJson(
-        `/api/v1/students?${base}&status=${status}${show === "suspended" || show === "expelled" ? `&standing=${show}` : ""}&q=${encodeURIComponent(q)}&page=${page}&limit=${PAGE_SIZE}`,
+        `/api/v1/students?${base}&status=${status}${show === "suspended" || show === "expelled" ? `&standing=${show}` : ""}&q=${encodeURIComponent(q)}&page=${page}&limit=${size}`,
       ),
       getJson(`/api/v1/academics/class-groups?${base}`),
     ]);
+    if (mine !== latest.current) return;
     const bad = [s, c].find((r) => !r.ok);
     if (bad) return setError(say(bad, "Couldn't load this branch."));
     setError(null);
     setStudents(s.data!.students as Student[]);
     setPaging(s.data!.pagination as Paging);
     setClasses(c.data!.classGroups as ClassOption[]);
-  }, [branchId, status, show, q, page]);
+  }, [branchId, status, show, q, page, size]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading data on a branch / filter / page change is exactly what this effect is for
@@ -113,21 +132,24 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
     await load();
   }
 
+  const clearFilters = () => {
+    setQ("");
+    setShow("live");
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6">
-      {branches.length > 1 && (
-        <SelectField
-          label="Branch"
-          value={branchId}
-          onChange={(e) => {
-            setNotice(null);
-            setStudents(null);
-            setPage(1);
-            setBranchId(e.target.value);
-          }}
-          options={branches.map((b) => ({ value: b.id, label: b.name }))}
-        />
-      )}
+      <BranchPicker
+        branches={branches}
+        value={branchId}
+        onChange={(id) => {
+          setNotice(null);
+          setStudents(null);
+          setPage(1);
+          setBranchId(id);
+        }}
+      />
       <div aria-live="polite" className="empty:hidden">
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
@@ -147,35 +169,38 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
         )}
       </div>
 
-      <section aria-labelledby="students-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="students-heading" className="text-lg font-semibold tracking-tight text-fg">
-            Pupils
-          </h2>
-          {branch.canEdit && (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                Add many
-              </Button>
-              <Button onClick={() => setEditing({ kind: "form", item: null })}>New student</Button>
-            </div>
-          )}
+      <section aria-labelledby="students-heading" className="space-y-4">
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="students-heading" className="text-lg font-semibold tracking-tight text-fg">
+              Pupils
+            </h2>
+            {branch.canEdit && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                  Add many
+                </Button>
+                <Button onClick={() => setEditing({ kind: "form", item: null })}>New student</Button>
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-fg-muted">
+            Registered in {branch.name}. A pupil is put in a class when registered; to move a whole class up a year use Promotion on the
+            Academics page.
+          </p>
         </div>
-        <p className="mt-1 text-sm text-fg-muted">
-          Registered in {branch.name}. A pupil is put in a class when registered; to move a whole class up a year use Promotion on the
-          Academics page.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_12rem]">
-          <TextField
-            label="Search students"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Name or admission number"
-            autoComplete="off"
-          />
+        <ListToolbar
+          searchLabel="Search students"
+          searchValue={q}
+          onSearch={(v) => {
+            setQ(v);
+            setPage(1);
+          }}
+          searchPlaceholder="Name or admission number"
+          activeCount={show === "live" ? 0 : 1}
+          onClear={clearFilters}
+          trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+        >
           <SelectField
             label="Show"
             info="students.show"
@@ -191,100 +216,88 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
               { value: "archived", label: "Archived" },
             ]}
           />
-        </div>
-        {students === null ? (
-          <p className="mt-3 text-sm text-fg-muted" aria-busy="true">
-            Loading…
-          </p>
-        ) : students.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-            {q || show !== "live"
-              ? "No students match."
-              : branch.canEdit
-                ? "No students yet. Add one, or import a class from a spreadsheet."
-                : "No students yet."}
-          </p>
-        ) : (
-          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
-            {students.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 font-semibold text-fg">
-                    <span>
-                      {s.firstName} {s.middleName ? `${s.middleName} ` : ""}
-                      {s.lastName}
-                    </span>
-                    <StandingBadge standing={s.standing} until={s.standingUntil} />
-                  </p>
-                  <p className="text-sm text-fg-muted">
-                    {s.admissionNo} · {s.gender === "MALE" ? "Male" : "Female"}
-                    {s.dateOfBirth ? ` · born ${s.dateOfBirth}` : ""} · {s.currentClass ?? "No class yet"}
-                    {s.guardianName ? ` · Guardian ${s.guardianName}` : ""}
-                    {s.guardianPhone ? ` (${s.guardianPhone})` : ""}
-                  </p>
-                </div>
-                {branch.canEdit && (
-                  <div className="flex flex-wrap gap-2">
-                    {!s.archived &&
-                      kindsFor("student", s.standing, can).map((kind) => (
-                        <Button
-                          key={kind}
-                          variant={kind === "expel" ? "danger" : "secondary"}
-                          onClick={() =>
-                            setStandingAsk({
-                              kind,
-                              subject: "student",
-                              endpoint: `/api/v1/students/${s.id}/standing`,
-                              name: `${s.firstName} ${s.lastName}`,
-                            })
-                          }
-                          aria-label={`${KIND_TEXT[kind]} ${s.firstName} ${s.lastName}`}
-                        >
-                          {KIND_TEXT[kind]}
-                        </Button>
-                      ))}
-                    {!s.archived && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => setEditing({ kind: "form", item: s })}
-                        aria-label={`Edit ${s.firstName} ${s.lastName}`}
-                      >
-                        Edit
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      onClick={() => setHistoryOf({ endpoint: `/api/v1/students/${s.id}/standing`, name: `${s.firstName} ${s.lastName}` })}
-                      aria-label={`Standing history of ${s.firstName} ${s.lastName}`}
-                    >
-                      History
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setArchived(s, !s.archived)}
-                      aria-label={`${s.archived ? "Restore" : "Archive"} ${s.firstName} ${s.lastName}`}
-                    >
-                      {s.archived ? "Restore" : "Archive"}
-                    </Button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {paging.totalPages > 1 && (
-          <nav aria-label="Pages of students" className="mt-3 flex items-center justify-between gap-3">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              Previous
-            </Button>
-            <p className="text-sm text-fg-muted">
-              Page {paging.page} of {paging.totalPages} · {paging.total} students
-            </p>
-            <Button variant="secondary" disabled={page >= paging.totalPages} onClick={() => setPage(page + 1)}>
-              Next
-            </Button>
-          </nav>
-        )}
+        </ListToolbar>
+        <Collection
+          label="Students"
+          view={layout.view}
+          state={students === null ? "loading" : students.length === 0 ? (q || show !== "live" ? "nomatch" : "empty") : "ready"}
+          emptyText={branch.canEdit ? "No students yet. Add one, or import a class from a spreadsheet." : "No students yet."}
+          noMatchText="No students match."
+          onClear={clearFilters}
+        >
+          {(students ?? []).map((s) => {
+            const name = `${s.firstName} ${s.lastName}`;
+            const guardian = s.guardianName ? `${s.guardianName}${s.guardianPhone ? ` (${s.guardianPhone})` : ""}` : s.guardianPhone;
+            // Only what is known is shown: a pupil with no date of birth or no guardian has no empty field (the date is optional, task 0090).
+            const facts: ItemFact[] = [
+              { label: "Class", value: s.currentClass ?? "No class yet" },
+              ...(guardian ? [{ label: "Guardian", value: guardian }] : []),
+              ...(s.dateOfBirth ? [{ label: "Born", value: prettyDay(s.dateOfBirth) }] : []),
+            ];
+            // The two everyday actions stay buttons; standing (suspend, lift, expel, reinstate) and its history are in the Actions list. Every one keeps its full name ("Suspend Amina Musa").
+            const actions: ItemAction[] = [
+              ...(s.archived
+                ? []
+                : [{ id: "edit", label: "Edit", ariaLabel: `Edit ${name}`, onClick: () => setEditing({ kind: "form", item: s }) }]),
+              {
+                id: "archive",
+                label: s.archived ? "Restore" : "Archive",
+                ariaLabel: `${s.archived ? "Restore" : "Archive"} ${name}`,
+                variant: "ghost",
+                onClick: () => void setArchived(s, !s.archived),
+              },
+            ];
+            const menu: MenuAction[] = [
+              ...(s.archived
+                ? []
+                : kindsFor("student", s.standing, can).map((kind) => ({
+                    id: kind,
+                    label: KIND_TEXT[kind],
+                    ariaLabel: `${KIND_TEXT[kind]} ${name}`,
+                    onSelect: () => setStandingAsk({ kind, subject: "student", endpoint: `/api/v1/students/${s.id}/standing`, name }),
+                  }))),
+              {
+                id: "history",
+                label: "Standing history",
+                ariaLabel: `Standing history of ${name}`,
+                onSelect: () => setHistoryOf({ endpoint: `/api/v1/students/${s.id}/standing`, name }),
+              },
+            ];
+            return (
+              <Item
+                key={s.id}
+                leading={<ItemInitials text={initialsOf(s.firstName, s.lastName)} />}
+                title={`${s.firstName} ${s.middleName ? `${s.middleName} ` : ""}${s.lastName}`}
+                subtitle={`${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`}
+                facts={facts}
+                badges={
+                  s.archived || s.standing !== "ACTIVE" ? (
+                    <>
+                      <StandingBadge standing={s.standing} until={s.standingUntil} />
+                      {s.archived && (
+                        <span className="shrink-0 rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs font-semibold text-fg-2">
+                          Archived
+                        </span>
+                      )}
+                    </>
+                  ) : undefined
+                }
+                actions={branch.canEdit ? actions : undefined}
+                menu={branch.canEdit ? { name, actions: menu } : undefined}
+              />
+            );
+          })}
+        </Collection>
+        <Pager
+          page={paging.page}
+          pages={paging.totalPages}
+          onPage={setPage}
+          label="Pages of students"
+          total={paging.total}
+          size={size}
+          sizes={layout.sizes}
+          onSize={layout.setSize}
+        />
       </section>
 
       <StandingDialog
@@ -309,6 +322,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
       />
       {branch.canEdit && (
         <BulkImportDialog
+          branchName={branch.name}
           key={`bulk-${bulk.key}`}
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}

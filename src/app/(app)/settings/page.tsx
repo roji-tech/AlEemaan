@@ -53,6 +53,12 @@ export default async function SettingsPage() {
       }}
       branches={branches.map((b) => ({ id: b.id, name: b.name }))}
       hasMfa={await hasActiveMfa(session.userId)}
+      loginBranches={branches.map((b) => ({
+        id: b.id,
+        name: b.name,
+        studentLoginEnabled: b.studentLoginEnabled,
+        parentLoginEnabled: b.parentLoginEnabled,
+      }))}
       initialSessions={sessions.map((s) => ({
         id: s.id,
         branchId: s.branchId,

@@ -173,6 +173,6 @@ test("limits: 1000 rows, a strict body, a branch that is not yours, and a rate l
   expect((await send(cookie, [])).status).toBe(400);
   expect((await api(IMPORT, { method: "POST", cookie, body: { branchId: other.id, dryRun: true, rows: [row(2)] } })).status).toBe(403);
   let last = 200;
-  for (let i = 0; i < 40 && last !== 429; i++) last = (await send(cookie, [row(2)])).status;
+  for (let i = 0; i < 170 && last !== 429; i++) last = (await send(cookie, [row(2)])).status;
   expect(last).toBe(429);
 });

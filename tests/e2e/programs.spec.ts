@@ -268,8 +268,8 @@ test.describe("everyone else", () => {
 
     // A real program they have no place in and an address that does not exist read exactly the same: nothing says which is which.
     await page.goto(`/programs/${program.id}`);
+    await expect(page.getByText("We could not find that program.")).toBeVisible(); // wait for the page to finish loading before reading it
     const hidden = await page.getByRole("main").innerText();
-    await expect(page.getByText("We could not find that program.")).toBeVisible();
     await expect(page.getByText("Quran memorisation")).toHaveCount(0);
     await page.goto("/programs/does-not-exist");
     await expect(page.getByText("We could not find that program.")).toBeVisible();
