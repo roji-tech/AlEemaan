@@ -267,7 +267,7 @@ export async function c17Discipline(walk: Walk, page: Page): Promise<void> {
       await backToStaffSignIn(walk, page);
       await signIn(walk, page, cast.superadmin);
       await openPage(walk, page, "Settings");
-      await walk.click(page.getByRole("button", { name: "Discipline", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Discipline", exact: true }));
       await expect(page.getByText("Branch administrators may suspend", { exact: true })).toBeVisible();
       await walk.click(page.getByRole("button", { name: "Turn off for the school" }));
       await expect(page.getByText("Branch administrators may no longer suspend.")).toBeVisible();
@@ -373,7 +373,7 @@ export async function c17Discipline(walk: Walk, page: Page): Promise<void> {
     },
     async () => {
       await openPage(walk, page, "Settings");
-      await walk.click(page.getByRole("button", { name: "Discipline", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Discipline", exact: true }));
       await walk.click(page.getByRole("button", { name: `Let administrators of ${school.branches.englishPrimary} suspend again` }));
       await expect(page.getByText(`Administrators of ${school.branches.englishPrimary} may suspend again.`)).toBeVisible();
     },

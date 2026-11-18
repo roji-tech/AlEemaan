@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // Toasts instead of banners at the top of the page (task 0096): the outcome of an action appears in the corner, is announced, can be closed, goes by itself, and the page is not pushed down.
 test.afterAll(async () => {
@@ -27,7 +27,7 @@ test("archiving a class shows a toast in the corner, not a banner at the top, an
   await withClass(page, "Toast Class");
   const heading = page.getByRole("heading", { level: 2, name: "Classes and arms" });
   const before = (await heading.boundingBox())!.y;
-  await page.getByRole("button", { name: "Archive Toast Class" }).click();
+  await clickAction(page, "Archive Toast Class");
 
   const toast = toasts(page).getByRole("status").filter({ hasText: "Toast Class archived." });
   await expect(toast).toBeVisible();
@@ -42,7 +42,7 @@ test("archiving a class shows a toast in the corner, not a banner at the top, an
 
 test("a toast can be closed, and one that is not goes by itself", async ({ page }) => {
   await withClass(page, "Closing Class");
-  await page.getByRole("button", { name: "Archive Closing Class" }).click();
+  await clickAction(page, "Archive Closing Class");
   const toast = toasts(page).getByRole("status").filter({ hasText: "Closing Class archived." });
   await expect(toast).toBeVisible();
   await toast.getByRole("button", { name: "Dismiss this message" }).click();
@@ -60,12 +60,12 @@ async function withClassAgain(page: Page) {
   });
   expect(group.id).toBeTruthy();
   await page.reload();
-  await page.getByRole("button", { name: "Archive Second Class" }).click();
+  await clickAction(page, "Archive Second Class");
 }
 
 test("a toast that holds the pointer stays; it is announced; axe finds nothing wrong with it", async ({ page }) => {
   await withClass(page, "Held Class");
-  await page.getByRole("button", { name: "Archive Held Class" }).click();
+  await clickAction(page, "Archive Held Class");
   const toast = toasts(page).getByRole("status").filter({ hasText: "Held Class archived." });
   await expect(toast).toBeVisible();
   await toast.hover();

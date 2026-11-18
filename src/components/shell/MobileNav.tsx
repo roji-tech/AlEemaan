@@ -57,7 +57,11 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
 
   return (
     <>
-      <nav aria-label="Main" className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
+      <nav
+        aria-label="Main"
+        data-fixed-bottom
+        className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
+      >
         <ul className="flex gap-1 rounded-2xl border border-line bg-surface p-1.5 shadow-menu">
           {tabs.map(({ label, href, icon: Icon }) => (
             <li key={label} className="flex-1">

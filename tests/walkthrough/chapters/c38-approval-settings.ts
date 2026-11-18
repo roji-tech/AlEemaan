@@ -33,7 +33,7 @@ export async function c38ApprovalSettings(walk: Walk, page: Page): Promise<void>
       await signOut(walk, page);
       await signIn(walk, page, cast.superadmin);
       await walk.click(mainNav(page).getByRole("link", { name: "Settings", exact: true }));
-      await walk.click(page.getByRole("button", { name: "Results approval", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Results approval", exact: true }));
       await walk.selectOption(page.getByLabel("Branch", { exact: true }), school.branches.englishPrimary);
       await expect(page.getByRole("heading", { name: "Sections" })).toBeVisible();
       await walk.click(page.getByRole("button", { name: "Add section" }));
@@ -109,7 +109,7 @@ export async function c38ApprovalSettings(walk: Walk, page: Page): Promise<void>
     },
     async () => {
       await walk.click(mainNav(page).getByRole("link", { name: "Settings", exact: true }));
-      await walk.click(page.getByRole("button", { name: "Results approval", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Results approval", exact: true }));
       await walk.selectOption(page.getByLabel("Branch", { exact: true }), school.branches.englishPrimary);
       await walk.click(page.getByRole("button", { name: `Change where ${cast.teacher.name} approves` }));
       await walk.click(page.getByLabel("Everything (General)"));

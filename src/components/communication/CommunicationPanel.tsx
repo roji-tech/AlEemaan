@@ -1,5 +1,6 @@
 "use client";
 
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { useState, useRef, type KeyboardEvent } from "react";
 import { BroadcastComposer } from "./BroadcastComposer";
 import { DispatchLogsView } from "./DispatchLogsView";
@@ -54,25 +55,7 @@ export function CommunicationPanel({ branches, userBranchId }: CommunicationPane
   return (
     <div className="space-y-6">
       {/* Top Bar: Branch Selector */}
-      {branches.length > 1 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface border border-line rounded-xl">
-          <label htmlFor="comm-branch-select" className="text-sm font-semibold text-fg">
-            Current Branch:
-          </label>
-          <select
-            id="comm-branch-select"
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {branches.length > 1 && <BranchPicker branches={branches} value={selectedBranchId} onChange={setSelectedBranchId} />}
 
       {/* Accessible Tab Navigation */}
       <div className="border-b border-line">

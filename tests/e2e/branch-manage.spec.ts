@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // The Branches list and the single-branch page: rows are links, a branch is renamed and deleted from either, and a branch holding people or records says what it holds and is never
 // deleted. Desktop and phone (e2e-mobile), axe WCAG 2.2 on the page and on the dialogs.
@@ -46,7 +46,7 @@ test("rename from the list: a taken name is refused inside the dialog, a new one
   const branch = await db.branch.create({ data: { name: unique("Before") } });
   const other = await db.branch.create({ data: { name: unique("Taken") } });
   await openList(page);
-  await page.getByRole("button", { name: `Rename ${branch.name}` }).click();
+  await clickAction(page, `Rename ${branch.name}`);
   await expect(dialog(page).getByText(`Code ${branch.code}`)).toBeVisible();
   await dialog(page).getByLabel("Branch name").fill(other.name);
   await dialog(page).getByRole("button", { name: "Save name" }).click();
@@ -64,7 +64,7 @@ test("delete from the list: the button waits for the exact name; the branch and 
   const branch = await db.branch.create({ data: { name: unique("Doomed") } });
   await db.classGroup.create({ data: { branchId: branch.id, name: "Set-up class" } });
   await openList(page);
-  await page.getByRole("button", { name: `Delete ${branch.name}` }).click();
+  await clickAction(page, `Delete ${branch.name}`);
   await expect(dialog(page).getByText("also removes its set-up: 1 classes")).toBeVisible();
   const confirm = dialog(page).getByRole("button", { name: "Delete branch" });
   await expect(confirm).toBeDisabled();
@@ -91,7 +91,7 @@ test("a branch holding a pupil says so and offers no way to delete it", async ({
     },
   });
   await openList(page);
-  await page.getByRole("button", { name: `Delete ${branch.name}` }).click();
+  await clickAction(page, `Delete ${branch.name}`);
   await expect(dialog(page).getByText(/still holds 1 pupils/)).toBeVisible();
   await expect(dialog(page).getByLabel(/Type .* to confirm/)).toHaveCount(0);
   await expect(dialog(page).getByRole("button", { name: "Delete branch" })).toHaveCount(0);

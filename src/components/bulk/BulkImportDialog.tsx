@@ -1,5 +1,6 @@
 "use client";
 
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -46,6 +47,11 @@ type Props = {
   canStart?: boolean;
   /// The branch the rows go into, shown as a labelled chip at the top of every step so nobody loads a file into the wrong branch (the maintainer, 2026-11-18).
   branchName?: string;
+  /// The branches the rows could go into, with the one chosen and what to do when another is picked (task 0100: "can we switch branch on this dashboard"). While the first step is open the chip
+  /// is a branch picker; once a file or a grid has rows the branch is fixed again, so rows can never be loaded for one branch and saved into another.
+  branchChoices?: readonly { id: string; name: string }[];
+  branchId?: string;
+  onBranchChange?: (id: string) => void;
   /// Something the kind wants shown above the rows of a review (a fee file's totals per class).
   reviewExtra?: (rows: SourceRow[], verdicts: RowVerdict[]) => ReactNode;
   onSaved: (count: number) => void | Promise<void>;
@@ -71,6 +77,9 @@ export function BulkImportDialog({
   contextControl,
   canStart = true,
   branchName,
+  branchChoices,
+  branchId,
+  onBranchChange,
   reviewExtra,
   onSaved,
 }: Props) {
@@ -274,13 +283,17 @@ export function BulkImportDialog({
         extraWide
       >
         <div className="space-y-4">
-          {branchName && (
-            <p className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-xs font-semibold tracking-wide text-fg-2 uppercase">Branch</span>
-              <span className="rounded-full border border-brand-strong/40 bg-brand-tint px-3 py-1 font-semibold text-brand-fg">
-                {branchName}
-              </span>
-            </p>
+          {branchName && stage === "start" && branchChoices && branchChoices.length > 1 && branchId && onBranchChange ? (
+            <BranchPicker branches={branchChoices} value={branchId} onChange={onBranchChange} />
+          ) : (
+            branchName && (
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-xs font-semibold tracking-wide text-fg-2 uppercase">Branch</span>
+                <span className="rounded-full border border-brand-strong/40 bg-brand-tint px-3 py-1 font-semibold text-brand-fg">
+                  {branchName}
+                </span>
+              </p>
+            )
           )}
           {contextControl?.(stage !== "start")}
           {error && <Alert variant="error">{error}</Alert>}

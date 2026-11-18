@@ -14,7 +14,7 @@ test("a new session's card has its branch badge and plain dates at once, and the
   const admin = await createUser({ role: Role.ADMIN });
   await signInThroughUi(page, admin);
   await page.goto("/settings");
-  await page.getByRole("button", { name: "Academic Sessions & Terms" }).click();
+  await page.getByRole("tab", { name: "Academic Sessions & Terms" }).click();
 
   const label = `Card ${Date.now().toString(36)}`;
   await page.getByRole("button", { name: "New Academic Session" }).click();
@@ -34,7 +34,7 @@ test("a new session's card has its branch badge and plain dates at once, and the
 
   // read back from the database, the card is the same
   await page.reload();
-  await page.getByRole("button", { name: "Academic Sessions & Terms" }).click();
+  await page.getByRole("tab", { name: "Academic Sessions & Terms" }).click();
   await expect(head().locator("span").first()).toHaveText("Primary (English)");
   await expect(head()).toContainText("2030-09-02 → 2031-07-18");
 });

@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, switchBranch } from "./helpers";
 
 // The Approvals page in a real browser (Slice UI1): a superadmin puts the report-card layout behind approval, an administrator's change becomes a request with a
 // reason, the superadmin approves it under Requests and the layout takes effect; the verification page proposal; self-approval grants. Axe (WCAG 2.2 A/AA) runs on
@@ -85,7 +85,7 @@ test("approvals: enforcement, a request with a reason, and the superadmin's deci
   await expect(adminPage.getByText(/Sent to a superadmin for approval/)).toBeVisible();
 
   await page.getByRole("tab", { name: "Requests" }).click();
-  await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" });
+  await switchBranch(page, "Secondary (English)");
   await expect(page.getByText("Report-card layout")).toBeVisible();
   await expect(page.getByText("Reason: Parents are used to the old card.")).toBeVisible();
   await page.getByRole("button", { name: /^Approve Report-card layout/ }).click();
@@ -121,12 +121,12 @@ test("approvals: an administrator proposes verification fields; a superadmin gra
 
   await signInThroughUi(page, sup);
   await page.goto("/approvals");
-  await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" });
+  await switchBranch(page, "Secondary (English)");
   // The request itself, not the words: getByText("Public verification page") also matches the page's own description ("...report cards and public
   // verification page show..."), so before the list had loaded it passed on the description (desktop) and, once both existed, failed on strict mode (phone).
   await expect(page.getByRole("button", { name: new RegExp(`^Approve Public verification page from ${tag} Admin`) })).toBeVisible();
   await page.getByRole("tab", { name: "Self-approval" }).click();
-  await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" }); // a superadmin sees every branch, the first alphabetically is not the home one
+  await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" }); // this tab keeps the native Branch field; a superadmin sees every branch, the first alphabetically is not the home one
   await page.getByRole("button", { name: new RegExp(`Allow ${tag} Admin`) }).click();
   await expect(page.getByText(`${tag} Admin may now approve their own marks.`)).toBeVisible();
   await page.getByRole("button", { name: new RegExp(`Withdraw ${tag} Admin`) }).click();

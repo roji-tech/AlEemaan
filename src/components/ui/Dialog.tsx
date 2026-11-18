@@ -1,7 +1,20 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { splitTitle } from "./dialog-title";
 import { XIcon } from "./icons";
+
+/// The title's words: an action and the name it acts on ("Edit Aluko Fuad") are told apart by colour and weight; anything else is plain text. Same text either way (`dialog-title.ts`).
+function TitleText({ text }: { text: string }) {
+  const parts = splitTitle(text);
+  if (!parts) return <>{text}</>;
+  return (
+    <>
+      <span className="font-medium text-fg-muted">{parts.action}</span> <span className="font-bold text-brand-fg">{parts.name}</span>
+      {parts.tail}
+    </>
+  );
+}
 
 /// A modal dialog on the native <dialog>: the platform supplies the focus trap, Escape, the inert page behind it, and — on close — focus
 /// back on the control that opened it (initial focus: see the effect below). `open` is the one source of truth; Escape is reported through `onClose` so the owner's state follows.
@@ -75,7 +88,7 @@ export function Dialog({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 id={titleId} className="text-lg font-semibold tracking-tight text-fg">
-                {title}
+                <TitleText text={title} />
               </h2>
               {description && (
                 <p id={descriptionId} className="mt-1 text-sm leading-relaxed text-fg-muted">

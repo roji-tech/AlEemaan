@@ -141,7 +141,7 @@ export default async function OverviewPage() {
               title: "No active academic session",
               why: "Pupils can't be placed in a class until one is active.",
               cta: "Create a session",
-              href: `/academics?section=sessions&branch=${b.id}&new=1`,
+              href: `/academics?tab=sessions&branch=${b.id}&new=1`,
             },
           ]),
       ...((classes.get(b.id) ?? 0) === 0
@@ -153,7 +153,7 @@ export default async function OverviewPage() {
               title: "No classes yet",
               why: "Classes (with their arms) are where pupils are placed.",
               cta: "Add classes",
-              href: `/academics?section=classes&branch=${b.id}&new=1`,
+              href: `/academics?tab=classes&branch=${b.id}&new=1`,
             },
           ]
         : []),
@@ -166,7 +166,7 @@ export default async function OverviewPage() {
               title: "No subjects yet",
               why: "Subjects are what each class studies and is graded in.",
               cta: "Add subjects",
-              href: `/academics?section=subjects&branch=${b.id}`,
+              href: `/academics?tab=subjects&branch=${b.id}`,
             },
           ]
         : []),
@@ -189,13 +189,13 @@ export default async function OverviewPage() {
 
   const ACTIONS: { href: string; title: string; text: string; icon: IconType }[] = [
     {
-      href: "/academics?section=sessions&new=1",
+      href: "/academics?tab=sessions&new=1",
       title: "New academic session",
       text: "Start a school year with its terms",
       icon: CalendarIcon,
     },
-    { href: "/academics?section=classes&new=1", title: "New class", text: "Add a class, then its arms", icon: GraduationCapIcon },
-    { href: "/academics?section=subjects", title: "New subject", text: "Add a subject to the branch", icon: BookOpenIcon },
+    { href: "/academics?tab=classes&new=1", title: "New class", text: "Add a class, then its arms", icon: GraduationCapIcon },
+    { href: "/academics?tab=subjects", title: "New subject", text: "Add a subject to the branch", icon: BookOpenIcon },
     { href: "/students", title: "Add pupils", text: "One by one, or a whole file", icon: UserIcon },
     { href: "/users", title: "Invite people", text: "Staff, parents and administrators", icon: MailIcon },
   ];
@@ -210,12 +210,12 @@ export default async function OverviewPage() {
           <Stat label="People with a role" value={peopleCount} icon={UsersIcon} href="/users" />
           <Stat label="Pupils" value={total(pupils)} icon={UserIcon} href="/students" />
           <Stat label="Classes" value={total(classes)} icon={GraduationCapIcon} href="/academics" />
-          <Stat label="Subjects" value={total(subjects)} icon={BookOpenIcon} href="/academics?section=subjects" />
+          <Stat label="Subjects" value={total(subjects)} icon={BookOpenIcon} href="/academics?tab=subjects" />
           <Stat
             label="Branches with an active session"
             value={`${withSession} of ${branches.length}`}
             icon={CalendarIcon}
-            href="/academics?section=sessions"
+            href="/academics?tab=sessions"
           />
           <Stat label="Your role" value={roleLabel} icon={ShieldCheckIcon} />
         </ul>

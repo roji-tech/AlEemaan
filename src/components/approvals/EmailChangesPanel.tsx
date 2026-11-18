@@ -82,6 +82,7 @@ export function EmailChangesPanel() {
             leading={<ItemInitials text={initialsOf(i.person.name, i.person.email)} />}
             title={who(i)}
             subtitle={`${i.roles.length > 0 ? i.roles.map((r) => ROLE_LABELS[r]).join(", ") : "No branch"} · asked on ${new Date(i.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
+            actionsStyle="buttons"
             actions={[
               {
                 id: "approve",

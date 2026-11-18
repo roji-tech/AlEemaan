@@ -4,7 +4,7 @@ import { Permission } from "@prisma/client";
 import { BRANCH_NAMES, Role, createUser, db, resetDatabase, seedInstance, uniqueEmail, type TestUser } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { waitForMail, tokenFrom } from "../support/outbox";
-import { signInThroughUi, rowAction, hasRowAction, openInvitationsTab } from "./helpers";
+import { signInThroughUi, rowAction, hasRowAction, openInvitationsTab, clickAction, openMenu } from "./helpers";
 
 // The Users page in a real browser, desktop and phone (domain-implementation-plan.md, "Build design — Users pages and invitations"): the
 // people, their filters and paging, inviting, changing role/branch, deactivating and reactivating, and the pending invitations.
@@ -244,7 +244,7 @@ test.describe("inviting", () => {
     const token = tokenFrom((await waitForMail(tola.email))[0]);
     const joined = await api("/api/v1/invitations/accept", { body: { token }, cookie: cookieHeader((await loginAs(tola)).token!) });
     expect(joined.status).toBe(200);
-    await page.reload();
+    await page.goto("/users"); // the address remembers which tab was open (?tab=invitations): People is the default tab
     await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
     await page.getByLabel("Search").fill("Tola");
     await expect(page.getByText("2 people match")).toBeVisible(); // one row per membership
@@ -290,14 +290,14 @@ test.describe("inviting", () => {
     await expect(row(page, to)).toBeVisible();
     const first = tokenFrom((await waitForMail(to))[0]);
 
-    await page.getByRole("button", { name: `Resend the invitation to ${to}` }).click();
+    await clickAction(page, `Resend the invitation to ${to}`);
     await expect(notice(page)).toContainText(`A new invitation was sent to ${to}`);
     const second = tokenFrom((await waitForMail(to, 2))[1]);
     expect(second).not.toBe(first);
     expect((await api("/api/v1/invitations/preview", { body: { token: first } })).status).toBe(400);
     expect((await api("/api/v1/invitations/preview", { body: { token: second } })).status).toBe(200);
 
-    await page.getByRole("button", { name: `Revoke the invitation to ${to}` }).click();
+    await clickAction(page, `Revoke the invitation to ${to}`);
     await expect(notice(page)).toContainText(`The invitation to ${to} was revoked`);
     await expect(row(page, to)).toHaveCount(0);
     await expect(page.getByText("No invitations are waiting.")).toBeVisible();
@@ -319,6 +319,7 @@ test.describe("inviting", () => {
     await openInvitationsTab(page);
     const pending = row(page, to);
     await expect(pending).toContainText("Expired");
+    await openMenu(pending, `Actions for ${to}`);
     await expect(pending.getByRole("button", { name: `Resend the invitation to ${to}` })).toHaveText("Send again");
   });
 });

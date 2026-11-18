@@ -281,7 +281,7 @@ export async function c33PortalPractice(walk: Walk, page: Page): Promise<void> {
       await walk.click(page.getByRole("button", { name: "Save settings" }));
       await expect(page.getByText(/Saved\. One setting changed for every branch\./)).toBeVisible();
       await walk.click(mainNav(page).getByRole("link", { name: "Settings", exact: true }));
-      await walk.click(page.getByRole("button", { name: "Portal access", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Portal access", exact: true }));
       await walk.selectOption(page.getByLabel("Branch", { exact: true }), school.branches.englishPrimary);
       await walk.selectOption(page.getByLabel("Guardian: question practice"), "FULL");
       await walk.selectOption(page.getByLabel("Pupil: question practice"), "NONE");
@@ -332,7 +332,7 @@ export async function c33PortalPractice(walk: Walk, page: Page): Promise<void> {
       await backToStaffSignIn(walk, page);
       await signIn(walk, page, cast.superadmin);
       await walk.click(mainNav(page).getByRole("link", { name: "Settings", exact: true }));
-      await walk.click(page.getByRole("button", { name: "Portal access", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Portal access", exact: true }));
       await walk.selectOption(page.getByLabel("Branch", { exact: true }), school.branches.englishPrimary);
       await walk.click(page.getByRole("button", { name: "Use the recommended settings" }));
       await walk.click(page.getByRole("button", { name: "Save changes" }));
