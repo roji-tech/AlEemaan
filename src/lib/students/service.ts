@@ -10,7 +10,15 @@ export const studentInputSchema = z.object({
   middleName: z.string().trim().max(60).nullable().optional(),
   lastName: z.string().trim().min(2, "Last name must be at least 2 characters").max(60),
   gender: z.nativeEnum(Gender),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD"),
+  // The date of birth is not required (the maintainer, 2026-11-18: only the first name, the last name and the gender are): blank or missing is "not given".
+  dateOfBirth: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD")
+      .nullable()
+      .optional(),
+  ),
   admissionNo: z.string().trim().max(40).optional(),
   allowDuplicate: z.boolean().optional().default(false),
   guardianName: z.string().trim().max(100).nullable().optional(),
@@ -25,10 +33,15 @@ export const studentUpdateSchema = z.object({
   middleName: z.string().trim().max(60).nullable().optional(),
   lastName: z.string().trim().min(2).max(60).optional(),
   gender: z.nativeEnum(Gender).optional(),
-  dateOfBirth: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  // null clears the date of birth, undefined leaves it as it is.
+  dateOfBirth: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD")
+      .nullable()
+      .optional(),
+  ),
   admissionNo: z.string().trim().max(40).optional(),
   allowDuplicate: z.boolean().optional().default(false),
   guardianName: z.string().trim().max(100).nullable().optional(),
@@ -49,22 +62,45 @@ export async function lockStudents(tx: Tx) {
 }
 
 /**
- * Searches for a preexisting active student sharing the same branch, names, and date of birth.
+ * Searches for a preexisting active student sharing the same branch and names, and the same date of birth. A date of birth is not required, so a missing one cannot tell two pupils
+ * apart: a namesake whose date of birth is missing (on either side) counts as the same pupil, and the person registering is asked to confirm (the same override as before). Without
+ * this a file loaded twice would register every pupil twice. The middle name counts too when BOTH have one: "Abdulbasit Balqees Zakariyya" and "Abdulbasit Romlah Zakariyya" are
+ * sisters, not a namesake.
  */
-export async function findDuplicate(tx: Tx, branchId: string, firstName: string, lastName: string, dateOfBirth: string, exceptId?: string) {
-  const dob = new Date(dateOfBirth);
+export async function findDuplicate(
+  tx: Tx,
+  branchId: string,
+  firstName: string,
+  lastName: string,
+  dateOfBirth: string | null | undefined,
+  exceptId?: string,
+  middleName?: string | null,
+) {
+  const dob = dateOfBirth ? new Date(dateOfBirth) : null;
+  const middle = middleName?.trim() || null;
   return tx.studentRecord.findFirst({
     where: {
       branchId,
       archivedAt: null,
       firstName: { equals: firstName, mode: "insensitive" },
       lastName: { equals: lastName, mode: "insensitive" },
-      dateOfBirth: dob,
+      AND: [
+        ...(dob ? [{ OR: [{ dateOfBirth: dob }, { dateOfBirth: null }] }] : []),
+        ...(middle
+          ? [{ OR: [{ middleName: null }, { middleName: "" }, { middleName: { equals: middle, mode: "insensitive" as const } }] }]
+          : []),
+      ],
       ...(exceptId ? { id: { not: exceptId } } : {}),
     },
-    select: { id: true, admissionNo: true },
+    select: { id: true, admissionNo: true, dateOfBirth: true },
   });
 }
+
+/// What to tell the person about a namesake: with a date of birth on both sides it is the same name and birthday; otherwise there is nothing to tell them apart by.
+export const namesakeText = (hasDob: boolean, found: { dateOfBirth: Date | null }) =>
+  hasDob && found.dateOfBirth ? "name and date of birth" : "name (a date of birth is missing, so they cannot be told apart)";
+
+const dayText = (value: Date | null): string | null => (value ? value.toISOString().split("T")[0] : null);
 
 /**
  * Generates the next sequential admission number for a calendar year (e.g. "2026/0001").
@@ -95,12 +131,20 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
     await lockStudents(tx);
 
     // 1. Duplicate detection
-    const duplicate = await findDuplicate(tx, input.branchId, input.firstName, input.lastName, input.dateOfBirth);
+    const duplicate = await findDuplicate(
+      tx,
+      input.branchId,
+      input.firstName,
+      input.lastName,
+      input.dateOfBirth,
+      undefined,
+      input.middleName,
+    );
 
     if (duplicate && !input.allowDuplicate) {
       return {
         ok: false,
-        error: `A student with this name and date of birth already exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to register.`,
+        error: `A student with this ${namesakeText(!!input.dateOfBirth, duplicate)} already exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to register.`,
         code: "POSSIBLE_DUPLICATE",
         details: { existingAdmissionNo: duplicate.admissionNo },
       };
@@ -131,7 +175,7 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
         middleName: input.middleName || null,
         lastName: input.lastName,
         gender: input.gender,
-        dateOfBirth: new Date(input.dateOfBirth),
+        dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
         admissionNo,
         guardianName: input.guardianName || null,
         guardianPhone: input.guardianPhone || null,
@@ -204,14 +248,24 @@ export async function updateStudent(
 
     const checkFirstName = input.firstName ?? student.firstName;
     const checkLastName = input.lastName ?? student.lastName;
-    const checkDob = input.dateOfBirth ? input.dateOfBirth : student.dateOfBirth.toISOString().split("T")[0];
+    const checkDob = input.dateOfBirth === undefined ? dayText(student.dateOfBirth) : input.dateOfBirth;
+    const checkMiddle = input.middleName === undefined ? student.middleName : input.middleName;
 
-    // Check duplicate if name or DOB changed
-    const duplicate = await findDuplicate(tx, student.branchId, checkFirstName, checkLastName, checkDob, id);
+    // Check for a namesake only when the name or the date of birth is being changed: with a date of birth not required, two pupils with the same name and none must still be editable
+    // (a guardian's phone, a class) without being asked to confirm a namesake every time.
+    const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+    const identityChanged =
+      !sameName(checkFirstName, student.firstName) ||
+      !sameName(checkLastName, student.lastName) ||
+      !sameName(checkMiddle ?? "", student.middleName ?? "") ||
+      checkDob !== dayText(student.dateOfBirth);
+    const duplicate = identityChanged
+      ? await findDuplicate(tx, student.branchId, checkFirstName, checkLastName, checkDob, id, checkMiddle)
+      : null;
     if (duplicate && !input.allowDuplicate) {
       return {
         ok: false,
-        error: `Another student with this name and date of birth exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to update.`,
+        error: `Another student with this ${namesakeText(!!checkDob, duplicate)} exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to update.`,
         code: "POSSIBLE_DUPLICATE",
         details: { existingAdmissionNo: duplicate.admissionNo },
       };
@@ -238,7 +292,7 @@ export async function updateStudent(
         ...(input.middleName !== undefined ? { middleName: input.middleName } : {}),
         ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
         ...(input.gender !== undefined ? { gender: input.gender } : {}),
-        ...(input.dateOfBirth !== undefined ? { dateOfBirth: new Date(input.dateOfBirth) } : {}),
+        ...(input.dateOfBirth !== undefined ? { dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null } : {}),
         ...(input.admissionNo !== undefined ? { admissionNo: input.admissionNo } : {}),
         ...(input.guardianName !== undefined ? { guardianName: input.guardianName } : {}),
         ...(input.guardianPhone !== undefined ? { guardianPhone: input.guardianPhone } : {}),
@@ -313,14 +367,15 @@ export async function restoreStudent(
       student.branchId,
       student.firstName,
       student.lastName,
-      student.dateOfBirth.toISOString().split("T")[0],
+      dayText(student.dateOfBirth),
       id,
+      student.middleName,
     );
 
     if (duplicate && !allowDuplicate) {
       return {
         ok: false,
-        error: `An active student with this name and date of birth exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to restore.`,
+        error: `An active student with this ${namesakeText(!!student.dateOfBirth, duplicate)} exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to restore.`,
         code: "POSSIBLE_DUPLICATE",
         details: { existingAdmissionNo: duplicate.admissionNo },
       };
@@ -417,7 +472,7 @@ export async function listStudents(filters: {
       middleName: s.middleName,
       lastName: s.lastName,
       gender: s.gender,
-      dateOfBirth: s.dateOfBirth.toISOString().split("T")[0],
+      dateOfBirth: dayText(s.dateOfBirth),
       admissionNo: s.admissionNo,
       archived: s.archivedAt !== null,
       standing: studentStandingNow(s, todayDay),
@@ -457,7 +512,7 @@ export async function getStudent(id: string, visible: "all" | string[] = []) {
 
   return {
     ...student,
-    dateOfBirth: student.dateOfBirth.toISOString().split("T")[0],
+    dateOfBirth: dayText(student.dateOfBirth),
     archived: student.archivedAt !== null,
     // What applies today (an ended suspension reads as in good standing), not the stored value.
     standing: studentStandingNow(student, dayOf(new Date())),

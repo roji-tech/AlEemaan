@@ -61,21 +61,33 @@ function place(s: Structure, className: string, arm: string | undefined): Placem
   return { ok: false, problem: { column: "arm", message: `Say which arm of ${group}: ${arms.map((a) => a.name).join(", ")}.` } };
 }
 
-/// Pupils already in the branch with the same name and date of birth, by row.
+/// Two pupils with the same name are the same pupil unless both have a date of birth and the dates differ: a missing date of birth cannot tell two people apart (a file loaded twice must
+/// not register everyone twice).
+const sameDay = (a: string | undefined | null, b: string | undefined | null) => !a || !b || a === b;
+/// A middle name tells two pupils apart only when both have one.
+const sameMiddle = (a: string | null | undefined, b: string | null | undefined) => !a?.trim() || !b?.trim() || same(a, b);
+const nameKey = (first: string, last: string) => `${first.trim().toLowerCase()}|${last.trim().toLowerCase()}`;
+const reason = (hasDob: boolean) => (hasDob ? "name and date of birth" : "name (no date of birth to tell them apart)");
+
+/// Pupils already in the branch with the same name (and the same date of birth, when both have one), by row.
 async function namesakes(db: Tx, branchId: string, rows: CheckedRow<PupilRow>[]) {
-  const found = new Map<number, string>();
-  const dates = [...new Set(rows.map((r) => r.row.dateOfBirth))].map((d) => new Date(d));
-  if (dates.length === 0) return found;
+  const found = new Map<number, { admissionNo: string; withDob: boolean }>();
+  if (rows.length === 0) return found;
+  const wanted = new Set(rows.map((r) => nameKey(r.row.firstName, r.row.lastName)));
   const existing = await db.studentRecord.findMany({
-    where: { branchId, archivedAt: null, dateOfBirth: { in: dates } },
-    select: { firstName: true, lastName: true, dateOfBirth: true, admissionNo: true },
+    where: { branchId, archivedAt: null },
+    select: { firstName: true, middleName: true, lastName: true, dateOfBirth: true, admissionNo: true },
   });
+  const byName = new Map<string, typeof existing>();
+  for (const e of existing) {
+    const key = nameKey(e.firstName, e.lastName);
+    if (wanted.has(key)) byName.set(key, [...(byName.get(key) ?? []), e]);
+  }
   for (const r of rows) {
-    const hit = existing.find(
-      (e) =>
-        e.dateOfBirth && iso(e.dateOfBirth) === r.row.dateOfBirth && same(e.firstName, r.row.firstName) && same(e.lastName, r.row.lastName),
+    const hit = (byName.get(nameKey(r.row.firstName, r.row.lastName)) ?? []).find(
+      (e) => sameMiddle(e.middleName, r.row.middleName) && sameDay(e.dateOfBirth ? iso(e.dateOfBirth) : null, r.row.dateOfBirth),
     );
-    if (hit) found.set(r.line, hit.admissionNo);
+    if (hit) found.set(r.line, { admissionNo: hit.admissionNo, withDob: !!hit.dateOfBirth && !!r.row.dateOfBirth });
   }
   return found;
 }
@@ -107,20 +119,23 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
 
     if (!ctx.allowDuplicates) {
       const inBranch = await namesakes(db, ctx.branchId, rows);
-      const firstInFile = new Map<string, number>();
+      const earlierRows = new Map<string, { line: number; dob: string | undefined; middle: string | undefined }[]>();
       for (const r of rows) {
-        const key = `${r.row.firstName.trim().toLowerCase()}|${r.row.lastName.trim().toLowerCase()}|${r.row.dateOfBirth}`;
+        const key = nameKey(r.row.firstName, r.row.lastName);
         const existing = inBranch.get(r.line);
-        const earlier = firstInFile.get(key);
+        const earlier = (earlierRows.get(key) ?? []).find(
+          (e) => sameMiddle(e.middle, r.row.middleName) && sameDay(e.dob, r.row.dateOfBirth),
+        );
+        const tick = 'Tick "Add even if a pupil with the same name is already here" to add';
         if (existing)
           add(r.line, {
-            message: `A pupil with this name and date of birth is already in this branch (admission number ${existing}). Tick "Add even if a pupil with the same name and date of birth is already here" to add anyway.`,
+            message: `A pupil with this ${reason(existing.withDob)} is already in this branch (admission number ${existing.admissionNo}). ${tick} anyway (it is recorded against your name).`,
           });
-        else if (earlier !== undefined)
+        else if (earlier)
           add(r.line, {
-            message: `Same name and date of birth as row ${earlier}. Tick "Add even if a pupil with the same name and date of birth is already here" to add both.`,
+            message: `Same ${reason(!!earlier.dob && !!r.row.dateOfBirth)} as row ${earlier.line}. ${tick} both.`,
           });
-        if (earlier === undefined) firstInFile.set(key, r.line);
+        earlierRows.set(key, [...(earlierRows.get(key) ?? []), { line: r.line, dob: r.row.dateOfBirth, middle: r.row.middleName }]);
       }
     }
     return found;
@@ -129,13 +144,15 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
     const out = new Map<number, string>();
     if (!ctx.allowDuplicates) return out;
     const inBranch = await namesakes(db, ctx.branchId, rows);
-    for (const [line, no] of inBranch)
-      out.set(line, `Same name and date of birth as admission number ${no}: added as a namesake, recorded against your name.`);
+    for (const [line, hit] of inBranch)
+      out.set(line, `Same ${reason(hit.withDob)} as admission number ${hit.admissionNo}: added as a namesake, recorded against your name.`);
     return out;
   },
   async save(tx, rows, ctx, actorUserId) {
     const structure = rows.some((r) => r.row.className) ? await loadStructure(tx, ctx.branchId) : null;
-    const inBranch = ctx.allowDuplicates ? await namesakes(tx, ctx.branchId, rows) : new Map<number, string>();
+    const inBranch = ctx.allowDuplicates
+      ? await namesakes(tx, ctx.branchId, rows)
+      : new Map<number, { admissionNo: string; withDob: boolean }>();
     const year = new Date().getFullYear();
     for (const { line, row } of rows) {
       const admissionNo = row.admissionNo ?? (await generateAdmissionNo(tx, year));
@@ -146,7 +163,7 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
           middleName: row.middleName ?? null,
           lastName: row.lastName,
           gender: row.gender,
-          dateOfBirth: new Date(row.dateOfBirth),
+          dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth) : null,
           admissionNo,
           guardianName: row.guardianName ?? null,
           guardianPhone: row.guardianPhone ?? null,
@@ -182,7 +199,7 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
             id: student.id,
             admissionNo,
             branchId: ctx.branchId,
-            ...(overridden ? { duplicateOverridden: true, existingAdmissionNo: overridden } : {}),
+            ...(overridden ? { duplicateOverridden: true, existingAdmissionNo: overridden.admissionNo } : {}),
           },
         },
       });

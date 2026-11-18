@@ -69,19 +69,26 @@ test.describe("a file with one name column", () => {
     expect(out.rows[0].values).toMatchObject({ firstName: "Amina", middleName: "Bola", lastName: "Yusuf" });
   });
 
-  test("a one-word name is refused for its missing last name; the other columns still have to be there", () => {
+  test("a one-word name is refused for its missing last name; the other required columns (Gender) still have to be there, the date of birth does not", () => {
     const out = map([
       ["Name", "Gender", "Date of birth"],
       ["Madonna", "Female", "2014-03-21"],
     ]);
     const verdict = validateRows(pupilEntity, out.rows).verdicts[0];
     expect(verdict.status).toBe("error");
+    // Gender is still required as a column; the date of birth is not (the maintainer, 2026-11-18).
     expect(
       map([
-        ["Name", "Gender"],
-        ["Amina Yusuf", "Female"],
+        ["Name", "Date of birth"],
+        ["Amina Yusuf", "2014-03-21"],
       ]).problems.map((p) => p.message),
-    ).toEqual(['A "Date of birth" column is missing from the first row.']);
+    ).toEqual(['A "Gender" column is missing from the first row.']);
+    const noDob = map([
+      ["Name", "Gender"],
+      ["Amina Yusuf", "Female"],
+    ]);
+    expect(noDob.problems).toEqual([]);
+    expect(validateRows(pupilEntity, noDob.rows).verdicts[0].status).toBe("ready");
   });
 
   test("without a fullName rule (any other kind) a Name column is just an unrecognised column, as before", () => {
