@@ -4,7 +4,8 @@ import { SCHOOL_MAP_ORIGINS } from "@/lib/school-site/paths";
 import { buildCsp, generateNonce } from "@/lib/security/csp";
 import { videoGuideMedia } from "@/lib/video-guide/media-base";
 import { requestHost } from "@/lib/auth/csrf";
-import { apexOrigin, classifyHost, isLandingPath, readPortalConfig } from "@/lib/portals";
+import { apexOrigin, apexServes, classifyHost, isLandingPath, readPortalConfig } from "@/lib/portals";
+import { RETURN_TO_HEADER } from "@/lib/auth/return-to";
 
 // Per-request nonce-based CSP (domain-implementation-plan.md §0.5.B). Next 16 calls this file `proxy`
 // (it was `middleware`). The nonce goes on the REQUEST headers — Next reads the policy from there and
@@ -14,7 +15,7 @@ import { apexOrigin, classifyHost, isLandingPath, readPortalConfig } from "@/lib
 // CSP_REPORT_ONLY=true sends the same policy as Content-Security-Policy-Report-Only: violations show
 // in the browser console but nothing is blocked. It is a valve for diagnosing an unforeseen violation
 // on a live deployment without an outage; the default is enforcing.
-// The sign-in portals (task 0086): read once; none of the four `*_SUBDOMAIN` variables set means the feature is off.
+// The sign-in portals (task 0086): read once. On unless PORTALS_ENABLED says false; each portal's label is its `*_SUBDOMAIN` variable or the default.
 const PORTALS = readPortalConfig().config;
 
 export function proxy(request: NextRequest) {
@@ -27,13 +28,18 @@ export function proxy(request: NextRequest) {
   // The API has its own static policy (next.config.ts); it comes through here only for the check above.
   if (request.nextUrl.pathname.startsWith("/api/")) return NextResponse.next();
 
-  // The school's public website lives on its own host only: asked for on a sign-in portal (admin., staff., ...), the same path is sent to the school's host. A temporary redirect
-  // (307), so a browser never pins it if the portals are changed.
+  // With the portals on (PORTALS_ENABLED, on unless it says false) the two kinds of host divide the work. The school's public website lives on the school's own host only: asked for on a
+  // sign-in portal (admin., staff., ...), the same path is sent to the school's host. And the school's own host serves only that website and the few open pages (lib/portals.ts,
+  // `apexServes`): the sign-in form and the application are the portals', so `/login` and the rest are sent to `/select-role`, the page with a button for each portal. Both are temporary
+  // redirects (307), so a browser never pins them if the portals are switched off.
   const host = requestHost(request);
   const info = classifyHost(host, PORTALS);
+  const protocol = (process.env.APP_URL ?? "").startsWith("https://") ? "https:" : "http:";
   if (info.kind === "portal" && isLandingPath(request.nextUrl.pathname)) {
-    const protocol = (process.env.APP_URL ?? "").startsWith("https://") ? "https:" : "http:";
     return NextResponse.redirect(`${apexOrigin(info, host, protocol)}${request.nextUrl.pathname}${request.nextUrl.search}`, 307);
+  }
+  if (info.kind === "apex" && !apexServes(request.nextUrl.pathname)) {
+    return NextResponse.redirect(`${apexOrigin(info, host, protocol)}/select-role`, 307);
   }
 
   const nonce = generateNonce();
@@ -50,6 +56,8 @@ export function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(header, policy);
+  // Where the person is going, for a page that has to send them to sign in first (lib/auth/return-to.ts). Always overwritten here, so a caller cannot send their own.
+  requestHeaders.set(RETURN_TO_HEADER, `${request.nextUrl.pathname}${request.nextUrl.search}`);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(header, policy);

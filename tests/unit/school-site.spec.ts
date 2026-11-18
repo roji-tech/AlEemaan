@@ -71,7 +71,7 @@ test("nothing in the site's source needs a loose policy: no raw HTML, no inline 
 });
 
 test("every link to a page of the site goes somewhere: a page of the site, the sign-in page, or the application's own /portal", () => {
-  const known = new Set<string>([...SCHOOL_SITE_PAGES, "/login", "/portal"]);
+  const known = new Set<string>([...SCHOOL_SITE_PAGES, "/select-role", "/login", "/portal"]);
   const bad: string[] = [];
   for (const { file, text } of sources()) {
     for (const m of text.matchAll(/(?:href(?:=|: )|href=\{)["'`](\/[^"'`#?]*)(?:[#?][^"'`]*)?["'`]/g)) {
@@ -82,7 +82,7 @@ test("every link to a page of the site goes somewhere: a page of the site, the s
   }
   expect(bad).toEqual([]);
   for (const n of SITE_NAV) expect(known.has(n.href), n.href).toBe(true);
-  expect(SITE_SIGN_IN.href).toBe("/login");
+  expect(SITE_SIGN_IN.href).toBe("/select-role");
 });
 
 test("every picture and recording the site names is in public/school-site", () => {

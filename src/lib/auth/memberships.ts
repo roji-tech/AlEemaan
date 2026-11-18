@@ -12,8 +12,10 @@ export type UserMembership = {
 /// "where" is a Branch. An ADMIN's role applies across every branch by design —
 /// domain-implementation-plan.md §0.5.1.2 — the row's branch is bookkeeping.)
 export async function getUserMemberships(userId: string): Promise<UserMembership[]> {
+  // One round trip, the branch's name included (`join`; the default is a second query), because the shell asks on every page.
   const rows = await prisma.membership.findMany({
     where: { userId, deactivatedAt: null }, // a deactivated membership is no membership
+    relationLoadStrategy: "join",
     include: { branch: { select: { id: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });

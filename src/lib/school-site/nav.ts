@@ -9,8 +9,9 @@ export const SITE_NAV = [
   { href: "/portal", label: "Portal" },
 ] as const;
 
-/// The way into the school software, last in the header.
-export const SITE_SIGN_IN = { href: "/login", label: "Sign in" } as const;
+/// The way into the school software, last in the header: the page with a button for each kind of person (it goes to the one sign-in form when the portals are off, and to each portal's own
+/// address when they are on), never straight to a sign-in form.
+export const SITE_SIGN_IN = { href: "/select-role", label: "Sign in" } as const;
 
 /// The school's own contact details, as the old footer gave them.
 export const SITE_CONTACT = {

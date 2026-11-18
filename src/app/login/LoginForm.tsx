@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { TextField } from "@/components/ui/TextField";
-import { PORTAL_ICONS } from "./PortalChooser";
+import { PORTAL_ICONS } from "@/components/auth/portalIcons";
 import type { Portal } from "@/lib/portals";
 
 type Status = "idle" | "submitting" | "success" | "paused";
@@ -21,7 +21,7 @@ const PAUSE_SECONDS = 30;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /// `portal` is set on a sign-in portal (task 0086): the page then says which one it is, in its heading and a small badge. It comes from the address, not from anything typed.
-export function LoginForm({ portal }: { portal?: { id: Portal; title: string; line: string } }) {
+export function LoginForm({ portal, returnTo = null }: { portal?: { id: Portal; title: string; line: string }; returnTo?: string | null }) {
   const router = useRouter();
   const PortalIcon = portal ? PORTAL_ICONS[portal.id] : null;
 
@@ -123,7 +123,7 @@ export function LoginForm({ portal }: { portal?: { id: Portal; title: string; li
           return;
         }
         setStatus("success");
-        router.replace("/dashboard");
+        router.replace(returnTo ?? "/dashboard");
         router.refresh();
         return;
       }
@@ -156,7 +156,12 @@ export function LoginForm({ portal }: { portal?: { id: Portal; title: string; li
     // The artifact draws the form directly on the page on desktop and in a card on phones.
     <div className="rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-7 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
       {challenge !== null ? (
-        <MfaStep challenge={challenge} onBack={() => leaveMfaStep(null)} onExpired={(message) => leaveMfaStep(message)} />
+        <MfaStep
+          returnTo={returnTo}
+          challenge={challenge}
+          onBack={() => leaveMfaStep(null)}
+          onExpired={(message) => leaveMfaStep(message)}
+        />
       ) : (
         <>
           {PortalIcon && portal && (

@@ -100,6 +100,8 @@ export const TEST_PAYSTACK_SECRET = "sk_test_harness_key_aleemaan_0123456789";
 process.env.FORCE_MOCK_PAYSTACK = "true";
 process.env.ALLOW_MOCK_PAYMENTS_IN_PRODUCTION = "true";
 process.env.PAYSTACK_SECRET_KEY = TEST_PAYSTACK_SECRET;
+// Sign-in portals are ON by default; the tests that need them say so themselves (the portals server, tests/unit/portals.spec.ts).
+process.env.PORTALS_ENABLED = "false";
 
 /// Environment for the Next.js servers under test. Explicit and complete on
 /// purpose: nothing from a developer's shell or .env may change what is tested.
@@ -122,7 +124,8 @@ export function serverEnv(appUrl: string): Record<string, string> {
     DEV_TOOLS: "",
     DEV_TOOLS_TOKEN: "",
     PWNED_PASSWORD_CHECK: "off",
-    // Sign-in portals are OFF on every server but the portals one, whatever a developer's own .env says.
+    // Sign-in portals are OFF on every server but the portals one, whatever a developer's own .env says (the switch is ON by default).
+    PORTALS_ENABLED: "false",
     ADMIN_SUBDOMAIN: "",
     STAFF_SUBDOMAIN: "",
     STUDENT_SUBDOMAIN: "",
@@ -167,6 +170,7 @@ export function devToolsServerEnv(): Record<string, string> {
 export function portalsServerEnv(): Record<string, string> {
   return {
     ...serverEnv(PORTALS_URL),
+    PORTALS_ENABLED: "true",
     ADMIN_SUBDOMAIN: "admin",
     STAFF_SUBDOMAIN: "staff",
     STUDENT_SUBDOMAIN: "student",

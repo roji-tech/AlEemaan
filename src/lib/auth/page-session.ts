@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -6,6 +7,7 @@ import { ROLE_LABELS } from "@/lib/roles";
 import { loadPageOverrides } from "@/lib/shell-pages";
 import { getUserMemberships } from "./memberships";
 import { getSession } from "./session";
+import { RETURN_TO_HEADER, loginPathFor } from "./return-to";
 
 /// Most senior first: the role shown under a person's name when they hold several.
 const ROLE_PRECEDENCE: readonly Role[] = [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF, Role.PARENT, Role.STUDENT];
@@ -22,7 +24,8 @@ const ROLE_PRECEDENCE: readonly Role[] = [Role.ADMIN, Role.TEACHING_STAFF, Role.
 /// branch-administrator design. Both are display and routing; the API behind every page enforces the real rule.
 export const requirePageSession = cache(async () => {
   const session = await getSession();
-  if (!session) redirect("/login");
+  // Signed out (the session ended, or never was): to sign-in, remembering the page so signing in brings the person back to it.
+  if (!session) redirect(loginPathFor((await headers()).get(RETURN_TO_HEADER)));
 
   const [memberships, user] = await Promise.all([
     getUserMemberships(session.userId),

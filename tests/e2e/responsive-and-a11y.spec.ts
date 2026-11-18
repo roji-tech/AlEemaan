@@ -28,6 +28,8 @@ import {
   signInButton,
   signInThroughUi,
   verifyButton,
+  rowAction,
+  hasRowAction,
 } from "./helpers";
 
 // Runs on the desktop AND the phone project (see playwright.config.ts).
@@ -557,7 +559,7 @@ test.describe("Users and invitation screens", () => {
     await signInThroughUi(page, admin);
     await page.goto("/users");
     await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
-    await page.getByRole("button", { name: "Make superadmin Tola Teacher" }).click();
+    await rowAction(page, "Make superadmin Tola Teacher");
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.getByRole("dialog").getByLabel("Your password").fill("not-the-password-1");
     await page.getByRole("dialog").getByRole("button", { name: "Make superadmin" }).click();
@@ -587,7 +589,9 @@ test.describe("Users and invitation screens", () => {
     await page.goto("/users");
     await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
     await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
+    await page.getByRole("tab", { name: /^Pending invitations/ }).click();
     await expect(page.getByText("Send again")).toBeVisible(); // the invitations have loaded too
+    await page.getByRole("tab", { name: "People" }).click();
     await checkScreen(page, "/users (list and invitations)", isMobile);
 
     await page.getByLabel("Search").fill("zzz-no-one");
@@ -599,7 +603,7 @@ test.describe("Users and invitation screens", () => {
     const filters = page.getByRole("button", { name: /^Filters/ });
     if ((await filters.getAttribute("aria-expanded")) !== "true") await filters.click();
     await page.getByLabel("Status").selectOption("deactivated");
-    await expect(page.getByRole("button", { name: "Reactivate Gone Person" })).toBeVisible();
+    expect(await hasRowAction(page, "Reactivate Gone Person")).toBe(true);
     await checkScreen(page, "/users (deactivated people)", isMobile);
   });
 
@@ -632,7 +636,7 @@ test.describe("Users and invitation screens", () => {
     await signInThroughUi(page, admin);
     await page.goto("/users");
     await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
-    await page.getByRole("button", { name: "Change role or branch for Pat Parent" }).click();
+    await rowAction(page, "Change role or branch for Pat Parent");
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Change access for Pat Parent" })).toBeVisible();
     await checkScreen(page, "/users (Edit dialog)", isMobile);
     await page.getByRole("dialog").getByLabel("Role").selectOption("ADMIN");
@@ -642,7 +646,7 @@ test.describe("Users and invitation screens", () => {
     await expect(page.getByRole("status").filter({ hasText: /Saved\./ })).toBeVisible();
     await checkScreen(page, "/users (after a change)", isMobile);
 
-    await page.getByRole("button", { name: "Deactivate Tola Teacher" }).click();
+    await rowAction(page, "Deactivate Tola Teacher");
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Deactivate Tola Teacher?" })).toBeVisible();
     await checkScreen(page, "/users (Deactivate dialog)", isMobile);
   });

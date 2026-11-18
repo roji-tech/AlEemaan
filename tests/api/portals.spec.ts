@@ -46,6 +46,7 @@ test.describe("the landing pages are the school's own host's", () => {
     "/vacancy",
     "/product",
     "/ar",
+    "/select-role",
   ];
 
   test("on every portal each landing path is a temporary redirect to the same path on the school's host, query kept", async () => {
@@ -53,7 +54,10 @@ test.describe("the landing pages are the school's own host's", () => {
       for (const path of PATHS) {
         const res = await api(`${path}?ref=x`, { baseUrl: PORTALS_URL, ...at(portal) });
         expect(res.status, `${portal}${path}`).toBe(307);
-        expect(res.headers.get("location"), `${portal}${path}`).toBe(`http://localhost:${PORTALS_PORT}${path}?ref=x`);
+        // Resolved against the request's own address: Next writes a redirect to the very origin the request arrived on as a relative path, which a browser resolves to the same place.
+        expect(new URL(res.headers.get("location")!, PORTALS_URL).href, `${portal}${path}`).toBe(
+          `http://localhost:${PORTALS_PORT}${path}?ref=x`,
+        );
       }
     }
   });
@@ -105,7 +109,8 @@ test.describe("who may sign in where", () => {
     expect((await signIn("admin", boss.email, DEFAULT_PASSWORD)).status).toBe(200);
     expect((await signIn("staff", boss.email, DEFAULT_PASSWORD)).status).toBe(200);
     const both = await createUser({ role: Role.TEACHING_STAFF });
-    const branch = await db.branch.findFirstOrThrow();
+    // A second role in ANOTHER branch (a person has one membership per branch).
+    const branch = await db.branch.create({ data: { name: `Second ${Date.now().toString(36)}` } });
     await db.membership.create({ data: { userId: both.id, branchId: branch.id, role: Role.PARENT } });
     expect([
       (await signIn("staff", both.email, DEFAULT_PASSWORD)).status,
@@ -180,5 +185,64 @@ test.describe("e-mailed links open on the person's own portal", () => {
       const [mail] = await waitForMail(user.email);
       expect(mail.text).toContain(`http://${portal}.localhost:${PORTALS_PORT}/reset-password#token=`);
     }
+  });
+});
+
+test.describe("the school's own host has no sign-in form and no application: only the website, the sign-in page and the open pages", () => {
+  const TO_SIGN_IN = [
+    "/login",
+    "/login?next=%2Fdashboard",
+    "/dashboard",
+    "/students",
+    "/users",
+    "/results",
+    "/video-guide",
+    "/settings/profile",
+  ];
+
+  test("/login and the application's pages are a temporary redirect to /select-role on the school's host (www too)", async () => {
+    for (const apex of [
+      at("apex"),
+      { origin: `http://www.localhost:${PORTALS_PORT}`, headers: { "x-forwarded-host": `www.localhost:${PORTALS_PORT}` } },
+    ]) {
+      for (const path of TO_SIGN_IN) {
+        const res = await api(path, { baseUrl: PORTALS_URL, ...apex });
+        expect(res.status, path).toBe(307);
+        expect(new URL(res.headers.get("location")!, PORTALS_URL).href, path).toBe(`http://localhost:${PORTALS_PORT}/select-role`);
+        expect(res.setCookies, path).toEqual([]);
+      }
+    }
+  });
+
+  test("the sign-in page has a button for a parent, a student and a member of staff, each to its own portal's sign-in; none for an administrator", async () => {
+    const res = await api("/select-role", { baseUrl: PORTALS_URL, ...at("apex") });
+    expect(res.status).toBe(200);
+    const links = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].filter((m) => /select-role/.test(m[2]));
+    expect(links.map((m) => m[1])).toEqual([
+      `http://parent.localhost:${PORTALS_PORT}/login`,
+      `http://student.localhost:${PORTALS_PORT}/login`,
+      `http://staff.localhost:${PORTALS_PORT}/login`,
+    ]);
+    expect(res.text).not.toContain("admin.localhost");
+    expect(res.text).not.toContain("Administrator sign-in");
+  });
+
+  test("the pages that arrive by link or print stay open: the result portal, the e-mailed token pages and the public check pages", async () => {
+    for (const path of ["/portal", "/forgot-password", "/reset-password", "/accept-invite", "/confirm-email", "/offline"]) {
+      const res = await api(path, { baseUrl: PORTALS_URL, ...at("apex") });
+      expect(res.status, path).toBe(200);
+    }
+    // A bearer code that matches nothing is the page's own answer, never a redirect to /select-role.
+    for (const path of ["/verify/not-a-code", "/q/not-a-code"]) {
+      const res = await api(path, { baseUrl: PORTALS_URL, ...at("apex") });
+      expect(res.headers.get("location") ?? "", path).not.toContain("/select-role");
+    }
+  });
+
+  test("a portal still shows its own form on /login, and the sign-in page on a portal is the school's host's", async () => {
+    expect((await api("/login", { baseUrl: PORTALS_URL, ...at("parent") })).status).toBe(200);
+    const res = await api("/select-role", { baseUrl: PORTALS_URL, ...at("parent") });
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!, PORTALS_URL).href).toBe(`http://localhost:${PORTALS_PORT}/select-role`);
   });
 });

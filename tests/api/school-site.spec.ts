@@ -5,7 +5,7 @@ import { api, cookieHeader, loginAs } from "../support/http";
 import { SCHOOL_SITE_PAGES } from "@/lib/school-site/paths";
 
 // The school's own website over real HTTP (task 0080): nine pages written in React, all under the application's own strict policy (the contact page alone may frame the map), none setting a cookie. `/` sends a
-// signed-in person to the dashboard; the other pages are open to everyone. The application's own `/portal` and `/academics` are untouched, and the old result portal is not served.
+// signed-in person is no longer sent to the dashboard (removed 2026-11-18); every page is open to everyone. The application's own `/portal` and `/academics` are untouched, and the old result portal is not served.
 
 test.beforeAll(async () => {
   await seedInstance();
@@ -28,10 +28,10 @@ test("every page answers 200 as HTML with one h1, the strict policy and no cooki
   }
 });
 
-test("the home page is the school's own: its headline, a Sign in link to /login and the Portal link to /portal; the product page is /product", async () => {
+test("the home page is the school's own: its headline, a Sign in link to /select-role and the Portal link to /portal; the product page is /product", async () => {
   const home = await api("/");
   expect(home.text).toContain("AL-EEMAN SCHOOL OF SCIENCE &amp; ARABIC STUDIES");
-  expect(home.text).toMatch(/<a[^>]*href="\/login"[^>]*>Sign in<\/a>/);
+  expect(home.text).toMatch(/<a[^>]*href="\/select-role"[^>]*>Sign in<\/a>/);
   expect(home.text).toMatch(/<a[^>]*href="\/portal"[^>]*>Portal<\/a>/);
   const product = await api("/product");
   expect(product.status).toBe(200);
@@ -64,14 +64,13 @@ test("the pictures and recordings are served from /school-site, and the old styl
   expect((await api("/school-site/css/style.css")).status).toBe(404);
 });
 
-test("a signed-in person at / is sent to the dashboard, and at /about is not", async () => {
+test("a signed-in person at / and at /about sees the school's website: no redirect to the dashboard", async () => {
   const admin = await createUser({ role: Role.ADMIN, name: "School Site Admin" });
   const login = await loginAs(admin);
   const cookie = cookieHeader(login.token!);
   const home = await api("/", { cookie });
-  expect(home.status).toBeGreaterThanOrEqual(300);
-  expect(home.status).toBeLessThan(400);
-  expect(home.headers.get("location") ?? "").toMatch(/\/dashboard$/);
+  expect(home.status).toBe(200);
+  expect(home.headers.get("location")).toBeNull();
   expect((await api("/about", { cookie })).status).toBe(200);
 });
 
@@ -80,4 +79,16 @@ test("the pictures the old site named and never had are not drawn: no page names
     const { text } = await api(route);
     for (const m of text.matchAll(/(?:src|href)="(\/school-site\/[^"]+)"/g)) expect((await api(m[1])).status, `${route} ${m[1]}`).toBe(200);
   }
+});
+
+test("the sign-in page (portals off): a button for a parent, a student and a member of staff, each the school's one sign-in form on this address; no administrator button", async () => {
+  const res = await api("/select-role");
+  expect(res.status).toBe(200);
+  expect(res.text).toContain("<h1");
+  const links = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].filter((m) =>
+    /Parent sign-in|Student sign-in|Staff sign-in/.test(m[2]),
+  );
+  expect(links.map((m) => m[1])).toEqual(["/login", "/login", "/login"]);
+  expect(links.map((m) => /Parent|Student|Staff/.exec(m[2])?.[0])).toEqual(["Parent", "Student", "Staff"]);
+  expect(res.text).not.toContain("Administrator sign-in");
 });

@@ -101,7 +101,7 @@ export function LandingPage({
               </Link>
             )}
             <ThemeToggle labels={labels.theme} />
-            <Link href="/login" className={LINK_QUIET}>
+            <Link href="/select-role" className={LINK_QUIET}>
               {labels.signIn}
             </Link>
           </div>
@@ -116,7 +116,7 @@ export function LandingPage({
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-fg-2">{copy.lead}</p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link href="/login" className={LINK_FILLED}>
+            <Link href="/select-role" className={LINK_FILLED}>
               {labels.signIn}
             </Link>
             {copy.links[0] && (
@@ -202,7 +202,7 @@ export function LandingPage({
               <p className="mt-2 text-base text-white/85">{copy.closingText}</p>
             </div>
             <Link
-              href="/login"
+              href="/select-role"
               className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-brand-deep transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               {labels.signIn}
@@ -218,7 +218,7 @@ export function LandingPage({
             <ul className="flex flex-wrap gap-x-6 text-sm font-medium">
               <li>
                 <Link
-                  href="/login"
+                  href="/select-role"
                   className={`inline-flex min-h-11 items-center rounded text-fg-2 underline-offset-4 hover:text-fg hover:underline ${RING}`}
                 >
                   {labels.signIn}

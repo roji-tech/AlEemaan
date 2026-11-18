@@ -46,6 +46,11 @@ test("the menu: on a phone its button opens and closes the links, Escape closes 
     await button.click();
   }
   await nav.getByRole("link", { name: "Sign in", exact: true }).click();
+  // Not straight to a sign-in form: the page with a button for each kind of person (here the portals are off, so each goes to the one form).
+  await expect(page).toHaveURL(/\/select-role$/);
+  const buttons = page.getByRole("list", { name: "Sign-in portals" }).getByRole("link");
+  await expect(buttons).toHaveCount(3);
+  await buttons.first().click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
@@ -145,3 +150,33 @@ test("the old students page says the records are coming and shows no invented pe
   await expect(page.getByRole("heading", { name: "Alumni Records Coming Soon" })).toBeVisible();
   await expect(page.getByText("Ahmed Hassan")).toHaveCount(0);
 });
+
+// The row of links needs about 1,100 px; between a phone and that width it used to wrap and clip ("Sign in" on two lines, the logo's name cut off). Below 1,280 px the header is the logo and
+// the menu button; from 1,280 px it is the full row, and at no width does a label wrap or the bar spill sideways.
+for (const width of [360, 575, 700, 768, 900, 1024, 1100, 1279, 1280, 1440]) {
+  test(`the header is never cramped at ${width} px: a menu button below 1,280, the full row on one line from it, nothing sideways`, async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({ viewport: { width, height: 800 } });
+    const page = await context.newPage();
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "Main" });
+    const menuButton = page.getByRole("button", { name: /the menu$/ });
+    if (width < 1280) {
+      await expect(menuButton).toBeVisible();
+      await expect(nav.getByRole("link", { name: "About Us" })).toBeHidden();
+    } else {
+      await expect(menuButton).toBeHidden();
+      const heights = await nav.getByRole("link").evaluateAll((links) => links.map((l) => Math.round(l.getBoundingClientRect().height)));
+      const one = Math.min(...heights);
+      expect(Math.max(...heights), "no label wraps onto a second line").toBeLessThanOrEqual(one + 2);
+    }
+    const logoName = await page
+      .getByRole("link", { name: /Aleeman School/ })
+      .first()
+      .boundingBox();
+    expect(logoName!.height, "the name beside the logo is on one line").toBeLessThan(70);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await context.close();
+  });
+}

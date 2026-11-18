@@ -143,7 +143,7 @@ export function BulkImportDialog({
     try {
       const table = await readTable(file);
       if (typeof table === "string") return setError(table);
-      const mapped = mapTable(table, entity.columns, { allowRowColumn: corrections, maxRows: entity.maxRows });
+      const mapped = mapTable(table, entity.columns, { allowRowColumn: corrections, maxRows: entity.maxRows, fullName: entity.fullName });
       if (mapped.problems.length > 0) return setError(mapped.problems.map((p) => p.message).join(" "));
       if (mapped.rows.length === 0) return setError("The file has its first row but no people under it.");
       setWarnings(mapped.warnings);
@@ -341,6 +341,7 @@ export function BulkImportDialog({
                     </li>
                   ))}
                 </ul>
+                {entity.fullName && <p className="mt-2 text-xs text-fg-muted">{entity.fullName.note}</p>}
                 <p className="mt-2 text-xs text-fg-muted">The Excel template has a dropdown on every column with fixed choices.</p>
               </details>
             </div>
