@@ -108,3 +108,17 @@ test("on a phone and on a desktop the start screen and the review pass axe, with
   }));
   expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
 });
+
+// Closing the file picker without choosing a file made the file input fire a bubbling `cancel`, which the dialog took for Escape and closed (the maintainer's report). The same event is
+// sent here from the input. Escape itself must still close the dialog.
+test("closing the file picker without choosing a file leaves the dialog open; Escape still closes it", async ({ page }) => {
+  await openBulk(page);
+  await chooseBranch(page);
+  await dialog(page)
+    .getByLabel("CSV or Excel file")
+    .evaluate((input) => input.dispatchEvent(new Event("cancel", { bubbles: true })));
+  await expect(dialog(page).getByRole("heading", { name: "Invite many people" })).toBeVisible();
+  await expect(dialog(page).getByLabel("CSV or Excel file")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
