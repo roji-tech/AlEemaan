@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { Tabs, panelId, tabId } from "@/components/ui/Tabs";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
@@ -15,7 +16,8 @@ import { DeactivateDialog } from "./DeactivateDialog";
 import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
-import { KIND_TEXT, kindsFor, type StandingCan } from "@/components/standing/model";
+import { type StandingCan } from "@/components/standing/model";
+import { MemberActions } from "./MemberActions";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { InvitationsList } from "./InvitationsList";
 import { BulkInviteDialog } from "./BulkInviteDialog";
@@ -24,7 +26,13 @@ import { SuperAdminDialog } from "./SuperAdminDialog";
 import { ROLE_OPTIONS, displayName, roleOptionsFor, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
 
 const PAGE_SIZE = 20;
-const ROW = "md:grid md:grid-cols-[minmax(0,2.2fr)_9rem_minmax(0,1.2fr)_6.5rem_auto] md:items-center md:gap-4";
+
+function Badge({ children }: { children: string }) {
+  return (
+    <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-brand-fg">{children}</span>
+  );
+}
+const ROW = "md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.2fr)_6.5rem_8rem] md:items-center md:gap-4";
 
 type Notice = { variant: "success" | "error"; text: string } | null;
 
@@ -63,6 +71,7 @@ export function UsersPanel({
   const [access, setAccess] = useState(""); // "" = anyone, "formResults" = only the people who may read form results
   const [branchId, setBranchId] = useState("");
   const [page, setPage] = useState(1);
+  const [tab, setTab] = useState<"people" | "invitations">("people");
 
   const [members, setMembers] = useState<Member[] | null>(null);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -221,279 +230,213 @@ export function UsersPanel({
       </div>
       {notice && notice.variant === "error" && <Alert variant="error">{notice.text}</Alert>}
 
-      <section aria-labelledby="people-heading">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <h2 id="people-heading" className="text-lg font-semibold tracking-tight text-fg">
-            People
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-              Invite many
-            </Button>
-            <Button
-              onClick={() => {
-                setNotice(null);
-                setInviteKey((k) => k + 1);
-                setInviting(true);
-              }}
-            >
-              <PlusIcon className="h-4 w-4" />
-              Invite someone
-            </Button>
-          </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 sm:flex-1">
+          <Tabs
+            label="Users sections"
+            prefix="users"
+            active={tab}
+            onChange={setTab}
+            tabs={[
+              { id: "people", label: "People" },
+              { id: "invitations", label: invitations === null ? "Pending invitations" : `Pending invitations (${invitations.length})` },
+            ]}
+          />
         </div>
-
-        <div className="mt-4">
-          <ListToolbar
-            searchValue={searchText}
-            onSearch={setSearchText}
-            searchPlaceholder="Search by name or email"
-            activeCount={[role !== "", branchId !== "", access !== "", status !== "active"].filter(Boolean).length}
-            onClear={clearFilters}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+            Invite many
+          </Button>
+          <Button
+            onClick={() => {
+              setNotice(null);
+              setInviteKey((k) => k + 1);
+              setInviting(true);
+            }}
           >
-            <SelectField
-              label="Role"
-              value={role}
-              onChange={(e) => (setRole(e.target.value), setPage(1))}
-              options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
-            />
-            <SelectField
-              label="Branch"
-              value={branchId}
-              onChange={(e) => (setBranchId(e.target.value), setPage(1))}
-              options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
-            />
-            <SelectField
-              label="Access"
-              value={access}
-              onChange={(e) => (setAccess(e.target.value), setPage(1))}
-              options={[
-                { value: "", label: "Anyone" },
-                { value: "formResults", label: "Reads form results" },
-              ]}
-            />
-            <SelectField
-              label="Status"
-              value={status}
-              onChange={(e) => (setStatus(e.target.value), setPage(1))}
-              options={[
-                { value: "active", label: "Active" },
-                { value: "deactivated", label: "Deactivated" },
-                { value: "all", label: "Everyone" },
-              ]}
-            />
-          </ListToolbar>
+            <PlusIcon className="h-4 w-4" />
+            Invite someone
+          </Button>
         </div>
+      </div>
 
-        <p ref={summaryRef} tabIndex={-1} className="mt-4 text-sm text-fg-muted focus:outline-none" aria-live="polite">
-          {meta ? `${meta.total} ${meta.total === 1 ? "person" : "people"}${filtered ? " match" : ""}` : " "}
-        </p>
-
-        {loadError ? (
-          <Alert variant="error" className="mt-3">
-            <p>{loadError}</p>
-            <Button variant="secondary" className="mt-3" onClick={() => void refresh()}>
-              Try again
-            </Button>
-          </Alert>
-        ) : members === null ? (
-          <p className="mt-3 rounded-2xl border border-line bg-surface p-6 text-sm text-fg-muted" aria-busy="true">
-            Loading people…
-          </p>
-        ) : members.length === 0 ? (
-          <div className="mt-3 rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
-            <p>{filtered ? "No one matches these filters." : "No one has joined yet."}</p>
-            {filtered && (
-              <Button variant="secondary" className="mt-4" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="mt-3 md:overflow-hidden md:rounded-2xl md:border md:border-line md:bg-surface">
-            <div
-              aria-hidden="true"
-              className={`hidden border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-semibold tracking-wide text-fg-muted uppercase ${ROW}`}
+      {tab === "people" && (
+        <section role="tabpanel" id={panelId("users", "people")} aria-labelledby={tabId("users", "people")}>
+          <div className="mt-4">
+            <ListToolbar
+              searchValue={searchText}
+              onSearch={setSearchText}
+              searchPlaceholder="Search by name or email"
+              activeCount={[role !== "", branchId !== "", access !== "", status !== "active"].filter(Boolean).length}
+              onClear={clearFilters}
             >
-              <span>Person</span>
-              <span>Role</span>
-              <span>Branch</span>
-              <span>Status</span>
-              <span className="w-64 text-right">Actions</span>
+              <SelectField
+                label="Role"
+                value={role}
+                onChange={(e) => (setRole(e.target.value), setPage(1))}
+                options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
+              />
+              <SelectField
+                label="Branch"
+                value={branchId}
+                onChange={(e) => (setBranchId(e.target.value), setPage(1))}
+                options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
+              />
+              <SelectField
+                label="Access"
+                value={access}
+                onChange={(e) => (setAccess(e.target.value), setPage(1))}
+                options={[
+                  { value: "", label: "Anyone" },
+                  { value: "formResults", label: "Reads form results" },
+                ]}
+              />
+              <SelectField
+                label="Status"
+                value={status}
+                onChange={(e) => (setStatus(e.target.value), setPage(1))}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "deactivated", label: "Deactivated" },
+                  { value: "all", label: "Everyone" },
+                ]}
+              />
+            </ListToolbar>
+          </div>
+
+          <p ref={summaryRef} tabIndex={-1} className="mt-4 text-sm text-fg-muted focus:outline-none" aria-live="polite">
+            {meta ? `${meta.total} ${meta.total === 1 ? "person" : "people"}${filtered ? " match" : ""}` : " "}
+          </p>
+
+          {loadError ? (
+            <Alert variant="error" className="mt-3">
+              <p>{loadError}</p>
+              <Button variant="secondary" className="mt-3" onClick={() => void refresh()}>
+                Try again
+              </Button>
+            </Alert>
+          ) : members === null ? (
+            <p className="mt-3 rounded-2xl border border-line bg-surface p-6 text-sm text-fg-muted" aria-busy="true">
+              Loading people…
+            </p>
+          ) : members.length === 0 ? (
+            <div className="mt-3 rounded-2xl border border-dashed border-line-strong p-8 text-center text-sm text-fg-muted">
+              <p>{filtered ? "No one matches these filters." : "No one has joined yet."}</p>
+              {filtered && (
+                <Button variant="secondary" className="mt-4" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              )}
             </div>
-            <ul className="space-y-4 md:space-y-0 md:divide-y md:divide-line">
-              {members.map((member) => {
-                const name = displayName(member);
-                const self = member.userId === currentUserId;
-                const busy = busyUser === member.id;
-                // Only a superadmin touches an administrator or a superadmin (the API refuses a branch administrator who tries).
-                const locked = !isSuperAdmin && (member.role === "ADMIN" || member.isSuperAdmin);
-                return (
-                  <li
-                    key={member.id}
-                    className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:shadow-none ${ROW}`}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        aria-hidden="true"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tint text-xs font-bold text-brand-fg"
-                      >
-                        {initialsOf(member.name, member.email)}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold break-words text-fg">
-                          {name}
-                          {self && (
-                            <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-fg-muted">You</span>
-                          )}
-                        </p>
-                        {member.name?.trim() && member.email && <p className="text-xs break-all text-fg-muted">{member.email}</p>}
-                      </div>
-                    </div>
-                    <p className="text-sm text-fg-2">
-                      <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Role: </span>
-                      {ROLE_LABELS[member.role]}
-                      {member.isSuperAdmin && (
-                        <span className="ml-2 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold text-brand-fg">
-                          Superadmin
-                        </span>
-                      )}
-                      {member.canApproveResults && (
-                        <span className="ml-2 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold text-brand-fg">
-                          Approves results
-                        </span>
-                      )}
-                      {member.canViewFormResults && (
-                        <span className="ml-2 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-semibold text-brand-fg">
-                          Reads form results
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-sm text-fg-2">
-                      <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Branch: </span>
-                      {member.isSuperAdmin ? "All branches" : member.branchName}
-                    </p>
-                    <p>
-                      {member.standing !== "ACTIVE" ? (
-                        <StandingBadge standing={member.standing} until={member.standingUntil} />
-                      ) : (
+          ) : (
+            <div className="mt-3 md:rounded-2xl md:border md:border-line md:bg-surface">
+              <div
+                aria-hidden="true"
+                className={`hidden border-b border-line bg-surface-2 px-4 py-2.5 text-xs font-semibold tracking-wide text-fg-muted uppercase md:rounded-t-2xl ${ROW}`}
+              >
+                <span>Person</span>
+                <span>Role</span>
+                <span>Branch</span>
+                <span>Status</span>
+                <span className="text-right">Actions</span>
+              </div>
+              <ul className="space-y-4 md:space-y-0 md:divide-y md:divide-line">
+                {members.map((member) => {
+                  const name = displayName(member);
+                  const self = member.userId === currentUserId;
+                  // Only a superadmin touches an administrator or a superadmin (the API refuses a branch administrator who tries).
+                  const locked = !isSuperAdmin && (member.role === "ADMIN" || member.isSuperAdmin);
+                  return (
+                    <li
+                      key={member.id}
+                      className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:shadow-none ${ROW}`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${member.status === "active" ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"}`}
+                          aria-hidden="true"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tint text-xs font-bold text-brand-fg"
                         >
-                          {member.status === "active" ? "Active" : "Deactivated"}
+                          {initialsOf(member.name, member.email)}
                         </span>
-                      )}
-                    </p>
-                    <div className="mt-1 grid grid-cols-2 gap-2 border-t border-line pt-4 md:mt-0 md:flex md:w-64 md:flex-wrap md:justify-end md:border-0 md:pt-0 [&>*:last-child:nth-child(odd)]:col-span-2 md:[&>*:last-child:nth-child(odd)]:col-span-1">
-                      {self || locked ? null : member.status === "active" ? (
-                        <>
-                          <Button
-                            variant="secondary"
-                            className="md:flex-none"
-                            onClick={() => setEditing(member)}
-                            aria-label={`Change role or branch for ${name}`}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold break-words text-fg">
+                            {name}
+                            {self && (
+                              <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                                You
+                              </span>
+                            )}
+                          </p>
+                          {member.name?.trim() && member.email && <p className="text-xs break-all text-fg-muted">{member.email}</p>}
+                        </div>
+                      </div>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-2">
+                        <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Role: </span>
+                        <span>{ROLE_LABELS[member.role]}</span>
+                        {member.isSuperAdmin && <Badge>Superadmin</Badge>}
+                        {member.canApproveResults && <Badge>Approves results</Badge>}
+                        {member.canViewFormResults && <Badge>Reads form results</Badge>}
+                      </div>
+                      <p className="text-sm text-fg-2">
+                        <span className="text-xs font-semibold tracking-wide text-fg-muted uppercase md:hidden">Branch: </span>
+                        {member.isSuperAdmin ? "All branches" : member.branchName}
+                      </p>
+                      <p>
+                        {member.standing !== "ACTIVE" ? (
+                          <StandingBadge standing={member.standing} until={member.standingUntil} />
+                        ) : (
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${member.status === "active" ? "bg-ok-bg text-ok-fg" : "bg-warn-bg text-warn-fg"}`}
                           >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="border border-line md:flex-none md:border-0"
-                            onClick={() => setDeactivating(member)}
-                            aria-label={`Deactivate ${name}`}
-                          >
-                            Deactivate
-                          </Button>
-                          {kindsFor("staff", member.standing, standingCan[member.branchId] ?? { suspend: false, remove: false }).map(
-                            (kind) => (
-                              <Button
-                                key={kind}
-                                variant="ghost"
-                                className="border border-line md:flex-none md:border-0"
-                                onClick={() => ask(member, kind)}
-                                aria-label={`${KIND_TEXT[kind]} ${name}`}
-                              >
-                                {KIND_TEXT[kind]}
-                              </Button>
-                            ),
-                          )}
-                          {isSuperAdmin && (
-                            <Button
-                              variant="ghost"
-                              className="border border-line md:flex-none md:border-0"
-                              onClick={() => setSuperAdminFor(member)}
-                              aria-label={`${member.isSuperAdmin ? "Remove superadmin from" : "Make superadmin"} ${name}`}
-                            >
-                              {member.isSuperAdmin ? "Remove superadmin" : "Make superadmin"}
-                            </Button>
-                          )}
-                        </>
-                      ) : member.standing === "ACTIVE" ? (
-                        <Button
-                          variant="secondary"
-                          className="md:flex-none"
-                          loading={busy}
-                          onClick={() => reactivate(member)}
-                          aria-label={`Reactivate ${name}`}
-                        >
-                          Reactivate
-                        </Button>
-                      ) : (
-                        // Suspended or terminated: it ends with the action that records why, not with a plain reactivation.
-                        kindsFor(
-                          "staff",
-                          member.standing === "SUSPENDED" ? "SUSPENDED" : "TERMINATED",
-                          standingCan[member.branchId] ?? { suspend: false, remove: false },
-                        ).map((kind) => (
-                          <Button
-                            key={kind}
-                            variant="secondary"
-                            className="md:flex-none"
-                            onClick={() => ask(member, kind)}
-                            aria-label={`${KIND_TEXT[kind]} ${name}`}
-                          >
-                            {KIND_TEXT[kind]}
-                          </Button>
-                        ))
-                      )}
-                      {!self && !locked && (
-                        <Button
-                          variant="ghost"
-                          className="border border-line md:flex-none md:border-0"
-                          onClick={() => setHistoryOf({ endpoint: `/api/v1/members/${member.id}/standing`, name })}
-                          aria-label={`Standing history of ${name}`}
-                        >
-                          History
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+                            {member.status === "active" ? "Active" : "Deactivated"}
+                          </span>
+                        )}
+                      </p>
+                      <div className="md:flex md:w-32 md:justify-end">
+                        <MemberActions
+                          member={member}
+                          name={name}
+                          self={self}
+                          locked={locked}
+                          can={standingCan[member.branchId] ?? { suspend: false, remove: false }}
+                          isSuperAdmin={isSuperAdmin}
+                          busy={busyUser === member.id}
+                          onEdit={setEditing}
+                          onDeactivate={setDeactivating}
+                          onStanding={ask}
+                          onSuperAdmin={setSuperAdminFor}
+                          onReactivate={reactivate}
+                          onHistory={(m) => setHistoryOf({ endpoint: `/api/v1/members/${m.id}/standing`, name: displayName(m) })}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
-        {meta && <Pager page={meta.page} pages={meta.pages} onPage={setPage} label="Pages of people" />}
-      </section>
+          {meta && <Pager page={meta.page} pages={meta.pages} onPage={setPage} label="Pages of people" />}
+        </section>
+      )}
 
-      <section aria-labelledby="invitations-heading">
-        <h2 id="invitations-heading" className="text-lg font-semibold tracking-tight text-fg">
-          Pending invitations
-        </h2>
-        {invitations === null ? (
-          <p className="mt-3 text-sm text-fg-muted" aria-busy="true">
-            Loading invitations…
-          </p>
-        ) : invitations.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
-            No invitations are waiting. People you invite appear here until they accept.
-          </p>
-        ) : (
-          <div className="mt-3">
-            <InvitationsList invitations={invitations} busyId={busyInvitation} onResend={resend} onRevoke={revoke} />
-          </div>
-        )}
-      </section>
+      {tab === "invitations" && (
+        <section role="tabpanel" id={panelId("users", "invitations")} aria-labelledby={tabId("users", "invitations")}>
+          {invitations === null ? (
+            <p className="mt-3 text-sm text-fg-muted" aria-busy="true">
+              Loading invitations…
+            </p>
+          ) : invitations.length === 0 ? (
+            <p className="mt-3 rounded-2xl border border-dashed border-line-strong p-6 text-center text-sm text-fg-muted">
+              No invitations are waiting. People you invite appear here until they accept.
+            </p>
+          ) : (
+            <div className="mt-3">
+              <InvitationsList invitations={invitations} busyId={busyInvitation} onResend={resend} onRevoke={revoke} />
+            </div>
+          )}
+        </section>
+      )}
 
       <BulkInviteDialog
         key={`bulk-${bulk.key}`}

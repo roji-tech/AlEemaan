@@ -4,7 +4,7 @@ import { Permission } from "@prisma/client";
 import { BRANCH_NAMES, Role, createUser, db, resetDatabase, seedInstance, uniqueEmail, type TestUser } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { waitForMail, tokenFrom } from "../support/outbox";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, rowAction, hasRowAction, openInvitationsTab } from "./helpers";
 
 // The Users page in a real browser, desktop and phone (domain-implementation-plan.md, "Build design — Users pages and invitations"): the
 // people, their filters and paging, inviting, changing role/branch, deactivating and reactivating, and the pending invitations.
@@ -60,8 +60,10 @@ test.describe("the page", () => {
     await expect(theirs).toContainText("Teaching staff");
     await expect(theirs).toContainText(BRANCH_NAMES[1]);
     await expect(theirs).toContainText(tola.email);
-    await expect(theirs.getByRole("button", { name: "Change role or branch for Tola Teacher" })).toBeVisible();
-    await expect(theirs.getByRole("button", { name: "Deactivate Tola Teacher" })).toBeVisible();
+    await expect(theirs.getByRole("button", { name: "Actions for Tola Teacher" })).toBeVisible();
+    expect(await hasRowAction(page, "Change role or branch for Tola Teacher")).toBe(true);
+    expect(await hasRowAction(page, "Deactivate Tola Teacher")).toBe(true);
+    await openInvitationsTab(page);
     await expect(page.getByText("No invitations are waiting.")).toBeVisible();
   });
 
@@ -254,6 +256,7 @@ test.describe("inviting", () => {
     await dialog(page).getByLabel("Email address").fill(to);
     await dialog(page).getByLabel("Branch").selectOption({ label: BRANCH_NAMES[0] });
     await dialog(page).getByRole("button", { name: "Send invitation" }).click();
+    await openInvitationsTab(page);
     await expect(row(page, to)).toBeVisible();
     const first = tokenFrom((await waitForMail(to))[0]);
 
@@ -283,6 +286,7 @@ test.describe("inviting", () => {
       },
     });
     await signedInAdmin(page);
+    await openInvitationsTab(page);
     const pending = row(page, to);
     await expect(pending).toContainText("Expired");
     await expect(pending.getByRole("button", { name: `Resend the invitation to ${to}` })).toHaveText("Send again");
@@ -296,21 +300,21 @@ test.describe("changing people", () => {
     const tola = await member(Role.TEACHING_STAFF, "Tola Teacher", 0);
     const tolaCookie = cookieHeader((await loginAs(tola)).token!);
     await signedInAdmin(page);
-    const edit = row(page, "Tola Teacher").getByRole("button", { name: "Change role or branch for Tola Teacher" });
+    const actions = row(page, "Tola Teacher").getByRole("button", { name: "Actions for Tola Teacher" });
 
-    await edit.click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await expect(dialog(page).getByRole("heading", { name: "Change access for Tola Teacher" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(dialog(page)).toBeHidden();
-    await expect(edit).toBeFocused();
+    await expect(actions).toBeFocused(); // focus goes back to the Actions button that opened the list
     expect((await db.membership.findFirstOrThrow({ where: { userId: tola.id } })).role).toBe("TEACHING_STAFF");
 
-    await edit.click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await dialog(page).getByRole("button", { name: "Save changes" }).click(); // nothing changed → closes, sends nothing
     await expect(dialog(page)).toBeHidden();
     expect(await db.auditLog.count({ where: { targetId: tola.membershipId, action: { startsWith: "MEMBER_" } } })).toBe(0);
 
-    await edit.click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await dialog(page).getByLabel("Role").selectOption("NON_TEACHING_STAFF");
     await dialog(page).getByLabel("Branch").selectOption({ label: BRANCH_NAMES[1] });
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
@@ -330,7 +334,7 @@ test.describe("changing people", () => {
     await signedInAdmin(page);
     expect((await api("/api/v1/auth/me", { cookie: tolaCookie })).status).toBe(200);
 
-    await page.getByRole("button", { name: "Deactivate Tola Teacher" }).click();
+    await rowAction(page, "Deactivate Tola Teacher");
     const d = dialog(page);
     await expect(d.getByRole("heading", { name: "Deactivate Tola Teacher?" })).toBeVisible();
     await expect(d).toContainText("They lose access to this branch straight away. If it is their only branch they are signed out as well");
@@ -338,7 +342,7 @@ test.describe("changing people", () => {
     await d.getByRole("button", { name: "Cancel" }).click();
     expect((await api("/api/v1/auth/me", { cookie: tolaCookie })).status).toBe(200); // cancelled: nothing happened
 
-    await page.getByRole("button", { name: "Deactivate Tola Teacher" }).click();
+    await rowAction(page, "Deactivate Tola Teacher");
     await dialog(page).getByRole("button", { name: "Deactivate", exact: true }).click();
     await expect(dialog(page)).toBeHidden();
     await expect(notice(page)).toContainText("Tola Teacher was deactivated. They are signed out and lose access.");
@@ -349,7 +353,7 @@ test.describe("changing people", () => {
     await page.getByLabel("Status").selectOption("deactivated");
     const gone = row(page, "Tola Teacher");
     await expect(gone).toContainText("Deactivated");
-    await gone.getByRole("button", { name: "Reactivate Tola Teacher" }).click();
+    await rowAction(page, "Reactivate Tola Teacher");
     await expect(notice(page)).toContainText("Tola Teacher can sign in again.");
     await openFilters(page);
     await page.getByLabel("Status").selectOption("active");
@@ -361,7 +365,7 @@ test.describe("changing people", () => {
   test("focus is never stranded on a control that vanished: after deactivating, it lands on the list summary", async ({ page }) => {
     await member(Role.PARENT, "Pat Parent");
     await signedInAdmin(page);
-    await page.getByRole("button", { name: "Deactivate Pat Parent" }).click();
+    await rowAction(page, "Deactivate Pat Parent");
     await dialog(page).getByRole("button", { name: "Deactivate", exact: true }).click();
     await expect(row(page, "Pat Parent")).toHaveCount(0);
     await expect(page.getByText(/^1 person/)).toBeFocused();
@@ -372,7 +376,7 @@ test.describe("changing people", () => {
   }) => {
     const tola = await member(Role.TEACHING_STAFF, "Tola Teacher", 0);
     await signedInAdmin(page);
-    await page.getByRole("button", { name: "Change role or branch for Tola Teacher" }).click();
+    await rowAction(page, "Change role or branch for Tola Teacher");
     await db.membership.update({ where: { id: tola.membershipId }, data: { deactivatedAt: new Date() } }); // another administrator did it while the dialog was open
     await dialog(page).getByLabel("Role").selectOption("PARENT");
     await dialog(page).getByRole("button", { name: "Save changes" }).click();
@@ -387,7 +391,7 @@ test.describe("superadmins and branch administrators", () => {
     await member(Role.TEACHING_STAFF, "Tola Teacher", 1);
     await signedInAdmin(page);
     await expect(row(page, "Amina Yusuf")).toContainText("Superadmin");
-    await page.getByRole("button", { name: "Make superadmin Tola Teacher" }).click();
+    await rowAction(page, "Make superadmin Tola Teacher");
     await dialog(page).getByLabel("Your password").fill("not-the-password-1");
     await dialog(page).getByRole("button", { name: "Make superadmin" }).click();
     await expect(dialog(page)).toContainText("Your password is incorrect.");
@@ -397,7 +401,7 @@ test.describe("superadmins and branch administrators", () => {
     await expect(row(page, "Tola Teacher")).toContainText("Superadmin");
     await expect(row(page, "Tola Teacher")).toContainText("All branches");
     // and back
-    await row(page, "Tola Teacher").getByRole("button", { name: "Remove superadmin from Tola Teacher" }).click();
+    await rowAction(page, "Remove superadmin from Tola Teacher");
     await dialog(page).getByLabel("Your password").fill("correct-horse-battery-9");
     await dialog(page).getByRole("button", { name: "Remove superadmin" }).click();
     await expect(notice(page)).toContainText("Tola Teacher is no longer a superadmin.");
@@ -422,7 +426,7 @@ test.describe("superadmins and branch administrators", () => {
     await expect(row(page, "Tola Teacher")).toBeVisible();
     await expect(row(page, "Uche Elsewhere")).toHaveCount(0); // another branch: not even listed
     await expect(row(page, "Sade Superadmin").getByRole("button")).toHaveCount(0);
-    await expect(row(page, "Tola Teacher").getByRole("button", { name: "Make superadmin Tola Teacher" })).toHaveCount(0);
+    expect(await hasRowAction(page, "Make superadmin Tola Teacher")).toBe(false); // a branch administrator is not offered it
 
     await page.getByRole("button", { name: "Invite someone" }).click();
     await expect(dialog(page).getByLabel("Role").locator("option", { hasText: "Administrator" })).toHaveCount(0);
