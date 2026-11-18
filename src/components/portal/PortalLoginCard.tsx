@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { InstallApp } from "@/components/pwa/InstallApp";
 import Link from "next/link";
 
 export interface PortalStudentRecord {
@@ -203,6 +204,7 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
           )}
         </button>
       </form>
+      <InstallApp className="mt-4 w-full text-center" />
     </div>
   );
 }

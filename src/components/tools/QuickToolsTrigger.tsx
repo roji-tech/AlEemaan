@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { WrenchIcon } from "@/components/ui/icons";
 import { QuickToolsDrawer } from "./QuickToolsDrawer";
-import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import type { QuickToolId } from "./types";
 
 export function QuickToolsTrigger() {
@@ -46,8 +45,6 @@ export function QuickToolsTrigger() {
       </button>
 
       <QuickToolsDrawer open={open} onClose={() => setOpen(false)} initialTool={initialTool} />
-
-      <ServiceWorkerRegister />
     </>
   );
 }

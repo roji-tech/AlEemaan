@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+// Imported for what it does when it loads: it starts listening for the browser's install prompt, which is fired once and early (task 0104).
+import "@/lib/pwa/install";
 
 export function ServiceWorkerRegister() {
   // Always start "online": the server cannot know (Node 21+ has a global `navigator` WITHOUT `onLine`, so `!navigator.onLine` was true there and the

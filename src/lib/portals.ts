@@ -135,6 +135,7 @@ const APEX_OPEN = [
   "/offline",
   "/icon",
   "/apple-icon",
+  "/pwa-icons", // the two app icons the manifest names (task 0104)
   "/setup",
   "/forgot-password",
   "/reset-password",
