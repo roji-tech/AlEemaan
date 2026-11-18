@@ -9,7 +9,8 @@ import { Dialog } from "@/components/ui/Dialog";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Collection, Item, ItemTile } from "@/components/ui/Collection";
-import { BookOpenIcon, GraduationCapIcon } from "@/components/ui/icons";
+import { BookOpenIcon, GraduationCapIcon, LayersIcon, PencilIcon, UsersIcon } from "@/components/ui/icons";
+import { TONE } from "@/components/ui/tone";
 import { BranchPicker } from "@/components/ui/BranchPicker";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager, paginate } from "@/components/ui/Pager";
@@ -222,9 +223,19 @@ export function ClassesPanel({
                   title={g.name}
                   factsStyle="stats"
                   facts={[
-                    { label: g.arms.length === 1 ? "arm" : "arms", value: g.arms.length },
-                    { label: g.subjectIds.length === 1 ? "subject" : "subjects", value: g.subjectIds.length },
-                    { label: pupils === 1 ? "pupil" : "pupils", value: pupils },
+                    {
+                      label: g.arms.length === 1 ? "arm" : "arms",
+                      value: g.arms.length,
+                      tone: "info",
+                      icon: <LayersIcon className="h-4 w-4" />,
+                    },
+                    {
+                      label: g.subjectIds.length === 1 ? "subject" : "subjects",
+                      value: g.subjectIds.length,
+                      tone: "brand",
+                      icon: <BookOpenIcon className="h-4 w-4" />,
+                    },
+                    { label: pupils === 1 ? "pupil" : "pupils", value: pupils, tone: "ok", icon: <UsersIcon className="h-4 w-4" /> },
                   ]}
                   actions={
                     branch.canEdit
@@ -260,24 +271,30 @@ export function ClassesPanel({
                   below={
                     g.arms.length > 0 ? (
                       <ul aria-label={`Arms of ${g.name}`} className="flex flex-wrap gap-2">
-                        {g.arms.map((a) => (
-                          <li key={a.id} className="flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1 text-sm text-fg-2">
-                            <span>
-                              {a.name}
-                              {a.capacity ? ` · cap ${a.capacity}` : ""} · {a.enrolments}
-                            </span>
-                            {branch.canEdit && (
-                              <button
-                                type="button"
-                                onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
-                                aria-label={`Edit arm ${a.name} of ${g.name}`}
-                                className="relative z-10 ml-1 min-h-6 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </li>
-                        ))}
+                        {g.arms.map((a) => {
+                          const label = `${a.name}${a.capacity ? ` · cap ${a.capacity}` : ""} · ${a.enrolments}`;
+                          return (
+                            <li key={a.id}>
+                              {branch.canEdit ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
+                                  aria-label={`Edit arm ${a.name} of ${g.name}`}
+                                  className={`relative z-10 inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${TONE.info.chip}`}
+                                >
+                                  {label}
+                                  <PencilIcon aria-hidden="true" className={`h-3.5 w-3.5 ${TONE.info.icon}`} />
+                                </button>
+                              ) : (
+                                <span
+                                  className={`inline-flex min-h-9 items-center rounded-full border px-4 text-sm font-medium ${TONE.info.chip}`}
+                                >
+                                  {label}
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : undefined
                   }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
+import { actionLook } from "./action-look";
 import { MoreIcon } from "./icons";
+import { TONE, type Tone } from "./tone";
 import { POPOVER_ITEM, POPOVER_LIST, popoverSide, usePopover } from "./usePopover";
 
 export type MenuAction = {
@@ -14,6 +16,9 @@ export type MenuAction = {
   disabled?: boolean;
   /// Draws the item in the danger colour and sets it apart from the others (Archive, Remove, Revoke).
   danger?: boolean;
+  /// The colour and the icon of the item's tile (task 0105). Left out, they are chosen from the action's `id` (ui/action-look.tsx); an action it does not know has no tile.
+  tone?: Tone;
+  icon?: ReactNode;
 };
 
 /// The three-dots button of a row, and the list of what can be done to it (task 0100). An icon-only button, 44 px square, named "Actions for <name>" and saying whether the list is open
@@ -40,23 +45,34 @@ export function ActionsMenu({ name, actions }: { name: string; actions: readonly
       </button>
       {open && (
         <ul ref={listRef} id={listId} onKeyDown={onListKeyDown} className={`${POPOVER_LIST} ${popoverSide(up)}`}>
-          {actions.map((a, index) => (
-            <li key={a.id} className={a.danger && index > 0 ? "mt-1 border-t border-line pt-1" : undefined}>
-              <button
-                type="button"
-                aria-label={a.ariaLabel}
-                disabled={a.disabled}
-                onClick={() => {
-                  setOpen(false);
-                  focusButton(); // the list is about to close: a dialog this opens hands focus back to the three-dots button, not to nothing
-                  a.onSelect();
-                }}
-                className={`${POPOVER_ITEM} ${a.danger ? "text-danger-fg" : ""}`}
-              >
-                {a.label}
-              </button>
-            </li>
-          ))}
+          {actions.map((a, index) => {
+            const look = actionLook(a);
+            return (
+              <li key={a.id} className={a.danger && index > 0 ? "mt-1 border-t border-line pt-1" : undefined}>
+                <button
+                  type="button"
+                  aria-label={a.ariaLabel}
+                  disabled={a.disabled}
+                  onClick={() => {
+                    setOpen(false);
+                    focusButton(); // the list is about to close: a dialog this opens hands focus back to the three-dots button, not to nothing
+                    a.onSelect();
+                  }}
+                  className={`${POPOVER_ITEM} ${a.danger ? "text-danger-fg" : ""}`}
+                >
+                  {look.icon && (
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${TONE[look.tone].tile}`}
+                    >
+                      {look.icon}
+                    </span>
+                  )}
+                  <span className="min-w-0">{a.label}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

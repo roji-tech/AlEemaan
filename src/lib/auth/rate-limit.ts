@@ -1,18 +1,21 @@
-// In-memory rate limiter — reserve-then-refund, trusted-proxy-header IP, size-capped.
-// Synced to Octalve Edu's built-and-verified version (domain-implementation-plan.md §0.5.1.6).
+// Rate limiter: reserve-then-refund, trusted-proxy-header IP, size-capped in memory, and (task 0102) kept in the DATABASE by default.
 //
-// SCOPE: state lives in this process's memory. That is CORRECT for AlEemaan, which is one
-// school served by one long-lived process (Docker Compose / a single VPS) — never serverless,
-// never multi-instance — so a request can't land on an instance with a different Map, and no
-// external store is needed. (Octalve Edu's multi-instance SaaS mode is the case that needs
-// Redis; the functions are `async` in both repos so that swap changes no call site. Revisit
-// here only if the single-process deployment assumption ever changes.)
+// WHERE THE COUNTS LIVE. The sign-in limits (and every other caller) used to count in the memory of the one server process, which was right for a single long-lived process and wrong
+// on Vercel: many instances run, each with its own count, and a restart starts it again, so a limit was looser than its number said (docs/DEPLOYMENT.md said so; the family sign-in's
+// guessable secrets made that matter). Now every reservation is a row in `RateLimitHit` (key, time) and the count is read from the database, so it holds across instances. The window
+// is still an exact sliding one of five minutes, and an attempt that is refused is not recorded (it never extends a lockout).
 //
-// INVARIANT: the bodies below must stay synchronous (no `await`). An async function runs
-// synchronously until its first await, which is what makes each reservation atomic in a
-// single-threaded process — the actual fix for the check-then-record race (concurrent
-// requests all passing a check before any of them recorded anything). Adding an await inside
-// reserveAttempt would silently reintroduce that race; tests/unit/rate-limit.spec.ts guards it.
+// ATOMIC. Counting and recording must happen as one step, or concurrent requests all pass the count before any of them records: the reservation runs in one transaction that first takes a
+// per-key advisory lock (`pg_advisory_xact_lock`, released at commit), so two requests for the same key queue behind each other and different keys never wait.
+//
+// IF THE DATABASE FAILS the limiter falls back to counting in this process's memory (the old behaviour, same limits) and says so once in the log: a limiter must not take every sign-in
+// down with it, and must not turn into "no limit". `RATE_LIMIT_STORE=memory` chooses memory on purpose (a single Docker process; local runs that want no database traffic).
+//
+// INVARIANT for the memory half: its bodies stay synchronous (no `await`). An async function runs synchronously until its first await, which is what makes each in-memory reservation
+// atomic in a single-threaded process. tests/unit/rate-limit.spec.ts guards it.
+
+import crypto from "node:crypto";
+import { prisma } from "@/lib/db";
 
 const WINDOW_MS = 5 * 60 * 1000;
 export const DEFAULT_MAX_ATTEMPTS = 5;
@@ -48,10 +51,9 @@ function recentCount(identifier: string): number {
   return recent.length;
 }
 
-/// Reserve-then-refund: call this at the very start of the handler, before
-/// any slow async work, for every key that should gate the request. Returns
-/// false (reserving nothing further) the moment a key is already at its limit.
-export async function reserveAttempt(identifier: string, limit: number = DEFAULT_MAX_ATTEMPTS): Promise<boolean> {
+// --- In memory (the fallback, and `RATE_LIMIT_STORE=memory`) ---------------------------------
+
+function memoryReserve(identifier: string, limit: number): boolean {
   const count = recentCount(identifier);
   if (count >= limit) return false;
   const recent = attempts.get(identifier) ?? [];
@@ -61,18 +63,101 @@ export async function reserveAttempt(identifier: string, limit: number = DEFAULT
   return true;
 }
 
-/// Call on a SUCCESSFUL attempt to hand back the reservation this request
-/// made, so a correct login never counts against the user's own future tries.
-export async function refundAttempt(identifier: string): Promise<void> {
+function memoryRefund(identifier: string): void {
   const recent = attempts.get(identifier);
   if (!recent || recent.length === 0) return;
   recent.pop();
   if (recent.length === 0) attempts.delete(identifier);
 }
 
+const memoryCheck = (identifier: string, limit: number): boolean => recentCount(identifier) < limit;
+
+/// The in-memory limiter on its own, for the tests of its rules and of the fallback.
+export const memoryLimiter = {
+  reserve: memoryReserve,
+  refund: memoryRefund,
+  check: memoryCheck,
+  clear: () => attempts.clear(),
+};
+
+// --- In the database (the default) -------------------------------------------------------
+
+const storeIsDatabase = () => (process.env.RATE_LIMIT_STORE ?? "database").toLowerCase() !== "memory";
+
+let warnedFallback = false;
+function fellBack(error: unknown) {
+  if (warnedFallback) return;
+  warnedFallback = true;
+  console.warn(
+    `[RATE_LIMIT] The database could not be used (${error instanceof Error ? error.name : "error"}); counting in this process's memory instead, which is looser on a host with several instances.`,
+  );
+}
+
+/// Old rows are removed as keys are used: this key's rows past the window on every reservation (cheap, indexed), and now and then everything past it, so a key nobody uses again leaves
+/// nothing behind.
+const SWEEP_ONE_IN = 200;
+
+async function databaseReserve(identifier: string, limit: number): Promise<boolean> {
+  const now = Date.now();
+  const since = new Date(now - WINDOW_MS);
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${identifier}, 0))`;
+    await tx.$executeRaw`DELETE FROM "RateLimitHit" WHERE "key" = ${identifier} AND "at" <= ${since}`;
+    const [row] = await tx.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM "RateLimitHit" WHERE "key" = ${identifier}`;
+    if ((row?.n ?? 0) >= limit) return false;
+    await tx.$executeRaw`INSERT INTO "RateLimitHit" ("id", "key", "at") VALUES (${crypto.randomUUID()}, ${identifier}, ${new Date(now)})`;
+    if (Math.floor(Math.random() * SWEEP_ONE_IN) === 0) await tx.$executeRaw`DELETE FROM "RateLimitHit" WHERE "at" <= ${since}`;
+    return true;
+  });
+}
+
+async function databaseRefund(identifier: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${identifier}, 0))`;
+    await tx.$executeRaw`DELETE FROM "RateLimitHit" WHERE "id" = (SELECT "id" FROM "RateLimitHit" WHERE "key" = ${identifier} ORDER BY "at" DESC LIMIT 1)`;
+  });
+}
+
+async function databaseCheck(identifier: string, limit: number): Promise<boolean> {
+  const since = new Date(Date.now() - WINDOW_MS);
+  const [row] = await prisma.$queryRaw<
+    { n: number }[]
+  >`SELECT count(*)::int AS n FROM "RateLimitHit" WHERE "key" = ${identifier} AND "at" > ${since}`;
+  return (row?.n ?? 0) < limit;
+}
+
+/// Reserve-then-refund: call this at the very start of the handler, before any slow async work, for every key that should gate the request. Returns false (reserving nothing further)
+/// the moment a key is already at its limit; a refused call records nothing, so hammering while locked out never extends the lockout.
+export async function reserveAttempt(identifier: string, limit: number = DEFAULT_MAX_ATTEMPTS): Promise<boolean> {
+  if (!storeIsDatabase()) return memoryReserve(identifier, limit);
+  try {
+    return await databaseReserve(identifier, limit);
+  } catch (error) {
+    fellBack(error);
+    return memoryReserve(identifier, limit);
+  }
+}
+
+/// Call on a SUCCESSFUL attempt to hand back the reservation this request made, so a correct login never counts against the user's own future tries.
+export async function refundAttempt(identifier: string): Promise<void> {
+  if (!storeIsDatabase()) return memoryRefund(identifier);
+  try {
+    await databaseRefund(identifier);
+  } catch (error) {
+    fellBack(error);
+    memoryRefund(identifier);
+  }
+}
+
 /// Read-only check (does not reserve). Used for the soft per-account signal.
 export async function checkRateLimit(identifier: string, limit: number = DEFAULT_MAX_ATTEMPTS): Promise<boolean> {
-  return recentCount(identifier) < limit;
+  if (!storeIsDatabase()) return memoryCheck(identifier, limit);
+  try {
+    return await databaseCheck(identifier, limit);
+  } catch (error) {
+    fellBack(error);
+    return memoryCheck(identifier, limit);
+  }
 }
 
 // --- Client IP -------------------------------------------------------------
