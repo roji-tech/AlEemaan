@@ -593,8 +593,11 @@ test.describe("Users and invitation screens", () => {
     await page.getByLabel("Search").fill("zzz-no-one");
     await expect(page.getByText("No one matches these filters.")).toBeVisible();
     await checkScreen(page, "/users (no match)", isMobile);
-    await page.getByRole("button", { name: "Clear filters" }).click();
+    await page.getByRole("button", { name: "Clear filters" }).first().click();
 
+    // The filters fold behind a button beside the search (task 0085); open them only if they are not already.
+    const filters = page.getByRole("button", { name: /^Filters/ });
+    if ((await filters.getAttribute("aria-expanded")) !== "true") await filters.click();
     await page.getByLabel("Status").selectOption("deactivated");
     await expect(page.getByRole("button", { name: "Reactivate Gone Person" })).toBeVisible();
     await checkScreen(page, "/users (deactivated people)", isMobile);

@@ -631,9 +631,9 @@ test.describe("someone who is not an administrator", () => {
     await signInThroughUi(page, teacher);
 
     await expect(page.getByRole("heading", { level: 1, name: "Welcome, Zainab" })).toBeVisible();
-    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, programs, students, announcements, question bank, forms); the phone's tab bar keeps only
-    // Overview and Results and the rest live in the More sheet.
-    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 2 : 10);
+    // The sidebar lists every page a teacher may open (marks, attendance, coursework, timetable, programs, students, announcements, question bank, forms); the phone's tab bar holds
+    // Overview and Results, the free slots are filled from the More pages in the sidebar's order (Students, Coursework), and the rest live in the More sheet.
+    await expect(mainNav(page).getByRole("link")).toHaveCount(isMobile ? 4 : 10);
     await expect(mainNav(page).getByRole("link", { name: "Overview" })).toBeVisible();
     await expect(mainNav(page).getByRole("link", { name: "Results" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);
@@ -833,7 +833,9 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     for (const name of ["Classroom", "Assessment", "Communication", "Administration"]) {
       await expect(sheet.getByRole("heading", { level: 3, name })).toBeVisible();
     }
-    await expect(sheet.getByRole("button", { name: "Classroom" })).toHaveCount(0); // a sheet is short-lived: its headings do not fold
+    for (const name of ["Classroom", "Assessment", "Communication", "Administration"]) {
+      await expect(sheet.getByRole("button", { name })).toHaveAttribute("aria-expanded", "true"); // each heading folds its pages (task 0085) and starts open
+    }
     const classroom = sheet.getByRole("heading", { name: "Classroom" }).locator("xpath=..");
     await expect(classroom.getByRole("link")).toHaveText(["Students", "Coursework", "Attendance", "Timetable", "Programs"]);
   });
@@ -847,12 +849,18 @@ test.describe("phone: bottom tab bar and the More sheet", () => {
     await expect(sheet.getByRole("link", { name: "Announcements" })).toBeVisible();
   });
 
-  test("a teacher's tab bar is Overview, Results and More; an administrator-only page is not in it", async ({ page }) => {
+  test("a teacher's tab bar is Overview, Results, the first two More pages and More; an administrator-only page is not in it", async ({
+    page,
+  }) => {
     const teacher = await createUser({ role: Role.TEACHING_STAFF });
     await signInThroughUi(page, teacher);
-    await expect(tabBar(page).getByRole("link")).toHaveCount(2); // Overview and Results
+    await expect(tabBar(page).getByRole("link")).toHaveCount(4); // Overview, Results, and Students and Coursework moved up from More (task 0085)
+    for (const name of ["Overview", "Results", "Students", "Coursework"])
+      await expect(tabBar(page).getByRole("link", { name, exact: true })).toBeVisible();
     await moreButton(page).click();
     const sheet = page.getByRole("dialog");
+    await expect(sheet.getByRole("link", { name: "Students", exact: true })).toHaveCount(0); // a page is in the bar or in the sheet, never both
+    await expect(sheet.getByRole("link", { name: "Attendance", exact: true })).toBeVisible();
     await expect(sheet.getByText("Settings")).toHaveCount(0);
     await expect(sheet.getByText("Users")).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "Profile" })).toBeVisible();
