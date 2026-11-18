@@ -67,47 +67,49 @@ export type CreateInvitationResult =
   | { ok: true; invitation: PublicInvitation; token: string }
   | { ok: false; reason: "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "INVALID_BRANCH" | "OUT_OF_SCOPE" | "ADMIN_ONLY" };
 
-/// Invites `input.email` to a branch. One open invitation per (address, branch): an earlier open one is revoked (and audited) first, and a partial unique index
-/// is the guarantee under concurrency — an advisory lock on the address serialises two administrators inviting the same person at the same
-/// instant, so the loser revokes the winner's instead of failing on the index. Only ever tells the administrator about THIS school: an
-/// address that already holds a membership (or had one deactivated) is named as such.
-export async function createInvitation(
-  actorUserId: string,
-  input: { email: string; role: Role; branchId: string },
+type Authority = { ok: true; branchName: string } | { ok: false; reason: "INVALID_BRANCH" | "OUT_OF_SCOPE" | "ADMIN_ONLY" };
+
+/// May this caller invite someone, as this role, to this branch? THE rule, in one place: the single invitation, the bulk and the several-branches request all ask it, so none of them
+/// can drift from the others. An unknown branch is `INVALID_BRANCH`; a branch the caller does not administer is `OUT_OF_SCOPE`; only a superadmin makes an administrator. The branch's name
+/// comes back only when the caller IS allowed, so a refusal never carries the name of a branch they may not see.
+async function authorityToInvite(
+  tx: Prisma.TransactionClient,
+  input: { role: Role; branchId: string },
   scope: AdminScope,
-): Promise<CreateInvitationResult> {
-  return prisma.$transaction((tx) => createInvitationIn(tx, actorUserId, input, scope));
+): Promise<Authority> {
+  const branch = await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true, name: true } });
+  if (!branch) return { ok: false, reason: "INVALID_BRANCH" };
+  if (!mayAdminister(scope, input.branchId)) return { ok: false, reason: "OUT_OF_SCOPE" };
+  if (input.role === "ADMIN" && !scope.superAdmin) return { ok: false, reason: "ADMIN_ONLY" }; // only a superadmin makes an administrator
+  return { ok: true, branchName: branch.name };
 }
 
-/// `createInvitation` inside a transaction the caller owns, so a bulk can create many and roll all of them back together (task 0084). The advisory lock per address is held until that transaction ends.
-export async function createInvitationIn(
+/// The membership rule for ONE branch, shared by the single and the several-branches invitation. The rule is per (person, branch): a person may belong to several branches (plan, "a person may
+/// belong to several branches"). Refused: an active membership in THIS branch; a deactivated one in this branch; or deactivated memberships and no active one anywhere (a deactivated person
+/// comes back by reactivation, never by a new link).
+async function membershipRefusal(
+  tx: Prisma.TransactionClient,
+  email: string,
+  branchId: string,
+): Promise<"ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | null> {
+  const memberships = await tx.membership.findMany({
+    where: { user: { email } },
+    select: { branchId: true, deactivatedAt: true },
+  });
+  if (memberships.some((m) => m.branchId === branchId && !m.deactivatedAt)) return "ALREADY_MEMBER";
+  const anyActive = memberships.some((m) => !m.deactivatedAt);
+  if (memberships.some((m) => m.branchId === branchId) || (memberships.length > 0 && !anyActive)) return "DEACTIVATED_MEMBER";
+  return null;
+}
+
+/// Revokes (and audits) whatever open invitation the address still holds for the branch, then creates the new one and audits it: the write half, shared by the single and the several-branches
+/// invitation. Everything that could refuse has been asked before this runs.
+async function writeInvitation(
   tx: Prisma.TransactionClient,
   actorUserId: string,
   input: { email: string; role: Role; branchId: string },
-  scope: AdminScope,
-): Promise<CreateInvitationResult> {
-  // (`$executeRaw`: the lock function returns `void`, which `$queryRaw` cannot deserialise.)
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invitation:${input.email}`}::text))`;
-
-  const branch = await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true } });
-  if (!branch) return { ok: false, reason: "INVALID_BRANCH" } as const;
-  if (!mayAdminister(scope, input.branchId)) return { ok: false, reason: "OUT_OF_SCOPE" } as const;
-  if (input.role === "ADMIN" && !scope.superAdmin) return { ok: false, reason: "ADMIN_ONLY" } as const; // only a superadmin makes an administrator
-
-  // The rule is per (person, branch): a person may belong to several branches (plan, "a person may belong to several branches"). Refused: an
-  // active membership in THIS branch; a deactivated one in this branch; or deactivated memberships and no active one anywhere (a
-  // deactivated person comes back by reactivation, never by a new link).
-  const memberships = await tx.membership.findMany({
-    where: { user: { email: input.email } },
-    select: { branchId: true, deactivatedAt: true },
-  });
-  if (memberships.some((m) => m.branchId === input.branchId && !m.deactivatedAt)) return { ok: false, reason: "ALREADY_MEMBER" } as const;
-  const anyActive = memberships.some((m) => !m.deactivatedAt);
-  if (memberships.some((m) => m.branchId === input.branchId) || (memberships.length > 0 && !anyActive)) {
-    return { ok: false, reason: "DEACTIVATED_MEMBER" } as const;
-  }
-
-  const now = new Date();
+  now: Date,
+): Promise<{ invitation: PublicInvitation; token: string }> {
   const earlier = await tx.invitation.findMany({
     where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null }, // (a different branch's open invitation stays)
     select: { id: true },
@@ -147,7 +149,96 @@ export async function createInvitationIn(
       afterValue: { email: input.email, role: input.role, branchId: input.branchId },
     },
   });
-  return { ok: true, invitation: toPublic(created, now), token } as const;
+  return { invitation: toPublic(created, now), token };
+}
+
+const lockAddress = (tx: Prisma.TransactionClient, email: string) =>
+  // (`$executeRaw`: the lock function returns `void`, which `$queryRaw` cannot deserialise.)
+  tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invitation:${email}`}::text))`;
+
+/// Invites `input.email` to a branch. One open invitation per (address, branch): an earlier open one is revoked (and audited) first, and a partial unique index
+/// is the guarantee under concurrency — an advisory lock on the address serialises two administrators inviting the same person at the same
+/// instant, so the loser revokes the winner's instead of failing on the index. Only ever tells the administrator about THIS school: an
+/// address that already holds a membership (or had one deactivated) is named as such.
+export async function createInvitation(
+  actorUserId: string,
+  input: { email: string; role: Role; branchId: string },
+  scope: AdminScope,
+): Promise<CreateInvitationResult> {
+  return prisma.$transaction((tx) => createInvitationIn(tx, actorUserId, input, scope));
+}
+
+/// `createInvitation` inside a transaction the caller owns, so a bulk can create many and roll all of them back together (task 0084). The advisory lock per address is held until that transaction ends.
+export async function createInvitationIn(
+  tx: Prisma.TransactionClient,
+  actorUserId: string,
+  input: { email: string; role: Role; branchId: string },
+  scope: AdminScope,
+): Promise<CreateInvitationResult> {
+  await lockAddress(tx, input.email);
+
+  const authority = await authorityToInvite(tx, input, scope);
+  if (!authority.ok) return { ok: false, reason: authority.reason } as const;
+  const refusal = await membershipRefusal(tx, input.email, input.branchId);
+  if (refusal) return { ok: false, reason: refusal } as const;
+
+  const written = await writeInvitation(tx, actorUserId, input, new Date());
+  return { ok: true, ...written } as const;
+}
+
+export type CreateInvitationsResult =
+  | { ok: true; invitations: { invitation: PublicInvitation; token: string }[] }
+  /// The request itself was refused: a branch that does not exist, one the caller does not administer, an administrator invited by someone who is not a superadmin. No branch is named.
+  | { ok: false; reason: "INVALID_BRANCH" | "OUT_OF_SCOPE" | "ADMIN_ONLY" }
+  /// A branch the caller DOES administer cannot take this person; its name is given so the sentence can say which. ALREADY_INVITED: a link to that branch is still waiting.
+  | { ok: false; reason: "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "ALREADY_INVITED"; branchName: string };
+
+/// Invites one address, as one role, to several branches: ALL of them or NONE (task 0092). Everything that could refuse is asked for EVERY branch before anything is written, in this order:
+/// the authority to invite to each (the very rule of a single invitation, so a branch the caller may not see is refused before any branch is named), then each branch's own conflicts (a
+/// membership, a deactivation, a link still waiting). A refusal writes nothing; the writes then run in the caller's transaction, so a failure of the database undoes all of them. The advisory lock
+/// on the address is the single invitation's, so two requests for the same person queue instead of interleaving.
+export async function createInvitationsIn(
+  tx: Prisma.TransactionClient,
+  actorUserId: string,
+  input: { email: string; role: Role; branchIds: readonly string[] },
+  scope: AdminScope,
+): Promise<CreateInvitationsResult> {
+  await lockAddress(tx, input.email);
+
+  const names = new Map<string, string>();
+  for (const branchId of input.branchIds) {
+    const authority = await authorityToInvite(tx, { role: input.role, branchId }, scope);
+    if (!authority.ok) return { ok: false, reason: authority.reason };
+    names.set(branchId, authority.branchName);
+  }
+
+  const now = new Date();
+  // A link still waiting is not replaced here (a single invitation replaces it): someone who asks for several branches at once is told which one already has a link.
+  const waiting = await tx.invitation.findMany({
+    where: { email: input.email, branchId: { in: [...input.branchIds] }, acceptedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    select: { branchId: true },
+  });
+  const waitingIn = new Set(waiting.map((w) => w.branchId));
+  for (const branchId of input.branchIds) {
+    const branchName = names.get(branchId)!;
+    const refusal = await membershipRefusal(tx, input.email, branchId);
+    if (refusal) return { ok: false, reason: refusal, branchName };
+    if (waitingIn.has(branchId)) return { ok: false, reason: "ALREADY_INVITED", branchName };
+  }
+
+  const invitations: { invitation: PublicInvitation; token: string }[] = [];
+  for (const branchId of input.branchIds) {
+    invitations.push(await writeInvitation(tx, actorUserId, { email: input.email, role: input.role, branchId }, now));
+  }
+  return { ok: true, invitations };
+}
+
+export async function createInvitations(
+  actorUserId: string,
+  input: { email: string; role: Role; branchIds: readonly string[] },
+  scope: AdminScope,
+): Promise<CreateInvitationsResult> {
+  return prisma.$transaction((tx) => createInvitationsIn(tx, actorUserId, input, scope));
 }
 
 /// A fresh link and a fresh seven days for an invitation that is still open (pending OR expired); the earlier link stops working at once.

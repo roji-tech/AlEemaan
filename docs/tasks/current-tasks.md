@@ -693,3 +693,14 @@
 - [x] "Add many" on both tabs
 - [ ] The record of the runs
 
+
+## TASK-0092: Attach one person to several branches (an "Add to another branch" row action, and an invitation that names several branches)
+
+[Task file](0092-attach-user-to-several-branches.md). The maintainer: "there are situations where we want to attach a user to more than one branch". Built as invitations, not an instant attach (the person's acceptance stays the proof): `POST /api/v1/invitations` takes an optional `branchIds` beside `branchId` (all or none, the single invitation's own authority rule asked of every branch first, ONE e-mail with a link per branch, no migration); the Users page gets `Add <name> to another branch` and the invite dialog can switch to several branches.
+
+- [x] `service.ts` (`authorityToInvite`, `membershipRefusal`, `writeInvitation`, `createInvitations`), `mail.ts`, `messages.ts`, the route
+- [x] `InviteDialog` (several branches), `MemberActions` + `UsersPanel` (Add to another branch)
+- [x] `tests/api/invitations-multi-branch.spec.ts`, `tests/e2e/multi-branch.spec.ts` (written, NOT run)
+- [ ] The record of the runs
+- [x] Decided (the coordinator, final): by invitation that the person accepts, not a silent attach (task file D1)
+- [ ] Merge order: `claude/toasts` (`@/components/ui/Toaster`) before this branch, or `tsc` fails on that import

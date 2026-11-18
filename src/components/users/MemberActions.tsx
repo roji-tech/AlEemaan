@@ -5,7 +5,7 @@ import { KIND_TEXT, kindsFor, type StandingCan } from "@/components/standing/mod
 import type { StandingAsk } from "@/components/standing/StandingDialog";
 import type { Member } from "./model";
 
-/// What can be done to one person, behind one Actions button (a list that opens and closes): change them, then end or pause their access, then the superadmin switch, then their
+/// What can be done to one person, behind one Actions button (a list that opens and closes): change them, add them to another branch, then end or pause their access, then the superadmin switch, then their
 /// history. A person who is signed in as you, or whom you may not touch (a branch administrator and an administrator), has none, and no button is drawn. The accessible names are the
 /// ones the separate buttons had ("Deactivate Tola Teacher"), so a screen reader hears the same words.
 export function MemberActions({
@@ -15,8 +15,10 @@ export function MemberActions({
   locked,
   can,
   isSuperAdmin,
+  canAddBranch,
   busy,
   onEdit,
+  onAddBranch,
   onDeactivate,
   onStanding,
   onSuperAdmin,
@@ -30,8 +32,11 @@ export function MemberActions({
   /// What this caller may do about standing in the person's branch.
   can: StandingCan;
   isSuperAdmin: boolean;
+  /// The caller can invite to more than one branch: with a single branch to offer there is nowhere else to add anyone (display only: the API decides).
+  canAddBranch: boolean;
   busy: boolean;
   onEdit: (member: Member) => void;
+  onAddBranch: (member: Member) => void;
   onDeactivate: (member: Member) => void;
   onStanding: (member: Member, kind: StandingAsk["kind"]) => void;
   onSuperAdmin: (member: Member) => void;
@@ -53,6 +58,14 @@ export function MemberActions({
       ariaLabel: `Change role or branch for ${name}`,
       onSelect: () => onEdit(member),
     });
+    if (canAddBranch) {
+      actions.push({
+        id: "add-branch",
+        label: "Add to another branch",
+        ariaLabel: `Add ${name} to another branch`,
+        onSelect: () => onAddBranch(member),
+      });
+    }
     actions.push({ id: "deactivate", label: "Deactivate", ariaLabel: `Deactivate ${name}`, onSelect: () => onDeactivate(member) });
     for (const kind of kindsFor("staff", member.standing, can)) actions.push(standing(kind));
     if (isSuperAdmin) {
