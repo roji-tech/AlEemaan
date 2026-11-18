@@ -54,6 +54,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByText("No classes yet.")).toBeVisible();
     await expectAccessible(page, `academics page (${theme})`);
 
+    await page.getByRole("tab", { name: "Subjects", exact: true }).click();
     await page.getByRole("button", { name: "New subject" }).click();
     await expectAccessible(page, `new subject dialog (${theme})`);
     await dialog(page).getByLabel("Subject name").fill(`${tag} Mathematics`);
@@ -65,6 +66,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(dialog(page).getByText("This branch already has a subject with that name or code.")).toBeVisible(); // the server's own words, at the field
     await dialog(page).getByRole("button", { name: "Cancel" }).click();
 
+    await page.getByRole("tab", { name: "Classes", exact: true }).click();
     await page.getByRole("button", { name: "New class" }).click();
     await dialog(page).getByLabel("Class name").fill(`${tag} JSS 1`);
     await dialog(page).getByRole("button", { name: "Create class" }).click();

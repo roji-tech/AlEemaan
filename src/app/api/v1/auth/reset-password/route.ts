@@ -1,3 +1,4 @@
+import { portalForUser } from "@/lib/auth/portal-gate";
 import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -60,7 +61,7 @@ async function handle(req: NextRequest) {
     try {
       await auditPersonEvent(result.userId, "PASSWORD_RESET");
       const user = await prisma.user.findUnique({ where: { id: result.userId }, select: { email: true } });
-      if (user?.email) await sendEmailQuietly(passwordChangedEmail(user.email));
+      if (user?.email) await sendEmailQuietly(passwordChangedEmail(user.email, await portalForUser(result.userId)));
     } catch (error) {
       console.error("[reset-password] follow-up failed:", error instanceof Error ? error.message : error);
     }

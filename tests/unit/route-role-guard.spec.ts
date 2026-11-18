@@ -36,6 +36,7 @@ const ALLOWED: Record<string, string> = {
   "POST v1/auth/sessions/revoke-others/route.ts": OWN,
   "POST v1/auth/change-password/route.ts": OWN,
   "POST v1/auth/email-change/request/route.ts": OWN,
+  "DELETE v1/auth/email-change/request/route.ts": OWN,
   "POST v1/auth/mfa/enroll/route.ts": OWN,
   "POST v1/auth/mfa/confirm/route.ts": OWN,
   "POST v1/auth/mfa/disable/route.ts": OWN,

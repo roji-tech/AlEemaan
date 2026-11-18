@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import { Pager } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
-import { TextField } from "@/components/ui/TextField";
 import { PlusIcon } from "@/components/ui/icons";
 import { NETWORK_ERROR, RATE_LIMITED, SESSION_ENDED, getJson, sendJson } from "@/components/auth/postJson";
 import { initialsOf } from "@/components/shell/nav";
@@ -242,47 +243,46 @@ export function UsersPanel({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <TextField
-            label="Search"
-            type="search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Name or email"
-            autoComplete="off"
-            maxLength={64}
-          />
-          <SelectField
-            label="Role"
-            value={role}
-            onChange={(e) => (setRole(e.target.value), setPage(1))}
-            options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
-          />
-          <SelectField
-            label="Branch"
-            value={branchId}
-            onChange={(e) => (setBranchId(e.target.value), setPage(1))}
-            options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
-          />
-          <SelectField
-            label="Access"
-            value={access}
-            onChange={(e) => (setAccess(e.target.value), setPage(1))}
-            options={[
-              { value: "", label: "Anyone" },
-              { value: "formResults", label: "Reads form results" },
-            ]}
-          />
-          <SelectField
-            label="Status"
-            value={status}
-            onChange={(e) => (setStatus(e.target.value), setPage(1))}
-            options={[
-              { value: "active", label: "Active" },
-              { value: "deactivated", label: "Deactivated" },
-              { value: "all", label: "Everyone" },
-            ]}
-          />
+        <div className="mt-4">
+          <ListToolbar
+            searchValue={searchText}
+            onSearch={setSearchText}
+            searchPlaceholder="Search by name or email"
+            activeCount={[role !== "", branchId !== "", access !== "", status !== "active"].filter(Boolean).length}
+            onClear={clearFilters}
+          >
+            <SelectField
+              label="Role"
+              value={role}
+              onChange={(e) => (setRole(e.target.value), setPage(1))}
+              options={[{ value: "", label: "All roles" }, ...ROLE_OPTIONS]}
+            />
+            <SelectField
+              label="Branch"
+              value={branchId}
+              onChange={(e) => (setBranchId(e.target.value), setPage(1))}
+              options={[{ value: "", label: "All branches" }, ...branches.map((c) => ({ value: c.id, label: c.name }))]}
+            />
+            <SelectField
+              label="Access"
+              value={access}
+              onChange={(e) => (setAccess(e.target.value), setPage(1))}
+              options={[
+                { value: "", label: "Anyone" },
+                { value: "formResults", label: "Reads form results" },
+              ]}
+            />
+            <SelectField
+              label="Status"
+              value={status}
+              onChange={(e) => (setStatus(e.target.value), setPage(1))}
+              options={[
+                { value: "active", label: "Active" },
+                { value: "deactivated", label: "Deactivated" },
+                { value: "all", label: "Everyone" },
+              ]}
+            />
+          </ListToolbar>
         </div>
 
         <p ref={summaryRef} tabIndex={-1} className="mt-4 text-sm text-fg-muted focus:outline-none" aria-live="polite">
@@ -470,19 +470,7 @@ export function UsersPanel({
           </div>
         )}
 
-        {meta && meta.pages > 1 && (
-          <nav aria-label="Pages of people" className="mt-4 flex items-center justify-between gap-3">
-            <Button variant="secondary" disabled={meta.page <= 1} onClick={() => setPage(meta.page - 1)}>
-              Previous
-            </Button>
-            <p className="text-sm text-fg-muted">
-              Page {meta.page} of {meta.pages}
-            </p>
-            <Button variant="secondary" disabled={!meta.hasNext} onClick={() => setPage(meta.page + 1)}>
-              Next
-            </Button>
-          </nav>
-        )}
+        {meta && <Pager page={meta.page} pages={meta.pages} onPage={setPage} label="Pages of people" />}
       </section>
 
       <section aria-labelledby="invitations-heading">

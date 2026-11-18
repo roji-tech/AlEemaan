@@ -103,15 +103,17 @@ export function ProfileMenu({ name, email, roleLabel, isSuperAdmin }: ProfileMen
             <UserIcon className="h-4 w-4" />
             Profile
           </Link>
-          <Link href="/video-guide" className={`${ITEM} ${FOCUS_RING}`}>
-            <MonitorIcon className="h-4 w-4" />
-            Video guide
-          </Link>
           {isSuperAdmin && (
-            <Link href="/settings" className={`${ITEM} ${FOCUS_RING}`}>
-              <SlidersIcon className="h-4 w-4" />
-              Settings
-            </Link>
+            <>
+              <Link href="/video-guide" className={`${ITEM} ${FOCUS_RING}`}>
+                <MonitorIcon className="h-4 w-4" />
+                Video guide
+              </Link>
+              <Link href="/settings" className={`${ITEM} ${FOCUS_RING}`}>
+                <SlidersIcon className="h-4 w-4" />
+                Settings
+              </Link>
+            </>
           )}
 
           <div className="my-1 h-px bg-line" />
