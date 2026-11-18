@@ -58,6 +58,7 @@ test.describe("a file with one name column", () => {
     expect(out.problems).toEqual([]);
     expect(out.rows[0].values).toMatchObject({ firstName: "Amina", lastName: "Yusuf" });
     expect(out.rows[0].values.middleName).toBeUndefined();
+    expect(out.warnings).toEqual(['The column "Name" was ignored: the file has its own first and last name columns.']);
   });
 
   test("a Name column fills only what the file lacks: with a Middle name column of its own, that is kept", () => {

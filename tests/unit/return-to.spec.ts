@@ -22,7 +22,7 @@ test("anything that could leave the site is refused", () => {
     " /students",
     "/students\r\nSet-Cookie: x=1",
     "/students\u0000",
-    "/students ",
+    "/students\u2028",
     "/" + "a".repeat(600),
   ];
   for (const value of bad) expect(safeReturnTo(value), JSON.stringify(value).slice(0, 40)).toBeNull();
