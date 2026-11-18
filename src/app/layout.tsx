@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DevEmailInbox } from "@/components/dev/DevEmailInbox";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toaster";
 import { brand } from "@/lib/brand";
@@ -42,6 +43,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider initialTheme={theme}>
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
+        {/* On every page, the sign-in pages and the website included (task 0104): it used to be inside the signed-in shell only, so the pages people install FROM never registered the worker. */}
+        <ServiceWorkerRegister />
         {/* Development affordances (lib/dev-tools.ts): rendered only where the server says so — never in production. */}
         {devToolsEnabled() && <DevEmailInbox />}
       </body>
