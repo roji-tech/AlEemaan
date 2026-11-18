@@ -721,3 +721,21 @@
 - [x] `GET`/`PATCH /api/v1/settings/login-switches` (administrator: own branches only, refused whole otherwise; superadmin: any, several or all; one audit entry per branch, all or nothing)
 - [x] `LoginSwitchPanel` (Settings > Sign-in access, and the Users page for a branch administrator), the closed notice on the student and parent portals when no branch is open
 - [ ] The record of the runs, and the maintainer's migration (**DEFAULT OFF locks out every existing student and parent account until an administrator switches it on**)
+
+## TASK-0097: A session is made of terms or semesters, 2 or 3, with editable dates (requested 2026-11-18)
+
+[Task file](0097-session-terms-or-semesters-and-dates.md). Choose terms (2 or 3) or semesters (2) when a session is made, see and change the first and last day of each, and change all of the dates afterwards ("Edit dates", `PUT /api/v1/academics/sessions/[id]/schedule`). One pure rules module is shared by the form and the server; an overlap is refused with the reason, a gap (a holiday) is fine.
+
+- [x] `session-schedule.ts`, `createSession`/`updateSchedule`, the PUT route, the form and the Edit dates dialog, info tips
+- [x] Unit, API and browser specs written
+- [x] The run: API 41 passed; browser 76 passed, 0 failed; unit 48 passed (section 5 of the task file)
+- [ ] Merged to `dev`, promoted
+- [x] Mid-term and mid-semester holidays and their announcement: task 0098
+
+## TASK-0098: A break inside a term or semester, and its announcement (requested 2026-11-18)
+
+[Task file](0098-term-breaks-and-announcement.md). The mid-term or mid-semester holiday: add it to a term (inside it, no overlap), change or remove it, and be offered an announcement to the branch right after adding it, with the words written to read and change. A new table `AcademicBreak` (migration `20261118170000_academic_break`, the maintainer's to run).
+
+- [x] Schema and migration, the rules, the routes, the form and the announcement, specs
+- [ ] The run (section 5 of the task file), merged to `dev`, promoted
+

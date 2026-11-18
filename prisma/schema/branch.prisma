@@ -21,6 +21,7 @@ model Branch {
   invitations       Invitation[]
   sessions          AcademicSession[]
   periods           AcademicPeriod[]
+  academicBreaks    AcademicBreak[]
   students          StudentRecord[]
   enrollments       StudentEnrollment[]
   attendanceRecords AttendanceRecord[]

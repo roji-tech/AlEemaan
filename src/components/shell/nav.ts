@@ -38,11 +38,13 @@ export type NavItem = {
 };
 
 /// The sidebar's sections, in the order they are shown. The ids are what the "folded sections" cookie stores, so renaming one only forgets a folded state.
+/// Administration comes first (the maintainer, 2026-11-18): an administrator sets the school up there (Academics, Users, Approvals, Finance) before the classroom work. For a teacher or other
+/// staff that section is empty and dropped, so their sidebar is unchanged.
 export const SECTIONS = [
+  { id: "administration", label: "Administration" },
   { id: "classroom", label: "Classroom" },
   { id: "assessment", label: "Assessment" },
   { id: "communication", label: "Communication" },
-  { id: "administration", label: "Administration" },
 ] as const;
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
