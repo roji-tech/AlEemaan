@@ -15,7 +15,7 @@ import { runBulk } from "@/lib/bulk/server";
 // writes nothing (200, a verdict per row); `dryRun: false` checks again inside one transaction and saves ALL the fee lines or NONE (201, or 422 `BULK_PROBLEMS`). A line that already
 // exists for that period, class and name is refused. Invoices already issued are not changed: an invoice keeps its own line-item snapshot.
 const body = z.strictObject({ branchId: z.string().min(1, "Branch ID is required"), ...bulkBodyShape() });
-const PER_WINDOW = 30; // per administrator per 5 minutes
+const PER_WINDOW = 150; // per administrator per 5 minutes: a dry run, and each batch of 20 rows of a save (task 0095), is a request: 150 is 3,000 rows
 
 export const POST = withAuth(
   validate(

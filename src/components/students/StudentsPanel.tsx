@@ -310,6 +310,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
       />
       {branch.canEdit && (
         <BulkImportDialog
+          branchName={branch.name}
           key={`bulk-${bulk.key}`}
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}

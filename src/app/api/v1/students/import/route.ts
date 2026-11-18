@@ -20,7 +20,7 @@ const body = z.strictObject({
   allowDuplicates: z.boolean().optional().default(false),
   ...bulkBodyShape(),
 });
-const PER_WINDOW = 30; // per administrator per 5 minutes: a dry run and a save are both requests
+const PER_WINDOW = 150; // per administrator per 5 minutes: a dry run, and each batch of 20 rows of a save (task 0095), is a request: 150 is 3,000 rows
 
 export const POST = withAuth(
   validate(

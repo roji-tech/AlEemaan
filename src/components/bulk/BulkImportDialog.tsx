@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
+import { useBulkJobs } from "./BulkJobs";
 import { say } from "@/components/academics/common";
 import { applyCorrections } from "@/lib/bulk/corrections";
 import { splitCsv } from "@/lib/bulk/csv";
@@ -43,6 +44,8 @@ type Props = {
   contextControl?: (locked: boolean) => ReactNode;
   /// False while that control is not filled in: the file, the templates and the grid wait for it.
   canStart?: boolean;
+  /// The branch the rows go into, shown as a labelled chip at the top of every step so nobody loads a file into the wrong branch (the maintainer, 2026-11-18).
+  branchName?: string;
   /// Something the kind wants shown above the rows of a review (a fee file's totals per class).
   reviewExtra?: (rows: SourceRow[], verdicts: RowVerdict[]) => ReactNode;
   onSaved: (count: number) => void | Promise<void>;
@@ -67,6 +70,7 @@ export function BulkImportDialog({
   noun,
   contextControl,
   canStart = true,
+  branchName,
   reviewExtra,
   onSaved,
 }: Props) {
@@ -81,6 +85,19 @@ export function BulkImportDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState<(() => void) | null>(null);
+  // The save runs in the app shell (BulkJobs), batch by batch, so it outlives this dialog; this is the job this dialog started, for the progress shown here.
+  const jobs = useBulkJobs();
+  const [jobId, setJobId] = useState<number | null>(null);
+  const job = jobs.jobs.find((j) => j.id === jobId) ?? null;
+  const saving = job?.status === "running";
+  // Whether this dialog is still the one on screen when a job ends: only then may it close itself (a dialog opened since is not its business).
+  const onScreen = useRef(false);
+  useEffect(() => {
+    onScreen.current = open;
+    return () => {
+      onScreen.current = false;
+    };
+  }, [open]);
 
   const bad = verdicts.filter((v) => v.status === "error").length;
   const ready = verdicts.length - bad;
@@ -159,26 +176,29 @@ export function BulkImportDialog({
     }
   }
 
-  async function save(subset: SourceRow[]) {
-    setBusy(true);
+  function save(subset: SourceRow[]) {
     setError(null);
-    const reply = await sendJson(endpoint, "POST", { ...context, dryRun: false, rows: asValues(subset) });
-    setBusy(false);
-    if (reply.ok) {
-      const savedLines = new Set(subset.map((r) => r.line));
-      const rest = rows.filter((r) => !savedLines.has(r.line));
-      setRows(rest);
-      setVerdicts(verdicts.filter((v) => !savedLines.has(v.line)));
-      await onSaved(reply.data!.saved as number);
-      if (rest.length === 0) onClose();
-      return;
-    }
-    const fresh = reply.data?.verdicts as RowVerdict[] | undefined;
-    if (reply.code === "BULK_PROBLEMS" && fresh) {
-      const byLine = new Map(fresh.map((v) => [v.line, v]));
-      setVerdicts(verdicts.map((v) => byLine.get(v.line) ?? v));
-    }
-    setError(say(reply, "The rows could not be saved. Nothing was saved."));
+    // When every row on screen is being saved, a finished save closes the dialog; when only the good rows are, the problem rows stay to be fixed.
+    const everyRow = subset.length === rows.length;
+    const id = jobs.start({
+      title: `Adding ${plural(subset.length, noun.one, noun.many)}`,
+      branchName,
+      endpoint,
+      context,
+      rows: asValues(subset),
+      columns: entity.columns.map((c) => ({ key: c.key, label: c.label })),
+      onFinished: async (result) => {
+        // The rows that were saved leave the list; what the server said of a refused batch replaces what the review knew of it. Safe if this dialog is already gone.
+        const saved = new Set(result.savedLines);
+        setRows((all) => all.filter((r) => !saved.has(r.line)));
+        const fresh = new Map((result.verdicts ?? []).map((v) => [v.line, v]));
+        setVerdicts((all) => all.filter((v) => !saved.has(v.line)).map((v) => fresh.get(v.line) ?? v));
+        if (result.saved > 0) await onSaved(result.saved);
+        if (result.stopped) setError(result.message ?? "The rows could not be saved.");
+        else if (everyRow && onScreen.current) onClose();
+      },
+    });
+    setJobId(id);
   }
 
   function openGrid(mode: "new" | "problems" | "all") {
@@ -248,12 +268,20 @@ export function BulkImportDialog({
         open={open}
         confirmClose
         // the platform also reports the close this component asks for itself (`open` has become false by then): only a close of an open dialog is a request to leave
-        onClose={() => open && guard(onClose)}
+        onClose={() => open && (saving ? onClose() : guard(onClose))}
         title={title}
         description={description}
-        wide
+        extraWide
       >
         <div className="space-y-4">
+          {branchName && (
+            <p className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-xs font-semibold tracking-wide text-fg-2 uppercase">Branch</span>
+              <span className="rounded-full border border-brand-strong/40 bg-brand-tint px-3 py-1 font-semibold text-brand-fg">
+                {branchName}
+              </span>
+            </p>
+          )}
           {contextControl?.(stage !== "start")}
           {error && <Alert variant="error">{error}</Alert>}
 
@@ -372,55 +400,80 @@ export function BulkImportDialog({
               )}
               {reviewExtra?.(rows, verdicts)}
               <BulkReview entity={entity} rows={rows} verdicts={verdicts} />
-              <div className="flex flex-wrap items-center gap-2">
-                {bad === 0 && rows.length > 0 && (
-                  <Button loading={busy} onClick={() => void save(rows)}>
-                    Save all {plural(rows.length, "row", "rows")}
-                  </Button>
-                )}
-                {bad > 0 && ready > 0 && (
-                  <Button
-                    loading={busy}
-                    onClick={() => void save(rows.filter((r) => verdicts.find((v) => v.line === r.line)?.status !== "error"))}
-                  >
-                    Save the {plural(ready, "good row", "good rows")} now
-                  </Button>
-                )}
-                <Button variant="secondary" onClick={() => openGrid("problems")} disabled={bad === 0 || bad > GRID_MAX_ROWS}>
-                  Edit the {plural(bad, "problem row", "problem rows")}
-                </Button>
-                <Button variant="secondary" onClick={() => openGrid("all")} disabled={rows.length > GRID_MAX_ROWS || rows.length === 0}>
-                  Edit all {plural(rows.length, "row", "rows")}
-                </Button>
-              </div>
-              {rows.length > GRID_MAX_ROWS && (
-                <p className="text-xs text-fg-muted">
-                  This has more than {GRID_MAX_ROWS} rows, so the grid can only open the problem rows
-                  {bad > GRID_MAX_ROWS
-                    ? ", and there are more than 50 of those: download them, fix them in a spreadsheet and upload the corrections"
-                    : ""}
-                  .
-                </p>
-              )}
-              {bad > 0 && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                  <Button variant="secondary" onClick={() => void downloadProblems("csv")}>
-                    Problem rows (CSV)
-                  </Button>
-                  <Button variant="secondary" onClick={() => void downloadProblems("xlsx")}>
-                    Problem rows (Excel)
-                  </Button>
-                  <label className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-line-strong bg-surface px-4 text-sm font-semibold text-fg hover:bg-surface-2 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
-                    Upload the corrections
-                    <input type="file" accept=".csv,.xlsx" className="sr-only" disabled={busy} onChange={(e) => void onFile(e, true)} />
-                  </label>
+              {saving && job && (
+                <div className="space-y-3 rounded-xl border border-line-strong bg-surface-2 p-4" aria-live="off">
+                  <p className="text-sm font-semibold text-fg">
+                    Saving {job.done} of {job.total}…
+                  </p>
+                  <progress
+                    max={job.total}
+                    value={job.done}
+                    aria-label="Saving"
+                    className="h-2 w-full overflow-hidden rounded-full accent-brand-strong"
+                  />
+                  <p className="text-xs text-fg-muted">
+                    Each batch of 20 is saved on its own. You do not have to wait here: it carries on in the background, with its progress
+                    in the corner of the screen.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => onClose()}>Keep working</Button>
+                    <Button variant="ghost" onClick={() => jobs.stop(job.id)} disabled={job.stopping}>
+                      {job.stopping ? "Stopping…" : "Stop after this batch"}
+                    </Button>
+                  </div>
                 </div>
               )}
-              <div className="border-t border-line pt-3">
-                <Button variant="ghost" onClick={() => guard(startOver)}>
-                  Start over
-                </Button>
-              </div>
+              <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {bad === 0 && rows.length > 0 && (
+                    <Button loading={busy} onClick={() => void save(rows)}>
+                      Save all {plural(rows.length, "row", "rows")}
+                    </Button>
+                  )}
+                  {bad > 0 && ready > 0 && (
+                    <Button
+                      loading={busy}
+                      onClick={() => void save(rows.filter((r) => verdicts.find((v) => v.line === r.line)?.status !== "error"))}
+                    >
+                      Save the {plural(ready, "good row", "good rows")} now
+                    </Button>
+                  )}
+                  <Button variant="secondary" onClick={() => openGrid("problems")} disabled={bad === 0 || bad > GRID_MAX_ROWS}>
+                    Edit the {plural(bad, "problem row", "problem rows")}
+                  </Button>
+                  <Button variant="secondary" onClick={() => openGrid("all")} disabled={rows.length > GRID_MAX_ROWS || rows.length === 0}>
+                    Edit all {plural(rows.length, "row", "rows")}
+                  </Button>
+                </div>
+                {rows.length > GRID_MAX_ROWS && (
+                  <p className="text-xs text-fg-muted">
+                    This has more than {GRID_MAX_ROWS} rows, so the grid can only open the problem rows
+                    {bad > GRID_MAX_ROWS
+                      ? ", and there are more than 50 of those: download them, fix them in a spreadsheet and upload the corrections"
+                      : ""}
+                    .
+                  </p>
+                )}
+                {bad > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                    <Button variant="secondary" onClick={() => void downloadProblems("csv")}>
+                      Problem rows (CSV)
+                    </Button>
+                    <Button variant="secondary" onClick={() => void downloadProblems("xlsx")}>
+                      Problem rows (Excel)
+                    </Button>
+                    <label className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-line-strong bg-surface px-4 text-sm font-semibold text-fg hover:bg-surface-2 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
+                      Upload the corrections
+                      <input type="file" accept=".csv,.xlsx" className="sr-only" disabled={busy} onChange={(e) => void onFile(e, true)} />
+                    </label>
+                  </div>
+                )}
+                <div className="border-t border-line pt-3">
+                  <Button variant="ghost" onClick={() => guard(startOver)}>
+                    Start over
+                  </Button>
+                </div>
+              </fieldset>
             </div>
           )}
 

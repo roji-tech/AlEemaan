@@ -372,6 +372,7 @@ export function ClassesPanel({
 
       {branch.canEdit && (
         <BulkImportDialog
+          branchName={branch.name}
           key={`${view}-${bulk.key}`}
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}
