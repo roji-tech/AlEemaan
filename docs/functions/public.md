@@ -26,6 +26,7 @@ set-up and public verification. The libraries they use are mostly in `src/lib/au
 | POST | `/api/v1/auth/sessions/revoke-others` | `auth/sessions/revoke-others/route.ts` | Signed in (own account) | Ends all the caller's sessions except the current one and returns `{ revoked: n }`; no password needed because it only reduces access. 10 per account per window; audits `SESSIONS_REVOKED` when `n` is above 0. |
 | POST | `/api/v1/auth/sessions/revoke` | `auth/sessions/revoke/route.ts` | Signed in (own account) | Ends one of the caller's own other sessions: `{ sessionId }`. The current session is refused (400 `CURRENT_SESSION`); an unknown, expired or someone else's id are the same 404. 30 per account per window; audits `SESSION_REVOKED` with the device label. |
 | GET | `/api/v1/auth/sessions` | `auth/sessions/route.ts` | Signed in (own account) | The caller's unexpired sessions as `{ sessions }` (id, device label, `current`, `createdAt`, `lastUsedAt`, `keptSignedIn`), current first. Never a token or an address. |
+| POST, GET | `/api/v1/reports` | `reports/route.ts` | POST: any signed-in person. GET: superadmin only | Task 0099. POST records a problem report `{ category, message, pagePath, viewport? }` (strict; message 10 to 2,000 characters; the path only) and mails it to `DEVELOPER_EMAIL` after the response; who sent it, their roles, branches and browser are read by the server. 5 per person in five minutes, then 429. GET returns the 50 newest. |
 
 ## API routes: Account (`/api/v1/account/`)
 

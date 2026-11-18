@@ -76,6 +76,15 @@ Outgoing email: the plain-text body of each message and the transport that sends
 | `messages.ts` | Builders returning `{ to, subject, text }`: `resetEmail`, `passwordChangedEmail`, `mfaEnabledEmail`, `mfaDisabledEmail`, `recoveryCodeUsedEmail(to, remaining)`, `recoveryCodesReplacedEmail`, `emailChangeConfirmEmail`, `emailChangeRequestedNotice`, `emailChangedNotice`, `emailChangeTakenNotice`, `invitationEmail`, `invitationsEmail` (one person invited to several branches, task 0092: every branch named, "For <branch>:" and one link under each), plus `resetLink` and `invitationLink`. Links start from `APP_URL` (default `http://localhost:3000`) and carry the token in the URL fragment, so it is not in server logs or a `Referer`. The new address in the change notices is masked with `maskEmail`. The invitation text is the same whether or not the address has an account. |
 | `transport.ts` | `getEmailTransport()`, `sendEmailQuietly(message)` and `EmailMessage` (`to`, `subject`, `text`). `EMAIL_TRANSPORT` picks `resend` (needs `RESEND_API_KEY` and `EMAIL_FROM`), `console` (prints the whole message), `file` (JSON lines to `EMAIL_FILE`, for tests) or `inbox` (in-memory dev inbox; throws unless the dev tools are on). Unset: `resend` if `RESEND_API_KEY` is set, else `inbox` if the dev tools are on, else `console` (one warning in production). An unknown value throws. `sendEmailQuietly` never throws: it logs and returns `false`, so a send error cannot reveal whether an address has an account. |
 
+## `src/lib/reports/`
+
+Problem reports from Quick Tools > Report (task 0099).
+
+| File | Description |
+| --- | --- |
+| `report.ts` | Client-safe, pure: `reportBody` (strict zod: `category`, `message` 10 to 2,000 characters, `pagePath`, `viewport`), `cleanPath` (path only, no query), `stripControls`, `reportSubject`, `developerEmail(env)` (null when `DEVELOPER_EMAIL` is unset or not an address), `reportEmail(to, report)` (the plain-text mail), `CATEGORY_LABELS`, `REPORTS_PER_WINDOW`. |
+| `service.ts` | `recordReport(userId, body, userAgent)` saves the report with the reporter as the server knows them (name, address, roles, branches), and `mailReport(report)` mails it to `DEVELOPER_EMAIL` after the response and marks `emailed`. |
+
 ## `src/lib/security/`
 
 The page Content-Security-Policy, as pure functions.
