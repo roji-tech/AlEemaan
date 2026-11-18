@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Collection, Item, ItemTile } from "@/components/ui/Collection";
 import { TextField } from "@/components/ui/TextField";
-import { BuildingIcon, ChevronRightIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
+import { useNotice } from "@/components/ui/Toaster";
+import { useCollectionView } from "@/components/ui/useCollectionView";
+import { ViewToggle } from "@/components/ui/ViewToggle";
+import { BuildingIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { BranchDeleteDialog, BranchRenameDialog, type BranchRef } from "@/components/branches/BranchDialogs";
 import { memberLabel } from "@/lib/branches/labels";
 
@@ -29,7 +32,13 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState<string | null>(deletedName ? `“${deletedName}” was deleted.` : null);
+  // What just happened is a toast (task 0096). The "was deleted" message arrives with the redirect from the branch's own page, so it is raised once, on arrival.
+  const [notice, setNotice] = useNotice();
+  useEffect(() => {
+    if (deletedName) setNotice({ variant: "success", text: `“${deletedName}” was deleted.` });
+  }, [deletedName, setNotice]);
+  // List or grid, remembered in this browser (task 0089). Every branch is shown: a school has a handful, and the list is the place to find one, not a long page to turn.
+  const layout = useCollectionView("branches", { defaultView: "list" });
   const [renaming, setRenaming] = useState<BranchRow | null>(null);
   const [deleting, setDeleting] = useState<BranchRow | null>(null);
 
@@ -92,7 +101,7 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
       const body = await res.json().catch(() => null);
 
       if (res.status === 201) {
-        setNotice(`“${body?.data?.branch?.name ?? trimmed}” was created.`);
+        setNotice({ variant: "success", text: `“${body?.data?.branch?.name ?? trimmed}” was created.` });
         closeForm();
         router.refresh(); // re-runs the server component: the new branch appears in the list
         return;
@@ -132,7 +141,7 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
         }
       />
 
-      {notice && <Alert variant="success">{notice}</Alert>}
+      {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
 
       {creating && (
         <Card>
@@ -176,44 +185,54 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
           <p className="mt-1 text-sm text-fg-muted">Use “New branch” above to add the first one.</p>
         </div>
       ) : (
-        <ul aria-label="Branches" className="space-y-3">
-          {branches.map((branch) => (
-            <li
-              key={branch.id}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border border-line bg-surface p-2 shadow-card sm:flex-nowrap"
-            >
-              <Link
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <ViewToggle view={layout.view} onChange={layout.setView} />
+          </div>
+          <Collection label="Branches" view={layout.view} state="ready">
+            {branches.map((branch) => (
+              <Item
+                key={branch.id}
+                leading={
+                  <ItemTile>
+                    <BuildingIcon className="h-5 w-5" />
+                  </ItemTile>
+                }
+                title={branch.name}
+                subtitle={memberLabel(branch.members)}
+                facts={[{ label: "Code", value: branch.code }]}
                 href={`/branches/${branch.id}`}
-                aria-label={`${branch.name}, open`}
-                className="flex min-h-14 min-w-0 flex-1 items-center gap-4 rounded-xl p-2 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-fg"
-                >
-                  <BuildingIcon className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-fg">{branch.name}</span>
-                  <span className="mt-0.5 block text-sm text-fg-muted">
-                    {branch.code} · {memberLabel(branch.members)}
-                  </span>
-                </span>
-                <ChevronRightIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-fg-muted" />
-              </Link>
-              <div className="flex shrink-0 gap-1 pr-1">
-                <Button variant="ghost" aria-label={`Rename ${branch.name}`} onClick={() => setRenaming(branch)}>
-                  <PencilIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Rename</span>
-                </Button>
-                <Button variant="ghost" aria-label={`Delete ${branch.name}`} onClick={() => setDeleting(branch)}>
-                  <TrashIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Delete</span>
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+                hrefLabel={`${branch.name}, open`}
+                actions={[
+                  {
+                    id: "rename",
+                    label: (
+                      <>
+                        <PencilIcon className="h-4 w-4" />
+                        Rename
+                      </>
+                    ),
+                    ariaLabel: `Rename ${branch.name}`,
+                    variant: "ghost",
+                    onClick: () => setRenaming(branch),
+                  },
+                  {
+                    id: "delete",
+                    label: (
+                      <>
+                        <TrashIcon className="h-4 w-4" />
+                        Delete
+                      </>
+                    ),
+                    ariaLabel: `Delete ${branch.name}`,
+                    variant: "ghost",
+                    onClick: () => setDeleting(branch),
+                  },
+                ]}
+              />
+            ))}
+          </Collection>
+        </div>
       )}
 
       {renaming && (
@@ -224,7 +243,7 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
           onClose={() => setRenaming(null)}
           onSaved={(saved) => {
             setRenaming(null);
-            setNotice(`The branch is now called “${saved}”.`);
+            setNotice({ variant: "success", text: `The branch is now called “${saved}”.` });
             router.refresh();
           }}
         />
@@ -236,7 +255,7 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
           onClose={() => setDeleting(null)}
           onDeleted={(removed) => {
             setDeleting(null);
-            setNotice(`“${removed}” was deleted.`);
+            setNotice({ variant: "success", text: `“${removed}” was deleted.` });
             router.refresh();
           }}
         />
