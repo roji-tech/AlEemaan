@@ -38,6 +38,7 @@ export function QuickToolsTrigger() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open Quick Tools (Cmd+K)"
+        data-fixed-bottom
         title="Quick Tools (Cmd+K or Alt+T)"
         className="fixed right-4 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/25 transition-all duration-200 hover:scale-105 hover:bg-brand/90 hover:shadow-xl active:scale-95 lg:right-6 lg:bottom-6 focus:outline-none focus:ring-2 focus:ring-brand-strong focus:ring-offset-2"
       >

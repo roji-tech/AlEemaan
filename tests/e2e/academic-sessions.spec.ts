@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // The Sessions tab of Academics (task 0093, the maintainer 2026-11-18: "where is the page to create academic session?"): create a session (with its terms), make another active (the old one
 // is closed), close, rename, choose the current term, the warning when none is active, what a teacher sees, the deep links from the Overview. Desktop and phone; axe on the screens.
@@ -81,7 +81,7 @@ test("a second session is planned; making it active closes the first, after a wa
   await expect(row(page, "2027/2028")).toContainText("Planned");
   await expect(row(page, "2027/2028").getByRole("list", { name: "Terms of 2027/2028" }).getByRole("listitem")).toHaveCount(2);
 
-  await page.getByRole("button", { name: "Make 2027/2028 the active session" }).click();
+  await clickAction(page, "Make 2027/2028 the active session");
   await expect(dialog(page)).toContainText("2026/2027 is the active session now and will be closed.");
   await dialog(page).getByRole("button", { name: "Make active" }).click();
   await expect(page.getByText("2027/2028 is now the active session of")).toBeVisible();
@@ -102,7 +102,7 @@ test("closing the active session brings the warning back; a session can be renam
   await createFirst(page, "2026/2027");
   await expect(row(page, "2026/2027")).toContainText("Active");
 
-  await page.getByRole("button", { name: "Rename 2026/2027" }).click();
+  await clickAction(page, "Rename 2026/2027");
   await dialog(page).getByLabel("Session name").fill("2026-2027");
   await dialog(page).getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("2026-2027 saved.")).toBeVisible();
@@ -113,7 +113,7 @@ test("closing the active session brings the warning back; a session can be renam
   await expect(dialog(page).getByText("This branch already has a session with this name.")).toBeVisible(); // the form says so before asking the server (the API refuses it too: tests/api)
   await dialog(page).getByRole("button", { name: "Cancel" }).click();
 
-  await page.getByRole("button", { name: "Close 2026-2027" }).click();
+  await clickAction(page, "Close 2026-2027");
   await expect(dialog(page)).toContainText("will have no active session");
   await dialog(page).getByRole("button", { name: "Close session" }).click();
   await expect(page.getByText("2026-2027 is closed.")).toBeVisible();
@@ -124,7 +124,7 @@ test("a term of the active session can be made current", async ({ page }) => {
   await asAdmin(page);
   await page.goto("/academics?section=sessions");
   await createFirst(page, "2026/2027");
-  await page.getByRole("button", { name: "Make 2nd Term the current term of 2026/2027" }).click();
+  await clickAction(page, "Make 2nd Term the current term of 2026/2027");
   await expect(page.getByText("2nd Term is now the current term of 2026/2027.")).toBeVisible();
   const terms = row(page, "2026/2027").getByRole("list", { name: "Terms of 2026/2027" });
   await expect(terms.getByRole("listitem").filter({ hasText: "2nd Term" })).toContainText("Current");
@@ -275,7 +275,7 @@ test("the dates of a session and its terms can be edited afterwards; an overlap 
     },
   });
   await page.goto("/academics?section=sessions");
-  await page.getByRole("button", { name: "Edit the dates of 2026/2027" }).click();
+  await clickAction(page, "Edit the dates of 2026/2027");
   const d = dialog(page);
   await expect(d.getByRole("heading", { name: "Dates of 2026/2027" })).toBeVisible();
   await expect(d.getByLabel("1st Term ends")).toHaveValue("2026-12-15");

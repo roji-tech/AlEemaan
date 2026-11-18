@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
-import { signInThroughUi, signOut } from "./helpers";
+import { signInThroughUi, signOut, switchBranch } from "./helpers";
 
 // Security, as a browser sees it (Slice UI1). The API specs already cover headers, CSRF and the guards one request at a time; these check what only a real browser
 // shows: who is shown which page, whether another branch's data can be reached by changing a URL, whether text typed by one person can run as code in another's
@@ -98,7 +98,7 @@ test("text typed by one person never runs as code in another person's page", asy
     await noScriptRan(page);
   }
   await page.goto("/students", { waitUntil: "networkidle" });
-  await page.getByLabel("Branch").selectOption({ label: "Secondary (English)" });
+  await switchBranch(page, "Secondary (English)");
   await expect(page.getByText("<img src=x", { exact: false }).first()).toBeVisible(); // shown as text, not interpreted
   expect(dialogs).toBe(0);
 });

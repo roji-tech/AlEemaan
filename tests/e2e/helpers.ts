@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect } from "../support/fixtures";
 
 /// Alerts in the page's <main>. Next.js also renders its own (empty)
@@ -113,4 +113,42 @@ export async function hasRowAction(page: Page, label: string): Promise<boolean> 
 /// The Users page keeps the pending invitations on their own tab ("Pending invitations (2)"): opens it.
 export async function openInvitationsTab(page: Page): Promise<void> {
   await page.getByRole("tab", { name: /^Pending invitations/ }).click();
+}
+
+/// Clicks an action of a row, a card or a term by its accessible name, opening the three-dots menu that holds it when it is not on the screen (task 0100: two or more actions of an item
+/// are folded into one "Actions for <name>" button). `scope` is the page or one item; give an item when the page has several, so only its own menu is opened. A button that is already
+/// on the screen is clicked as it is. Throws when no menu in the scope holds the action.
+export async function clickAction(scope: Page | Locator, name: string | RegExp, options: { exact?: boolean } = {}): Promise<void> {
+  const wanted = scope.getByRole("button", { name, exact: options.exact });
+  const dots = scope.getByRole("button", { name: /^Actions for /, expanded: false });
+  // The lists load after the page: wait until either the button or some three-dots button is there before deciding which it is.
+  await wanted.or(dots).first().waitFor();
+  if ((await wanted.count()) > 0) {
+    await wanted.first().click();
+    return;
+  }
+  const count = await dots.count();
+  for (let i = 0; i < count; i++) {
+    const trigger = dots.nth(i);
+    await trigger.click();
+    if ((await wanted.count()) > 0) {
+      await wanted.first().click();
+      return;
+    }
+    await trigger.press("Escape");
+  }
+  throw new Error(`no action named ${String(name)} on the screen or in any of its ${count} menus`);
+}
+
+/// Opens the three-dots menu of one item (the page when it has only one), for a test that looks at what the menu holds. Leaves it open; returns the three-dots button.
+export async function openMenu(scope: Page | Locator, name?: string | RegExp): Promise<Locator> {
+  const trigger = scope.getByRole("button", { name: name ?? /^Actions for /, expanded: false }).first();
+  await trigger.click();
+  return trigger;
+}
+
+/// Chooses a branch in the page's branch bar ("BRANCH: <name> [Switch branch]"; our own dropdown since task 0100, no longer a native select): opens the list and picks the branch.
+export async function switchBranch(scope: Page | Locator, name: string): Promise<void> {
+  await scope.getByRole("button", { name: "Switch branch" }).click();
+  await scope.getByRole("list", { name: "Branches" }).getByRole("button", { name, exact: true }).click();
 }

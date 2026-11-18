@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // The mid-term or mid-semester break on the Sessions tab (task 0098; the maintainer, 2026-11-18: "we also have something we call mid-term or mid-semester holiday, how do we apply it? and this is
 // something worth annoucement too"): add a break to a term, the announcement offered right after (sent, or "Not now"), a break refused with the reason, change and remove. Desktop and phone.
@@ -58,7 +58,7 @@ async function withSession(page: Page) {
   return { admin, session };
 }
 async function addMid(page: Page, from = "2026-10-26", to = "2026-10-30") {
-  await page.getByRole("button", { name: TERM }).click();
+  await clickAction(page, TERM);
   await dialog(page).getByLabel("First day of the break").fill(from);
   await dialog(page).getByLabel("Last day of the break").fill(to);
   await dialog(page).getByRole("button", { name: "Add the break" }).click();
@@ -68,7 +68,7 @@ test("a break is added to a term, and the announcement is offered with the words
   page,
 }) => {
   const { admin, session } = await withSession(page);
-  await page.getByRole("button", { name: TERM }).click();
+  await clickAction(page, TERM);
   await expect(dialog(page).getByRole("heading", { name: "Add a break to the 1st Term" })).toBeVisible();
   await expect(dialog(page).getByLabel("Name of the break")).toHaveValue("Mid-term break");
   await expectAccessible(page, "the add a break form");
@@ -120,7 +120,7 @@ test("'Not now' sends nothing; a break outside its term or overlapping another i
   await expect(dialog(page)).toHaveCount(0);
   expect(await db.announcement.count({ where: { branchId: admin.branchId! } })).toBe(0);
 
-  await page.getByRole("button", { name: TERM }).click();
+  await clickAction(page, TERM);
   await dialog(page).getByLabel("First day of the break").fill("2026-12-20");
   await dialog(page).getByLabel("Last day of the break").fill("2026-12-22");
   await dialog(page).getByRole("button", { name: "Add the break" }).click();
@@ -139,14 +139,14 @@ test("a break can be changed and removed; a removed one is archived and its days
   await addMid(page);
   await dialog(page).getByRole("button", { name: "Not now" }).click();
 
-  await page.getByRole("button", { name: "Change Mid-term break in the 1st Term of 2026/2027" }).click();
+  await clickAction(page, "Change Mid-term break in the 1st Term of 2026/2027");
   await dialog(page).getByLabel("Last day of the break").fill("2026-10-29");
   await dialog(page).getByRole("button", { name: "Save the break" }).click();
   await expect(page.getByText("Mid-term break saved.")).toBeVisible();
   await expect(page.getByRole("list", { name: "Breaks in the 1st Term of 2026/2027" })).toContainText("26 Oct 2026 to 29 Oct 2026");
   expect(await db.announcement.count()).toBe(0); // changing one offers nothing
 
-  await page.getByRole("button", { name: "Remove Mid-term break from the 1st Term of 2026/2027" }).click();
+  await clickAction(page, "Remove Mid-term break from the 1st Term of 2026/2027");
   await expect(dialog(page).getByRole("heading", { name: "Remove Mid-term break?" })).toBeVisible();
   await expect(dialog(page)).toContainText("An announcement already sent about Mid-term break is not withdrawn");
   await dialog(page).getByRole("button", { name: "Remove the break" }).click();
@@ -201,7 +201,7 @@ test("a teacher sees the breaks and none of the buttons", async ({ page }) => {
 test("on a phone the break form and the announcement fit the screen", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await withSession(page);
-  await page.getByRole("button", { name: TERM }).click();
+  await clickAction(page, TERM);
   await dialog(page).getByLabel("First day of the break").fill("2026-10-26");
   await dialog(page).getByLabel("Last day of the break").fill("2026-10-30");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);

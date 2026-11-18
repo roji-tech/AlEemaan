@@ -8,12 +8,13 @@ import { Collection, Item, ItemTile } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
 import { BranchPicker } from "@/components/ui/BranchPicker";
 import { InfoTip } from "@/components/ui/InfoTip";
-import { CalendarIcon, SpinnerIcon } from "@/components/ui/icons";
+import { CalendarIcon } from "@/components/ui/icons";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 import { EditDatesDialog, PeriodDatesFields, problemAt } from "@/components/academics/SessionDates";
+import { SessionTerms, day } from "@/components/academics/SessionTerms";
 import {
   AnnounceBreakDialog,
   BreakDialog,
@@ -64,10 +65,6 @@ const STATUS_STYLE: Record<Status, string> = {
   PLANNED: "border-info-line bg-info-bg text-info-fg",
   CLOSED: "border-line bg-surface-2 text-fg-muted",
 };
-// Dates are calendar days stored at midnight UTC: read them as UTC or a viewer west of Greenwich sees the day before.
-const DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-const day = (iso: string) => DAY.format(new Date(iso));
-
 function StatusBadge({ status }: { status: Status }) {
   return <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[status]}`}>{STATUS_TEXT[status]}</span>;
 }
@@ -252,84 +249,20 @@ export function SessionsPanel({
                       ]
                     : undefined
                 }
-              >
-                {s.periods.length > 0 && (
-                  <ul aria-label={`${noun === "semester" ? "Semesters" : "Terms"} of ${s.label}`} className="flex flex-wrap gap-2">
-                    {s.periods.map((p) => (
-                      <li
-                        key={p.id}
-                        className={`rounded-xl border px-3 py-1.5 text-sm ${
-                          p.isCurrent ? "border-ok-line bg-ok-bg text-ok-fg" : "border-line bg-surface-2 text-fg-2"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="font-semibold">{p.label}</span>
-                          <span className="text-xs">
-                            {day(p.startDate)} to {day(p.endDate)}
-                          </span>
-                          {p.isCurrent && <span className="text-xs font-semibold">Current</span>}
-                          {branch.canEdit && s.status === "ACTIVE" && !p.isCurrent && (
-                            <button
-                              type="button"
-                              onClick={() => makeCurrent(s, p)}
-                              disabled={settingTerm !== null}
-                              aria-busy={settingTerm === p.id}
-                              aria-label={`Make ${p.label} the current ${kindNoun(p.kind)} of ${s.label}`}
-                              className="relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
-                            >
-                              {settingTerm === p.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
-                              {settingTerm === p.id ? "Setting…" : "Make current"}
-                            </button>
-                          )}
-                          {branch.canEdit && s.status !== "CLOSED" && (
-                            <button
-                              type="button"
-                              onClick={() => setBreakTarget(breakTargetOf(s, p))}
-                              aria-label={`Add a break to the ${p.label} of ${s.label}`}
-                              className="relative z-10 inline-flex min-h-6 items-center rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                            >
-                              Add a break
-                            </button>
-                          )}
-                        </div>
-                        {p.breaks.length > 0 && (
-                          <ul
-                            aria-label={`Breaks in the ${p.label} of ${s.label}`}
-                            className="mt-1.5 space-y-1 border-t border-line pt-1.5"
-                          >
-                            {p.breaks.map((b) => (
-                              <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-                                <span className="font-semibold">{b.label}</span>
-                                <span>{b.startDate === b.endDate ? day(b.startDate) : `${day(b.startDate)} to ${day(b.endDate)}`}</span>
-                                {branch.canEdit && s.status !== "CLOSED" && (
-                                  <span className="relative z-10 inline-flex gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => setBreakTarget(breakTargetOf(s, p, b))}
-                                      aria-label={`Change ${b.label} in the ${p.label} of ${s.label}`}
-                                      className="min-h-6 rounded px-1 font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                                    >
-                                      Change
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setAction({ kind: "removeBreak", session: s, period: p, brk: b })}
-                                      aria-label={`Remove ${b.label} from the ${p.label} of ${s.label}`}
-                                      className="min-h-6 rounded px-1 font-semibold text-danger-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                                    >
-                                      Remove
-                                    </button>
-                                  </span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Item>
+                below={
+                  <SessionTerms
+                    sessionLabel={s.label}
+                    sessionStatus={s.status}
+                    periods={s.periods}
+                    canEdit={branch.canEdit}
+                    settingTerm={settingTerm}
+                    onMakeCurrent={(p) => makeCurrent(s, p)}
+                    onAddBreak={(p) => setBreakTarget(breakTargetOf(s, p))}
+                    onChangeBreak={(p, b) => setBreakTarget(breakTargetOf(s, p, b))}
+                    onRemoveBreak={(p, b) => setAction({ kind: "removeBreak", session: s, period: p, brk: b })}
+                  />
+                }
+              />
             );
           })}
         </Collection>

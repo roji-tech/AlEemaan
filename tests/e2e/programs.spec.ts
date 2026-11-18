@@ -309,7 +309,7 @@ test.describe("the programs switch in Settings", () => {
     await seedProgram(admin.id);
     await signInThroughUi(page, admin);
     await page.goto("/settings");
-    await page.getByRole("button", { name: "Programs", exact: true }).click();
+    await page.getByRole("tab", { name: "Programs", exact: true }).click();
     await expect(page.getByText("On for the school", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: `Turn off programs for ${FIRST}` }).click();
@@ -328,7 +328,7 @@ test.describe("the programs switch in Settings", () => {
     await expect(page.getByRole("button", { name: "New program" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Quran memorisation" })).toBeVisible(); // a super admin can still read what exists
     await page.getByRole("link", { name: /Switch them on in Settings/ }).click();
-    await page.getByRole("button", { name: "Programs", exact: true }).click();
+    await page.getByRole("tab", { name: "Programs", exact: true }).click();
     await page.getByRole("button", { name: "Turn on for the school" }).click();
     await expect(page.getByText("Programs are on for the school.")).toBeVisible();
   });
@@ -382,7 +382,7 @@ test.describe("accessible and fits the width, in both themes", () => {
     const admin = await createUser({ role: Role.ADMIN });
     await signInThroughUi(page, admin);
     await page.goto("/settings");
-    await page.getByRole("button", { name: "Programs", exact: true }).click();
+    await page.getByRole("tab", { name: "Programs", exact: true }).click();
     await expect(page.getByText("On for the school", { exact: true })).toBeVisible();
     await expectAccessible(page, "settings programs");
     await expectFits(page, "settings programs");

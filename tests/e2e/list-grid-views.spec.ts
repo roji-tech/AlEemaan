@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, openMenu } from "./helpers";
 
 // The list/grid kit on Academics (task 0089): the toggle, the remembered choice, the pager, the tab strip and its margin, and no sideways scroll at any width from a small phone to a wide
 // desktop, in both views. Further lists are covered by their own specs and by the width sweep in tests/e2e/responsive-lists.spec.ts as they adopt the kit.
@@ -88,9 +88,13 @@ test("the pager: the range, the page numbers, and a change of size keeps the fir
 test("a card keeps every button with its full name, and the facts are numbers with labels", async ({ page }) => {
   await seed(page, 1);
   const card = classes(page).getByRole("listitem").first();
+  // Task 0100: the four actions are behind the card's one three-dots button, each under its full name.
+  await expect(card.getByRole("button")).toHaveCount(1);
+  await openMenu(card, "Actions for Class 01");
   for (const name of ["Add an arm to Class 01", "Subjects of Class 01", "Rename Class 01", "Archive Class 01"]) {
     await expect(card.getByRole("button", { name })).toBeVisible();
   }
+  await page.keyboard.press("Escape");
   await expect(card.getByRole("term").filter({ hasText: /^arms$/ })).toBeVisible();
   await expectAccessible(page, "the classes as cards");
   await page.getByRole("group", { name: "View" }).getByRole("button", { name: "List view" }).click();

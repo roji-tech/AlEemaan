@@ -1,5 +1,6 @@
 "use client";
 
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { useState, useEffect, useCallback } from "react";
 import { InvoicesDashboard, type InvoiceItemSummary } from "./InvoicesDashboard";
 import { FeeStructuresPanel } from "./FeeStructuresPanel";
@@ -81,29 +82,13 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
     }
   }, [selectedBranchId, loadData]);
 
+  // A person who may not change branch (not a superadmin, tied to one) sees their branch's name only.
+  const pickable = isSuperAdmin || !userBranchId ? branches : branches.filter((b) => b.id === selectedBranchId);
+
   return (
     <div className="space-y-6">
       {/* Branch selector for multi-branch environments */}
-      {branches.length > 1 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm">
-          <label htmlFor="finance-branch" className="text-xs font-semibold text-fg">
-            Branch:
-          </label>
-          <select
-            id="finance-branch"
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            disabled={!isSuperAdmin && !!userBranchId}
-            className="rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-brand-strong"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {branches.length > 1 && <BranchPicker branches={pickable} value={selectedBranchId} onChange={setSelectedBranchId} />}
 
       {/* Tabs */}
       <div role="tablist" aria-label="Finance navigation" className="flex border-b border-line gap-4 text-xs font-semibold">

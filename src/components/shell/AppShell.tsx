@@ -83,9 +83,9 @@ export function AppShell({
           </div>
         </header>
 
-        {/* pb-32 on phones: the floating tab bar (~72 px + its 12 px gap + the safe area) must never
-            cover the last thing on the page. */}
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl px-4 py-8 pb-32 focus:outline-none sm:px-6 lg:py-10 lg:pb-12">
+        {/* pb-44 on phones: the floating tab bar (~72 px + its 12 px gap + the safe area) AND the floating tools button above it (it ends about 148 px from the bottom) must never
+            cover the last thing on the page, nor the list of a three-dots menu opened on the last row (task 0100: at pb-32 that list's last item was behind the tools button). */}
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl px-4 py-8 pb-44 focus:outline-none sm:px-6 lg:py-10 lg:pb-12">
           {children}
         </main>
       </div>

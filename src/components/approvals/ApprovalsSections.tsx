@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useTabParam } from "@/components/ui/useTabParam";
 import type { BranchChoice } from "@/components/academics/common";
 import { RequestsPanel } from "@/components/approvals/RequestsPanel";
 import { LayoutPanel } from "@/components/approvals/LayoutPanel";
@@ -30,7 +30,10 @@ export function ApprovalsSections({
     { id: "verification", label: "Verification page" },
     ...(isSuperAdmin ? [{ id: "self" as const, label: "Self-approval" }] : []),
   ];
-  const [active, setActive] = useState<SectionId>("requests");
+  const [active, setActive] = useTabParam(
+    sections.map((s) => s.id),
+    "requests",
+  );
 
   return (
     <div className="space-y-6">

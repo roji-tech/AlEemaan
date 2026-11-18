@@ -17,7 +17,8 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
   // Links from the Overview: which tab, which branch, and whether to open its "new" form. Only values this page knows are used (a branch id is checked against the person's own branches below).
   const query = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const section = one(query.section);
+  // `tab` is the name now; `section` is what older links (and bookmarks) still say.
+  const section = one(query.tab) ?? one(query.section);
   const visible = await branchIdsFor(session.userId);
   const scope = await adminScope(session.userId);
   const branches = await prisma.branch.findMany({
