@@ -54,10 +54,16 @@ export function mapTable(
     } else if (opts.allowRowColumn && ROW_HEADERS.has(n) && rowAt === -1) rowAt = i;
     else if (!SILENT_HEADERS.has(n) && n !== "") out.warnings.push(`The column "${raw.trim()}" is not recognised and was ignored.`);
   });
-  // A name column stands in for first and last name when the file has no column of its own for them (the middle name is optional anyway).
+  // A name column stands in for the first and the last name only when the file lacks a column of its own for one of them; then it fills every part the file has no column for (the middle
+  // name too). Separate columns win: a file with its own First name AND Last name columns keeps them, and the name column beside them is ignored (and said so).
   const filledByFullName = new Set<string>();
   if (fullAt !== -1 && opts.fullName) {
-    for (const key of [opts.fullName.first, opts.fullName.middle, opts.fullName.last]) if (!at.has(key)) filledByFullName.add(key);
+    const { first, middle, last } = opts.fullName;
+    if (!at.has(first) || !at.has(last)) {
+      for (const key of [first, middle, last]) if (!at.has(key)) filledByFullName.add(key);
+    } else {
+      out.warnings.push(`The column "${head.cells[fullAt].trim()}" was ignored: the file has its own first and last name columns.`);
+    }
   }
   for (const c of columns)
     if (c.required && !at.has(c.key) && !filledByFullName.has(c.key))
