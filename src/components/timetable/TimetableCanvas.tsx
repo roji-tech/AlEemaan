@@ -70,6 +70,7 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
     setModalOpen(true);
   };
 
+  // The day columns (task 0100): as many as the width holds at 13 rem each, so five across on a wide screen, three at 850 px and one on a phone. A fixed five from 768 px left each day about 150 px.
   return (
     <div className="space-y-6">
       {/* Top Filter and Controls Bar */}
@@ -157,15 +158,15 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
 
       {/* Grid Canvas View */}
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-4">
           {activeDays.map((day) => {
             const daySlots = filteredSlots.filter((s) => s.dayOfWeek === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
             return (
               <div key={day} className="flex flex-col rounded-2xl border border-line bg-surface overflow-hidden min-h-87.5 shadow-sm">
                 {/* Day Header */}
-                <div className="flex items-center justify-between border-b border-line bg-surface-2 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-1 border-b border-line bg-surface-2 py-1 pr-1 pl-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-semibold text-sm text-fg">{getDayName(day)}</span>
                     <span className="rounded-full bg-field border border-line px-2 py-0.5 text-[10px] font-medium text-fg-muted">
                       {daySlots.length}
@@ -176,7 +177,7 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
                       type="button"
                       onClick={() => handleOpenAdd(day)}
                       title={`Add slot to ${getDayName(day)}`}
-                      className="rounded-lg p-1 text-fg-muted hover:bg-field hover:text-fg focus-visible:outline-2 focus-visible:outline-ring"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg text-fg-muted hover:bg-field hover:text-fg focus-visible:outline-2 focus-visible:outline-ring"
                       aria-label={`Add slot on ${getDayName(day)}`}
                     >
                       +

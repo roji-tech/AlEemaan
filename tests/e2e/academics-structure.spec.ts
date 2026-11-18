@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // The Academics page in a real browser (Slice P1): a branch administrator builds classes, arms and subjects and chooses what each class studies; a teacher only
 // looks; a branch administrator sees no other branch's controls. Axe (WCAG 2.2 A/AA) runs on the page and each dialog in BOTH themes (the app is dark by default;
@@ -76,19 +76,19 @@ for (const theme of ["dark", "light"] as const) {
       .first();
     await expect(card).toContainText("No subjects set");
 
-    await card.getByRole("button", { name: `Add an arm to ${tag} JSS 1` }).click();
+    await clickAction(card, `Add an arm to ${tag} JSS 1`);
     await dialog(page).getByLabel("Arm name").fill("A");
     await dialog(page).getByRole("button", { name: "Add arm" }).click();
     await expect(card).toContainText("A · 0");
 
-    await card.getByRole("button", { name: `Subjects of ${tag} JSS 1` }).click();
+    await clickAction(card, `Subjects of ${tag} JSS 1`);
     await expectAccessible(page, `subjects of a class dialog (${theme})`);
     await dialog(page).getByLabel(`${tag} Mathematics`).check();
     await dialog(page).getByRole("button", { name: "Save subjects" }).click();
     await expect(card).toContainText(`${tag} Mathematics`);
     await page.screenshot({ path: `${SHOTS}/aleemaan-academics-${theme}.png`, fullPage: true });
 
-    await card.getByRole("button", { name: `Archive ${tag} JSS 1` }).click();
+    await clickAction(card, `Archive ${tag} JSS 1`);
     await expect(page.getByText(`${tag} JSS 1 archived.`)).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: `${tag} JSS 1` })).toHaveCount(0);
     expect(await db.classGroup.count({ where: { name: `${tag} JSS 1`, archivedAt: { not: null } } })).toBe(1); // archived, not deleted

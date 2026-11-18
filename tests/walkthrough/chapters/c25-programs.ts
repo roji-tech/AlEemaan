@@ -369,7 +369,7 @@ export async function c25Programs(walk: Walk, page: Page): Promise<void> {
       await signOut(walk, page);
       await signIn(walk, page, cast.superadmin);
       await openPage(walk, page, "Settings");
-      await walk.click(page.getByRole("button", { name: "Programs", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Programs", exact: true }));
       await expect(page.getByText("On for the school", { exact: true })).toBeVisible();
       await walk.click(page.getByRole("button", { name: `Turn off programs for ${english}` }));
       await expect(page.getByText(`${english} no longer takes part in programs.`)).toBeVisible();
@@ -382,7 +382,7 @@ export async function c25Programs(walk: Walk, page: Page): Promise<void> {
       await expect(page.getByText("Programs are switched off for the school.")).toBeVisible();
       await expect(page.getByRole("button", { name: "New program" })).toHaveCount(0);
       await walk.click(page.getByRole("link", { name: /Switch them on in Settings/ }));
-      await walk.click(page.getByRole("button", { name: "Programs", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Programs", exact: true }));
       await walk.click(page.getByRole("button", { name: "Turn on for the school" }));
       await expect(page.getByText("Programs are on for the school.")).toBeVisible();
     },

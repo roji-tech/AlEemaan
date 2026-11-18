@@ -293,6 +293,14 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
       {branch.canEdit && (
         <BulkImportDialog
           branchName={branch.name}
+          branchChoices={branches.filter((b) => b.canEdit)}
+          branchId={branchId}
+          onBranchChange={(id) => {
+            setNotice(null);
+            setStaff(null);
+            setPage(1);
+            setBranchId(id);
+          }}
           key={bulk.key}
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}

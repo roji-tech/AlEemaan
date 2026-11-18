@@ -272,7 +272,7 @@ export async function c12Portal(walk: Walk, page: Page): Promise<void> {
       await signIn(walk, page, cast.superadmin);
       await walk.click(mainNav(page).getByRole("link", { name: "Settings", exact: true }));
       await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
-      await walk.click(page.getByRole("button", { name: "Portal access", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Portal access", exact: true }));
       await expect(page.getByRole("heading", { name: "Portal access" })).toBeVisible();
       await walk.selectOption(page.getByLabel("Branch", { exact: true }), school.branches.englishPrimary);
       await expect(page.getByText("Nothing has been changed for this branch. The recommended settings apply.")).toBeVisible();
@@ -326,7 +326,7 @@ export async function c12Portal(walk: Walk, page: Page): Promise<void> {
       await backToStaffSignIn(walk, page);
       await signIn(walk, page, cast.superadmin);
       await walk.click(mainNav(page).getByRole("link", { name: "Settings", exact: true }));
-      await walk.click(page.getByRole("button", { name: "Portal access", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Portal access", exact: true }));
       await walk.selectOption(page.getByLabel("Branch", { exact: true }), school.branches.englishPrimary);
       await expect(page.getByRole("checkbox", { name: "Pupil: Fees and invoices" })).toBeChecked();
       await walk.click(page.getByRole("checkbox", { name: "Pupil: Take quizzes" }));

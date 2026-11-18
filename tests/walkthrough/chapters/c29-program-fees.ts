@@ -253,7 +253,7 @@ export async function c29ProgramFees(walk: Walk, page: Page): Promise<void> {
       await signOut(walk, page);
       await signIn(walk, page, cast.superadmin);
       await openPage(walk, page, "Settings");
-      await walk.click(page.getByRole("button", { name: "Programs", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Programs", exact: true }));
       await expect(page.getByRole("heading", { name: "Fees in programs" })).toBeVisible();
       await expect(page.getByText("Fees is on for the school", { exact: true })).toBeVisible();
       await walk.click(page.getByRole("button", { name: `Turn off program fees for ${arabic}` }));

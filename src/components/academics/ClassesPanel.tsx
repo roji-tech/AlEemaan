@@ -257,6 +257,30 @@ export function ClassesPanel({
                         ]
                       : undefined
                   }
+                  below={
+                    g.arms.length > 0 ? (
+                      <ul aria-label={`Arms of ${g.name}`} className="flex flex-wrap gap-2">
+                        {g.arms.map((a) => (
+                          <li key={a.id} className="flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1 text-sm text-fg-2">
+                            <span>
+                              {a.name}
+                              {a.capacity ? ` · cap ${a.capacity}` : ""} · {a.enrolments}
+                            </span>
+                            {branch.canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
+                                aria-label={`Edit arm ${a.name} of ${g.name}`}
+                                className="relative z-10 ml-1 min-h-6 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : undefined
+                  }
                 >
                   <p className="text-fg-muted">
                     {names.length === 0 ? (
@@ -268,28 +292,6 @@ export function ClassesPanel({
                       </>
                     )}
                   </p>
-                  {g.arms.length > 0 && (
-                    <ul className="mt-3 flex flex-wrap gap-2">
-                      {g.arms.map((a) => (
-                        <li key={a.id} className="flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1 text-sm text-fg-2">
-                          <span>
-                            {a.name}
-                            {a.capacity ? ` · cap ${a.capacity}` : ""} · {a.enrolments}
-                          </span>
-                          {branch.canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
-                              aria-label={`Edit arm ${a.name} of ${g.name}`}
-                              className="relative z-10 ml-1 min-h-6 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                            >
-                              Edit
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </Item>
               );
             })}
@@ -410,6 +412,13 @@ export function ClassesPanel({
       {branch.canEdit && (
         <BulkImportDialog
           branchName={branch.name}
+          branchChoices={branches.filter((b) => b.canEdit)}
+          branchId={branchId}
+          onBranchChange={(id) => {
+            setNotice(null);
+            clearFilters();
+            onBranchChange(id);
+          }}
           key={`${view}-${bulk.key}`}
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}

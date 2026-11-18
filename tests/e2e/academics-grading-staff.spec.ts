@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // The Assessment and grading and Staff sections of the Academics page in a real browser (Slice P1d). A branch administrator builds an assessment scheme (and
 // meets the server's sentence when the marks do not add up), applies the WAEC-style template to a grade scale and makes it the default, records a staff member,
@@ -151,7 +151,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(row).toContainText("No sign-in");
     await expect(row).toContainText(/Assignments\s*0/);
 
-    await row.getByRole("button", { name: `Manage ${tag}Amina Bello` }).click();
+    await clickAction(row, `Manage ${tag}Amina Bello`);
     await expectAccessible(page, `manage dialog (${theme})`);
     await dialog(page).getByLabel("Link to a member").selectOption({ label: colleague.name });
     await dialog(page).getByRole("button", { name: "Link sign-in" }).click();

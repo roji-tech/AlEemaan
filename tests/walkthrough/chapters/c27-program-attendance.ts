@@ -326,7 +326,7 @@ export async function c27ProgramAttendance(walk: Walk, page: Page): Promise<void
     },
     async () => {
       await openPage(walk, page, "Settings");
-      await walk.click(page.getByRole("button", { name: "Programs", exact: true }));
+      await walk.click(page.getByRole("tab", { name: "Programs", exact: true }));
       await expect(page.getByRole("heading", { name: "Attendance in programs" })).toBeVisible();
       await expect(page.getByText("Attendance is on for the school", { exact: true })).toBeVisible();
       await walk.click(page.getByRole("button", { name: `Turn off program attendance for ${arabic}` }));

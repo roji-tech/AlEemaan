@@ -71,7 +71,7 @@ export function BulkReview({ entity, rows, verdicts }: { entity: BulkEntityShape
                   <>
                     {" "}
                     <a
-                      href="/academics?section=sessions"
+                      href="/academics?tab=sessions"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold text-brand-fg underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

@@ -1,5 +1,6 @@
 "use client";
 
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { useState, useEffect, useCallback, useRef, type KeyboardEvent } from "react";
 import { AssignmentsList } from "./AssignmentsList";
 import { MaterialsList } from "./MaterialsList";
@@ -87,25 +88,7 @@ export function LmsPanel({ branches, rolesByBranch, userBranchId }: LmsPanelProp
   return (
     <div className="space-y-6">
       {/* Top Bar: Branch Selector */}
-      {branches.length > 1 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface border border-line rounded-xl">
-          <label htmlFor="lms-branch-select" className="text-sm font-semibold text-fg">
-            Current Branch:
-          </label>
-          <select
-            id="lms-branch-select"
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="rounded-lg border border-line-strong bg-field px-3 py-1.5 text-sm font-medium shadow-sm focus:border-brand-fg focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {branches.length > 1 && <BranchPicker branches={branches} value={selectedBranchId} onChange={setSelectedBranchId} />}
 
       {/* Accessible Tab Navigation */}
       <div className="border-b border-line">
@@ -127,9 +110,7 @@ export function LmsPanel({ branches, rolesByBranch, userBranchId }: LmsPanelProp
                 onClick={() => setActiveTab(tab.id)}
                 onKeyDown={(e) => handleKeyDown(e, idx)}
                 className={`py-3 px-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-t-md ${
-                  isSelected
-                    ? "border-brand-fg text-brand-fg"
-                    : "border-transparent text-fg-muted hover:text-fg hover:border-line"
+                  isSelected ? "border-brand-fg text-brand-fg" : "border-transparent text-fg-muted hover:text-fg hover:border-line"
                 }`}
               >
                 {tab.label}

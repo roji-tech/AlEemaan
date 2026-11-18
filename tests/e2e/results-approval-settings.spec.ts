@@ -28,7 +28,10 @@ async function expectAccessible(page: Page, what: string) {
       results.violations.map((v) => `${v.id} [${v.impact}] ${v.help}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`),
       `accessibility violations on ${what} (${theme})`,
     ).toEqual([]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${what} scrolls sideways (${theme})`).toBe(true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+      `${what} scrolls sideways (${theme})`,
+    ).toBe(true);
   }
   await page.evaluate(() => void (document.documentElement.dataset.theme = "dark"));
 }
@@ -46,15 +49,22 @@ test.beforeEach(async () => {
   homeId = home.id;
   admin = await createUser({ name: "Sue Superadmin", role: Role.ADMIN });
   approverUser = await createUser({ name: "Ada Approver", superAdmin: false });
-  await db.membership.create({ data: { userId: approverUser.id, branchId: home.id, role: Role.TEACHING_STAFF, permissions: [Permission.CAN_APPROVE_RESULTS] } });
-  await db.classGroup.createMany({ data: [{ branchId: home.id, name: "JSS 1" }, { branchId: home.id, name: "SSS 1" }] });
+  await db.membership.create({
+    data: { userId: approverUser.id, branchId: home.id, role: Role.TEACHING_STAFF, permissions: [Permission.CAN_APPROVE_RESULTS] },
+  });
+  await db.classGroup.createMany({
+    data: [
+      { branchId: home.id, name: "JSS 1" },
+      { branchId: home.id, name: "SSS 1" },
+    ],
+  });
 });
 
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Confirm it's you" });
 async function openTab(page: Page) {
   await signInThroughUi(page, admin);
   await page.goto("/settings");
-  await page.getByRole("button", { name: "Results approval" }).click();
+  await page.getByRole("tab", { name: "Results approval" }).click();
   await expect(page.getByRole("heading", { name: "Sections" })).toBeVisible();
 }
 async function confirm(page: Page) {
@@ -64,7 +74,9 @@ async function confirm(page: Page) {
   await expect(dialog(page)).toBeHidden();
 }
 
-test("a superadmin adds a section, puts a class in it and gives an approver that section; a wrong password changes nothing", async ({ page }) => {
+test("a superadmin adds a section, puts a class in it and gives an approver that section; a wrong password changes nothing", async ({
+  page,
+}) => {
   await openTab(page);
   await expect(page.getByText("There are no sections yet.")).toBeVisible();
   await expect(page.getByText("Approves nothing yet.")).toBeVisible(); // the approver has the permission and nowhere to approve
@@ -130,7 +142,9 @@ test("a section can be renamed, archived and restored, and classes in no section
   await expect(dialog(page)).toContainText("Also any approver of a section in the branch");
   await confirm(page);
   await expect(page.getByLabel("Who approves a class that is in no section")).toHaveValue("ANY_SECTION_APPROVER");
-  expect((await db.settingAudit.findMany({ where: { settingKey: "results.unsectionedClassApproval" } })).map((row) => row.action)).toEqual(["CHANGED_WIDENING"]);
+  expect((await db.settingAudit.findMany({ where: { settingKey: "results.unsectionedClassApproval" } })).map((row) => row.action)).toEqual([
+    "CHANGED_WIDENING",
+  ]);
 });
 
 test("Everything cannot be combined; with it ticked the boxes below are off", async ({ page }) => {

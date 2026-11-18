@@ -246,7 +246,7 @@ test.describe("the Settings screen", () => {
     const admin = await createUser({ name: "Sue Superadmin", role: Role.ADMIN });
     await signInThroughUi(page, admin);
     await page.goto("/settings");
-    await page.getByRole("button", { name: "Portal access" }).click();
+    await page.getByRole("tab", { name: "Portal access" }).click();
     await expect(panel(page)).toBeVisible();
     await expect(box(page, "Pupil", "Overview")).toBeVisible();
   }
@@ -277,7 +277,7 @@ test.describe("the Settings screen", () => {
 
     // a reload shows the saved value; the pupil now has the fees section
     await page.reload();
-    await page.getByRole("button", { name: "Portal access" }).click();
+    await page.getByRole("tab", { name: "Portal access" }).click();
     await expect(box(page, "Pupil", "Fees and invoices")).toBeChecked();
     await page.context().clearCookies();
     await portalSignIn(page, DOB);

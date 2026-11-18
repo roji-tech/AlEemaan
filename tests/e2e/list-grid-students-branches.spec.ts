@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { openMenu, signInThroughUi } from "./helpers";
 
 // The list/grid kit on the Students list, the Branches list and a branch's people (task 0089): the page size each had before, the server-paged range, the choice of view remembered per
 // list, and every button still there under its full name. The older specs of these screens (students-screen, branch-manage, branches-page, standing-and-payment-rules) hold the
@@ -55,12 +55,14 @@ test("students: 25 to a page in the list, 24 in the grid, the page follows the f
     const name = `${tag}P01 Pupil`;
     const card = list.getByRole("listitem");
     await expect(card).toHaveCount(1);
-    await expect(card.getByRole("button", { name: `Edit ${name}`, exact: true })).toBeVisible();
-    await expect(card.getByRole("button", { name: `Archive ${name}`, exact: true })).toBeVisible();
     await expect(card.getByText("No class yet")).toBeVisible();
     await expect(card.getByRole("term").filter({ hasText: /^Born$/ })).toHaveCount(0);
+    // Task 0100: every action of the card is behind its one three-dots button, none beside it.
+    await expect(card.getByRole("button")).toHaveCount(1);
     await card.getByRole("button", { name: `Actions for ${name}`, exact: true }).click();
-    await expect(page.getByRole("button", { name: `Standing history of ${name}`, exact: true })).toBeVisible();
+    for (const action of [`Edit ${name}`, `Archive ${name}`, `Standing history of ${name}`]) {
+      await expect(page.getByRole("button", { name: action, exact: true })).toBeVisible();
+    }
     await page.keyboard.press("Escape");
 
     // Remembered for this list after a reload (and the other lists keep their own choice).
@@ -89,8 +91,10 @@ test("branches: a list or a grid, remembered, with the link, the count and both 
         await view(page).getByRole("button", { name: choice }).click();
         await expect(view(page).getByRole("button", { name: choice })).toHaveAttribute("aria-pressed", "true");
         await expect(card().getByRole("link", { name: `${name}, open` })).toBeVisible();
-        await expect(card().getByRole("button", { name: `Rename ${name}` })).toBeVisible();
-        await expect(card().getByRole("button", { name: `Delete ${name}` })).toBeVisible();
+        await openMenu(card(), `Actions for ${name}`);
+        await expect(page.getByRole("button", { name: `Rename ${name}` })).toBeVisible();
+        await expect(page.getByRole("button", { name: `Delete ${name}` })).toBeVisible();
+        await page.keyboard.press("Escape");
         await expect(card().getByText("No members yet")).toBeVisible();
         expect(await sideways(page), `${choice} at ${width}px`).toBeLessThanOrEqual(0);
       }

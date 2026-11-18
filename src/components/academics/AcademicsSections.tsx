@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTabParam } from "@/components/ui/useTabParam";
 import { ClassesPanel } from "@/components/academics/ClassesPanel";
 import { GradingPanel } from "@/components/academics/GradingPanel";
 import { SchemeLevelsPanel } from "@/components/academics/SchemeLevelsPanel";
@@ -28,7 +29,10 @@ export function AcademicsSections({
   /// Open the "new" form of the first tab at once (a shortcut from the Overview): New session or New class. Used once.
   openNew?: boolean;
 }) {
-  const [active, setActive] = useState<SectionId>(initialSection);
+  const [active, setActive] = useTabParam(
+    SECTIONS.map((s) => s.id),
+    initialSection,
+  );
   // The branch of the Classes, Subjects and Sessions tabs is one choice: switching between them keeps it.
   const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
   const [pendingNew, setPendingNew] = useState(openNew);
