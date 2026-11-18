@@ -1,0 +1,36 @@
+import type { ReactNode } from "react";
+import { AlertTriangleIcon, ArchiveIcon, BookOpenIcon, CheckIcon, ClockIcon, PencilIcon, PlusIcon, TrashIcon, UndoIcon } from "./icons";
+import type { Tone } from "./tone";
+
+// What an action looks like in a menu (task 0105): a tone and an icon, chosen from what it does, so Add, Edit, Archive and Remove are told apart by colour and shape as well as by their words.
+// Chosen from the action's `id` (the ids the call sites already use) and its `danger` flag; an action nothing here recognises gets no icon and the neutral tone, exactly as before, and a call
+// site that wants something else passes its own `tone` and `icon` to the menu.
+
+type Look = { tone: Tone; icon: ReactNode | null };
+
+const ICON = "h-4 w-4";
+
+/// Words in an id, in order of precedence: the first rule that matches wins, so "undo-archive" is a restore and not an archive.
+const RULES: readonly { test: RegExp; look: () => Look }[] = [
+  {
+    test: /restore|reinstate|reactivate|unarchive|undo/,
+    look: () => ({ tone: "ok", icon: <UndoIcon className={ICON} /> }),
+  },
+  { test: /history/, look: () => ({ tone: "neutral", icon: <ClockIcon className={ICON} /> }) },
+  { test: /archive|close/, look: () => ({ tone: "warn", icon: <ArchiveIcon className={ICON} /> }) },
+  { test: /suspend|deactivate|deny/, look: () => ({ tone: "warn", icon: <AlertTriangleIcon className={ICON} /> }) },
+  { test: /remove|delete|revoke|expel|withdraw/, look: () => ({ tone: "danger", icon: <TrashIcon className={ICON} /> }) },
+  { test: /subject/, look: () => ({ tone: "brand", icon: <BookOpenIcon className={ICON} /> }) },
+  { test: /current|approve|accept|grant|lift|activate/, look: () => ({ tone: "ok", icon: <CheckIcon className={ICON} /> }) },
+  { test: /^(add|new|create|invite|arm|break)|add$|-add|-new/, look: () => ({ tone: "ok", icon: <PlusIcon className={ICON} /> }) },
+  { test: /edit|rename|change|dates|manage|update|profile/, look: () => ({ tone: "info", icon: <PencilIcon className={ICON} /> }) },
+];
+
+export function actionLook(action: { id: string; danger?: boolean; tone?: Tone; icon?: ReactNode }): Look {
+  if (action.tone || action.icon) return { tone: action.tone ?? "neutral", icon: action.icon ?? null };
+  const id = action.id.toLowerCase();
+  const hit = RULES.find((rule) => rule.test.test(id));
+  if (action.danger)
+    return { tone: "danger", icon: hit && hit.look().tone === "danger" ? hit.look().icon : <TrashIcon className={ICON} /> };
+  return hit ? hit.look() : { tone: "neutral", icon: null };
+}

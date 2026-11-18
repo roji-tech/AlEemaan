@@ -5,6 +5,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { ActionsMenu, type MenuAction } from "./ActionsMenu";
 import { Button } from "./Button";
 import type { ViewMode } from "./collection-model";
+import { TONE, type Tone } from "./tone";
 
 // One way to show a list of records, as rows or as cards (task 0089). A page describes each record with <Item> and puts the items in a <Collection>; the collection says whether they are
 // laid out as a list or a grid, so the two can never get out of step. The width a collection has decides its shape (container queries), not the width of the screen: a grid has as many
@@ -73,7 +74,8 @@ export function Collection({
   );
 }
 
-export type ItemFact = { label: string; value: ReactNode };
+/// A fact; in the "stats" style it may carry an icon and a tone (task 0105), drawn as a tinted chip so three numbers on a card are told apart at a glance.
+export type ItemFact = { label: string; value: ReactNode; icon?: ReactNode; tone?: Tone };
 export type ItemAction = {
   id: string;
   label: ReactNode;
@@ -240,11 +242,18 @@ export function Item({
             <div
               key={f.label}
               className={
-                grid ? "flex flex-col-reverse rounded-xl bg-surface-2 px-2 py-2 text-center" : "flex flex-row-reverse items-baseline gap-1"
+                grid
+                  ? `flex flex-col-reverse items-center rounded-xl px-2 py-2 text-center ${f.tone ? `border ${TONE[f.tone].chip}` : "bg-surface-2"}`
+                  : "flex flex-row-reverse items-center gap-1"
               }
             >
-              <dt className={grid ? "mt-1 text-xs text-fg-muted" : "text-fg-muted"}>{f.label}</dt>
+              <dt className={grid ? `mt-1 text-xs ${f.tone ? "" : "text-fg-muted"}` : "text-fg-muted"}>{f.label}</dt>
               <dd className={grid ? "text-lg leading-none font-semibold text-fg" : "font-semibold text-fg"}>{f.value}</dd>
+              {f.icon && (
+                <span aria-hidden="true" className={`${grid ? "mb-1" : "mr-0.5"} ${f.tone ? TONE[f.tone].icon : "text-fg-muted"}`}>
+                  {f.icon}
+                </span>
+              )}
             </div>
           ))}
         </dl>

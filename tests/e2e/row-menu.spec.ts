@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
@@ -234,3 +235,157 @@ test("Add pupils in bulk: the branch can be switched in the dialog until rows ar
   await dialog.getByRole("button", { name: "Type or paste rows instead" }).click();
   await expect(dialog.getByRole("button", { name: "Switch branch" })).toHaveCount(0);
 });
+
+// ---- Task 0105: cards that read at a glance ----
+
+const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+// The browser's own calendar day (the page reads "today" as the viewer's local day), not the UTC date: they differ for an hour or two every night in a time zone east of Greenwich.
+const isoDay = (offset: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+async function violations(page: Page, within?: string) {
+  const builder = new AxeBuilder({ page }).withTags(WCAG);
+  const results = await (within ? builder.include(within) : builder).analyze();
+  return results.violations.map(
+    (v) =>
+      `${v.id} [${v.impact}]: ${v.nodes
+        .map((n) => n.target.join(" "))
+        .slice(0, 3)
+        .join(" | ")}`,
+  );
+}
+
+for (const theme of ["dark", "light"] as const) {
+  test(`a session card (${theme}): the timeline says where the year stands, each term wears the colour of its state, and nothing fails contrast`, async ({
+    page,
+    isMobile,
+    baseURL,
+  }) => {
+    test.skip(isMobile, "sized by the test itself");
+    await page.context().addCookies([{ name: "theme", value: theme, url: baseURL! }]);
+    const admin = await createUser({ role: Role.ADMIN, superAdmin: false });
+    // Dates relative to today so the test never goes stale: the first term is over, the second is the current one, the third is to come.
+    const make = (ordinal: number, label: string, from: number, to: number, current: boolean) => ({
+      branchId: admin.branchId!,
+      kind: "TERM" as const,
+      ordinal,
+      label,
+      startDate: new Date(isoDay(from)),
+      endDate: new Date(isoDay(to)),
+      isCurrent: current,
+    });
+    const session = await db.academicSession.create({
+      data: {
+        branchId: admin.branchId!,
+        label: "2026/2027",
+        startDate: new Date(isoDay(-120)),
+        endDate: new Date(isoDay(150)),
+        status: "ACTIVE",
+        periods: {
+          create: [make(1, "1st Term", -120, -31, false), make(2, "2nd Term", -30, 59, true), make(3, "3rd Term", 60, 150, false)],
+        },
+      },
+      include: { periods: true },
+    });
+    const second = session.periods.find((p) => p.ordinal === 2)!;
+    await db.academicBreak.create({
+      data: {
+        branchId: admin.branchId!,
+        periodId: second.id,
+        label: "Mid-term break",
+        startDate: new Date(isoDay(10)),
+        endDate: new Date(isoDay(14)),
+      },
+    });
+    await signInThroughUi(page, admin);
+
+    for (const size of [SIZES[0]!, SIZES[1]!, SIZES[2]!]) {
+      await page.setViewportSize(size);
+      await page.goto("/academics?tab=sessions");
+      const terms = page.getByRole("list", { name: "Terms of 2026/2027" });
+      await expect(terms.locator(":scope > li")).toHaveCount(3);
+
+      // The one sentence: the current term, today's day of it, and the days left, in words.
+      await expect(page.getByText(/^2nd Term, day 31 of 90, 59 days left\.$/)).toBeVisible();
+
+      // One bar: three segments and the progress laid over the current one (four shapes), drawn as SVG (no inline style, which the page's content policy refuses).
+      await expect(page.locator("svg.h-2\\.5 rect")).toHaveCount(4);
+
+      // Each term says its state in words, and the three states are three different colours.
+      const chip = (term: string, word: string) => terms.locator(":scope > li").filter({ hasText: term }).getByText(word, { exact: true });
+      await expect(chip("1st Term", "Ended")).toBeVisible();
+      await expect(chip("2nd Term", "Current")).toBeVisible();
+      await expect(chip("3rd Term", "Upcoming")).toBeVisible();
+      const colours = await Promise.all(
+        [chip("1st Term", "Ended"), chip("2nd Term", "Current"), chip("3rd Term", "Upcoming")].map((c) =>
+          c.evaluate((el) => `${getComputedStyle(el).color}|${getComputedStyle(el).backgroundColor}`),
+        ),
+      );
+      expect(new Set(colours).size, "Ended, Current and Upcoming are drawn in three different colours").toBe(3);
+
+      // The break is its own block in the warning tone, with its own three dots.
+      const breaks = page.getByRole("list", { name: "Breaks in the 2nd Term of 2026/2027" });
+      await expect(breaks.getByText("Mid-term break")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Actions for Mid-term break in the 2nd Term of 2026/2027", exact: true }),
+      ).toBeVisible();
+
+      expect(await sideways(page), `${size.width}px scrolls sideways`).toBeLessThanOrEqual(0);
+      expect(await violations(page), `accessibility of the session card at ${size.width}px (${theme})`).toEqual([]);
+    }
+  });
+
+  test(`a class card (${theme}): arms, subjects and pupils are tinted chips, an arm is one 44 px button, the menu's items carry their own colour, and nothing fails contrast`, async ({
+    page,
+    isMobile,
+    baseURL,
+  }) => {
+    test.skip(isMobile, "sized by the test itself");
+    await page.context().addCookies([{ name: "theme", value: theme, url: baseURL! }]);
+    const admin = await createUser({ role: Role.ADMIN, superAdmin: false });
+    const group = await db.classGroup.create({ data: { branchId: admin.branchId!, name: "Nursery 1" } });
+    for (const arm of ["A", "B"]) await db.classArm.create({ data: { branchId: admin.branchId!, classGroupId: group.id, name: arm } });
+    await signInThroughUi(page, admin);
+    await page.setViewportSize(SIZES[0]!);
+    await page.goto("/academics?tab=classes");
+    await page.getByRole("button", { name: "List view" }).click();
+    const card = page.getByRole("list", { name: "Classes" }).locator(":scope > li").first();
+    await expect(card).toBeVisible();
+
+    // Each arm is ONE button, as tall as a finger, named as it always was; the three numbers are three colours.
+    const arm = card.getByRole("button", { name: "Edit arm A of Nursery 1", exact: true });
+    expect((await arm.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const stat = (word: string) => card.locator("dl > div").filter({ hasText: word }).first();
+    const tones = await Promise.all(
+      [stat("arm"), stat("subject"), stat("pupil")].map((d) =>
+        d
+          .locator("span")
+          .first()
+          .evaluate((el) => getComputedStyle(el).color),
+      ),
+    );
+    expect(new Set(tones).size, "arms, subjects and pupils are three different colours").toBe(3);
+
+    // The menu: Edit and Archive each have a tinted tile with an icon, in different colours.
+    const trigger = card.getByRole("button", { name: /^Actions for / });
+    await trigger.click();
+    const menu = await menuOf(page, trigger);
+    const tile = (name: RegExp) => menu.getByRole("button", { name }).locator("span[aria-hidden]").first();
+    await expect(tile(/^Rename Nursery 1$/)).toBeVisible();
+    await expect(tile(/^Archive Nursery 1$/)).toBeVisible();
+    const backgrounds = await Promise.all(
+      [tile(/^Rename Nursery 1$/), tile(/^Archive Nursery 1$/), tile(/^Add an arm to Nursery 1$/)].map((t) =>
+        t.evaluate((el) => getComputedStyle(el).backgroundColor),
+      ),
+    );
+    expect(new Set(backgrounds).size, "Edit, Archive and Add are three different tile colours").toBe(3);
+    expect(
+      await violations(page, `[id="${await trigger.getAttribute("aria-controls")}"]`),
+      `accessibility of an open menu (${theme})`,
+    ).toEqual([]);
+    await page.keyboard.press("Escape");
+    expect(await violations(page), `accessibility of the class card (${theme})`).toEqual([]);
+  });
+}
