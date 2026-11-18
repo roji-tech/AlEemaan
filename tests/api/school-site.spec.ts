@@ -5,7 +5,7 @@ import { api, cookieHeader, loginAs } from "../support/http";
 import { SCHOOL_SITE_PAGES } from "@/lib/school-site/paths";
 
 // The school's own website over real HTTP (task 0080): nine pages written in React, all under the application's own strict policy (the contact page alone may frame the map), none setting a cookie. `/` sends a
-// signed-in person to the dashboard; the other pages are open to everyone. The application's own `/portal` and `/academics` are untouched, and the old result portal is not served.
+// signed-in person is no longer sent to the dashboard (removed 2026-11-18); every page is open to everyone. The application's own `/portal` and `/academics` are untouched, and the old result portal is not served.
 
 test.beforeAll(async () => {
   await seedInstance();
@@ -64,14 +64,13 @@ test("the pictures and recordings are served from /school-site, and the old styl
   expect((await api("/school-site/css/style.css")).status).toBe(404);
 });
 
-test("a signed-in person at / is sent to the dashboard, and at /about is not", async () => {
+test("a signed-in person at / and at /about sees the school's website: no redirect to the dashboard", async () => {
   const admin = await createUser({ role: Role.ADMIN, name: "School Site Admin" });
   const login = await loginAs(admin);
   const cookie = cookieHeader(login.token!);
   const home = await api("/", { cookie });
-  expect(home.status).toBeGreaterThanOrEqual(300);
-  expect(home.status).toBeLessThan(400);
-  expect(home.headers.get("location") ?? "").toMatch(/\/dashboard$/);
+  expect(home.status).toBe(200);
+  expect(home.headers.get("location")).toBeNull();
   expect((await api("/about", { cookie })).status).toBe(200);
 });
 

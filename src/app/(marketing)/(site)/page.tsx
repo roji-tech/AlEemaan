@@ -3,10 +3,9 @@ import Link from "next/link";
 import { SiteImage } from "@/components/site/SiteImage";
 import { SiteIcon, type SiteIconName } from "@/components/site/icons";
 import { BTN, SectionHeader, SectionLabel, WRAP } from "@/components/site/parts";
-import { leaveUnlessVisitor } from "@/lib/landing/start";
 
-// The school's own home page (task 0080), the old static home page as React and Tailwind. A signed-in person goes to the dashboard first; anyone else sees it. Dynamic (it reads the session cookie).
-export const dynamic = "force-dynamic";
+// The school's own home page (task 0080), the old static home page as React and Tailwind. Everyone sees it, signed in or not (a signed-in person used to be sent to the dashboard, which made the school's own website impossible to visit from a signed-in browser). It reads nothing per
+// visitor, so it is a static page.
 
 export const metadata: Metadata = {
   title: { absolute: "Aleeman School of Science & Arabic Study" },
@@ -106,8 +105,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default async function SchoolHome() {
-  await leaveUnlessVisitor();
+export default function SchoolHome() {
   return (
     <>
       <section className="relative flex min-h-[80vh] items-center justify-center overflow-hidden bg-[linear-gradient(135deg,rgba(46,139,87,0.95),rgba(0,100,0,0.95))] px-8 py-32 text-center text-white">

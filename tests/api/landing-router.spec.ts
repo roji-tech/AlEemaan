@@ -106,14 +106,14 @@ test.describe("signed out", () => {
 });
 
 test.describe("signed in", () => {
-  test("a person with a session is sent to the dashboard, and sees no landing page", async () => {
+  test("a person with a session sees the landing page like anyone else (no redirect to the dashboard)", async () => {
     const admin = await createUser({ role: Role.ADMIN, name: "Landing Admin" });
     const login = await loginAs(admin);
     expect(login.token).not.toBeNull();
     const res = await api("/product", { cookie: cookieHeader(login.token!) });
-    expect([307, 308]).toContain(res.status);
-    expect(new URL(res.headers.get("location")!, HTTP_URL).pathname).toBe("/dashboard");
-    expect(res.text).not.toContain(brand.landing.coversHeading);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.text).toContain(brand.landing.coversHeading);
   });
 });
 
@@ -179,13 +179,13 @@ test.describe("/ar, the page in Arabic", () => {
     expect(link).toContain('hrefLang="en"');
   });
 
-  test("signed in: sent to the dashboard like `/`, and the page is not shown", async () => {
+  test("signed in: the page is shown like `/` (no redirect to the dashboard)", async () => {
     const admin = await createUser({ role: Role.ADMIN, name: "Arabic Landing Admin" });
     const login = await loginAs(admin);
     const res = await api("/ar", { cookie: cookieHeader(login.token!) });
-    expect([307, 308]).toContain(res.status);
-    expect(new URL(res.headers.get("location")!, HTTP_URL).pathname).toBe("/dashboard");
-    expect(res.text).not.toContain(landingAr.coversHeading);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.text).toContain(landingAr.coversHeading);
   });
 
   test("setup not finished: the page itself in Arabic, like `/` (task 0078); finished: the same", async () => {

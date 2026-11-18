@@ -53,7 +53,10 @@ test.describe("the landing pages are the school's own host's", () => {
       for (const path of PATHS) {
         const res = await api(`${path}?ref=x`, { baseUrl: PORTALS_URL, ...at(portal) });
         expect(res.status, `${portal}${path}`).toBe(307);
-        expect(res.headers.get("location"), `${portal}${path}`).toBe(`http://localhost:${PORTALS_PORT}${path}?ref=x`);
+        // Resolved against the request's own address: Next writes a redirect to the very origin the request arrived on as a relative path, which a browser resolves to the same place.
+        expect(new URL(res.headers.get("location")!, PORTALS_URL).href, `${portal}${path}`).toBe(
+          `http://localhost:${PORTALS_PORT}${path}?ref=x`,
+        );
       }
     }
   });
@@ -105,7 +108,8 @@ test.describe("who may sign in where", () => {
     expect((await signIn("admin", boss.email, DEFAULT_PASSWORD)).status).toBe(200);
     expect((await signIn("staff", boss.email, DEFAULT_PASSWORD)).status).toBe(200);
     const both = await createUser({ role: Role.TEACHING_STAFF });
-    const branch = await db.branch.findFirstOrThrow();
+    // A second role in ANOTHER branch (a person has one membership per branch).
+    const branch = await db.branch.create({ data: { name: `Second ${Date.now().toString(36)}` } });
     await db.membership.create({ data: { userId: both.id, branchId: branch.id, role: Role.PARENT } });
     expect([
       (await signIn("staff", both.email, DEFAULT_PASSWORD)).status,
