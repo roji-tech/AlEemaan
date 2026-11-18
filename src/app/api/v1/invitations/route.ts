@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { fail, ok } from "@/lib/api/envelope";
-import { offsetMeta, parseOffsetPagination } from "@/lib/api/pagination";
+import { pagedOk, readPage } from "@/lib/api/paged";
 import { validate } from "@/lib/api/validate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
@@ -21,18 +21,12 @@ const body = z.strictObject({ email: emailField, role: roleField, branchId: bran
 
 export const GET = withAuth(
   async (req, auth) => {
-    const page = parseOffsetPagination(req.nextUrl.searchParams);
-    if (!page.ok)
-      return fail(
-        "Some of the query parameters are not valid.",
-        400,
-        "VALIDATION",
-        page.issues.map((i) => ({ ...i, path: `query.${i.path}` })),
-      );
+    const page = readPage(req);
+    if (page instanceof Response) return page;
     const scope = await scopeOrForbidden(auth.userId);
     if (scope instanceof Response) return scope;
     const { invitations, total } = await listOpenInvitations(page, scope);
-    return ok({ invitations }, offsetMeta({ page: page.page, limit: page.limit, total }));
+    return pagedOk("invitations", invitations, page, total);
   },
   { roles: ["ADMIN"] },
 );
