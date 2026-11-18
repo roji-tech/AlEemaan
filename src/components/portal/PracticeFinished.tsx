@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { downloadPdf } from "@/components/forms/pdf";
 import { PracticeAnswerItem } from "@/components/portal/PracticeAnswers";
 import { ReportQuestionDialog } from "@/components/portal/ReportQuestionDialog";
@@ -14,7 +15,7 @@ import { REPORT_SENT, printAddress, type FinishedSession } from "@/components/po
 // answered) is not shown as 0%. Presentation only: the numbers are the API's.
 
 export function PracticeFinished({ studentId, result, onAgain }: { studentId: string; result: FinishedSession; onAgain: () => void }) {
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [reporting, setReporting] = useState<{ bankItemId: string; prompt: string } | null>(null);
   const [printing, setPrinting] = useState(false);
 

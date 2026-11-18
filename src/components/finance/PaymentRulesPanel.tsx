@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -8,7 +9,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import type { PolicyView } from "@/lib/finance/part-payment-service";
 
 // The part-payment rule (task 0046): may an invoice be paid in parts, and what is the smallest part. The school's rule is the ceiling; a branch can only tighten it. The server
@@ -20,7 +21,7 @@ const DEFAULT: Policy = { allowed: true, minimum: { kind: "NONE" } };
 export function PaymentRulesPanel() {
   const [view, setView] = useState<PolicyView | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {

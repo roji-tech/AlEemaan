@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 
 // The paper work set for the pupil's class, with the pupil's own state of each (not handed in, handed in, handed in late, asked for marking), and "Request marking" while the API
 // allows it. Presentation only: the portal routes decide what is shown and whether a request is allowed, and say why not.
@@ -35,7 +36,7 @@ export function PortalPaperWork({ studentId }: { studentId: string }) {
   const base = `/api/v1/portal/students/${encodeURIComponent(studentId)}/forms/paper-work`;
   const [list, setList] = useState<Listed[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { pupilEntityFor } from "@/lib/bulk/pupils";
@@ -61,7 +62,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
   const [restoreAsk, setRestoreAsk] = useState<{ student: Student; message: string } | null>(null);
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DevEmailInbox } from "@/components/dev/DevEmailInbox";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toaster";
 import { brand } from "@/lib/brand";
 import { devToolsEnabled } from "@/lib/dev-tools";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
@@ -38,7 +39,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" data-theme={theme} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <ThemeProvider initialTheme={theme}>{children}</ThemeProvider>
+        <ThemeProvider initialTheme={theme}>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeProvider>
         {/* Development affordances (lib/dev-tools.ts): rendered only where the server says so — never in production. */}
         {devToolsEnabled() && <DevEmailInbox />}
       </body>

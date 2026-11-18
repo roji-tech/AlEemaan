@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // Who may approve their own marks (superadmin only). By default nobody but a superadmin can: an administrator who enters marks needs someone else to approve them.
 // Granting an administrator this exception is a trade-off, said plainly here. A superadmin can also name a reviewer who is asked in their place; the administrator
@@ -25,7 +26,7 @@ export function SelfApprovalPanel({ branches }: { branches: BranchChoice[] }) {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [reviewer, setReviewer] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
 
   // `stillCurrent` is false once another branch has been chosen: an answer that arrives late must not replace the list of the branch now showing.
   const load = useCallback(
