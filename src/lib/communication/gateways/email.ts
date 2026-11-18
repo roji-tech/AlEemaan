@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { notSetUp, standInAllowed } from "./stand-in";
+import { renderEmailHtml } from "@/lib/email/render";
 
 export interface SendEmailParams {
   to: string | string[];
@@ -105,7 +106,8 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
         to: validRecipients,
         subject: params.subject,
         text: params.body,
-        html: params.html || params.body,
+        // Never the raw body as HTML: a school announcement is typed by a person, and text that looks like markup must stay text. An author-supplied `html` is the caller's own.
+        html: params.html ?? renderEmailHtml({ subject: params.subject, text: params.body }),
       }),
     });
 

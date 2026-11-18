@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { devToolsEnabled } from "@/lib/dev-tools";
 import { recordDevEmail } from "@/lib/dev/email-inbox";
+import { renderEmailHtml } from "@/lib/email/render";
 
 // Outgoing email (domain-implementation-plan.md §0.5.C, §0.5.F): one tiny interface, four implementations
 // chosen by EMAIL_TRANSPORT.
@@ -16,7 +17,8 @@ import { recordDevEmail } from "@/lib/dev/email-inbox";
 // A send failure is logged and swallowed by the caller: showing it to the requester would be an oracle
 // for "this address has an account".
 
-export type EmailMessage = { to: string; subject: string; text: string };
+/// `html` is the same message drawn as a small page (lib/email/render.ts); left out, it is made from `text` when the message is sent.
+export type EmailMessage = { to: string; subject: string; text: string; html?: string };
 
 export interface EmailTransport {
   send(message: EmailMessage): Promise<void>;
@@ -30,7 +32,7 @@ const resend: EmailTransport = {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text }),
+      body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text, html: message.html }),
     });
     if (!res.ok) throw new Error(`Resend responded ${res.status}`);
   },
@@ -74,10 +76,15 @@ export function getEmailTransport(): EmailTransport {
         "Set RESEND_API_KEY and EMAIL_FROM.",
     );
   }
-  if (chosen === "resend") return resend;
-  if (chosen === "file") return fileTransport;
-  if (chosen === "console") return consoleTransport;
-  if (chosen === "inbox") return inboxTransport;
+  const transport = ((): EmailTransport | null => {
+    if (chosen === "resend") return resend;
+    if (chosen === "file") return fileTransport;
+    if (chosen === "console") return consoleTransport;
+    if (chosen === "inbox") return inboxTransport;
+    return null;
+  })();
+  // Every message goes out with its HTML half, made from the text here once so no builder has to remember it.
+  if (transport) return { send: (message) => transport.send({ ...message, html: message.html ?? renderEmailHtml(message) }) };
   throw new Error(`Unknown EMAIL_TRANSPORT "${chosen}" (resend | console | file | inbox)`);
 }
 
