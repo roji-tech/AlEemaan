@@ -35,7 +35,7 @@ test("it names the inviter, the role and every branch, and puts each branch's ow
 
 test("without an inviter it says 'An administrator', and a name with a line break cannot break a line of the message", () => {
   expect(mail(["One", "Two"], null).text.startsWith("An administrator invited you")).toBe(true);
-  const m = mail(["Evil\nBranch Name", "Two"], "Bad\r\nInviter");
+  const m = mail(["Evil\nBranch\u2028Name", "Two"], "Bad\r\nInviter");
   expect(m.text).toContain("Bad Inviter invited you");
   expect(m.text).toContain("For Evil Branch Name:");
   for (const line of m.text.split("\n")) expect(line).not.toMatch(/^Branch/);

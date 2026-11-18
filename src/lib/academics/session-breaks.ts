@@ -63,7 +63,7 @@ export async function createBreak(periodId: string, input: BreakBody) {
   const data = breakBodySchema.parse(input);
   const loaded = await loadPeriod(periodId);
   if (!loaded) throw new DomainError("That term or semester was not found.");
-  const problems = validateBreak(loaded.dates, loaded.breaks.map(asDates), data, loaded.period.label);
+  const problems = validateBreak(loaded.dates, loaded.breaks.map(asDates), data, `the ${loaded.period.label}`);
   if (problems.length > 0) throw new DomainError(problems[0].message);
   return prisma.academicBreak.create({
     data: {
@@ -83,7 +83,7 @@ export async function updateBreak(breakId: string, input: BreakBody) {
   const loaded = await loadPeriod(current.periodId);
   if (!loaded) throw new DomainError("That term or semester was not found.");
   const others = loaded.breaks.filter((b) => b.id !== breakId).map(asDates);
-  const problems = validateBreak(loaded.dates, others, data, loaded.period.label);
+  const problems = validateBreak(loaded.dates, others, data, `the ${loaded.period.label}`);
   if (problems.length > 0) throw new DomainError(problems[0].message);
   return prisma.academicBreak.update({
     where: { id: breakId },

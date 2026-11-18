@@ -19,7 +19,8 @@ test.beforeEach(async () => {
 
 const row = (page: Page, text: string | RegExp) => page.getByRole("listitem").filter({ hasText: text });
 const dialog = (page: Page) => page.getByRole("dialog");
-const notice = (page: Page) => page.getByRole("status").filter({ hasText: /\S/ });
+// Toasts stack, so the one that just appeared is the last.
+const notice = (page: Page) => page.getByRole("status").filter({ hasText: /\S/ }).last();
 const box = (page: Page, branch: number) => dialog(page).getByRole("checkbox", { name: BRANCH_NAMES[branch], exact: true });
 const tokensIn = (text: string) => [...text.matchAll(/#token=([A-Za-z0-9_-]{43})/g)].map((m) => m[1]);
 

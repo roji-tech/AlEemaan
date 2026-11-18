@@ -28,7 +28,8 @@ test.beforeEach(async () => {
 const heading = (page: Page) => page.getByRole("heading", { level: 1, name: "Users" });
 const row = (page: Page, text: string | RegExp) => page.getByRole("listitem").filter({ hasText: text });
 const dialog = (page: Page) => page.getByRole("dialog");
-const notice = (page: Page) => page.getByRole("status").filter({ hasText: /\S/ });
+// Toasts stack, so the one that just appeared is the last.
+const notice = (page: Page) => page.getByRole("status").filter({ hasText: /\S/ }).last();
 
 async function signedInAdmin(page: Page, name = "Amina Yusuf") {
   admin = await createUser({ name, role: Role.ADMIN });

@@ -85,6 +85,8 @@ const ROW_ACTION =
 
 /// Opens the Actions list of `person` unless it is already open. False when the person has no Actions button at all (themselves, or someone the caller may not touch).
 export async function openRowActions(page: Page, person: string): Promise<boolean> {
+  // The list loads after the page: wait for the person's row before asking whether it has a button.
+  await page.getByRole("listitem").filter({ hasText: person }).first().waitFor();
   const button = page.getByRole("button", { name: `Actions for ${person}`, exact: true });
   if ((await button.count()) === 0) return false;
   if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();

@@ -84,12 +84,12 @@ test("a break is added to a term, and the announcement is offered with the words
   // The announcement is offered, with a draft to read and change.
   await expect(dialog(page).getByRole("heading", { name: "Tell everyone about the break?" })).toBeVisible();
   await expect(dialog(page).getByLabel("Title")).toHaveValue("Mid-term break: Monday 26 October 2026 to Friday 30 October 2026");
-  await expect(dialog(page).getByLabel("Announcement")).toHaveValue(
+  await expect(dialog(page).getByLabel("Announcement", { exact: true })).toHaveValue(
     /no classes from Monday 26 October 2026 to Friday 30 October 2026 for the mid-term break in the 1st Term of 2026\/2027\. Classes resume on Monday 2 November 2026\./,
   );
   await expectAccessible(page, "the announcement offered after a break");
   await dialog(page)
-    .getByLabel("Announcement")
+    .getByLabel("Announcement", { exact: true })
     .fill("No classes from Monday 26 October to Friday 30 October. Classes resume on Monday 2 November.");
   await dialog(page).getByRole("button", { name: "Send the announcement" }).click();
   await expect(page.getByText(/Announcement sent to everyone in /)).toBeVisible();
