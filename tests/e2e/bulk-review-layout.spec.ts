@@ -50,12 +50,24 @@ for (const size of WIDTHS) {
     await expect(fixing).toContainText("12 rows");
     await expect(fixing.getByRole("listitem")).toHaveCount(1);
 
-    // a problem is never a one-word column: from the table layout up the Result cell is at least 240 px, below it each row is a card as wide as the dialog
-    const result = dialog(page).getByRole("region", { name: "The rows that were read" }).getByText("Has problems").first();
-    const box = await result.boundingBox();
-    expect(box, "the first problem row is drawn").not.toBeNull();
+    // the list: a table in a scroll area of its own, bounded in height, whose Result column is at least 240 px at every width (it was a one-word strip)
+    const region = dialog(page).getByRole("region", { name: "The rows that were read" });
+    const result = region.getByText("Has problems").first();
+    expect(await result.boundingBox(), "the first problem row is drawn").not.toBeNull();
     const cell = await result.evaluate((el) => (el.closest("td") as HTMLElement).getBoundingClientRect().width);
-    expect(cell).toBeGreaterThanOrEqual(size.width >= 768 ? 240 : 200);
+    expect(cell).toBeGreaterThanOrEqual(240);
+    const box = await region.evaluate((el) => ({
+      height: el.clientHeight,
+      scrolls: el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth,
+    }));
+    expect(box.height, "the table scrolls inside itself instead of making the dialog a mile long").toBeLessThanOrEqual(size.height * 0.7);
+
+    // the grid: a compact card per row, headed by the pupil's name, with the empty cells left out
+    await dialog(page).getByRole("group", { name: "Show the rows as" }).getByRole("button", { name: "Grid view" }).click();
+    const cards = dialog(page).getByRole("list", { name: "The rows that were read" }).getByRole("listitem");
+    await expect(cards.first()).toContainText("Pupil0");
+    await expect(cards.first()).not.toContainText("(empty)");
+    expect((await cards.first().boundingBox())!.height, "a card is compact, not a screen").toBeLessThan(260);
 
     // nothing makes the page itself scroll sideways
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
