@@ -8,7 +8,6 @@ import { Collection, Item, ItemInitials } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
 import { Pager } from "@/components/ui/Pager";
-import { useNotice } from "@/components/ui/Toaster";
 import { useCollectionView } from "@/components/ui/useCollectionView";
 import { usePagedList } from "@/components/ui/usePagedList";
 import { ViewToggle } from "@/components/ui/ViewToggle";

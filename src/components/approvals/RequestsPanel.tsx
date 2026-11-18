@@ -10,7 +10,6 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ClipboardIcon } from "@/components/ui/icons";
 import { Pager, paginate } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
-import { useNotice } from "@/components/ui/Toaster";
 import { useCollectionView } from "@/components/ui/useCollectionView";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { getJson, sendJson } from "@/components/auth/postJson";
