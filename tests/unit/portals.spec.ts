@@ -248,6 +248,7 @@ test("every top-level route of the app is decided: open on the school's own host
     "icon",
     "offline",
     "portal",
+    "pwa-icons",
     "q",
     "reset-password",
     "setup",

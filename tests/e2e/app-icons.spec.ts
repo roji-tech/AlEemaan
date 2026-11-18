@@ -87,5 +87,10 @@ test("every icon the page's head names is a picture the server serves (a control
     expect(res.headers()["content-type"], href).toMatch(/^image\//);
   }
   const manifest = await (await page.request.get("/manifest.webmanifest")).json();
-  expect(manifest.icons.map((i: { src: string }) => i.src)).toEqual(["/icon", "/apple-icon"]);
+  // Chrome's rule (task 0104): an icon of at least 192 and one of at least 512, one drawn for the launcher's crop. The Apple touch icon is read from the page's head, not from the manifest.
+  expect(manifest.icons.map((i: { src: string }) => i.src)).toEqual([
+    "/pwa-icons/icon-192.png",
+    "/icon",
+    "/pwa-icons/icon-512-maskable.png",
+  ]);
 });
