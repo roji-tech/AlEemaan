@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // Requests for a decision: a teacher's own assessment scheme, an administrator's change to the report-card layout or to the public verification page. Whoever may
 // decide sees Approve and Reject (a decision needs a reason, recorded); the API refuses anyone else, and anyone deciding their own request.
@@ -44,7 +45,7 @@ export function RequestsPanel({ branches }: { branches: BranchChoice[] }) {
   const [status, setStatus] = useState("PENDING");
   const [items, setItems] = useState<Approval[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [deciding, setDeciding] = useState<{ item: Approval; action: "APPROVE" | "REJECT" } | null>(null);
 
   const load = useCallback(async () => {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { ReportCard, type Card } from "@/components/results/ReportCard";
 import { downloadReportCardHtml } from "@/lib/academics/report-card-export";
 
@@ -42,7 +43,7 @@ export function CardsPanel({
   const [preview, setPreview] = useState(false);
   const [card, setCard] = useState<Card | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
 
   useEffect(() => {
     let live = true;

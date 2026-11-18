@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, type Reply } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import {
   REPORT_OUTCOME_LABEL,
   REPORT_STATUS_LABEL,
@@ -54,7 +55,7 @@ export function ReportsPanel({ writeBranches }: { writeBranches: { id: string; n
   const [filter, setFilter] = useState<Filter>("OPEN");
   const [reports, setReports] = useState<ApiReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [version, setVersion] = useState(0);
   const [answering, setAnswering] = useState<ApiReport | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);

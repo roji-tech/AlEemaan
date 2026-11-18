@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { normalizeLabel } from "@/lib/question-bank/labels";
 import { STATUS_LABEL, TYPE_LABEL, snippet, type ApiItem, type ItemStatus } from "@/components/question-bank/model";
 import { QuestionDetail } from "@/components/question-bank/QuestionDetail";
@@ -46,7 +47,7 @@ export function QuestionsPanel({
   const [items, setItems] = useState<ApiItem[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [version, setVersion] = useState(0);
   const [more, setMore] = useState(false);
 
@@ -119,7 +120,12 @@ export function QuestionsPanel({
       {view !== "queue" && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="min-w-0 flex-1">
-            <TextField label="Search the questions" value={text} onChange={(e) => changeFilter(() => setText(e.target.value))} maxLength={100} />
+            <TextField
+              label="Search the questions"
+              value={text}
+              onChange={(e) => changeFilter(() => setText(e.target.value))}
+              maxLength={100}
+            />
           </div>
           <div className="sm:w-44">
             <TextField label="Subject" value={subject} onChange={(e) => changeFilter(() => setSubject(e.target.value))} maxLength={80} />
@@ -132,7 +138,10 @@ export function QuestionsPanel({
               label="State"
               value={status}
               onChange={(e) => changeFilter(() => setStatus(e.target.value as "" | ItemStatus))}
-              options={[{ value: "", label: "Any state" }, ...(Object.keys(STATUS_LABEL) as ItemStatus[]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))]}
+              options={[
+                { value: "", label: "Any state" },
+                ...(Object.keys(STATUS_LABEL) as ItemStatus[]).map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+              ]}
             />
           </div>
           {authorBranches.length > 0 && (
