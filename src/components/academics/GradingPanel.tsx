@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -8,7 +9,7 @@ import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // Assessment schemes and grade scales (Slice P1d, over the P1b API). A scheme says how a mark is built (continuous-assessment parts + exam = 100); a grade
 // scale says how a score becomes a letter. Both are edited in place until a result uses them ("Locked"); after that a change is a NEW VERSION. Presentation only.
@@ -42,7 +43,7 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
   const [template, setTemplate] = useState<Band[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
 
   const load = useCallback(async () => {

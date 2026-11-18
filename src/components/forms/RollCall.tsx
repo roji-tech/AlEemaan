@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { plural } from "@/components/forms/model";
 
 // The roll call of paper work: who has handed it in, who was late, and a note for each pupil. Changes are collected and saved together. Presentation only: the API decides who may
@@ -38,7 +39,7 @@ export function RollCall({ formId, branchId }: { formId: string; branchId: strin
   const [summary, setSummary] = useState<Summary | null>(null);
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [failed, setFailed] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(

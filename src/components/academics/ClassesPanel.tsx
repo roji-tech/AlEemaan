@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -17,7 +18,7 @@ import { ViewToggle } from "@/components/ui/ViewToggle";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { classEntity } from "@/lib/bulk/classes";
 import { subjectEntity } from "@/lib/bulk/subjects";
 
@@ -59,7 +60,7 @@ export function ClassesPanel({
   const [subjects, setSubjects] = useState<Subject[] | null>(null);
   const [unmatched, setUnmatched] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
   useEffect(() => {
     if (autoNew) onAutoNewDone?.();

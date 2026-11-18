@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { sendJson } from "@/components/auth/postJson";
 import { Pager } from "@/components/ui/Pager";
 import { usePagedList } from "@/components/ui/usePagedList";
-import { say, type Notice } from "@/components/academics/common";
+import { say } from "@/components/academics/common";
 import { ROLE_LABELS } from "@/lib/roles";
 import type { Role } from "@prisma/client";
 
@@ -28,7 +29,7 @@ type Item = {
 export function EmailChangesPanel() {
   const list = usePagedList<Item>({ endpoint: "/api/v1/email-change-requests", key: "requests", limit: PAGE_SIZE });
   const { items, error } = list;
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [deciding, setDeciding] = useState<{ item: Item; decision: "approve" | "deny" } | null>(null);
 
   const who = (i: Item) => i.person.name ?? i.person.email ?? "someone";

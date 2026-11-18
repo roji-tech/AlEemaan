@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson, type FieldProblem } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 
 // The question bank's switches. A superadmin sets the school-wide values; a branch administrator may only make a value STRICTER for their branch (the server refuses
 // anything looser and says why). Each row shows the built-in default, the school's value, the branch's own value and what actually applies. Presentation only.
@@ -74,7 +75,7 @@ export function SettingsPanel({ branches, isSuperAdmin }: { branches: BranchChoi
   const [cleared, setCleared] = useState<Record<string, boolean>>({});
   const [problems, setProblems] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [pending, setPending] = useState(false);
   const [reason, setReason] = useState("");
 

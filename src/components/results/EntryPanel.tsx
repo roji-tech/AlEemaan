@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
-import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { say, type BranchChoice } from "@/components/academics/common";
 import { TeacherSchemePanel } from "@/components/results/TeacherSchemePanel";
 
 // Enter marks (Slice P2d, over the P2a/P2b APIs): the grid for one subject in one arm and term. The total and letter beside each row are computed here from the
@@ -76,7 +77,7 @@ export function EntryPanel({
   const [cells, setCells] = useState<Record<string, Cells>>({});
   const [initial, setInitial] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useNotice();
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
