@@ -1,7 +1,7 @@
 import "../support/env";
 import { test, expect } from "@playwright/test";
 import { evaluateArithmetic, tokenize, formatCalculation, applyDiscountWaiver, applyTaxSurcharge } from "@/lib/tools/calculator";
-import manifest from "@/app/manifest";
+import { manifestFor } from "@/lib/pwa/manifest";
 
 test.describe("Quick Tools — Calculator Arithmetic Engine", () => {
   test("tokenizes standard arithmetic correctly", () => {
@@ -73,11 +73,12 @@ test.describe("Quick Tools — Calculator Arithmetic Engine", () => {
 
 test.describe("PWA Web App Manifest", () => {
   test("generates valid standalone manifest with proper shortcuts and icons", () => {
-    const config = manifest();
+    // The manifest depends on the address (task 0104: tests/unit/pwa-manifest.spec.ts has every address); a school with no portals is one host, opening the dashboard.
+    const config = manifestFor({ kind: "off" });
     expect(config.display).toBe("standalone");
-    expect(config.start_url).toBe("/students");
+    expect(config.start_url).toBe("/dashboard");
     expect(config.theme_color).toBe("#0f172a");
-    expect(config.icons).toHaveLength(2);
+    expect(config.icons).toHaveLength(3);
     expect(config.shortcuts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ short_name: "Calculator", url: "/students?tool=calculator" }),
