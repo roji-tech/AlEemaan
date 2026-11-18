@@ -235,3 +235,14 @@ model EmailChangeRequest {
   @@index([userId, status])
   @@index([status, createdAt])
 }
+
+/// One counted attempt of a rate-limited action (task 0102): the key says whose and what ("portal:ip:203.0.113.7", "login:account:..."), `at` is when. The limiter counts the rows of a
+/// key newer than its window, so the limit holds across every server instance (Vercel runs many; each used to count in its own memory). Old rows are removed as keys are used.
+model RateLimitHit {
+  id  String   @id @default(cuid())
+  key String
+  at  DateTime
+
+  @@index([key, at])
+  @@index([at])
+}
