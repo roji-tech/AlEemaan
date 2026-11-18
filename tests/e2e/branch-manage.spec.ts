@@ -175,3 +175,42 @@ test("on a phone width the rows and the page do not scroll sideways", async ({ p
   }
   await db.branch.delete({ where: { id: branch.id } }); // not left behind for the other specs' lists
 });
+
+test("the branch page lists the people in that branch, searchable and by role, with their status; people of other branches are not on it", async ({
+  page,
+}) => {
+  const branch = await db.branch.create({ data: { name: unique("Staffed") } });
+  const other = await db.branch.create({ data: { name: unique("Elsewhere") } });
+  const teacher = await createUser({ role: Role.TEACHING_STAFF, name: "Hauwa Bello" });
+  const parent = await createUser({ role: Role.PARENT, name: "Musa Garba" });
+  const gone = await createUser({ role: Role.TEACHING_STAFF, name: "Old Teacher" });
+  const stranger = await createUser({ role: Role.TEACHING_STAFF, name: "Other Branch Person" });
+  await db.membership.updateMany({ where: { userId: { in: [teacher.id, parent.id, gone.id] } }, data: { branchId: branch.id } });
+  await db.membership.updateMany({ where: { userId: stranger.id }, data: { branchId: other.id } });
+  await db.membership.updateMany({ where: { userId: gone.id }, data: { deactivatedAt: new Date() } });
+
+  await openList(page);
+  await page.getByRole("link", { name: `${branch.name}, open` }).click();
+  const card = page.getByRole("heading", { level: 2, name: "People in this branch" }).locator("xpath=../..");
+  await expect(card.getByText("3 people")).toBeVisible();
+  await expect(card.getByText("Hauwa Bello")).toBeVisible();
+  await expect(card.getByText("Other Branch Person")).toHaveCount(0);
+  await expect(card.getByRole("listitem").filter({ hasText: "Old Teacher" })).toContainText("Deactivated");
+  await expect(card.getByRole("listitem").filter({ hasText: "Hauwa Bello" })).toContainText("Active");
+
+  await card.getByLabel("Search").fill("musa");
+  await expect(card.getByRole("listitem")).toHaveCount(1);
+  await card.getByLabel("Search").fill("zzz-no-one");
+  await expect(card.getByText("No one matches these filters.")).toBeVisible();
+  await card.getByRole("button", { name: "Clear filters" }).first().click();
+  await expect(card.getByRole("listitem")).toHaveCount(3);
+  await expectAccessible(page, "the single-branch page with its people");
+});
+
+test("a branch with nobody says so and points to the Users page", async ({ page }) => {
+  const branch = await db.branch.create({ data: { name: unique("Quiet") } });
+  await openList(page);
+  await page.getByRole("link", { name: `${branch.name}, open` }).click();
+  await expect(page.getByText("Nobody belongs to this branch yet.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Manage people on the Users page" })).toBeVisible();
+});
