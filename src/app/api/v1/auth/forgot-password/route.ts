@@ -1,3 +1,4 @@
+import { portalForUser } from "@/lib/auth/portal-gate";
 import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -48,7 +49,8 @@ async function handle(req: NextRequest) {
       const user = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true } });
       if (!user?.email) return;
       const token = await createResetToken(user.id);
-      await sendEmailQuietly(resetEmail(user.email, token));
+      // With sign-in portals on (task 0086) the link opens on the portal where this person signs in; the mail goes to the address's owner only.
+      await sendEmailQuietly(resetEmail(user.email, token, await portalForUser(user.id)));
     } catch (error) {
       console.error("[forgot-password] failed:", error instanceof Error ? error.message : error);
     }

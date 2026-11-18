@@ -1,3 +1,4 @@
+import { portalFor } from "@/lib/portals";
 import { after } from "next/server";
 import { fail, ok } from "@/lib/api/envelope";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
@@ -40,6 +41,7 @@ export const POST = withAuth(
             roleLabel: ROLE_LABELS[invitation.role],
             inviterName: auth.user.name,
             days: INVITATION_TTL_DAYS,
+            portal: portalFor({ roles: [invitation.role], isSuperAdmin: false }),
           }),
         );
       } catch (error) {

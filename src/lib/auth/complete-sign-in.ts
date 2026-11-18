@@ -1,7 +1,8 @@
 import type { NextRequest, NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { ok } from "@/lib/api/envelope";
+import { fail, ok } from "@/lib/api/envelope";
+import { portalAdmitsRequest } from "@/lib/auth/portal-gate";
 import { isSuperAdmin } from "@/lib/auth/branch-access";
 import { liftEndedSuspensions } from "@/lib/standing/sign-in";
 import { SESSION_COOKIE_NAME, createSession, deleteSessionByToken, setSessionCookie } from "@/lib/auth/session";
@@ -20,6 +21,11 @@ export async function completeSignIn(
   remember: boolean,
   extra: Record<string, unknown> = {},
 ): Promise<NextResponse> {
+  // The second step of sign-in comes here too, so a portal that does not admit the person is refused here as well, with the same answer as a wrong password (task 0086).
+  const account = await prisma.user.findUnique({ where: { id: user.id }, select: { isSuperAdmin: true } });
+  if (!(await portalAdmitsRequest(req, user.id, account?.isSuperAdmin ?? false)))
+    return fail("Invalid email or password", 401, "INVALID_CREDENTIALS");
+
   const presentedToken = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (presentedToken) await deleteSessionByToken(presentedToken);
 

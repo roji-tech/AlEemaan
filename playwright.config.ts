@@ -8,11 +8,14 @@ import {
   HTTP_URL,
   HTTPS_APP_PORT,
   HTTPS_URL,
+  PORTALS_PORT,
+  PORTALS_URL,
   PWNED_STUB_PORT,
   TLS_PORT,
   breachServerEnv,
   devToolsServerEnv,
   httpsServerEnv,
+  portalsServerEnv,
   serverEnv,
 } from "./tests/support/env";
 
@@ -69,6 +72,14 @@ export default defineConfig({
       command: `pnpm exec next start -p ${BREACH_PORT}`,
       url: `${BREACH_URL}/favicon.ico`,
       env: breachServerEnv(),
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      // The same build with the four sign-in portals on (task 0086): admin., staff., student. and parent. of localhost.
+      command: `pnpm exec next start -p ${PORTALS_PORT}`,
+      url: `${PORTALS_URL}/favicon.ico`,
+      env: portalsServerEnv(),
       reuseExistingServer: false,
       timeout: 60_000,
     },

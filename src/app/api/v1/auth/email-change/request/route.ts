@@ -1,3 +1,4 @@
+import { portalForUser } from "@/lib/auth/portal-gate";
 import { after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -61,15 +62,15 @@ export const POST = withAuth(async (req, auth) => {
   const addressAllowed = await reserveAttempt(`emailchange:address:${newEmail}`, ADDRESS_LIMIT);
   after(async () => {
     try {
-      if (user?.email) await sendEmailQuietly(emailChangeRequestedNotice(user.email, newEmail));
+      if (user?.email) await sendEmailQuietly(emailChangeRequestedNotice(user.email, newEmail, await portalForUser(auth.userId)));
       await auditPersonEvent(auth.userId, "EMAIL_CHANGE_REQUESTED", { after: { newEmail } });
       if (!addressAllowed) return; // the same generic answer, but nothing more is sent to that address
       const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
       if (existing) {
-        await sendEmailQuietly(emailChangeTakenNotice(newEmail));
+        await sendEmailQuietly(emailChangeTakenNotice(newEmail, await portalForUser(existing.id)));
       } else {
         const token = await createEmailChangeToken(auth.userId, newEmail);
-        await sendEmailQuietly(emailChangeConfirmEmail(newEmail, token));
+        await sendEmailQuietly(emailChangeConfirmEmail(newEmail, token, await portalForUser(auth.userId)));
       }
     } catch (error) {
       console.error("[email-change/request] follow-up failed:", error instanceof Error ? error.message : error);
