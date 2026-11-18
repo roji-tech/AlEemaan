@@ -208,3 +208,15 @@ body {
     display: none !important;
   }
 }
+
+/* The filters panel of a list opens with a short slide (ListToolbar); the global reduce-motion rule above shortens it to nothing. */
+@keyframes filters-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

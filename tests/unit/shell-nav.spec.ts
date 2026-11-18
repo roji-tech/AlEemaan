@@ -1,5 +1,15 @@
 import { test, expect } from "@playwright/test";
-import { NAV, QUESTION_BANK_HREF, SECTIONS, groupNav, navFor, sectionOfPath, type PageOverrides } from "@/components/shell/nav";
+import {
+  NAV,
+  PHONE_TAB_SLOTS,
+  QUESTION_BANK_HREF,
+  SECTIONS,
+  groupNav,
+  navFor,
+  phoneNav,
+  sectionOfPath,
+  type PageOverrides,
+} from "@/components/shell/nav";
 import {
   SIDEBAR_COOKIE,
   parseFoldedSections,
@@ -197,5 +207,42 @@ test.describe("the remembered choices (cookies) are read strictly", () => {
     expect(parseFoldedSections(serializeFoldedSections(["assessment", "classroom"]), IDS)).toEqual(["classroom", "assessment"]);
     expect(serializeFoldedSections([])).toBe("");
     expect(serializeFoldedSections(["classroom", "classroom"])).toBe("classroom");
+  });
+});
+
+test.describe("phoneNav: the bottom bar is filled, not left nearly empty", () => {
+  const labels = (items: { label: string }[]) => items.map((i) => i.label);
+  test("an administrator already has four pages of their own: nothing is promoted, and More keeps the rest", () => {
+    const { tabs, more } = phoneNav(admin());
+    expect(labels(tabs)).toEqual(["Overview", "Academics", "Results", "Users"]);
+    expect(labels(more)).toContain("Students");
+    expect(tabs.length).toBe(PHONE_TAB_SLOTS);
+  });
+  test("a member of staff who only has Overview of their own gets the free slots filled from More, in the order of the list, and More keeps nothing they could have had", () => {
+    const { tabs, more } = phoneNav(otherStaff());
+    expect(labels(tabs)).toEqual(["Overview", "Programs", "Announcements", "Forms"]);
+    expect(more).toEqual([]);
+  });
+  test("a teacher has Overview and Results of their own: two slots are filled from More, bar entries keep the order of the list", () => {
+    const { tabs, more } = phoneNav(teacher());
+    expect(tabs.length).toBe(PHONE_TAB_SLOTS);
+    expect(labels(tabs)).toEqual(["Overview", "Students", "Coursework", "Results"]);
+    expect(labels(more)).not.toContain("Students");
+    expect([...tabs, ...more].sort((a, b) => a.label.localeCompare(b.label))).toEqual(
+      teacher()
+        .filter((i) => i.href)
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    );
+  });
+  test("a page that is not built is never a tab; fewer pages than slots just means a shorter bar", () => {
+    const items = [
+      { label: "A", href: "/a" },
+      { label: "B", href: null, inMore: true },
+      { label: "C", href: "/c", inMore: true },
+    ] as never[];
+    const { tabs, more } = phoneNav(items);
+    expect(labels(tabs)).toEqual(["A", "C"]);
+    expect(more).toEqual([]);
+    expect(labels(phoneNav(items, 1).tabs)).toEqual(["A"]);
   });
 });

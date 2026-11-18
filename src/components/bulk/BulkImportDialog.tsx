@@ -71,6 +71,7 @@ export function BulkImportDialog({
   onSaved,
 }: Props) {
   const [stage, setStage] = useState<Stage>("start");
+  const [dragging, setDragging] = useState(false);
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [verdicts, setVerdicts] = useState<RowVerdict[]>([]);
   const [gridRows, setGridRows] = useState<SourceRow[]>([]);
@@ -133,7 +134,10 @@ export function BulkImportDialog({
   async function onFile(e: ChangeEvent<HTMLInputElement>, corrections: boolean) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (file) await loadFile(file, corrections);
+  }
+
+  async function loadFile(file: File, corrections: boolean) {
     setBusy(true);
     setError(null);
     try {
@@ -254,38 +258,82 @@ export function BulkImportDialog({
           {error && <Alert variant="error">{error}</Alert>}
 
           {stage === "start" && (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor={`${entity.id}-file`} className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
-                  CSV or Excel file
-                </label>
-                <input
-                  id={`${entity.id}-file`}
-                  type="file"
-                  accept=".csv,.xlsx"
-                  disabled={busy || !canStart}
-                  onChange={(e) => void onFile(e, false)}
-                  className="block w-full text-sm text-fg file:mr-3 file:min-h-11 file:rounded-lg file:border file:border-line-strong file:bg-surface file:px-4 file:text-sm file:font-semibold file:text-fg"
-                />
-                <p className="mt-1.5 text-xs text-fg-muted">
-                  The first row names the columns. Up to {(entity.maxRows ?? FILE_MAX_ROWS).toLocaleString("en")} rows. Excel files must be
-                  .xlsx (an old .xls: save it as .xlsx or CSV first).
-                </p>
+            <div className="space-y-5">
+              <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-fg-muted" aria-label="Steps">
+                <li className="text-fg">1. Choose how to add</li>
+                <li aria-hidden="true">›</li>
+                <li>2. Check every row</li>
+                <li aria-hidden="true">›</li>
+                <li>3. Save</li>
+              </ol>
+              <div className="grid gap-4 md:grid-cols-2">
+                <section
+                  aria-label="From a file"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (!busy && canStart) setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && !busy && canStart) void loadFile(file, false);
+                  }}
+                  className={`space-y-3 rounded-2xl border-2 border-dashed p-4 transition-colors ${
+                    dragging ? "border-brand-strong bg-info-bg" : "border-line-strong bg-surface"
+                  }`}
+                >
+                  <h3 className="text-sm font-semibold text-fg">From a file</h3>
+                  <p className="text-sm text-fg-muted">Drag a CSV or Excel file here, or choose one.</p>
+                  <div>
+                    <label htmlFor={`${entity.id}-file`} className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
+                      CSV or Excel file
+                    </label>
+                    <input
+                      id={`${entity.id}-file`}
+                      type="file"
+                      accept=".csv,.xlsx"
+                      disabled={busy || !canStart}
+                      onChange={(e) => void onFile(e, false)}
+                      className="block w-full text-sm text-fg file:mr-3 file:min-h-11 file:rounded-lg file:border file:border-line-strong file:bg-surface file:px-4 file:text-sm file:font-semibold file:text-fg"
+                    />
+                    <p className="mt-1.5 text-xs text-fg-muted">
+                      The first row names the columns. Up to {(entity.maxRows ?? FILE_MAX_ROWS).toLocaleString("en")} rows. Excel files must
+                      be .xlsx (an old .xls: save it as .xlsx or CSV first).
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={() => void downloadTemplate("xlsx")}>
+                      Excel template
+                    </Button>
+                    <Button variant="secondary" onClick={() => void downloadTemplate("csv")}>
+                      CSV template
+                    </Button>
+                  </div>
+                </section>
+                <section
+                  aria-label="By typing"
+                  className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+                >
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-fg">By typing</h3>
+                    <p className="text-sm text-fg-muted">
+                      Fill in a table here, or paste rows copied from a spreadsheet. Nothing is saved until you have checked every row.
+                    </p>
+                  </div>
+                  <div>
+                    <Button variant="secondary" onClick={() => openGrid("new")} disabled={!canStart}>
+                      Type or paste rows instead
+                    </Button>
+                  </div>
+                </section>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => void downloadTemplate("xlsx")}>
-                  Excel template
-                </Button>
-                <Button variant="secondary" onClick={() => void downloadTemplate("csv")}>
-                  CSV template
-                </Button>
-                <Button variant="secondary" onClick={() => openGrid("new")} disabled={!canStart}>
-                  Type or paste rows instead
-                </Button>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-fg">The columns</h3>
-                <ul className="mt-1 space-y-1 text-sm text-fg-muted">
+              <details className="rounded-2xl border border-line bg-surface p-4">
+                <summary className="min-h-6 cursor-pointer text-sm font-semibold text-fg focus-visible:outline-2 focus-visible:outline-ring">
+                  The columns
+                </summary>
+                <ul className="mt-2 space-y-1 text-sm text-fg-muted">
                   {entity.columns.map((c) => (
                     <li key={c.key}>
                       <span className="font-medium text-fg">{c.label}</span> ({c.required ? "must be filled in" : "may be left out"}):{" "}
@@ -294,7 +342,7 @@ export function BulkImportDialog({
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-fg-muted">The Excel template has a dropdown on every column with fixed choices.</p>
-              </div>
+              </details>
             </div>
           )}
 

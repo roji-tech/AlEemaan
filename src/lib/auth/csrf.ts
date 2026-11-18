@@ -17,11 +17,15 @@ import { NextRequest } from "next/server";
 
 const trustForwardedHost = () => process.env.TRUST_FORWARDED_HOST === "true";
 
+/// This request's own host (with the port), by the rule above. The sign-in portals (lib/portals.ts) read the same host the same way.
+export const requestHost = (req: NextRequest): string =>
+  (trustForwardedHost() ? req.headers.get("x-forwarded-host") : null) || req.headers.get("host") || req.nextUrl.host;
+
 export function validateCSRF(req: NextRequest): boolean {
   const site = req.headers.get("sec-fetch-site");
   if (site !== null && site !== "same-origin" && site !== "none") return false;
 
-  const host = (trustForwardedHost() ? req.headers.get("x-forwarded-host") : null) || req.headers.get("host") || req.nextUrl.host;
+  const host = requestHost(req);
   if (!host) return false;
 
   const origin = req.headers.get("origin");

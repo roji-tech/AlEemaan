@@ -277,12 +277,13 @@ test.describe("sessions", () => {
 
 // --- Change email ------------------------------------------------------------------------------------------
 
+// A superadmin is the one person whose change needs no approval (task 0088): these tests are about the direct path, the link. Approval is in email-change-approval.spec.ts.
 test.describe("POST /email-change/request", () => {
   const ask = (person: Person, newEmail: string, password = person.user.password, ip?: string) =>
     api(REQUEST, { body: { newEmail, password }, cookie: person.cookie, ip });
 
   test("success: the generic answer; a link goes to the NEW address, a notice (no link) to the OLD one; nothing changes yet", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     const newEmail = uniqueEmail("new");
     const res = await ask(person, newEmail);
     expect(res.status).toBe(200);
@@ -308,7 +309,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("the address is trimmed and lower-cased; a different CASE of your own address is 'already your address'", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     const res = await ask(person, `  ${uniqueEmail("MiXeD").toUpperCase()}  `);
     expect(res.status).toBe(200);
     await expect.poll(() => db.emailChangeToken.count({ where: { userId: person.user.id } })).toBe(1);
@@ -322,7 +323,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("a free address and a TAKEN one get IDENTICAL answers (status, body, headers) — no probing for accounts", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     const taken = await createUser();
     const free = await ask(person, uniqueEmail("free"));
     const takenRes = await ask(person, taken.email);
@@ -335,7 +336,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("a taken address gets a NOTICE and no link; the requester's current address is still told; no token is created", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     const taken = await createUser();
     await ask(person, taken.email);
     const [notice] = await waitForMail(taken.email);
@@ -350,7 +351,7 @@ test.describe("POST /email-change/request", () => {
     test.slow();
     const taken = await createUser();
     const time = async (newEmail: string) => {
-      const person = await signedIn(); // a fresh person each time: no per-account limit is ever involved
+      const person = await signedIn({ role: Role.ADMIN }); // a fresh person each time: no per-account limit is ever involved
       const t = performance.now();
       await ask(person, newEmail);
       return performance.now() - t;
@@ -372,7 +373,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("a wrong password is refused, nothing is sent and nothing is stored — a stolen session alone isn't enough", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     const newEmail = uniqueEmail("new");
     const res = await ask(person, newEmail, "not-my-password-1");
     expect(res.status).toBe(400);
@@ -383,20 +384,20 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("password guesses are limited per account (5) — even a later CORRECT one is refused; a success is refunded", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     for (let i = 0; i < 5; i++) expect((await ask(person, uniqueEmail("n"), "wrong-password-1")).status, `guess #${i}`).toBe(400);
     const blocked = await ask(person, uniqueEmail("n"));
     expect(blocked.status).toBe(429);
     expect(blocked.json.error.code).toBe("RATE_LIMITED");
 
-    const other = await signedIn();
+    const other = await signedIn({ role: Role.ADMIN });
     for (let i = 0; i < 4; i++) await ask(other, uniqueEmail("n"), "wrong-password-1");
     expect((await ask(other, uniqueEmail("n"))).status).toBe(200); // the 5th attempt, a right one…
     expect((await ask(other, uniqueEmail("n"), "wrong-password-1")).status).toBe(400); // …gave the budget back
   });
 
   test("verified requests are limited per account (3); wrong passwords and typos do not use that budget", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     await ask(person, "not-an-address"); // a typo
     await ask(person, uniqueEmail("n"), "wrong-password-1"); // a wrong password
     for (let i = 0; i < 3; i++) expect((await ask(person, uniqueEmail("n"))).status, `request #${i}`).toBe(200);
@@ -408,7 +409,7 @@ test.describe("POST /email-change/request", () => {
   test("per target address: the 4th request for one address from anyone is the same 200 but sends it NO fourth mail (no mail-bombing)", async () => {
     const target = uniqueEmail("victim");
     for (let i = 0; i < 4; i++) {
-      const res = await ask(await signedIn(), target);
+      const res = await ask(await signedIn({ role: Role.ADMIN }), target);
       expect(res.json).toEqual(GENERIC); // never a 429 — that would reveal how often the address was asked for
     }
     await waitForMail(target, 3);
@@ -416,7 +417,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("asking again kills the earlier link", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     const first = uniqueEmail("first");
     const second = uniqueEmail("second");
     await ask(person, first);
@@ -429,7 +430,7 @@ test.describe("POST /email-change/request", () => {
   });
 
   test("validation: not an address, empty, missing, too long → 400 and the budget is not spent; non-JSON → 400", async () => {
-    const person = await signedIn();
+    const person = await signedIn({ role: Role.ADMIN });
     for (const body of [
       { newEmail: "not-an-address", password: person.user.password },
       { newEmail: "", password: person.user.password },

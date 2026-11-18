@@ -97,6 +97,28 @@ A new variable reaches **new deployments only**: redeploy after adding one (sect
 2. Set `APP_URL` (Production) to that `https://` address and redeploy.
 3. Open `https://<domain>/login`, then `https://<domain>/` (the landing page).
 
+### 3.3a Sign-in portals on subdomains (optional, task 0086)
+
+The school's own address (`aleemanschool.com`) can show the public website only, with each kind of person signing in on its own subdomain: `admin.`, `staff.`, `student.`, `parent.`. Four optional variables name them; **none set means the feature is off** and the app behaves as before (one address, every login). The school's domain is never written in the code: it is the host with the portal's label taken off.
+
+| Variable | Value | Admits |
+|---|---|---|
+| `ADMIN_SUBDOMAIN` | `admin` | administrators and superadmins |
+| `STAFF_SUBDOMAIN` | `staff` | teaching and non-teaching staff |
+| `STUDENT_SUBDOMAIN` | `student` | students |
+| `PARENT_SUBDOMAIN` | `parent` | parents and guardians |
+
+**Do the steps in this order**, or sign-in on the main address stops working before the portals exist:
+
+1. Vercel → the project → Domains → add `admin.<domain>`, `staff.<domain>`, `student.<domain>`, `parent.<domain>`; Vercel shows the DNS record each needs.
+2. At the DNS host (Hostinger), add those four records (CNAME, as Vercel shows). **Never change the nameservers.** Delete an old record that already uses one of the four names.
+3. Wait until Vercel shows each domain as valid, and open `https://admin.<domain>/login`.
+4. Only then set the four variables (Production) and redeploy. To go back, delete the variables and redeploy.
+
+For **staging** the portals nest under staging's own address: `admin.staging.<domain>` and so on (DNS name `admin.staging`), attached to the git branch `master` like `staging.<domain>`, with the **same four values** and `APP_URL=https://staging.<domain>`. Staging's landing redirects then stay on staging and never reach the production domain. Preview URLs (`*.vercel.app`) are the school's own host as far as the app is concerned: leave the variables unset there.
+
+What the app does with them: the landing and marketing pages (`/`, `/about`, `/admissions`, `/anthem`, `/contact`, `/oldstudents`, `/our-academics`, `/subjects`, `/vacancy`, `/product`, `/ar`) are served on the school's own address only and redirect there (307) from a portal; `/login` on the school's own address lists the four portals and has no form; each portal's sign-in page says which portal it is. Signing in on a portal that does not admit the person gives **the same answer as a wrong password** (same words, status and rate-limit count), so nothing says which portal an account belongs to. A person with more than one role may use every portal that fits one of them. Reset, invitation and email-change links in e-mail open on the portal of the person they are sent to.
+
 ### 3.4 The first sign-in (the first run only)
 
 1. Open `https://<domain>/setup` (it is the page `/` and `/login` send you to while the set-up is not finished). Type the `SETUP_TOKEN`.
@@ -139,7 +161,7 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
    ```bash
    export DATABASE_URL='…'          # the Preview database, the DIRECT address (not the pooled one); paste it, do not save it in .env
    node -e 'const u=new URL(process.env.DATABASE_URL);console.log("host:",u.hostname,"| database:",u.pathname.slice(1))'   # is it the database you mean? (prints no password)
-   pnpm prisma migrate status       # what is pending: 3 on an empty database (baseline, branch_code, coursework_states), 2 if the baseline is already applied
+   pnpm prisma migrate status       # what is pending: 4 on an empty database (baseline, branch_code, coursework_states, email_change_approval), fewer where some are applied
    pnpm db:migrate:deploy           # applies the pending ones, in order, and nothing else
    pnpm prisma migrate status       # must say: Database schema is up to date
    unset DATABASE_URL
@@ -147,7 +169,7 @@ Write down: the migrations (in order), the new variables, and anything in `docs/
 
 2. A migration that fails stops the run and leaves a failed row: read the error, do not rerun blindly, and do not deploy the code. Tell the helper, or fix it with a new migration.
 
-Today's pending migrations on a new empty database are **three**, applied in order by `migrate deploy`: the baseline `20260928081559_baseline`; `20261020120000_branch_code` (adds `Branch.code`, the prefix of invoice and receipt numbers, with a backfill and a trigger so a branch made without a code gets one; additive); and `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive). `migrate status` lists exactly these on an empty database, and the last two on one where the baseline was already applied. (This line said two until 2026-11-17: it left out `branch_code`, and a production database that had only the baseline failed on its first use with `The column code does not exist` on `Branch`, code `P2022`.)
+Today's pending migrations on a new empty database are **four**, applied in order by `migrate deploy`: the baseline `20260928081559_baseline`; `20261020120000_branch_code` (adds `Branch.code`, the prefix of invoice and receipt numbers, with a backfill and a trigger so a branch made without a code gets one; additive); `20261112210000_coursework_states` (adds the Closed assignment state, a material's type and draft state; additive); and `20261118120000_email_change_approval` (task 0088: one enum and one table for email-address changes that wait for approval; additive, and **run it before the code that reads it**, or the Account and Approvals pages fail on the missing table). `migrate status` lists exactly these on an empty database, and the later ones on one where the baseline was already applied. (This line said two until 2026-11-17: it left out `branch_code`, and a production database that had only the baseline failed on its first use with `The column code does not exist` on `Branch`, code `P2022`.)
 
 **Step 3, the quick way: GitHub Actions (task 0079).** Instead of the terminal commands above, a migration can run in GitHub with the same commands and the same checks:
 

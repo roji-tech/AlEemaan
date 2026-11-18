@@ -39,6 +39,8 @@ model User {
   sessions            Session[]
   resetTokens         PasswordResetToken[]
   emailChangeTokens   EmailChangeToken[]
+  emailChangeRequests EmailChangeRequest[] @relation("EmailChangeRequester")
+  emailChangesDecided EmailChangeRequest[] @relation("EmailChangeDecider")
   memberships         Membership[]
   invitationsSent     Invitation[]         @relation("InvitationsSent")
   invitationsAccepted Invitation[]         @relation("InvitationsAccepted")
@@ -201,4 +203,34 @@ model EmailChangeToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum EmailChangeStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+/// A request to move an account to another email address that must be approved FIRST (task 0088): a member's by an
+/// administrator of their branch (or a superadmin), an administrator's by a superadmin. A superadmin has nobody above them,
+/// so theirs never gets a row here and goes straight to the link (`EmailChangeToken`). Approving creates the token and
+/// mails the link to the NEW address; denying tells the OLD address. `requiredLevel` is what the person was when they
+/// asked; the decision route works it out again, so promoting someone in between can only raise the bar.
+/// One open request per person: a new one replaces the earlier PENDING one.
+model EmailChangeRequest {
+  id             String            @id @default(cuid())
+  userId         String
+  newEmail       String
+  status         EmailChangeStatus @default(PENDING)
+  requiredLevel  String // "ADMIN" or "SUPERADMIN"
+  createdAt      DateTime          @default(now())
+  deciderUserId  String?
+  decidedAt      DateTime?
+  decisionReason String?
+
+  user    User  @relation("EmailChangeRequester", fields: [userId], references: [id], onDelete: Cascade)
+  decider User? @relation("EmailChangeDecider", fields: [deciderUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
 }

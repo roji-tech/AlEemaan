@@ -13,6 +13,12 @@ import { signInThroughUi } from "./helpers";
 let admin: TestUser;
 let branches: { id: string; name: string }[];
 
+// The filters live behind the "Filters" button beside Search; opening it twice would close it, so this opens it only when it is closed.
+async function openFilters(page: Page) {
+  const button = page.getByRole("button", { name: /^Filters/ });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+}
+
 test.beforeEach(async () => {
   await resetDatabase();
   await seedInstance();
@@ -92,16 +98,19 @@ test.describe("the page", () => {
     await expect(row(page, "Pat Parent")).toHaveCount(0);
     await page.getByLabel("Search").fill("");
     await expect(page.getByText("3 people")).toBeVisible();
+    await openFilters(page);
     await page.getByLabel("Role", { exact: true }).selectOption("PARENT");
     await expect(page.getByText("1 person match")).toBeVisible();
     await expect(row(page, "Pat Parent")).toBeVisible();
+    await openFilters(page);
     await page.getByLabel("Role", { exact: true }).selectOption("");
+    await openFilters(page);
     await page.getByLabel("Branch", { exact: true }).selectOption({ label: BRANCH_NAMES[0] });
     await expect(row(page, "Tola Teacher")).toBeVisible();
     await expect(row(page, "Pat Parent")).toHaveCount(0);
     await page.getByLabel("Search").fill("zzz-no-one");
     await expect(page.getByText("No one matches these filters.")).toBeVisible();
-    await page.getByRole("button", { name: "Clear filters" }).click();
+    await page.getByRole("button", { name: "Clear filters" }).first().click();
     await expect(page.getByText("3 people")).toBeVisible();
     await expect(page.getByLabel("Role", { exact: true })).toHaveValue("");
     await expect(page.getByLabel("Branch", { exact: true })).toHaveValue("");
@@ -115,6 +124,7 @@ test.describe("the page", () => {
     await db.membership.update({ where: { id: clerk.membershipId }, data: { permissions: [Permission.CAN_VIEW_FORM_RESULTS] } });
     await signedInAdmin(page);
     await expect(page.getByText("3 people")).toBeVisible();
+    await openFilters(page);
     await page.getByLabel("Access", { exact: true }).selectOption("formResults");
     await expect(page.getByText("1 person match")).toBeVisible();
     await expect(row(page, "Chidi Clerk")).toContainText("Reads form results");
@@ -122,7 +132,7 @@ test.describe("the page", () => {
     // "Clear filters" only appears when nothing matches, so narrow to no one first.
     await page.getByLabel("Search").fill("tola");
     await expect(page.getByText("No one matches these filters.")).toBeVisible();
-    await page.getByRole("button", { name: "Clear filters" }).click();
+    await page.getByRole("button", { name: "Clear filters" }).first().click();
     await expect(page.getByText("3 people")).toBeVisible();
     await expect(page.getByLabel("Access", { exact: true })).toHaveValue("");
   });
@@ -335,11 +345,13 @@ test.describe("changing people", () => {
     await expect(row(page, "Tola Teacher")).toHaveCount(0); // the default filter shows active people
     expect((await api("/api/v1/auth/me", { cookie: tolaCookie })).status).toBe(401); // their session is gone
 
+    await openFilters(page);
     await page.getByLabel("Status").selectOption("deactivated");
     const gone = row(page, "Tola Teacher");
     await expect(gone).toContainText("Deactivated");
     await gone.getByRole("button", { name: "Reactivate Tola Teacher" }).click();
     await expect(notice(page)).toContainText("Tola Teacher can sign in again.");
+    await openFilters(page);
     await page.getByLabel("Status").selectOption("active");
     await expect(row(page, "Tola Teacher")).toContainText(BRANCH_NAMES[1]); // the same role and branch
     const again = await loginAs(tola);

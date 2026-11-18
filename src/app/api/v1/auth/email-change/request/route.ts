@@ -1,3 +1,4 @@
+import { portalForUser } from "@/lib/auth/portal-gate";
 import { after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -6,8 +7,14 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { reserveAttempt, refundAttempt } from "@/lib/auth/rate-limit";
 import { verifyPassword, PASSWORD_MAX_LENGTH } from "@/lib/auth/password";
 import { createEmailChangeToken } from "@/lib/auth/email-change";
+import { cancelOwnRequest, createPendingRequest, requiredLevelFor } from "@/lib/auth/email-change-approval";
 import { auditPersonEvent } from "@/lib/auth/audit";
-import { emailChangeConfirmEmail, emailChangeRequestedNotice, emailChangeTakenNotice } from "@/lib/email/messages";
+import {
+  emailChangeAwaitingApprovalNotice,
+  emailChangeConfirmEmail,
+  emailChangeRequestedNotice,
+  emailChangeTakenNotice,
+} from "@/lib/email/messages";
 import { sendEmailQuietly } from "@/lib/email/transport";
 import { readJsonBody } from "@/lib/api/validate";
 
@@ -17,6 +24,9 @@ import { readJsonBody } from "@/lib/api/validate";
 // "we've sent a link". An authenticated person must not be able to probe which addresses have accounts, so the
 // lookup, the token and the mail all happen AFTER the response, and a taken address gets a different notice
 // instead of a link. The link goes to the NEW address (following it proves it is reachable); the OLD one is told.
+// Task 0088: unless the person is a superadmin, nothing is mailed to the new address yet. The request waits for an
+// administrator (a member's) or a superadmin (an administrator's), and the link is sent when it is approved. The answer
+// differs only by `needsApproval`, which depends on who is asking, never on the address.
 const PASSWORD_LIMIT = 5; // password attempts per account per 5 minutes; anything but a wrong password is refunded
 const REQUEST_LIMIT = 3; // VERIFIED requests per account per 5 minutes — it limits the mail we send, not guesses
 const ADDRESS_LIMIT = 3; // requests per target address per 5 minutes: no mail-bombing a stranger through us
@@ -58,22 +68,43 @@ export const POST = withAuth(async (req, auth) => {
     return fail("Too many requests. Please try again in a few minutes.", 429, "RATE_LIMITED");
   }
 
+  const level = await requiredLevelFor(auth.userId);
+  if (level !== "NONE") {
+    await createPendingRequest(auth.userId, newEmail, level);
+    after(async () => {
+      try {
+        if (user?.email) await sendEmailQuietly(emailChangeAwaitingApprovalNotice(user.email, newEmail, await portalForUser(auth.userId)));
+        await auditPersonEvent(auth.userId, "EMAIL_CHANGE_REQUESTED", { after: { newEmail, needsApproval: level } });
+      } catch (error) {
+        console.error("[email-change/request] follow-up failed:", error instanceof Error ? error.message : error);
+      }
+    });
+    return ok({ requested: true, needsApproval: true });
+  }
+
   const addressAllowed = await reserveAttempt(`emailchange:address:${newEmail}`, ADDRESS_LIMIT);
   after(async () => {
     try {
-      if (user?.email) await sendEmailQuietly(emailChangeRequestedNotice(user.email, newEmail));
+      if (user?.email) await sendEmailQuietly(emailChangeRequestedNotice(user.email, newEmail, await portalForUser(auth.userId)));
       await auditPersonEvent(auth.userId, "EMAIL_CHANGE_REQUESTED", { after: { newEmail } });
       if (!addressAllowed) return; // the same generic answer, but nothing more is sent to that address
       const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
       if (existing) {
-        await sendEmailQuietly(emailChangeTakenNotice(newEmail));
+        await sendEmailQuietly(emailChangeTakenNotice(newEmail, await portalForUser(existing.id)));
       } else {
         const token = await createEmailChangeToken(auth.userId, newEmail);
-        await sendEmailQuietly(emailChangeConfirmEmail(newEmail, token));
+        await sendEmailQuietly(emailChangeConfirmEmail(newEmail, token, await portalForUser(auth.userId)));
       }
     } catch (error) {
       console.error("[email-change/request] follow-up failed:", error instanceof Error ? error.message : error);
     }
   });
   return ok({ requested: true });
+});
+
+// DELETE /api/v1/auth/email-change/request — withdraws the person's own request that is still waiting for approval.
+export const DELETE = withAuth(async (_req, auth) => {
+  const had = await cancelOwnRequest(auth.userId);
+  if (had) await auditPersonEvent(auth.userId, "EMAIL_CHANGE_CANCELLED");
+  return ok({ cancelled: had });
 });

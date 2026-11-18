@@ -15,3 +15,23 @@ export const optionalEmail = z.preprocess(blankToUndefined, staffEmail.optional(
 export const optionalText = (max: number) =>
   z.preprocess(blankToUndefined, z.string().trim().max(max, `Use at most ${max} characters.`).optional());
 export const letters = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
+
+/// A cell that holds a short list ("A, B, C"): commas, semicolons, bars and new lines separate; empty pieces are dropped; the same item twice (without regard to capitals) is kept once and
+/// reported by `repeatedItems`. A value that is not text is left for the rule to refuse.
+export const listItems = (v: unknown): unknown =>
+  typeof v === "string"
+    ? v
+        .split(/[,;|\n]+/)
+        .map((p) => p.trim())
+        .filter((p) => p !== "")
+    : v;
+export const repeatedItems = (items: readonly string[]): string[] => {
+  const seen = new Set<string>();
+  const twice = new Set<string>();
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) twice.add(item);
+    seen.add(key);
+  }
+  return [...twice];
+};

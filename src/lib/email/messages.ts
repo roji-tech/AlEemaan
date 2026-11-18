@@ -1,3 +1,4 @@
+import { portalBaseFromAppUrl, readPortalConfig, type Portal } from "@/lib/portals";
 import { brand } from "@/lib/brand";
 
 // Plain-text messages: accessible everywhere, nothing to track or render wrongly.
@@ -7,14 +8,17 @@ import { EMAIL_CHANGE_LINK_MINUTES } from "@/lib/auth/email-change";
 import { maskEmail } from "@/lib/auth/mask-email";
 
 const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+/// Where a link for someone of this portal points: the portal's own address when sign-in portals are on (task 0086), the school's address otherwise, and the school's address too when the
+/// builder was not told the portal. A link never names a portal the recipient was not given: the wrong one would refuse them. Read from the environment on each call (cheap), so a test can change it.
+const base = (portal?: Portal | null) => (portal ? portalBaseFromAppUrl(portal, appUrl(), readPortalConfig().config) : null) ?? appUrl();
 
 /// The token travels in the URL FRAGMENT: browsers never send it to the server, so it is not in access
 /// logs and not in a Referer. The reset page reads it and removes it from the address bar.
-export function resetLink(token: string): string {
-  return `${appUrl()}/reset-password#token=${token}`;
+export function resetLink(token: string, portal?: Portal | null): string {
+  return `${base(portal)}/reset-password#token=${token}`;
 }
 
-export function resetEmail(to: string, token: string) {
+export function resetEmail(to: string, token: string, portal?: Portal | null) {
   return {
     to,
     subject: `Reset your ${brand.name} password`,
@@ -22,7 +26,7 @@ export function resetEmail(to: string, token: string) {
       `Someone asked to reset the password for your ${brand.name} account.`,
       ``,
       `To choose a new password, open this link within ${RESET_LINK_MINUTES} minutes:`,
-      resetLink(token),
+      resetLink(token, portal),
       ``,
       `If you didn't ask for this, ignore this message — your password hasn't changed and the link stops working by itself.`,
     ].join("\n"),
@@ -87,14 +91,14 @@ export function recoveryCodesReplacedEmail(to: string) {
   };
 }
 
-export function passwordChangedEmail(to: string) {
+export function passwordChangedEmail(to: string, portal?: Portal | null) {
   return {
     to,
     subject: `Your ${brand.name} password was changed`,
     text: [
       `The password for your ${brand.name} account was just changed, and you were signed out of your other devices.`,
       ``,
-      `If this was you, there is nothing to do. If it wasn't, reset your password straight away at ${appUrl()}/forgot-password and tell your school administrator.`,
+      `If this was you, there is nothing to do. If it wasn't, reset your password straight away at ${base(portal)}/forgot-password and tell your school administrator.`,
     ].join("\n"),
   };
 }
@@ -102,7 +106,7 @@ export function passwordChangedEmail(to: string) {
 // --- Change email (plan §0.5.E) ------------------------------------------------------------------------------
 
 /// To the NEW address: following it proves the address is reachable. (Token in the URL fragment, like a reset.)
-export function emailChangeConfirmEmail(to: string, token: string) {
+export function emailChangeConfirmEmail(to: string, token: string, portal?: Portal | null) {
   return {
     to,
     subject: `Confirm your new ${brand.name} email address`,
@@ -110,7 +114,7 @@ export function emailChangeConfirmEmail(to: string, token: string) {
       `Someone asked to use this address for a ${brand.name} account.`,
       ``,
       `To confirm it, open this link within ${EMAIL_CHANGE_LINK_MINUTES} minutes:`,
-      `${appUrl()}/confirm-email#token=${token}`,
+      `${base(portal)}/confirm-email#token=${token}`,
       ``,
       `Confirming signs the account out of every device, and from then on you sign in with this address.`,
       `If you didn't ask for this, ignore this message — nothing changes and the link stops working by itself.`,
@@ -119,7 +123,7 @@ export function emailChangeConfirmEmail(to: string, token: string) {
 }
 
 /// To the OLD address when a change is requested: they can stop it by changing their password.
-export function emailChangeRequestedNotice(to: string, newEmail: string) {
+export function emailChangeRequestedNotice(to: string, newEmail: string, portal?: Portal | null) {
   return {
     to,
     subject: `A change of email address was requested on your ${brand.name} account`,
@@ -128,7 +132,35 @@ export function emailChangeRequestedNotice(to: string, newEmail: string) {
       ``,
       `Nothing changes until the link sent to that address is opened. This address keeps working until then.`,
       ``,
-      `If this wasn't you, change your password straight away at ${appUrl()}/forgot-password and tell your school administrator.`,
+      `If this wasn't you, change your password straight away at ${base(portal)}/forgot-password and tell your school administrator.`,
+    ].join("\n"),
+  };
+}
+
+/// To the OLD address when a change is requested by someone whose change must be approved first (task 0088).
+export function emailChangeAwaitingApprovalNotice(to: string, newEmail: string, portal?: Portal | null) {
+  return {
+    to,
+    subject: `A change of email address was requested on your ${brand.name} account`,
+    text: [
+      `Someone who is signed in to your ${brand.name} account asked to change its email address to ${maskEmail(newEmail)}.`,
+      ``,
+      `A school administrator has to approve it first. Nothing changes until they do and the link sent to that address is opened. This address keeps working until then.`,
+      ``,
+      `If this wasn't you, change your password straight away at ${base(portal)}/forgot-password and tell your school administrator.`,
+    ].join("\n"),
+  };
+}
+
+/// To the OLD address when an administrator declines the change. The new address is not named.
+export function emailChangeDeniedNotice(to: string) {
+  return {
+    to,
+    subject: `Your ${brand.name} email address was not changed`,
+    text: [
+      `The request to change the email address on your ${brand.name} account was declined by a school administrator. Nothing has changed and this address keeps working.`,
+      ``,
+      `If you still need to change it, ask your school administrator.`,
     ].join("\n"),
   };
 }
@@ -148,14 +180,14 @@ export function emailChangedNotice(to: string, newEmail: string) {
 
 /// To an address that ALREADY has an account, when someone asks to use it for another account. (It is sent instead
 /// of the confirmation link; the requester is told the same thing whether or not this happened.)
-export function emailChangeTakenNotice(to: string) {
+export function emailChangeTakenNotice(to: string, portal?: Portal | null) {
   return {
     to,
     subject: `Someone tried to use your email address on ${brand.name}`,
     text: [
       `Someone asked to use this address for a different ${brand.name} account. Because this address already has an account, nothing was changed and no link was sent.`,
       ``,
-      `If that was you, you can simply sign in at ${appUrl()}/login (or reset your password at ${appUrl()}/forgot-password). If it wasn't, you can ignore this message.`,
+      `If that was you, you can simply sign in at ${base(portal)}/login (or reset your password at ${base(portal)}/forgot-password). If it wasn't, you can ignore this message.`,
     ].join("\n"),
   };
 }
@@ -166,8 +198,8 @@ export function emailChangeTakenNotice(to: string) {
 const oneLine = (value: string) => value.replace(/[\r\n\u2028\u2029]+/g, " ").trim();
 
 /// The token travels in the URL FRAGMENT, like a reset link: no server log, no Referer.
-export function invitationLink(token: string): string {
-  return `${appUrl()}/accept-invite#token=${token}`;
+export function invitationLink(token: string, portal?: Portal | null): string {
+  return `${base(portal)}/accept-invite#token=${token}`;
 }
 
 /// To the invited address. Says the same whether or not that address already has an account (the invitee finds out when they open it) —
@@ -179,6 +211,8 @@ export function invitationEmail(input: {
   roleLabel: string;
   inviterName: string | null;
   days: number;
+  /// The portal of the invited role (task 0086), so the link opens where that person signs in.
+  portal?: Portal | null;
 }) {
   const branch = oneLine(input.branchName);
   const inviter = input.inviterName ? oneLine(input.inviterName) : "An administrator";
@@ -189,7 +223,7 @@ export function invitationEmail(input: {
       `${inviter} invited you to join ${brand.name} (${branch}) as ${input.roleLabel}.`,
       ``,
       `To accept, open this link within ${input.days} days:`,
-      invitationLink(input.token),
+      invitationLink(input.token, input.portal),
       ``,
       `If you weren't expecting this, ignore this message — nothing happens unless the link is opened, and it stops working by itself.`,
     ].join("\n"),

@@ -8,7 +8,7 @@ import { BranchesView } from "./BranchesView";
 export const metadata: Metadata = { title: "Branches" };
 export const dynamic = "force-dynamic";
 
-export default async function BranchesPage() {
+export default async function BranchesPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   const { isSuperAdmin } = await requirePageSession();
 
   // The page enforces what the API enforces (`POST /api/v1/branches` is superadmin-only): hiding the nav
@@ -36,8 +36,14 @@ export default async function BranchesPage() {
 
   const branches = await prisma.branch.findMany({
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, _count: { select: { memberships: { where: { deactivatedAt: null } } } } },
+    select: { id: true, name: true, code: true, _count: { select: { memberships: { where: { deactivatedAt: null } } } } },
   });
+  const { deleted } = await searchParams; // set by the single-branch page after a deletion, so this page can say so; it is only ever shown as text
 
-  return <BranchesView branches={branches.map((b) => ({ id: b.id, name: b.name, members: b._count.memberships }))} />;
+  return (
+    <BranchesView
+      branches={branches.map((b) => ({ id: b.id, name: b.name, code: b.code, members: b._count.memberships }))}
+      deletedName={typeof deleted === "string" ? deleted.slice(0, 100) : null}
+    />
+  );
 }

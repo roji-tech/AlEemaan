@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { pendingFor } from "@/lib/auth/email-change-approval";
 import { ApprovalsSections } from "@/components/approvals/ApprovalsSections";
 
 export const metadata: Metadata = { title: "Approvals and rules" };
@@ -24,6 +25,7 @@ export default async function ApprovalsPage() {
   }
   const visible = await branchIdsFor(session.userId);
   const scope = await adminScope(session.userId);
+  const emailChangesWaiting = (await pendingFor(session.userId)).length;
   const branches = await prisma.branch.findMany({
     where: visible === "all" ? {} : { id: { in: visible } },
     orderBy: { name: "asc" },
@@ -42,6 +44,7 @@ export default async function ApprovalsPage() {
       <ApprovalsSections
         branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
         isSuperAdmin={isSuperAdmin}
+        emailChangesWaiting={emailChangesWaiting}
       />
     </div>
   );

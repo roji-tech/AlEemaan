@@ -29,8 +29,24 @@ function Heading({ children, focus }: { children: string; focus: boolean }) {
 /// "Email address" card (plan §0.5.E): idle → form (new address + CURRENT password) → "check your inbox".
 /// The screen says the same thing whether or not the address already belongs to somebody — that is the
 /// server's promise, and this panel must not undo it by hinting at the difference.
-export function ChangeEmailPanel({ email }: { email: string | null }) {
+///
+/// Task 0088: unless the person is a superadmin, an administrator has to approve the change before any link is sent
+/// (`needsApproval`), so the form says so, the confirmation says "sent for approval", and a request that is waiting
+/// is shown with a Cancel button (`waiting`).
+export function ChangeEmailPanel({
+  email,
+  needsApproval = false,
+  waiting = null,
+}: {
+  email: string | null;
+  needsApproval?: boolean;
+  waiting?: { newEmail: string; since: string } | null;
+}) {
   const [view, setView] = useState<"idle" | "form" | "sent">("idle");
+  const [open, setOpen] = useState(waiting);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [asked, setAsked] = useState(false);
   const [touched, setTouched] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,6 +83,8 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
     setPending(false);
     if (reply.ok) {
       setSentTo(address);
+      setAsked(reply.data?.needsApproval === true);
+      if (reply.data?.needsApproval === true) setOpen({ newEmail: address, since: new Date().toISOString() });
       setNewEmail("");
       setPassword("");
       return go("sent");
@@ -80,6 +98,16 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
     else setFormError(reply.code === "NETWORK" ? NETWORK_ERROR : GENERIC_ERROR);
   }
 
+  async function cancelRequest() {
+    if (cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    const reply = await sendJson("/api/v1/auth/email-change/request", "DELETE");
+    setCancelling(false);
+    if (reply.ok) return setOpen(null);
+    setCancelError(reply.status === 401 ? SESSION_ENDED : reply.code === "NETWORK" ? NETWORK_ERROR : GENERIC_ERROR);
+  }
+
   return (
     <div className="mt-4 space-y-4">
       {view === "idle" && (
@@ -87,8 +115,22 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
           <p className="text-sm text-fg-2">
             Your email address is <strong className="font-semibold wrap-break-word text-fg">{email ?? "not set"}</strong>.
           </p>
+          {open && (
+            <div role="status" className="max-w-md space-y-3 rounded-2xl border border-line bg-info-bg p-4">
+              <p className="text-sm font-semibold text-fg">Waiting for approval</p>
+              <p className="text-sm text-fg-2">
+                You asked to change it to <strong className="font-semibold wrap-break-word text-fg">{open.newEmail}</strong> on{" "}
+                {new Date(open.since).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}. An administrator
+                has to approve it first; once they do, a link goes to the new address. Until then nothing changes.
+              </p>
+              {cancelError && <Alert variant="error">{cancelError}</Alert>}
+              <Button variant="ghost" onClick={cancelRequest} loading={cancelling}>
+                Cancel this request
+              </Button>
+            </div>
+          )}
           <Button variant="secondary" onClick={() => go("form")} ref={startButton}>
-            Change email address
+            {open ? "Ask for a different address" : "Change email address"}
           </Button>
         </div>
       )}
@@ -97,8 +139,9 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
         <form method="post" onSubmit={submit} noValidate className="max-w-md space-y-4">
           <Heading focus={touched}>Change your email address</Heading>
           <p className="text-sm text-fg-muted">
-            We&apos;ll send a link to the new address. Nothing changes until it is opened. When it is, you&apos;ll be signed out everywhere
-            and sign in with the new address.
+            {needsApproval
+              ? "An administrator has to approve this first. Once they do, we'll send a link to the new address. Nothing changes until it is opened. When it is, you'll be signed out everywhere and sign in with the new address."
+              : "We'll send a link to the new address. Nothing changes until it is opened. When it is, you'll be signed out everywhere and sign in with the new address."}
           </p>
           <TextField
             label="New email address"
@@ -134,7 +177,7 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
           {formError && <Alert variant="error">{formError}</Alert>}
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button type="submit" loading={pending}>
-              {pending ? "Sending…" : "Send confirmation link"}
+              {pending ? "Sending…" : needsApproval ? "Send for approval" : "Send confirmation link"}
             </Button>
             <Button variant="ghost" onClick={() => go("idle")} disabled={pending}>
               Cancel
@@ -149,13 +192,21 @@ export function ChangeEmailPanel({ email }: { email: string | null }) {
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info-bg text-info-icon">
               <MailIcon className="h-5 w-5" />
             </span>
-            <Heading focus={touched}>Check your inbox</Heading>
+            <Heading focus={touched}>{asked ? "Sent for approval" : "Check your inbox"}</Heading>
           </div>
-          <p className="text-sm leading-relaxed text-fg-2">
-            If <strong className="font-semibold wrap-break-word text-fg">{sentTo}</strong> can be used, a confirmation link is on its way.
-            It works once and stops working after an hour. Your current address keeps working until you open it, and we&apos;ve let it know
-            about the request.
-          </p>
+          {asked ? (
+            <p className="text-sm leading-relaxed text-fg-2">
+              Your request to use <strong className="font-semibold wrap-break-word text-fg">{sentTo}</strong> is waiting for an
+              administrator. Once they approve it, a confirmation link goes to that address. Your current address keeps working until you
+              open it, and we&apos;ve let it know about the request.
+            </p>
+          ) : (
+            <p className="text-sm leading-relaxed text-fg-2">
+              If <strong className="font-semibold wrap-break-word text-fg">{sentTo}</strong> can be used, a confirmation link is on its way.
+              It works once and stops working after an hour. Your current address keeps working until you open it, and we&apos;ve let it
+              know about the request.
+            </p>
+          )}
           <Button variant="secondary" onClick={() => go("idle")}>
             Done
           </Button>
