@@ -30,7 +30,7 @@ Two rules sit over every step:
 | Database | PostgreSQL through Prisma. The hosted one named in `docs/HANDOVER.md` section 3 is `db.prisma.io` with the **old** 26-migration history applied. **Its content and its state were not looked at for this guide.** You said on 2026-11-12 that there is no production data yet. | see section 3.1 |
 | Environment variables on Vercel | Seen on 2026-11-10: `DATABASE_URL` (Production and Preview) and `SESSION_SECRET` (a different value in each). Everything else in section 3.2 is **not set**. | `vercel env ls --scope portfolio-frontend-react-team-2` (names only) |
 | Scheduled jobs | None. There is no `vercel.json` and no cron route. A broadcast is sent from the Communication screen ten recipients at a time and **needs the page to stay open**. | |
-| Rate limiting | In the server's memory (one count per running instance). On Vercel several instances can run, so a limit is looser than its number says. `REDIS_URL` in `.env.example` is for the local Docker only; the code does not read it. | `src/lib/auth/rate-limit.ts` |
+| Rate limiting | In the database (table `RateLimitHit`, migration `20261118210000_rate_limit_hit`), so a limit holds across every instance (task 0102). If the table is missing or the database cannot be used, it counts in the process's memory and logs `[RATE_LIMIT] The database could not be used ...` once: run the migration. `RATE_LIMIT_STORE=memory` chooses memory on purpose (a single Docker process). `REDIS_URL` in `.env.example` is for the local Docker only; the code does not read it. | `src/lib/auth/rate-limit.ts` |
 
 ## 2. Decisions (made by the maintainer, 2026-11-13) and what each still needs from you
 
@@ -216,7 +216,7 @@ A green "Ready" is **not** proof: a missing `SESSION_SECRET` also shows Ready. D
 - [ ] Open the page that the release changed, and one page that it should not have (Students, Results).
 - [ ] An email arrives: use Users → invite yourself with a second address, or Forgot password.
 - [ ] A pupil or guardian can sign in to `/portal`.
-- [ ] `vercel logs` shows no repeating error, and no `[RATE_LIMIT] No client IP` line.
+- [ ] `vercel logs` shows no repeating error, no `[RATE_LIMIT] No client IP` line and no `[RATE_LIMIT] The database could not be used` line (that one means the `RateLimitHit` migration has not run).
 
 **Step 8. Record it.** In `docs/HANDOVER.md` write the date, the commit on `master`/`prod`, the migrations run and the variables added. Tag the release if you tag (`git tag -a v… prod-commit`).
 

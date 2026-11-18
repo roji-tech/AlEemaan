@@ -15,6 +15,7 @@ import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/pos
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
 import { EditDatesDialog, PeriodDatesFields, problemAt } from "@/components/academics/SessionDates";
 import { SessionTerms, day } from "@/components/academics/SessionTerms";
+import { SessionTimeline } from "@/components/academics/SessionTimeline";
 import {
   AnnounceBreakDialog,
   BreakDialog,
@@ -137,6 +138,8 @@ export function SessionsPanel({
   });
   // The term being made current right now: its button shows it, and no second change starts until this one is answered.
   const [settingTerm, setSettingTerm] = useState<string | null>(null);
+  // The moment the cards are drawn for (Upcoming, Ended, the timeline); read once, when the panel opens.
+  const [now] = useState(() => new Date());
   async function makeCurrent(session: SessionRow, period: Period) {
     if (settingTerm) return;
     setSettingTerm(period.id);
@@ -210,11 +213,6 @@ export function SessionsPanel({
                 }
                 title={s.label}
                 badges={<StatusBadge status={s.status} />}
-                facts={[
-                  { label: "Dates", value: `${day(s.startDate)} to ${day(s.endDate)}` },
-                  { label: noun === "semester" ? "Semesters" : "Terms", value: s.periods.length },
-                  { label: `Current ${noun}`, value: current ? current.label : "None" },
-                ]}
                 actions={
                   branch.canEdit
                     ? [
@@ -250,19 +248,35 @@ export function SessionsPanel({
                     : undefined
                 }
                 below={
-                  <SessionTerms
-                    sessionLabel={s.label}
-                    sessionStatus={s.status}
-                    periods={s.periods}
-                    canEdit={branch.canEdit}
-                    settingTerm={settingTerm}
-                    onMakeCurrent={(p) => makeCurrent(s, p)}
-                    onAddBreak={(p) => setBreakTarget(breakTargetOf(s, p))}
-                    onChangeBreak={(p, b) => setBreakTarget(breakTargetOf(s, p, b))}
-                    onRemoveBreak={(p, b) => setAction({ kind: "removeBreak", session: s, period: p, brk: b })}
-                  />
+                  <div className="space-y-4">
+                    <SessionTimeline status={s.status} periods={s.periods} startDate={s.startDate} endDate={s.endDate} now={now} />
+                    <SessionTerms
+                      sessionLabel={s.label}
+                      sessionStatus={s.status}
+                      periods={s.periods}
+                      canEdit={branch.canEdit}
+                      settingTerm={settingTerm}
+                      now={now}
+                      onMakeCurrent={(p) => makeCurrent(s, p)}
+                      onAddBreak={(p) => setBreakTarget(breakTargetOf(s, p))}
+                      onChangeBreak={(p, b) => setBreakTarget(breakTargetOf(s, p, b))}
+                      onRemoveBreak={(p, b) => setAction({ kind: "removeBreak", session: s, period: p, brk: b })}
+                    />
+                  </div>
                 }
-              />
+              >
+                <p className="text-fg-2">
+                  {day(s.startDate)} to {day(s.endDate)}
+                  <span className="text-fg-muted">
+                    {" "}
+                    · {s.periods.length}{" "}
+                    {noun === "semester" ? (s.periods.length === 1 ? "semester" : "semesters") : s.periods.length === 1 ? "term" : "terms"}
+                  </span>
+                </p>
+                <p className="mt-0.5 text-fg-muted">
+                  Current {noun}: <span className="font-semibold text-fg">{current ? current.label : "none"}</span>
+                </p>
+              </Item>
             );
           })}
         </Collection>
