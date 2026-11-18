@@ -79,8 +79,9 @@ export function trackLoginRequests(page: Page) {
 }
 
 // --- The Users page's row actions live behind one "Actions for <person>" button (a list that opens and closes). ---------------------------------------------------------------
+// (The person is group 1 after a verb, or group 2 in "Add <person> to another branch", where the name sits in the middle.)
 const ROW_ACTION =
-  /^(Change role or branch for|Deactivate|Reactivate|Suspend|Terminate|Standing history of|Make superadmin|Remove superadmin from) (.+)$/;
+  /^(?:(?:Change role or branch for|Deactivate|Reactivate|Suspend|Terminate|Standing history of|Make superadmin|Remove superadmin from) (.+)|Add (.+) to another branch)$/;
 
 /// Opens the Actions list of `person` unless it is already open. False when the person has no Actions button at all (themselves, or someone the caller may not touch).
 export async function openRowActions(page: Page, person: string): Promise<boolean> {
@@ -94,7 +95,8 @@ export async function openRowActions(page: Page, person: string): Promise<boolea
 export async function rowAction(page: Page, label: string): Promise<void> {
   const match = ROW_ACTION.exec(label);
   if (!match) throw new Error(`not a row action: ${label}`);
-  expect(await openRowActions(page, match[2]), `${match[2]} has an Actions button`).toBe(true);
+  const person = match[1] ?? match[2];
+  expect(await openRowActions(page, person), `${person} has an Actions button`).toBe(true);
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
@@ -102,7 +104,7 @@ export async function rowAction(page: Page, label: string): Promise<void> {
 export async function hasRowAction(page: Page, label: string): Promise<boolean> {
   const match = ROW_ACTION.exec(label);
   if (!match) throw new Error(`not a row action: ${label}`);
-  if (!(await openRowActions(page, match[2]))) return false;
+  if (!(await openRowActions(page, match[1] ?? match[2]))) return false;
   return (await page.getByRole("button", { name: label, exact: true }).count()) > 0;
 }
 

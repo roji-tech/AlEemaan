@@ -44,6 +44,12 @@ const failureText = (status: number, message?: string) =>
         ? NETWORK_ERROR
         : (message ?? "That didn't work. Please try again in a moment.");
 
+/// What the page says after an invitation went out: one branch keeps the original sentence; several say how many and which (one e-mail lists them all).
+const invitedText = (sent: Invitation[]) =>
+  sent.length === 1
+    ? `Invitation sent to ${sent[0].email}. The link works for 7 days.`
+    : `${sent.length} invitations created for ${sent[0].email}: ${sent.map((i) => i.branchName).join(", ")}. One email lists a link for each branch; each link works for 7 days.`;
+
 /// The Users page (plan §0.5.4): the school's people with filters and paging, the open invitations, and the four things an administrator does —
 /// invite, change role/branch, deactivate, reactivate; a superadmin also makes or removes superadmins. A branch administrator sees and acts on
 /// their own branches only and never touches an administrator or a superadmin — controls that would be refused are not drawn (a courtesy). Everything goes through the API (which enforces who may do what); this only shows the
@@ -80,6 +86,7 @@ export function UsersPanel({
   const [notice, setNotice] = useNotice();
   const [inviting, setInviting] = useState(false);
   const [inviteKey, setInviteKey] = useState(0);
+  const [adding, setAdding] = useState<{ member: Member | null; key: number }>({ member: null, key: 0 });
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [editing, setEditing] = useState<Member | null>(null);
   const [deactivating, setDeactivating] = useState<Member | null>(null);
@@ -399,8 +406,13 @@ export function UsersPanel({
                           locked={locked}
                           can={standingCan[member.branchId] ?? { suspend: false, remove: false }}
                           isSuperAdmin={isSuperAdmin}
+                          canAddBranch={branches.length > 1}
                           busy={busyUser === member.id}
                           onEdit={setEditing}
+                          onAddBranch={(m) => {
+                            setNotice(null);
+                            setAdding((a) => ({ member: m, key: a.key + 1 }));
+                          }}
                           onDeactivate={setDeactivating}
                           onStanding={ask}
                           onSuperAdmin={setSuperAdminFor}
@@ -457,9 +469,23 @@ export function UsersPanel({
         onClose={() => setInviting(false)}
         branches={branches}
         roleOptions={roleOptionsFor(isSuperAdmin)}
-        onInvited={(invitation) => {
+        onInvited={(sent) => {
           flushSync(() => setInviting(false)); // the dialog is closed (and focus handed back) before the lists are reloaded
-          setNotice({ variant: "success", text: `Invitation sent to ${invitation.email}. The link works for 7 days.` });
+          setNotice({ variant: "success", text: invitedText(sent) });
+          void afterChange();
+        }}
+      />
+      <InviteDialog
+        key={`add-${adding.key}`}
+        open={adding.member !== null}
+        onClose={() => setAdding((a) => ({ ...a, member: null }))}
+        branches={branches}
+        roleOptions={roleOptionsFor(isSuperAdmin)}
+        invitations={invitations ?? []}
+        person={adding.member}
+        onInvited={(sent) => {
+          flushSync(() => setAdding((a) => ({ ...a, member: null })));
+          setNotice({ variant: "success", text: invitedText(sent) });
           void afterChange();
         }}
       />
