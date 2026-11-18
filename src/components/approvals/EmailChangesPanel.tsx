@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { getJson, sendJson } from "@/components/auth/postJson";
+import { sendJson } from "@/components/auth/postJson";
+import { Pager } from "@/components/ui/Pager";
+import { usePagedList } from "@/components/ui/usePagedList";
 import { say, type Notice } from "@/components/academics/common";
 import { ROLE_LABELS } from "@/lib/roles";
 import type { Role } from "@prisma/client";
 
 // Email-address changes waiting for a decision (task 0088). The list is already narrowed by the server to the people this administrator may
 // decide for: members of their branches (a superadmin: everyone, including administrators). The API refuses anything else.
+
+const PAGE_SIZE = 10;
 
 type Item = {
   id: string;
@@ -22,21 +26,10 @@ type Item = {
 };
 
 export function EmailChangesPanel() {
-  const [items, setItems] = useState<Item[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const list = usePagedList<Item>({ endpoint: "/api/v1/email-change-requests", key: "requests", limit: PAGE_SIZE });
+  const { items, error } = list;
   const [notice, setNotice] = useState<Notice>(null);
   const [deciding, setDeciding] = useState<{ item: Item; decision: "approve" | "deny" } | null>(null);
-
-  const load = useCallback(async () => {
-    const r = await getJson("/api/v1/email-change-requests");
-    if (!r.ok) return setError(say(r, "Couldn't load the requests."));
-    setError(null);
-    setItems(r.data!.requests as Item[]);
-  }, []);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading when the tab opens is exactly what this effect is for
-    void load();
-  }, [load]);
 
   const who = (i: Item) => i.person.name ?? i.person.email ?? "someone";
 
@@ -93,6 +86,7 @@ export function EmailChangesPanel() {
           ))}
         </ul>
       )}
+      {list.meta && <Pager page={list.page} pages={list.meta.pages} onPage={list.setPage} label="Pages of email changes" />}
       <DecideDialog
         key={deciding ? `${deciding.item.id}-${deciding.decision}` : "none"}
         deciding={deciding}
@@ -101,7 +95,7 @@ export function EmailChangesPanel() {
         onDone={async (text) => {
           setDeciding(null);
           setNotice({ variant: "success", text });
-          await load();
+          list.reload();
         }}
       />
     </div>

@@ -5,6 +5,7 @@ import { buildCsp, generateNonce } from "@/lib/security/csp";
 import { videoGuideMedia } from "@/lib/video-guide/media-base";
 import { requestHost } from "@/lib/auth/csrf";
 import { apexOrigin, classifyHost, isLandingPath, readPortalConfig } from "@/lib/portals";
+import { RETURN_TO_HEADER } from "@/lib/auth/return-to";
 
 // Per-request nonce-based CSP (domain-implementation-plan.md §0.5.B). Next 16 calls this file `proxy`
 // (it was `middleware`). The nonce goes on the REQUEST headers — Next reads the policy from there and
@@ -50,6 +51,8 @@ export function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(header, policy);
+  // Where the person is going, for a page that has to send them to sign in first (lib/auth/return-to.ts). Always overwritten here, so a caller cannot send their own.
+  requestHeaders.set(RETURN_TO_HEADER, `${request.nextUrl.pathname}${request.nextUrl.search}`);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(header, policy);

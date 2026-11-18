@@ -23,10 +23,13 @@ const PAUSE_SECONDS = 30;
 /// in, never stored): reloading the page starts over at the password, which is the safe direction.
 export function MfaStep({
   challenge,
+  returnTo = null,
   onBack,
   onExpired,
 }: {
   challenge: string;
+  /// The page to land on after signing in (already checked on the server: an in-site path), or null for the dashboard.
+  returnTo?: string | null;
   /// Back to the password step.
   onBack: () => void;
   /// The challenge died (expired, used up, out of attempts): back to the password step with a message.
@@ -86,7 +89,7 @@ export function MfaStep({
       });
       if (res.ok) {
         setStatus("success");
-        router.replace("/dashboard");
+        router.replace(returnTo ?? "/dashboard");
         router.refresh();
         return;
       }

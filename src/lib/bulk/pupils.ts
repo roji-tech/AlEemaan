@@ -149,5 +149,12 @@ export const pupilEntityFor = (classNames: readonly string[]): BulkEntity<PupilR
   columns: columns(classNames),
   rowSchema: pupilRowSchema,
   uniqueKeys: ["admissionNo"],
+  fullName: {
+    aliases: ["name", "full name", "full_name", "fullname", "pupil name", "pupil's name", "student name", "student's name"],
+    first: "firstName",
+    middle: "middleName",
+    last: "lastName",
+    note: "Instead of First, Middle and Last name columns, a file may have ONE column called Name, Full name or full_name: the first word becomes the first name, the last word the last name and any words between the middle name. A name of one word has no last name and is refused until you add one.",
+  },
 });
 export const pupilEntity = pupilEntityFor([]);

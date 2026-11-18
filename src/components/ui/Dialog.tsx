@@ -54,6 +54,9 @@ export function Dialog({
       onCancel={
         confirmClose
           ? (event) => {
+              // Only this dialog's own cancel (Escape). A file input inside it fires a bubbling `cancel` of its own when the person closes the file picker without choosing, which used to
+              // reach here and close the dialog (and the work in it).
+              if (event.target !== event.currentTarget) return;
               event.preventDefault();
               onClose();
             }

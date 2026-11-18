@@ -168,8 +168,11 @@ export async function getSession(): Promise<ResolvedSession | null> {
 }
 
 async function resolveToken(token: string): Promise<ResolvedSession | null> {
+  // `relationLoadStrategy: "join"`: the person comes back in the SAME database round trip as the session (the default is a second query after the first). This runs on every page
+  // and every API call, and a round trip to a hosted database costs about 200 ms.
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashToken(token) },
+    relationLoadStrategy: "join",
     include: { user: { select: { id: true, name: true, email: true } } },
   });
   if (!session) return null;
