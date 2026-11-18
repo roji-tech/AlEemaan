@@ -10,6 +10,7 @@ import { TwoStepPanel } from "@/components/auth/TwoStepPanel";
 import { mfaConfigured } from "@/lib/auth/mfa/secret-box";
 import { getMfaStatus } from "@/lib/auth/mfa/service";
 import { Card } from "@/components/ui/Card";
+import { openRequestFor, requiredLevelFor } from "@/lib/auth/email-change-approval";
 
 export const metadata: Metadata = { title: "Account" };
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function AccountPage() {
   const { session, memberships } = await requirePageSession();
   const { name, email } = session.user;
   const mfa = await getMfaStatus(session.userId);
+  const [level, waiting] = await Promise.all([requiredLevelFor(session.userId), openRequestFor(session.userId)]);
 
   return (
     <div className="space-y-8">
@@ -50,7 +52,11 @@ export default async function AccountPage() {
       <Card>
         <h2 className="text-lg font-semibold text-fg">Email address</h2>
         <p className="mt-1 text-sm text-fg-muted">It&apos;s what you sign in with, and where password reset links go.</p>
-        <ChangeEmailPanel email={email} />
+        <ChangeEmailPanel
+          email={email}
+          needsApproval={level !== "NONE"}
+          waiting={waiting ? { newEmail: waiting.newEmail, since: waiting.createdAt.toISOString() } : null}
+        />
       </Card>
 
       <Card>

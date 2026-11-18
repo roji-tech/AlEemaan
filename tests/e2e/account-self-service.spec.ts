@@ -109,12 +109,13 @@ async function requestChange(page: Page, user: { password: string }, newEmail: s
   await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeFocused();
 }
 
+// A superadmin is the one person whose change needs no approval (task 0088), so these are about the direct path: the link. Approval is in email-change-approval.spec.ts.
 test.describe("change your email address", () => {
   test("the whole journey: request → mail to the NEW address → confirm → signed out everywhere → the new address signs in", async ({
     page,
     browser,
   }) => {
-    const user = await createUser({ role: Role.TEACHING_STAFF });
+    const user = await createUser({ role: Role.ADMIN });
     const newEmail = uniqueEmail("fresh");
     // Signed in on another device.
     const other = await browser.newContext({ extraHTTPHeaders: { "x-real-ip": uniqueIp() } });
@@ -162,7 +163,7 @@ test.describe("change your email address", () => {
   });
 
   test("the success screen links to sign-in", async ({ page }) => {
-    const user = await createUser({ role: Role.TEACHING_STAFF });
+    const user = await createUser({ role: Role.ADMIN });
     const newEmail = uniqueEmail("fresh");
     await signInThroughUi(page, user);
     await requestChange(page, user, newEmail);
@@ -173,7 +174,7 @@ test.describe("change your email address", () => {
   });
 
   test("a link that was already used, and a link with no token, say so and offer a way on", async ({ page }) => {
-    const user = await createUser({ role: Role.TEACHING_STAFF });
+    const user = await createUser({ role: Role.ADMIN });
     const newEmail = uniqueEmail("fresh");
     await signInThroughUi(page, user);
     await requestChange(page, user, newEmail);
@@ -194,8 +195,8 @@ test.describe("change your email address", () => {
   });
 
   test("a second link opened in the SAME tab replaces the first (only the fragment changes, so the page must notice)", async ({ page }) => {
-    const first = await createUser({ role: Role.TEACHING_STAFF });
-    const second = await createUser({ role: Role.TEACHING_STAFF });
+    const first = await createUser({ role: Role.ADMIN });
+    const second = await createUser({ role: Role.ADMIN });
     const firstNew = uniqueEmail("one");
     const secondNew = uniqueEmail("two");
     const firstToken = await createEmailChangeToken(first.id, firstNew);
@@ -213,7 +214,7 @@ test.describe("change your email address", () => {
   });
 
   test("the form checks locally and sends nothing for a blank/malformed address or a missing password", async ({ page }) => {
-    const user = await createUser({ role: Role.TEACHING_STAFF });
+    const user = await createUser({ role: Role.ADMIN });
     await signInThroughUi(page, user);
     await page.goto("/account");
     const sent: string[] = [];
@@ -233,7 +234,7 @@ test.describe("change your email address", () => {
   });
 
   test("a wrong password is explained at the password field; the password is cleared; the address kept", async ({ page }) => {
-    const user = await createUser({ role: Role.TEACHING_STAFF });
+    const user = await createUser({ role: Role.ADMIN });
     const newEmail = uniqueEmail("fresh");
     await signInThroughUi(page, user);
     await page.goto("/account");
@@ -248,7 +249,7 @@ test.describe("change your email address", () => {
   });
 
   test("your own address is refused; an address that already has an account looks exactly like success", async ({ page }) => {
-    const user = await createUser({ role: Role.TEACHING_STAFF });
+    const user = await createUser({ role: Role.ADMIN });
     const taken = await createUser();
     await signInThroughUi(page, user);
     await page.goto("/account");

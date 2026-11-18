@@ -137,6 +137,34 @@ export function emailChangeRequestedNotice(to: string, newEmail: string, portal?
   };
 }
 
+/// To the OLD address when a change is requested by someone whose change must be approved first (task 0088).
+export function emailChangeAwaitingApprovalNotice(to: string, newEmail: string, portal?: Portal | null) {
+  return {
+    to,
+    subject: `A change of email address was requested on your ${brand.name} account`,
+    text: [
+      `Someone who is signed in to your ${brand.name} account asked to change its email address to ${maskEmail(newEmail)}.`,
+      ``,
+      `A school administrator has to approve it first. Nothing changes until they do and the link sent to that address is opened. This address keeps working until then.`,
+      ``,
+      `If this wasn't you, change your password straight away at ${base(portal)}/forgot-password and tell your school administrator.`,
+    ].join("\n"),
+  };
+}
+
+/// To the OLD address when an administrator declines the change. The new address is not named.
+export function emailChangeDeniedNotice(to: string) {
+  return {
+    to,
+    subject: `Your ${brand.name} email address was not changed`,
+    text: [
+      `The request to change the email address on your ${brand.name} account was declined by a school administrator. Nothing has changed and this address keeps working.`,
+      ``,
+      `If you still need to change it, ask your school administrator.`,
+    ].join("\n"),
+  };
+}
+
 /// To the OLD address once it has happened.
 export function emailChangedNotice(to: string, newEmail: string) {
   return {
