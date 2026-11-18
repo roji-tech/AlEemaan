@@ -72,10 +72,8 @@ test("the quick actions and the branches are links; on a phone nothing scrolls s
   for (const name of [/^New academic session/, /^New class/, /^New subject/, /^Add pupils/, /^Invite people/]) {
     await expect(page.getByRole("link", { name }).first()).toBeVisible();
   }
-  await expect(page.getByRole("link", { name: new RegExp(`^${(await db.branch.findFirstOrThrow()).name}`) })).toHaveAttribute(
-    "href",
-    /\/branches\//,
-  );
+  // A branch name has brackets in it ("Secondary (English)"): a plain string, not a pattern.
+  await expect(page.getByRole("link", { name: (await db.branch.findFirstOrThrow()).name }).first()).toHaveAttribute("href", /\/branches\//);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await expectAccessible(page, "the overview on a phone");
 });

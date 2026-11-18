@@ -41,6 +41,11 @@ When an administrator creates a session they choose whether the year is cut into
 - Changing the kind after creation (D6).
 - Adding or removing a term after creation: the number is chosen when the session is made.
 
-## 5. Record of the runs
+## 5. Record of the runs (2026-11-18, from the run summaries and logs)
 
-See section 7 of the PR; filled in from `summary.txt` of the run, not from memory.
+- **First pass** (fresh build; full unit with setup; API; the desktop browser specs of sessions, overview, the list kit, academics, settings and the shell):
+  - Unit: 1298 passed, **2 failed**: my four new or reworded info tips broke the registry's rules (at most two sentences of 20 to 200 characters; no "always"). Shortened.
+  - API: **41 passed** (session-schedule, school-settings-and-academics, academic-structure, branch-admin-scope, cross-branch-isolation).
+  - Browser: 79 passed, **8 failed**. Three were mine: the duplicate-name test expected the server's words but the form says "This branch already has a session with this name." first; the phone test needed the Create button in view without scrolling, which a form with a row of dates per term cannot give (the dialog scrolls; the test now scrolls to it and checks it is reachable and that nothing scrolls sideways); the overview test built a pattern from a branch name with brackets. Five were stale on `dev` itself, not caused by this task: `shell.spec.ts` expected `/login` but since "after signing in, go back to the page you were on" (1c28c99) a signed-out visit lands on `/login?next=...`; the expectation now allows the `next` parameter.
+- **After the fixes** (fresh build): unit info-tips, session-schedule, shell-nav and collection-model **48 passed**; browser academic-sessions, overview, shell and info-tips (desktop) **76 passed, 0 failed, 12 skipped** (the specs' own phone-only and desktop-only guards), 14.9 minutes.
+- Not run: the phone project (e2e-mobile) for the new Edit dates and semester cases.

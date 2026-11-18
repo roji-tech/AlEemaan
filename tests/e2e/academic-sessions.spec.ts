@@ -110,7 +110,7 @@ test("closing the active session brings the warning back; a session can be renam
   await page.getByRole("button", { name: "New session" }).click();
   await dialog(page).getByLabel("Session name").fill("2026-2027");
   await dialog(page).getByRole("button", { name: "Create session" }).click();
-  await expect(dialog(page).getByText(/already exists/)).toBeVisible();
+  await expect(dialog(page).getByText("This branch already has a session with this name.")).toBeVisible(); // the form says so before asking the server (the API refuses it too: tests/api)
   await dialog(page).getByRole("button", { name: "Cancel" }).click();
 
   await page.getByRole("button", { name: "Close 2026-2027" }).click();
@@ -168,7 +168,11 @@ test("on a phone the sessions page and the form fit the screen", async ({ page }
   await expect(page.getByRole("tab", { name: "Sessions", exact: true })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await page.getByRole("button", { name: "New session" }).click();
-  await expect(dialog(page).getByRole("button", { name: "Create session" })).toBeInViewport();
+  // The form now has a row of dates per term, so it is taller than a phone: the dialog scrolls, and the button is one scroll away, never out of reach.
+  const create = dialog(page).getByRole("button", { name: "Create session" });
+  await create.scrollIntoViewIfNeeded();
+  await expect(create).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await expectAccessible(page, "the new session form on a phone");
 });
 
