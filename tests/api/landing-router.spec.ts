@@ -169,11 +169,11 @@ test.describe("/ar, the page in Arabic", () => {
       expect((await api("/ar", { cookie })).status, cookie).toBe(200);
   });
 
-  test("its links are /login, the portal and the English page, and the English link says so in English and is marked as English", async () => {
+  test("its links are /select-role, the portal and the English page (the school's own home), and the English link says so in English and is marked as English", async () => {
     const res = await api("/ar");
     const hrefs = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"/g)].map((m) => m[1]);
-    expect([...new Set(hrefs)].sort()).toEqual(["/login", "/portal", "/product"]);
-    const link = /<a\s[^>]*href="\/product"[^>]*>[^<]*<\/a>/.exec(res.text)?.[0] ?? "";
+    expect([...new Set(hrefs)].sort()).toEqual(["/", "/portal", "/select-role"]);
+    const link = /<a\s[^>]*href="\/"[^>]*>[^<]*<\/a>/.exec(res.text)?.[0] ?? "";
     expect(link).toContain(">English<");
     expect(link).toContain('lang="en"');
     expect(link).toContain('hrefLang="en"');

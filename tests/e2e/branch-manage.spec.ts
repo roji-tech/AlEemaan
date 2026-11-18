@@ -202,7 +202,9 @@ test("the branch page lists the people in that branch, searchable and by role, w
   await expect(card.getByRole("listitem")).toHaveCount(1);
   await card.getByLabel("Search").fill("zzz-no-one");
   await expect(card.getByText("No one matches these filters.")).toBeVisible();
-  await card.getByRole("button", { name: "Clear filters" }).first().click();
+  // "Clear filters" lives in the folded Filters panel: open it first.
+  await card.getByRole("button", { name: "Filters" }).click();
+  await card.getByRole("button", { name: "Clear filters" }).click();
   await expect(card.getByRole("listitem")).toHaveCount(3);
   await expectAccessible(page, "the single-branch page with its people");
 });

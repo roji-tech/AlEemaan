@@ -28,10 +28,10 @@ test("every page answers 200 as HTML with one h1, the strict policy and no cooki
   }
 });
 
-test("the home page is the school's own: its headline, a Sign in link to /login and the Portal link to /portal; the product page is /product", async () => {
+test("the home page is the school's own: its headline, a Sign in link to /select-role and the Portal link to /portal; the product page is /product", async () => {
   const home = await api("/");
   expect(home.text).toContain("AL-EEMAN SCHOOL OF SCIENCE &amp; ARABIC STUDIES");
-  expect(home.text).toMatch(/<a[^>]*href="\/login"[^>]*>Sign in<\/a>/);
+  expect(home.text).toMatch(/<a[^>]*href="\/select-role"[^>]*>Sign in<\/a>/);
   expect(home.text).toMatch(/<a[^>]*href="\/portal"[^>]*>Portal<\/a>/);
   const product = await api("/product");
   expect(product.status).toBe(200);
@@ -79,4 +79,16 @@ test("the pictures the old site named and never had are not drawn: no page names
     const { text } = await api(route);
     for (const m of text.matchAll(/(?:src|href)="(\/school-site\/[^"]+)"/g)) expect((await api(m[1])).status, `${route} ${m[1]}`).toBe(200);
   }
+});
+
+test("the sign-in page (portals off): a button for a parent, a student and a member of staff, each the school's one sign-in form on this address; no administrator button", async () => {
+  const res = await api("/select-role");
+  expect(res.status).toBe(200);
+  expect(res.text).toContain("<h1");
+  const links = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].filter((m) =>
+    /Parent sign-in|Student sign-in|Staff sign-in/.test(m[2]),
+  );
+  expect(links.map((m) => m[1])).toEqual(["/login", "/login", "/login"]);
+  expect(links.map((m) => /Parent|Student|Staff/.exec(m[2])?.[0])).toEqual(["Parent", "Student", "Staff"]);
+  expect(res.text).not.toContain("Administrator sign-in");
 });

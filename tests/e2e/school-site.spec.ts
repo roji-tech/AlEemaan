@@ -46,6 +46,11 @@ test("the menu: on a phone its button opens and closes the links, Escape closes 
     await button.click();
   }
   await nav.getByRole("link", { name: "Sign in", exact: true }).click();
+  // Not straight to a sign-in form: the page with a button for each kind of person (here the portals are off, so each goes to the one form).
+  await expect(page).toHaveURL(/\/select-role$/);
+  const buttons = page.getByRole("list", { name: "Sign-in portals" }).getByRole("link");
+  await expect(buttons).toHaveCount(3);
+  await buttons.first().click();
   await expect(page).toHaveURL(/\/login$/);
 });
 

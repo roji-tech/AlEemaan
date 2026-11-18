@@ -1,9 +1,13 @@
+import fs from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { Role } from "@prisma/client";
 import {
+  DEFAULT_LABELS,
   PORTAL_COPY,
   PORTALS,
   apexOrigin,
+  apexServes,
   classifyHost,
   isLandingPath,
   portalAdmits,
@@ -19,11 +23,40 @@ import {
 const ON = { ADMIN_SUBDOMAIN: "admin", STAFF_SUBDOMAIN: "staff", STUDENT_SUBDOMAIN: "student", PARENT_SUBDOMAIN: "parent" };
 const config = readPortalConfig(ON).config;
 
-test("none of the four set: the feature is off and every host is 'off'", () => {
+test("nothing set: the portals are ON, with the default labels; every host is classified", () => {
   const { config: none, problems } = readPortalConfig({});
-  expect(portalsOn(none)).toBe(false);
+  expect(portalsOn(none)).toBe(true);
+  expect(none).toEqual({ admin: "admin", staff: "staff", student: "student", parent: "parent" });
+  expect(none).toEqual(DEFAULT_LABELS);
   expect(problems).toEqual([]);
-  expect(classifyHost("admin.example.school", none)).toEqual({ kind: "off" });
+  expect(classifyHost("admin.example.school", none)).toMatchObject({ kind: "portal", portal: "admin" });
+  expect(classifyHost("example.school", none)).toEqual({ kind: "apex", root: "example.school" });
+  // An empty variable is "not set", not an empty label.
+  expect(readPortalConfig({ ADMIN_SUBDOMAIN: "", PORTALS_ENABLED: "" }).config).toEqual(DEFAULT_LABELS);
+});
+
+test("PORTALS_ENABLED false / 0 / off / no (any capitals, spaces around) switches the portals off: no portal, every host 'off', nothing said", () => {
+  for (const word of ["false", "FALSE", " 0 ", "off", "Off", "no"]) {
+    const { config: c, problems } = readPortalConfig({ PORTALS_ENABLED: word, ...ON });
+    expect(portalsOn(c), word).toBe(false);
+    expect(problems, word).toEqual([]);
+    expect(classifyHost("admin.example.school", c), word).toEqual({ kind: "off" });
+    expect(classifyHost("example.school", c), word).toEqual({ kind: "off" });
+  }
+});
+
+test("PORTALS_ENABLED true / 1 / on / yes keeps them on; anything else keeps them on too, and is said once (a typo must not turn the protection off)", () => {
+  for (const word of ["true", "1", "on", "YES"]) {
+    const { config: c, problems } = readPortalConfig({ PORTALS_ENABLED: word });
+    expect(portalsOn(c), word).toBe(true);
+    expect(problems, word).toEqual([]);
+  }
+  for (const word of ["flase", "disabled", "2"]) {
+    const { config: c, problems } = readPortalConfig({ PORTALS_ENABLED: word });
+    expect(portalsOn(c), word).toBe(true);
+    expect(problems, word).toHaveLength(1);
+    expect(problems[0], word).toContain("PORTALS_ENABLED");
+  }
 });
 
 test("a label is trimmed and lower-cased; one that is not a single DNS label, or is repeated, is left out and said", () => {
@@ -63,8 +96,8 @@ test("everything else is the apex: the bare domain, www, a preview URL, localhos
   expect(classifyHost("", config)).toEqual({ kind: "apex", root: "" });
 });
 
-test("a portal that is not switched on is not recognised", () => {
-  const some = readPortalConfig({ ADMIN_SUBDOMAIN: "admin" }).config;
+test("a portal whose label is not usable is not recognised (its host is the apex)", () => {
+  const some = readPortalConfig({ STAFF_SUBDOMAIN: "not.a.label" }).config;
   expect(classifyHost("admin.example.school", some)).toMatchObject({ kind: "portal", portal: "admin" });
   expect(classifyHost("staff.example.school", some)).toEqual({ kind: "apex", root: "staff.example.school" });
 });
@@ -83,7 +116,7 @@ test("the landing pages are on the school's domain, with the request's scheme an
   const apex = classifyHost("www.example.school", config);
   expect(portalOrigin("admin", apex, config, "www.example.school", "https:")).toBe("https://admin.example.school");
   expect(portalOrigin("admin", { kind: "off" }, config, "x", "https:")).toBeNull();
-  expect(portalOrigin("admin", apex, readPortalConfig({ STAFF_SUBDOMAIN: "staff" }).config, "www.example.school", "https:")).toBeNull();
+  expect(portalOrigin("admin", apex, readPortalConfig({ ADMIN_SUBDOMAIN: "-bad" }).config, "www.example.school", "https:")).toBeNull();
 });
 
 test("the landing and marketing paths are the school's public website, with or without a trailing slash; the app's paths are not", () => {
@@ -99,6 +132,7 @@ test("the landing and marketing paths are the school's public website, with or w
     "/subjects",
     "/vacancy",
     "/product",
+    "/select-role",
     "/about/",
   ]) {
     expect(isLandingPath(path), path).toBe(true);
@@ -161,6 +195,75 @@ test("an e-mailed link goes to the portal's own address built from APP_URL: same
   expect(portalBaseFromAppUrl("staff", "https://staging.example.school", config)).toBe("https://staff.staging.example.school");
   expect(portalBaseFromAppUrl("student", "http://localhost:3200", config)).toBe("http://student.localhost:3200");
   expect(portalBaseFromAppUrl("admin", "not an address", config)).toBeNull();
-  expect(portalBaseFromAppUrl("parent", "https://example.school", readPortalConfig({ ADMIN_SUBDOMAIN: "admin" }).config)).toBeNull();
+  expect(portalBaseFromAppUrl("parent", "https://example.school", readPortalConfig({ PARENT_SUBDOMAIN: "-bad" }).config)).toBeNull();
   expect(portalBaseFromAppUrl("parent", "https://example.school", {})).toBeNull();
+});
+
+test("with the portals on, the school's own host serves the landing pages, the sign-in page, the open pages and any file; the sign-in form and the application are the portals'", () => {
+  for (const p of [
+    "/",
+    "/ar",
+    "/about",
+    "/product",
+    "/select-role",
+    "/select-role/",
+    "/portal",
+    "/portal/",
+    "/verify/abc",
+    "/q/abc",
+    "/offline",
+    "/icon",
+    "/apple-icon",
+  ])
+    expect(apexServes(p), p).toBe(true);
+  for (const p of ["/setup", "/forgot-password", "/reset-password", "/accept-invite", "/confirm-email"])
+    expect(apexServes(p), p).toBe(true);
+  for (const p of ["/robots.txt", "/manifest.webmanifest", "/logo.png", "/school-site/hero.jpg"]) expect(apexServes(p), p).toBe(true);
+  for (const p of [
+    "/login",
+    "/login/",
+    "/dashboard",
+    "/students",
+    "/users",
+    "/results/term",
+    "/video-guide",
+    "/account",
+    "/settings/profile",
+  ])
+    expect(apexServes(p), p).toBe(false);
+  expect(apexServes("/portalx")).toBe(false); // a prefix is not a path
+  expect(apexServes("/qr")).toBe(false);
+});
+
+test("every top-level route of the app is decided: open on the school's own host, or the portals' (a new page cannot be forgotten)", () => {
+  const app = path.join(process.cwd(), "src", "app");
+  const dirs = (dir: string) => fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory());
+  // The route groups hold the website (served: landing pages) and the application (refused); the rest are plain top-level routes.
+  const top = dirs(app).filter((d) => !d.name.startsWith("(") && d.name !== "api" && d.name !== "ar");
+  const OPEN = [
+    "accept-invite",
+    "apple-icon",
+    "confirm-email",
+    "forgot-password",
+    "icon",
+    "offline",
+    "portal",
+    "q",
+    "reset-password",
+    "setup",
+    "verify",
+  ];
+  const REFUSED = ["login", "video-guide"]; // the sign-in form; a superadmin's page in the application
+  for (const d of top)
+    expect(
+      OPEN.includes(d.name) || REFUSED.includes(d.name),
+      `src/app/${d.name} is neither open nor refused on the school's own host`,
+    ).toBe(true);
+  for (const name of OPEN) expect(apexServes(`/${name}`), name).toBe(true);
+  for (const name of REFUSED) expect(apexServes(`/${name}`), name).toBe(false);
+  // Every page of the application group needs the portals.
+  for (const d of dirs(path.join(app, "(app)"))) expect(apexServes(`/${d.name}`), `/${d.name}`).toBe(false);
+  // And every page of the website group is a landing page.
+  for (const d of dirs(path.join(app, "(marketing)", "(site)"))) expect(isLandingPath(`/${d.name}`), `/${d.name}`).toBe(true);
+  expect(isLandingPath("/product")).toBe(true); // the product page is in the other website group, (marketing)/product
 });
