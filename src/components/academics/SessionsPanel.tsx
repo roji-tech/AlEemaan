@@ -13,17 +13,29 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
 import { say, type BranchChoice, type Notice } from "@/components/academics/common";
+import { EditDatesDialog, PeriodDatesFields, problemAt } from "@/components/academics/SessionDates";
+import {
+  COUNTS,
+  defaultSchedule,
+  kindNoun,
+  periodLabel,
+  usualCount,
+  validateSchedule,
+  type PeriodDates,
+  type PeriodKindName,
+} from "@/lib/academics/session-schedule";
 import { suggestSession } from "@/lib/academics/session-suggest";
 
 // The Sessions tab of Academics (task 0093): a school year with its terms. Presentation only - the academics API checks who may change what and audits every change; each outcome
 // (a name that already exists, a signed-out person, a lost connection) has its own honest message.
 
 type Status = "PLANNED" | "ACTIVE" | "CLOSED";
-type Period = { id: string; label: string; ordinal: number; startDate: string; endDate: string; isCurrent: boolean };
+type Period = { id: string; kind: PeriodKindName; label: string; ordinal: number; startDate: string; endDate: string; isCurrent: boolean };
 type SessionRow = { id: string; branchId: string; label: string; startDate: string; endDate: string; status: Status; periods: Period[] };
 type Action =
   | { kind: "create" }
   | { kind: "rename"; session: SessionRow }
+  | { kind: "dates"; session: SessionRow }
   | { kind: "activate"; session: SessionRow }
   | { kind: "close"; session: SessionRow }
   | null;
@@ -107,7 +119,7 @@ export function SessionsPanel({
     const reply = await sendJson(`/api/v1/academics/periods/${period.id}`, "PATCH", { branchId, isCurrent: true });
     setNotice(
       reply.ok
-        ? { variant: "success", text: `${period.label} is now the current term of ${session.label}.` }
+        ? { variant: "success", text: `${period.label} is now the current ${kindNoun(period.kind)} of ${session.label}.` }
         : { variant: "error", text: say(reply, "That didn't work.") },
     );
     await load();
@@ -162,6 +174,8 @@ export function SessionsPanel({
         >
           {(sessions ?? []).map((s) => {
             const current = s.periods.find((p) => p.isCurrent);
+            // Terms or semesters: the words follow what the session is made of.
+            const noun = kindNoun(s.periods[0]?.kind ?? "TERM");
             return (
               <Item
                 key={s.id}
@@ -174,8 +188,8 @@ export function SessionsPanel({
                 badges={<StatusBadge status={s.status} />}
                 facts={[
                   { label: "Dates", value: `${day(s.startDate)} to ${day(s.endDate)}` },
-                  { label: "Terms", value: s.periods.length },
-                  { label: "Current term", value: current ? current.label : "None" },
+                  { label: noun === "semester" ? "Semesters" : "Terms", value: s.periods.length },
+                  { label: `Current ${noun}`, value: current ? current.label : "None" },
                 ]}
                 actions={
                   branch.canEdit
@@ -195,6 +209,13 @@ export function SessionsPanel({
                               onClick: () => setAction({ kind: "activate", session: s }),
                             },
                         {
+                          id: "dates",
+                          label: "Edit dates",
+                          ariaLabel: `Edit the dates of ${s.label}`,
+                          variant: "ghost",
+                          onClick: () => setAction({ kind: "dates", session: s }),
+                        },
+                        {
                           id: "rename",
                           label: "Rename",
                           ariaLabel: `Rename ${s.label}`,
@@ -206,7 +227,7 @@ export function SessionsPanel({
                 }
               >
                 {s.periods.length > 0 && (
-                  <ul aria-label={`Terms of ${s.label}`} className="flex flex-wrap gap-2">
+                  <ul aria-label={`${noun === "semester" ? "Semesters" : "Terms"} of ${s.label}`} className="flex flex-wrap gap-2">
                     {s.periods.map((p) => (
                       <li
                         key={p.id}
@@ -225,7 +246,7 @@ export function SessionsPanel({
                             onClick={() => makeCurrent(s, p)}
                             disabled={settingTerm !== null}
                             aria-busy={settingTerm === p.id}
-                            aria-label={`Make ${p.label} the current term of ${s.label}`}
+                            aria-label={`Make ${p.label} the current ${kindNoun(p.kind)} of ${s.label}`}
                             className="relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded px-1 text-xs font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
                           >
                             {settingTerm === p.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
@@ -260,6 +281,16 @@ export function SessionsPanel({
                   : `${label} created.`
                 : `${label} created in ${names.length} branches${madeActive ? " and made the active session there" : ""}: ${names.join(", ")}.`,
           });
+          await load();
+        }}
+      />
+      <EditDatesDialog
+        open={action?.kind === "dates"}
+        session={action?.kind === "dates" ? action.session : null}
+        onClose={() => setAction(null)}
+        onSaved={async (text) => {
+          setAction(null);
+          setNotice({ variant: "success", text });
           await load();
         }}
       />
@@ -444,8 +475,8 @@ function CreateDialog({
       title="New academic session"
       description={
         branches.length > 1
-          ? "For one branch or several at once. The terms are made with the session."
-          : `For ${branches[0]?.name ?? "this branch"}. The terms are made with the session.`
+          ? "For one branch or several at once. The terms or semesters are made with the session."
+          : `For ${branches[0]?.name ?? "this branch"}. The terms or semesters are made with the session.`
       }
     >
       {open && (
@@ -490,13 +521,25 @@ function CreateForm({
   const [label, setLabel] = useState(suggested.label);
   const [startDate, setStartDate] = useState(suggested.startDate);
   const [endDate, setEndDate] = useState(suggested.endDate);
-  // "" = each branch's usual number (3, or 2 for the Arabic branches), which the server applies; a number is the same for every branch chosen.
-  const [terms, setTerms] = useState("");
+  // Terms or semesters, and how many (task 0097). It starts at the usual number of the branch being looked at (3, or 2 for the Arabic branches); the same choice is made for every branch chosen.
+  const [kind, setKind] = useState<PeriodKindName>("TERM");
+  const [count, setCount] = useState(() => String(usualCount(branches.find((b) => b.id === firstChoice)?.name ?? "")));
+  // The dates of each term: shared equally from the session's days until the person changes one (`custom`); changing the session's days or the number of terms shares them equally again.
+  const [custom, setCustom] = useState<PeriodDates[] | null>(null);
   const [chosen, setChosen] = useState<string[]>(firstChoice ? [firstChoice] : []);
   // With no active session the new one should be it (that is what unblocks the pupils); with one, an explicit choice that closes it.
   const [makeActive, setMakeActive] = useState(activeOf(firstChoice) === null);
   const [problems, setProblems] = useState<Problems>({});
+  // The date checks run as the person types, but their messages appear only after the first try to create.
+  const [tried, setTried] = useState(false);
   const [pending, setPending] = useState(false);
+
+  const periodCount = kind === "SEMESTER" ? 2 : Number(count);
+  const rows = custom ?? defaultSchedule(startDate, endDate, periodCount);
+  const names = rows.map((_, i) => periodLabel(kind, i + 1));
+  const dateProblems = validateSchedule({ startDate, endDate }, rows, names);
+  // With no usable session dates there are no rows yet; the session's own messages say what is missing.
+  const visibleProblems = tried ? dateProblems.filter((p) => p.path !== "periods" || rows.length > 0) : [];
 
   const trimmed = label.trim();
   // A branch that already has a session of this name is left out (the server would refuse it): the list says so beside it.
@@ -508,15 +551,13 @@ function CreateForm({
     if (pending) return;
     const found: Problems = {};
     if (trimmed.length < 4) found.label = "Use at least 4 characters, for example 2026/2027.";
-    if (!startDate) found.startDate = "Choose the first day.";
-    if (!endDate) found.endDate = "Choose the last day.";
-    else if (startDate && endDate <= startDate) found.endDate = "The last day must be after the first day.";
     if (targets.length === 0)
       found.branches = several
         ? "Choose at least one branch that does not have this session yet."
         : "This branch already has a session with this name.";
+    setTried(true);
     setProblems(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0 || dateProblems.length > 0) return;
 
     setPending(true);
     const made: string[] = [];
@@ -527,7 +568,8 @@ function CreateForm({
         label: trimmed,
         startDate,
         endDate,
-        ...(terms ? { termsCount: Number(terms) } : {}),
+        kind,
+        periods: rows,
         status: makeActive ? "ACTIVE" : "PLANNED",
       });
       if (reply.ok) {
@@ -617,8 +659,11 @@ function CreateForm({
           name="startDate"
           type="date"
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          error={problems.startDate}
+          onChange={(e) => {
+            setStartDate(e.target.value);
+            setCustom(null);
+          }}
+          error={problemAt(visibleProblems, "session.startDate") ?? problems.startDate}
           disabled={pending}
         />
         <TextField
@@ -626,22 +671,54 @@ function CreateForm({
           name="endDate"
           type="date"
           value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          error={problems.endDate}
+          onChange={(e) => {
+            setEndDate(e.target.value);
+            setCustom(null);
+          }}
+          error={problemAt(visibleProblems, "session.endDate") ?? problems.endDate}
           disabled={pending}
         />
       </div>
-      <SelectField
-        label="Number of terms"
-        info="sessions.terms"
-        value={terms}
-        onChange={(e) => setTerms(e.target.value)}
-        disabled={pending}
-        options={[
-          { value: "", label: "The usual for each branch (3, or 2 for Arabic)" },
-          ...[2, 3, 4].map((n) => ({ value: String(n), label: `${n} terms` })),
-        ]}
-      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField
+          label="The year is divided into"
+          info="sessions.kind"
+          value={kind}
+          onChange={(e) => {
+            setKind(e.target.value as PeriodKindName);
+            setCustom(null);
+          }}
+          disabled={pending}
+          options={[
+            { value: "TERM", label: "Terms" },
+            { value: "SEMESTER", label: "Semesters" },
+          ]}
+        />
+        <SelectField
+          label={kind === "SEMESTER" ? "Number of semesters" : "Number of terms"}
+          info="sessions.terms"
+          value={String(periodCount)}
+          onChange={(e) => {
+            setCount(e.target.value);
+            setCustom(null);
+          }}
+          disabled={pending || COUNTS[kind].length === 1}
+          options={COUNTS[kind].map((n) => ({ value: String(n), label: `${n} ${kindNoun(kind, true)}` }))}
+        />
+      </div>
+      {rows.length > 0 ? (
+        <PeriodDatesFields
+          legend={`Dates of each ${kindNoun(kind)}`}
+          names={names}
+          rows={rows}
+          problems={visibleProblems}
+          disabled={pending}
+          onChange={(i, field, value) => setCustom(rows.map((r, j) => (j === i ? { ...r, [field]: value } : r)))}
+          onReset={custom ? () => setCustom(null) : undefined}
+        />
+      ) : (
+        <p className="text-xs text-fg-muted">Choose the first and last day of the session to see the dates of each {kindNoun(kind)}.</p>
+      )}
       <div>
         <CheckboxField
           label="Make this the active session now"

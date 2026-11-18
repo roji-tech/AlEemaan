@@ -82,7 +82,8 @@ const createInBranch = withBranch<z.infer<typeof createSessionSchema>, { userId:
       if (msg.includes("already exists")) {
         return fail(msg, 409, "DUPLICATE_SESSION");
       }
-      console.error("[ACADEMIC_SESSION_CREATE_ERROR]", error);
+      // A refusal written for the person (a date that overlaps, a number of periods that does not fit) is expected, not an incident: only an unexpected failure is logged.
+      if (!(error instanceof DomainError)) console.error("[ACADEMIC_SESSION_CREATE_ERROR]", error);
       return fail(msg, 400, "SESSION_CREATE_FAILED");
     }
   },

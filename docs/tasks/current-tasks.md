@@ -693,3 +693,12 @@
 - [x] "Add many" on both tabs
 - [ ] The record of the runs
 
+## TASK-0097: A session is made of terms or semesters, 2 or 3, with editable dates (requested 2026-11-18)
+
+[Task file](0097-session-terms-or-semesters-and-dates.md). Choose terms (2 or 3) or semesters (2) when a session is made, see and change the first and last day of each, and change all of the dates afterwards ("Edit dates", `PUT /api/v1/academics/sessions/[id]/schedule`). One pure rules module is shared by the form and the server; an overlap is refused with the reason, a gap (a holiday) is fine.
+
+- [x] `session-schedule.ts`, `createSession`/`updateSchedule`, the PUT route, the form and the Edit dates dialog, info tips
+- [x] Unit, API and browser specs written
+- [ ] The run (section 5 of the task file), merged to `dev`, promoted
+- [ ] Mid-term and mid-semester holidays and their announcement (task 0098)
+

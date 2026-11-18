@@ -147,7 +147,7 @@ test("a teacher sees the sessions and none of the buttons", async ({ page }) => 
   await page.goto("/academics?section=sessions");
   await expect(row(page, "2026/2027")).toContainText("Active");
   await expect(page.getByRole("button", { name: "New session" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /^(Close|Rename|Make)/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^(Close|Rename|Make|Edit)/ })).toHaveCount(0);
 });
 
 test("the Overview's shortcuts open the new-session and new-class forms", async ({ page }) => {
@@ -170,4 +170,130 @@ test("on a phone the sessions page and the form fit the screen", async ({ page }
   await page.getByRole("button", { name: "New session" }).click();
   await expect(dialog(page).getByRole("button", { name: "Create session" })).toBeInViewport();
   await expectAccessible(page, "the new session form on a phone");
+});
+
+// ---- Terms or semesters, and the dates of each (task 0097) ----
+
+async function openNewSession(page: Page, label = "2026/2027") {
+  await page.goto("/academics?section=sessions");
+  await page.getByRole("button", { name: "New session" }).click();
+  await dialog(page).getByLabel("Session name").fill(label);
+  await dialog(page).getByLabel("First day", { exact: true }).fill("2026-09-01");
+  await dialog(page).getByLabel("Last day", { exact: true }).fill("2027-07-31");
+}
+
+test("a session of semesters: two, named as semesters, with the dates the person chose", async ({ page }) => {
+  await asAdmin(page);
+  await openNewSession(page);
+  const d = dialog(page);
+  await expect(d.getByLabel("Number of terms")).toHaveValue("3"); // the usual for this branch
+  await d.getByLabel("The year is divided into").selectOption("SEMESTER");
+  await expect(d.getByLabel("Number of semesters")).toHaveValue("2");
+  await expect(d.getByLabel("Number of semesters")).toBeDisabled(); // semesters are two
+  await expect(d.getByLabel("1st Semester starts")).toHaveValue("2026-09-01");
+  await expect(d.getByLabel("2nd Semester ends")).toHaveValue("2027-07-31");
+  await expect(d.getByLabel("3rd Semester starts")).toHaveCount(0);
+  await d.getByLabel("1st Semester ends").fill("2027-01-20");
+  await d.getByLabel("2nd Semester starts").fill("2027-02-10");
+  await expectAccessible(page, "the new session form with dates for each semester");
+  await d.getByRole("button", { name: "Create session" }).click();
+
+  await expect(page.getByText("2026/2027 created and made the active session.")).toBeVisible();
+  const item = row(page, "2026/2027");
+  await expect(item.getByRole("list", { name: "Semesters of 2026/2027" }).getByRole("listitem")).toHaveCount(2);
+  await expect(item).toContainText("Current semester");
+  const periods = await db.academicPeriod.findMany({ orderBy: { ordinal: "asc" } });
+  expect(periods.map((p) => [p.label, p.kind, p.startDate.toISOString().slice(0, 10), p.endDate?.toISOString().slice(0, 10)])).toEqual([
+    ["1st Semester", "SEMESTER", "2026-09-01", "2027-01-20"],
+    ["2nd Semester", "SEMESTER", "2027-02-10", "2027-07-31"],
+  ]);
+});
+
+test("dates that overlap are refused on the field and nothing is created; changing the number of terms shares the days again", async ({
+  page,
+}) => {
+  await asAdmin(page);
+  await openNewSession(page);
+  const d = dialog(page);
+  await d.getByLabel("2nd Term starts").fill("2026-11-01"); // before the 1st Term ends
+  await d.getByRole("button", { name: "Create session" }).click();
+  await expect(d.getByText("2nd Term must start after 1st Term ends.")).toBeVisible();
+  expect(await db.academicSession.count()).toBe(0);
+
+  await d.getByRole("button", { name: "Share the days equally" }).click();
+  await expect(d.getByLabel("2nd Term starts")).toHaveValue("2026-12-21"); // 333 days in three shares of 111
+  await d.getByLabel("2nd Term starts").fill("2026-12-25"); // a gap (a holiday) between two terms is fine
+  await d.getByLabel("Number of terms").selectOption("2");
+  await expect(d.getByLabel("3rd Term starts")).toHaveCount(0);
+  await expect(d.getByLabel("2nd Term starts")).not.toHaveValue("2026-12-25"); // the days are shared equally again
+});
+
+test("the dates of a session and its terms can be edited afterwards; an overlap is refused in the dialog and nothing changes", async ({
+  page,
+}) => {
+  const admin = await asAdmin(page);
+  const made = await db.academicSession.create({
+    data: {
+      branchId: admin.branchId!,
+      label: "2026/2027",
+      startDate: new Date("2026-09-01"),
+      endDate: new Date("2027-07-31"),
+      status: "ACTIVE",
+      periods: {
+        create: [
+          {
+            branchId: admin.branchId!,
+            kind: "TERM",
+            ordinal: 1,
+            label: "1st Term",
+            startDate: new Date("2026-09-01"),
+            endDate: new Date("2026-12-15"),
+            isCurrent: true,
+          },
+          {
+            branchId: admin.branchId!,
+            kind: "TERM",
+            ordinal: 2,
+            label: "2nd Term",
+            startDate: new Date("2027-01-12"),
+            endDate: new Date("2027-04-09"),
+          },
+          {
+            branchId: admin.branchId!,
+            kind: "TERM",
+            ordinal: 3,
+            label: "3rd Term",
+            startDate: new Date("2027-04-26"),
+            endDate: new Date("2027-07-31"),
+          },
+        ],
+      },
+    },
+  });
+  await page.goto("/academics?section=sessions");
+  await page.getByRole("button", { name: "Edit the dates of 2026/2027" }).click();
+  const d = dialog(page);
+  await expect(d.getByRole("heading", { name: "Dates of 2026/2027" })).toBeVisible();
+  await expect(d.getByLabel("1st Term ends")).toHaveValue("2026-12-15");
+  await expectAccessible(page, "the edit dates dialog");
+
+  await d.getByLabel("2nd Term starts").fill("2026-12-01");
+  await d.getByRole("button", { name: "Save dates" }).click();
+  await expect(d.getByText("2nd Term must start after 1st Term ends.")).toBeVisible();
+  expect(await db.auditLog.count({ where: { action: "ACADEMIC_SESSION_SCHEDULE_UPDATED" } })).toBe(0);
+
+  await d.getByLabel("2nd Term starts").fill("2027-01-13");
+  await d.getByLabel("1st Term ends").fill("2026-12-18");
+  await d.getByRole("button", { name: "Save dates" }).click();
+  await expect(page.getByText("The dates of 2026/2027 are saved.")).toBeVisible();
+  await expect(dialog(page)).toHaveCount(0);
+  const periods = await db.academicPeriod.findMany({ where: { sessionId: made.id }, orderBy: { ordinal: "asc" } });
+  expect(periods.map((p) => [p.label, p.isCurrent, p.startDate.toISOString().slice(0, 10), p.endDate?.toISOString().slice(0, 10)])).toEqual(
+    [
+      ["1st Term", true, "2026-09-01", "2026-12-18"],
+      ["2nd Term", false, "2027-01-13", "2027-04-09"],
+      ["3rd Term", false, "2027-04-26", "2027-07-31"],
+    ],
+  );
+  expect(await db.auditLog.count({ where: { action: "ACADEMIC_SESSION_SCHEDULE_UPDATED", targetId: made.id } })).toBe(1);
 });

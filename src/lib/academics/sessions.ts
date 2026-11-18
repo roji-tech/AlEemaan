@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { SessionStatus, PeriodKind } from "@prisma/client";
+import { MAX_PERIODS, defaultSchedule, isDay, periodLabel, usualCount, validateSchedule, type PeriodDates } from "./session-schedule";
 
 /// A refusal whose message is written FOR the caller (a missing branch, a duplicate label). Routes may return its text; any other exception's text is
 /// never returned (ISS-0006) - it can name tables, columns and values.
@@ -14,6 +15,14 @@ export const createSessionSchema = z
     endDate: z.coerce.date(),
     status: z.nativeEnum(SessionStatus).optional().default(SessionStatus.PLANNED),
     termsCount: z.number().int().min(1).max(4).optional(),
+    /// Terms or semesters (task 0097). Terms by default, as before.
+    kind: z.nativeEnum(PeriodKind).optional().default(PeriodKind.TERM),
+    /// The first and last day of each period, in order (task 0097). Left out, the session's days are shared equally between the periods, as before.
+    periods: z
+      .array(z.strictObject({ startDate: z.string().max(10), endDate: z.string().max(10) }))
+      .min(1)
+      .max(MAX_PERIODS)
+      .optional(),
   })
   .refine((data) => data.endDate > data.startDate, {
     message: "Session end date must be after start date",
@@ -42,6 +51,9 @@ export const updateSessionSchema = z
 
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
 export type UpdateSessionInput = z.infer<typeof updateSessionSchema>;
+
+/// A stored calendar day (midnight UTC) as the text "YYYY-MM-DD".
+const day = (value: Date): string => value.toISOString().slice(0, 10);
 
 export async function listSessions(branchId?: string) {
   return prisma.academicSession.findMany({
@@ -94,19 +106,18 @@ export async function createSession(input: CreateSessionInput) {
     throw new DomainError(`An academic session with label "${data.label}" already exists for branch "${branch.name}".`);
   }
 
-  // 3. Determine number of terms based on branch convention (Arabic = 2 terms, English = 3 terms)
-  const isArabicBranch = branch.name.toLowerCase().includes("arabic");
-  const defaultTerms = isArabicBranch ? 2 : 3;
-  const numTerms = data.termsCount ?? defaultTerms;
-
-  // 4. Compute default date windows for each term
-  const startMs = data.startDate.getTime();
-  const endMs = data.endDate.getTime();
-  const durationMs = endMs - startMs;
-  const termDurationMs = Math.floor(durationMs / numTerms);
-
-  const termOrdinals = Array.from({ length: numTerms }, (_, i) => i + 1);
-  const termLabels = ["1st Term", "2nd Term", "3rd Term", "4th Term"];
+  // 3. The periods: how many (the person's choice, else the branch's usual: Arabic 2, others 3), what they are called (terms or semesters), and their dates (given, else shared equally).
+  const kind = data.kind;
+  const given = data.periods;
+  const numTerms = given ? given.length : (data.termsCount ?? usualCount(branch.name));
+  if (given && data.termsCount !== undefined && data.termsCount !== given.length)
+    throw new DomainError("The number of periods does not match the dates given.");
+  if (kind === PeriodKind.SEMESTER && numTerms !== 2) throw new DomainError("A session of semesters has two semesters.");
+  const sessionDays: PeriodDates = { startDate: day(data.startDate), endDate: day(data.endDate) };
+  const dates = given ?? defaultSchedule(sessionDays.startDate, sessionDays.endDate, numTerms);
+  const names = dates.map((_, i) => periodLabel(kind, i + 1));
+  const problems = validateSchedule(sessionDays, dates, names);
+  if (problems.length > 0) throw new DomainError(problems[0].message);
 
   return prisma.$transaction(async (tx) => {
     // If activating this session, deactivate other sessions on this branch
@@ -127,21 +138,17 @@ export async function createSession(input: CreateSessionInput) {
       },
     });
 
-    for (const ord of termOrdinals) {
-      const termStart = new Date(startMs + (ord - 1) * termDurationMs);
-      const termEnd = ord === numTerms ? data.endDate : new Date(startMs + ord * termDurationMs - 86400000); // 1 day before next term
-      const label = termLabels[ord - 1] || `Term ${ord}`;
-
+    for (const [i, d] of dates.entries()) {
       await tx.academicPeriod.create({
         data: {
           branchId: data.branchId,
           sessionId: session.id,
-          kind: PeriodKind.TERM,
-          ordinal: ord,
-          label,
-          startDate: termStart,
-          endDate: termEnd,
-          isCurrent: ord === 1 && data.status === SessionStatus.ACTIVE,
+          kind,
+          ordinal: i + 1,
+          label: names[i],
+          startDate: new Date(`${d.startDate}T00:00:00.000Z`),
+          endDate: new Date(`${d.endDate}T00:00:00.000Z`),
+          isCurrent: i === 0 && data.status === SessionStatus.ACTIVE,
         },
       });
     }
@@ -237,5 +244,55 @@ export async function setCurrentPeriod(branchId: string, periodId: string) {
     }
 
     return updated;
+  });
+}
+
+export const updateScheduleSchema = z.strictObject({
+  startDate: z.string().max(10),
+  endDate: z.string().max(10),
+  periods: z
+    .array(z.strictObject({ id: z.string().min(1).max(64), startDate: z.string().max(10), endDate: z.string().max(10) }))
+    .min(1)
+    .max(MAX_PERIODS),
+});
+export type UpdateScheduleInput = z.infer<typeof updateScheduleSchema>;
+
+/// Sets the dates of a session and of ALL its terms or semesters at once (task 0097), so the whole is checked as one: the session ends after it starts, each period lies inside it, in order,
+/// without overlap. Every period of the session must be named exactly once (a period cannot be added or removed here, nor can another session's be touched). Nothing is partly saved: one
+/// transaction. The labels, kind and which term is current are not changed.
+export async function updateSchedule(id: string, input: UpdateScheduleInput) {
+  const data = updateScheduleSchema.parse(input);
+  const session = await prisma.academicSession.findUnique({
+    where: { id },
+    include: { periods: { where: { archivedAt: null }, orderBy: { ordinal: "asc" } } },
+  });
+  if (!session) throw new DomainError(`Academic session "${id}" not found.`);
+
+  const ids = session.periods.map((p) => p.id);
+  const sent = data.periods.map((p) => p.id);
+  if (sent.length !== ids.length || new Set(sent).size !== sent.length || !sent.every((x) => ids.includes(x)))
+    throw new DomainError("Send the dates of every term or semester of this session, each once.");
+
+  // In the order of the periods, whatever order they were sent in.
+  const byId = new Map(data.periods.map((p) => [p.id, p]));
+  const ordered = session.periods.map((p) => byId.get(p.id)!);
+  const problems = validateSchedule(
+    { startDate: data.startDate, endDate: data.endDate },
+    ordered,
+    session.periods.map((p) => p.label),
+  );
+  if (problems.length > 0) throw new DomainError(problems[0].message);
+  if (![data.startDate, data.endDate, ...ordered.flatMap((p) => [p.startDate, p.endDate])].every(isDay))
+    throw new DomainError("Every date must be a calendar day.");
+
+  const at = (d: string) => new Date(`${d}T00:00:00.000Z`);
+  return prisma.$transaction(async (tx) => {
+    await tx.academicSession.update({ where: { id }, data: { startDate: at(data.startDate), endDate: at(data.endDate) } });
+    for (const p of ordered)
+      await tx.academicPeriod.update({ where: { id: p.id }, data: { startDate: at(p.startDate), endDate: at(p.endDate) } });
+    return tx.academicSession.findUnique({
+      where: { id },
+      include: { branch: { select: { id: true, name: true } }, periods: { where: { archivedAt: null }, orderBy: { ordinal: "asc" } } },
+    });
   });
 }
