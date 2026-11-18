@@ -117,7 +117,8 @@ export function verifyPortalSession(token: string | undefined | null): PortalSes
 
 const MAX_ID_LENGTH = 128;
 const isId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= MAX_ID_LENGTH;
-const isContact = (value: unknown): value is string | null | undefined => value === undefined || value === null || typeof value === "string";
+const isContact = (value: unknown): value is string | null | undefined =>
+  value === undefined || value === null || typeof value === "string";
 const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
 
 /// The payload of a correctly signed token, checked field by field and REBUILT (unknown keys, including a `__proto__` own key, are dropped). Only the app
@@ -189,7 +190,9 @@ export function matchesPhone(input: string, targetPhone: string | null | undefin
 /**
  * Checks whether an input matches a date of birth (accepting YYYY-MM-DD or DD/MM/YYYY).
  */
-export function matchesDateOfBirth(input: string, dob: Date): boolean {
+export function matchesDateOfBirth(input: string, dob: Date | null): boolean {
+  // A pupil with no date of birth on record cannot sign in with one (the guardian's phone or e-mail still work).
+  if (!dob) return false;
   const clean = input.trim();
   const year = dob.getUTCFullYear();
   const month = String(dob.getUTCMonth() + 1).padStart(2, "0");

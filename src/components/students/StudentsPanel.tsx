@@ -25,7 +25,8 @@ type Student = {
   middleName: string | null;
   lastName: string;
   gender: "MALE" | "FEMALE";
-  dateOfBirth: string;
+  /// Not required: null when it was not given.
+  dateOfBirth: string | null;
   admissionNo: string;
   archived: boolean;
   /// What applies today, and the last day of a suspension (task 0045).
@@ -102,7 +103,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
     if (reply.code === "POSSIBLE_DUPLICATE") {
       // A current pupil already has this name and birth date: ask before restoring (ADR 0011); the API audits the confirmation.
       setNotice(null);
-      return setRestoreAsk({ student: s, message: reply.message ?? "A current pupil has the same name and date of birth." });
+      return setRestoreAsk({ student: s, message: reply.message ?? "A current pupil has the same name (and date of birth, when given)." });
     }
     setNotice(
       reply.ok
@@ -216,7 +217,8 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
                     <StandingBadge standing={s.standing} until={s.standingUntil} />
                   </p>
                   <p className="text-sm text-fg-muted">
-                    {s.admissionNo} · {s.gender === "MALE" ? "Male" : "Female"} · born {s.dateOfBirth} · {s.currentClass ?? "No class yet"}
+                    {s.admissionNo} · {s.gender === "MALE" ? "Male" : "Female"}
+                    {s.dateOfBirth ? ` · born ${s.dateOfBirth}` : ""} · {s.currentClass ?? "No class yet"}
                     {s.guardianName ? ` · Guardian ${s.guardianName}` : ""}
                     {s.guardianPhone ? ` (${s.guardianPhone})` : ""}
                   </p>
@@ -317,7 +319,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
           context={{ branchId, allowDuplicates }}
           contextControl={(locked) => (
             <CheckboxField
-              label="Add even if a pupil with the same name and date of birth is already here (recorded against your name)"
+              label="Add even if a pupil with the same name (and date of birth, when given) is already here (recorded against your name)"
               checked={allowDuplicates}
               disabled={locked}
               onChange={(e) => setAllowDuplicates(e.target.checked)}
@@ -405,7 +407,7 @@ function StudentDialog({
       ));
     }
     if (reply.code === "POSSIBLE_DUPLICATE")
-      return setNamesake(reply.message ?? "A pupil with the same name and date of birth already exists in this branch.");
+      return setNamesake(reply.message ?? "A pupil with the same name (and date of birth, when given) already exists in this branch.");
     const found: Record<string, string> = {};
     for (const key of Object.keys(f)) {
       const message = problemFor(reply, key);
@@ -464,7 +466,7 @@ function StudentDialog({
             disabled={pending}
           />
           <TextField
-            label="Date of birth"
+            label="Date of birth (optional)"
             type="date"
             value={f.dateOfBirth}
             onChange={(e) => set("dateOfBirth", e.target.value)}
