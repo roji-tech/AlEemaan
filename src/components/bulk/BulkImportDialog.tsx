@@ -178,6 +178,8 @@ export function BulkImportDialog({
 
   function save(subset: SourceRow[]) {
     setError(null);
+    // When every row on screen is being saved, a finished save closes the dialog; when only the good rows are, the problem rows stay to be fixed.
+    const everyRow = subset.length === rows.length;
     const id = jobs.start({
       title: `Adding ${plural(subset.length, noun.one, noun.many)}`,
       branchName,
@@ -193,7 +195,7 @@ export function BulkImportDialog({
         setVerdicts((all) => all.filter((v) => !saved.has(v.line)).map((v) => fresh.get(v.line) ?? v));
         if (result.saved > 0) await onSaved(result.saved);
         if (result.stopped) setError(result.message ?? "The rows could not be saved.");
-        else if (onScreen.current) onClose();
+        else if (everyRow && onScreen.current) onClose();
       },
     });
     setJobId(id);

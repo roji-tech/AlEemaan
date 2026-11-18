@@ -44,7 +44,9 @@ export function BulkReview({ entity, rows, verdicts }: { entity: BulkEntityShape
       .map((k) => row.values[k] ?? "")
       .filter(Boolean)
       .join(" ") || `Row ${row.line}`;
-  const topKinds = [...kinds.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+  // Only a problem on two or more rows is worth saying once above the table; one on a single row is already on that row.
+  const repeated = [...kinds.entries()].filter(([, count]) => count > 1);
+  const topKinds = repeated.sort((a, b) => b[1] - a[1]).slice(0, 4);
 
   return (
     <div className="space-y-3">
@@ -58,7 +60,7 @@ export function BulkReview({ entity, rows, verdicts }: { entity: BulkEntityShape
           }}
         />
       )}
-      {bad > 0 && (
+      {topKinds.length > 0 && (
         <section aria-label="What needs fixing" className="rounded-xl border border-danger-icon/40 bg-danger-bg p-3 text-sm">
           <p className="font-semibold text-danger-fg">What needs fixing</p>
           <ul className="mt-1.5 space-y-1.5 text-fg-2">
@@ -80,8 +82,8 @@ export function BulkReview({ entity, rows, verdicts }: { entity: BulkEntityShape
                 )}
               </li>
             ))}
-            {kinds.size > topKinds.length && (
-              <li className="text-fg-muted">and {kinds.size - topKinds.length} other kinds of problem, shown on their rows below.</li>
+            {repeated.length > topKinds.length && (
+              <li className="text-fg-muted">and {repeated.length - topKinds.length} other repeated problems, shown on their rows below.</li>
             )}
           </ul>
         </section>
