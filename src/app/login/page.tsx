@@ -5,9 +5,9 @@ import { getSession } from "@/lib/auth/session";
 import { safeReturnTo } from "@/lib/auth/return-to";
 import { isSetupComplete } from "@/lib/setup/status";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { classifyHost, PORTAL_COPY, PORTALS, portalOrigin, readPortalConfig } from "@/lib/portals";
+import { hostFromHeaders } from "@/lib/auth/csrf";
+import { classifyHost, PORTAL_COPY, readPortalConfig } from "@/lib/portals";
 import { LoginForm } from "./LoginForm";
-import { PortalChooser } from "./PortalChooser";
 
 export const metadata: Metadata = { title: "Sign in" };
 // Depends on the request's cookies and the database — never statically cached.
@@ -23,11 +23,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   // form that can never succeed is a dead end; send them to setup.
   if ((await isSetupComplete()) === false) redirect("/setup");
 
-  // Sign-in portals (task 0086). Off: the one sign-in form, as before. On: a portal shows its own form, headed by what it is for (the heading comes from the host, never from the
-  // form, so nobody chooses a role); the school's own host shows the choice of portals, which holds no form and names no one.
+  // Sign-in portals (task 0086). Off: the one sign-in form, as before. On: a portal shows its own form, headed by what it is for (the heading comes from the host, never from the form,
+  // so nobody chooses a role); the school's own host has no sign-in form at all: the proxy already sends `/login` there to `/select-role`, and this is the same answer if it ever got through.
   const { config } = readPortalConfig();
-  const host = (await headers()).get("host") ?? "";
-  const info = classifyHost(host, config);
+  const info = classifyHost(hostFromHeaders(await headers()), config);
   if (info.kind === "portal") {
     return (
       <AuthShell>
@@ -35,18 +34,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </AuthShell>
     );
   }
-  if (info.kind === "apex") {
-    const protocol = (process.env.APP_URL ?? "").startsWith("https://") ? "https:" : "http:";
-    const choices = PORTALS.flatMap((portal) => {
-      const href = portalOrigin(portal, info, config, host, protocol);
-      return href ? [{ id: portal, href: `${href}/login`, ...PORTAL_COPY[portal] }] : [];
-    });
-    return (
-      <AuthShell>
-        <PortalChooser choices={choices} />
-      </AuthShell>
-    );
-  }
+  if (info.kind === "apex") redirect("/select-role");
   return (
     <AuthShell>
       <LoginForm returnTo={returnTo} />

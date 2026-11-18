@@ -12,12 +12,13 @@ import { PORTALS, portalAdmits, portalFor, readPortalConfig, type Portal } from 
 
 // Task 0086: no e-mail may carry a subdomain that would refuse its reader (a parent's reset link on admin., say). Every builder that makes a link is run for every kind of recipient
 // with the portals ON, and each link's host must be the portal that admits that person; a builder not told the portal falls back to the school's own host, never to a portal.
-const ENV = ["APP_URL", "ADMIN_SUBDOMAIN", "STAFF_SUBDOMAIN", "STUDENT_SUBDOMAIN", "PARENT_SUBDOMAIN"] as const;
+const ENV = ["APP_URL", "PORTALS_ENABLED", "ADMIN_SUBDOMAIN", "STAFF_SUBDOMAIN", "STUDENT_SUBDOMAIN", "PARENT_SUBDOMAIN"] as const;
 const saved: Partial<Record<(typeof ENV)[number], string | undefined>> = {};
 test.beforeEach(() => {
   for (const key of ENV) saved[key] = process.env[key];
   process.env.APP_URL = "https://example.school";
   Object.assign(process.env, {
+    PORTALS_ENABLED: "true",
     ADMIN_SUBDOMAIN: "admin",
     STAFF_SUBDOMAIN: "staff",
     STUDENT_SUBDOMAIN: "student",
@@ -83,7 +84,7 @@ test("a builder that is not told the portal links to the school's own host, neve
 });
 
 test("with the portals off every link is on the school's own address, as before", () => {
-  for (const key of ["ADMIN_SUBDOMAIN", "STAFF_SUBDOMAIN", "STUDENT_SUBDOMAIN", "PARENT_SUBDOMAIN"]) delete process.env[key];
+  process.env.PORTALS_ENABLED = "false";
   for (const portal of [null, "admin", "parent"] as const) {
     for (const [name, mail] of mails(portal)) {
       for (const host of hostsIn(mail.text)) expect(host, `${name} (${portal})`).toBe("example.school");
