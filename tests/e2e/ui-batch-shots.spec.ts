@@ -25,7 +25,7 @@ async function seed() {
   const stamp = Date.now().toString(36);
   const empty = await db.branch.create({ data: { name: `Review branch ${stamp}` } });
   await db.classGroup.createMany({
-    data: Array.from({ length: 9 }, (_, i) => ({ branchId: branch.id, name: `Review JSS ${i + 1}`, sortOrder: 200 + i })),
+    data: Array.from({ length: 9 }, (_, i) => ({ branchId: branch.id, name: `Review JSS ${i + 1} ${stamp}`, sortOrder: 200 + i })),
   });
   await db.subject.createMany({
     data: [
