@@ -217,7 +217,7 @@ test.describe("the school's own host has no sign-in form and no application: onl
   test("the sign-in page has a button for a parent, a student and a member of staff, each to its own portal's sign-in; none for an administrator", async () => {
     const res = await api("/select-role", { baseUrl: PORTALS_URL, ...at("apex") });
     expect(res.status).toBe(200);
-    const links = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].filter((m) => /select-role/.test(m[2]));
+    const links = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].filter((m) => /(Parent|Student|Staff) sign-in/.test(m[2]));
     expect(links.map((m) => m[1])).toEqual([
       `http://parent.localhost:${PORTALS_PORT}/login`,
       `http://student.localhost:${PORTALS_PORT}/login`,

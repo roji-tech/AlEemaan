@@ -38,12 +38,13 @@ test.describe("signed out", () => {
     expect(await db.session.count()).toBe(before);
   });
 
-  test("the ways in are real links: /login and the parent and pupil portal, and the same page in Arabic (task 0050); nothing else leaves the page", async () => {
+  test("the ways in are real links: /select-role (the page with a button for each kind of person), the result portal and the same page in Arabic (task 0050); nothing else leaves the page", async () => {
     const res = await api("/product");
     const hrefs = [...res.text.matchAll(/<a\s[^>]*href="([^"]*)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThanOrEqual(4);
-    expect([...new Set(hrefs)].sort()).toEqual(["/ar", "/login", "/portal"]);
-    for (const path of ["/login", "/portal", "/ar"]) expect((await api(path)).status).toBe(200);
+    expect([...new Set(hrefs)].sort()).toEqual(["/ar", "/portal", "/select-role"]);
+    // With the portals off (this server) the sign-in form is on this host too; "Sign in" itself never goes straight to it.
+    for (const path of ["/select-role", "/login", "/portal", "/ar"]) expect((await api(path)).status).toBe(200);
   });
 
   test("the link to the Arabic page says so in Arabic and is marked as Arabic", async () => {
