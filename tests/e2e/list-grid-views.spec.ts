@@ -67,13 +67,19 @@ test("the view toggle switches Classes between cards and rows, and the choice is
   );
 });
 
-test("the pager: the range, the page numbers, and a change of size keeps the first item on screen", async ({ page }) => {
+test("the pager: the range, the page numbers, and a change of size keeps the first item on screen", async ({ page, isMobile }) => {
   await seed(page, 30);
   const pager = page.getByRole("navigation", { name: "Pages of classes" });
   await expect(pager).toContainText("Showing 1 to 12 of 30");
-  await pager.getByRole("button", { name: "Go to page 2" }).click();
+  if (isMobile) {
+    // Below `sm` the numbered pages are not drawn: a phone has Previous, "Page 1 of 3" and Next.
+    await expect(pager).toContainText("Page 1 of 3");
+    await pager.getByRole("button", { name: "Next", exact: true }).click();
+  } else {
+    await pager.getByRole("button", { name: "Go to page 2" }).click();
+  }
   await expect(pager).toContainText("Showing 13 to 24 of 30");
-  await expect(pager.getByRole("button", { name: "Go to page 2" })).toHaveAttribute("aria-current", "page");
+  if (!isMobile) await expect(pager.getByRole("button", { name: "Go to page 2" })).toHaveAttribute("aria-current", "page");
   await pager.getByLabel("Per page").selectOption("24");
   await expect(pager).toContainText("Showing 1 to 24 of 30"); // item 13 is still on screen (page 1 of 24 holds it)
   await expect(classes(page).getByRole("listitem").filter({ hasText: "Class 13" })).toHaveCount(1);
