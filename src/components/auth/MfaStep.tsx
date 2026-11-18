@@ -114,6 +114,9 @@ export function MfaStep({
             ? "That code isn't right. Wait for your app to show a new one and try again."
             : "That recovery code isn't right, or it has already been used.",
         );
+      } else if (code === "LOGIN_CLOSED" && typeof body?.error?.message === "string") {
+        // The branch was closed after the password step (task 0091): the code was right, so the person is told the plain reason.
+        setFormError(body.error.message);
       } else if (res.status === 503) {
         setFormError("Two-step verification is unavailable right now. Please contact your school administrator.");
       } else {

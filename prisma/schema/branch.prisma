@@ -11,6 +11,11 @@ model Branch {
   /// Secondary (English) and Secondary (Arabic) are both SECO). The default is not a value: an insert that leaves it empty gets one made from the name by the
   /// `Branch_assign_code` trigger (migration 20261020120000_branch_code), so every way of creating a branch is covered. It does not change when the branch is renamed.
   code String @unique @default("")
+  /// Student and parent sign-in for THIS branch (task 0091): two switches, OFF until an administrator of the branch (or a superadmin) turns them on. A person whose only active roles
+  /// are STUDENT and/or PARENT signs in, and keeps a session, only through a membership in a branch whose matching switch is on (a STUDENT membership needs `studentLoginEnabled`,
+  /// a PARENT membership `parentLoginEnabled`, of that very branch). Anyone with another active role, and any superadmin, is never affected.
+  studentLoginEnabled Boolean @default(false)
+  parentLoginEnabled  Boolean @default(false)
 
   memberships       Membership[]
   invitations       Invitation[]

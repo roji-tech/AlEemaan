@@ -21,7 +21,16 @@ const PAUSE_SECONDS = 30;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /// `portal` is set on a sign-in portal (task 0086): the page then says which one it is, in its heading and a small badge. It comes from the address, not from anything typed.
-export function LoginForm({ portal, returnTo = null }: { portal?: { id: Portal; title: string; line: string }; returnTo?: string | null }) {
+/// `closedNotice` (task 0091) is set on a student or parent portal the school has not opened: a line under the heading, from the host alone.
+export function LoginForm({
+  portal,
+  returnTo = null,
+  closedNotice = null,
+}: {
+  portal?: { id: Portal; title: string; line: string };
+  returnTo?: string | null;
+  closedNotice?: string | null;
+}) {
   const router = useRouter();
   const PortalIcon = portal ? PORTAL_ICONS[portal.id] : null;
 
@@ -138,6 +147,15 @@ export function LoginForm({ portal, returnTo = null }: { portal?: { id: Portal; 
       }
 
       setStatus("idle");
+      // Student and parent sign-in, per branch (task 0091): the credentials were right but the school has not opened sign-in for the person's branch. Said plainly (the server only says it after
+      // the password was proved, so it reveals nothing to anyone else).
+      if (res.status === 403) {
+        const refusal = await res.json().catch(() => null);
+        if (refusal?.error?.code === "LOGIN_CLOSED" && typeof refusal.error.message === "string") {
+          setFormError(refusal.error.message);
+          return;
+        }
+      }
       if (res.status === 401) {
         // One message for "no such account" and "wrong password" — the UI
         // must not re-introduce the enumeration the API carefully avoids.
@@ -177,6 +195,11 @@ export function LoginForm({ portal, returnTo = null }: { portal?: { id: Portal; 
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
             {portal ? `${portal.line} Enter your credentials to continue.` : "Enter your credentials to continue."}
           </p>
+          {closedNotice && (
+            <Alert variant="info" announce={false} className="mt-4">
+              {closedNotice}
+            </Alert>
+          )}
 
           {/* method="post": if the form is ever submitted natively (JavaScript failed to load, or the
               user hits Enter before hydration finishes) a default GET would put the password in the

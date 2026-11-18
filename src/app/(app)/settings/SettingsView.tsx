@@ -13,6 +13,8 @@ import { PortalAccessPanel } from "@/components/settings/PortalAccessPanel";
 import { ProgramsSettingsPanel } from "@/components/programs/ProgramsSettingsPanel";
 import { StandingSettingsPanel } from "@/components/standing/StandingSettingsPanel";
 import { ResultsApprovalPanel } from "@/components/settings/ResultsApprovalPanel";
+import { LoginSwitchPanel } from "@/components/settings/LoginSwitchPanel";
+import type { BranchLoginRow } from "@/lib/auth/login-switch-rules";
 
 type SchoolSettingsState = {
   name: string;
@@ -48,10 +50,14 @@ type Props = {
   initialSessions: SessionItem[];
   /// Whether the signed-in superadmin has two-step verification on (what the confirmation dialog asks for).
   hasMfa: boolean;
+  /// Every branch with its student and parent sign-in switches, as the database says now (task 0091). Settings is a superadmin's page, so all of them, with the bulk controls.
+  loginBranches: BranchLoginRow[];
 };
 
-export function SettingsView({ initialSettings, branches, initialSessions, hasMfa }: Props) {
-  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval" | "programs" | "discipline">("profile");
+export function SettingsView({ initialSettings, branches, initialSessions, hasMfa, loginBranches }: Props) {
+  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval" | "programs" | "discipline" | "signin">(
+    "profile",
+  );
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
@@ -200,6 +206,15 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
         >
           Discipline
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("signin")}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+            activeTab === "signin" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Sign-in access
+        </button>
       </div>
 
       {/* Tab 3: what a pupil and a guardian may do in the portal */}
@@ -210,6 +225,9 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
 
       {/* Tab 6: may branch administrators suspend (task 0045) */}
       {activeTab === "discipline" && <StandingSettingsPanel />}
+
+      {/* Tab 7: may students and parents sign in (task 0091) */}
+      {activeTab === "signin" && <LoginSwitchPanel initial={loginBranches} canBulk />}
 
       {/* Tab 4: who approves results, and where (task 0039) */}
       {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}
