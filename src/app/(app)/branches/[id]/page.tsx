@@ -52,12 +52,36 @@ export default async function BranchPage({ params }: { params: Promise<{ id: str
       </div>
     );
   }
-  const [holdings, branches] = await Promise.all([branchHoldings(prisma, id), prisma.branch.count()]);
+  const [holdings, branches, memberships] = await Promise.all([
+    branchHoldings(prisma, id),
+    prisma.branch.count(),
+    // Everyone with a place in this branch, deactivated people included (marked as such). Capped: a branch has hundreds of people at most, and the Users page is the tool for more.
+    prisma.membership.findMany({
+      where: { branchId: id },
+      orderBy: [{ user: { name: "asc" } }, { createdAt: "asc" }],
+      take: 500,
+      select: { id: true, role: true, deactivatedAt: true, standing: true, user: { select: { name: true, email: true } } },
+    }),
+  ]);
   return (
     <BranchDetailView
       branch={{ id: branch.id, name: branch.name, code: branch.code, createdAt: branch.createdAt.toISOString() }}
       holdings={holdings}
       onlyBranch={branches <= 1}
+      people={memberships.map((m) => ({
+        id: m.id,
+        name: m.user.name,
+        email: m.user.email,
+        role: m.role,
+        status:
+          m.deactivatedAt === null
+            ? "active"
+            : m.standing === "SUSPENDED"
+              ? "suspended"
+              : m.standing === "TERMINATED"
+                ? "terminated"
+                : "deactivated",
+      }))}
     />
   );
 }
