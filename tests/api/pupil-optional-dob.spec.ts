@@ -37,10 +37,11 @@ test("a pupil is registered without a date of birth (missing, empty or null), an
 
 test("gender and both names are still required; a date that is given must be a real one", async () => {
   const cookie = await admin();
-  expect((await create(cookie, { gender: undefined })).status).toBe(422);
-  expect((await create(cookie, { firstName: "" })).status).toBe(422);
-  expect((await create(cookie, { lastName: "" })).status).toBe(422);
-  expect((await create(cookie, { dateOfBirth: "not-a-date" })).status).toBe(422);
+  // A refused input is a 400 VALIDATION (the API's one answer for bad input), not a 422.
+  expect((await create(cookie, { gender: undefined })).status).toBe(400);
+  expect((await create(cookie, { firstName: "" })).status).toBe(400);
+  expect((await create(cookie, { lastName: "" })).status).toBe(400);
+  expect((await create(cookie, { dateOfBirth: "not-a-date" })).status).toBe(400);
 });
 
 test("a namesake with no date of birth is caught on either side, and is added only with the confirmation", async () => {
