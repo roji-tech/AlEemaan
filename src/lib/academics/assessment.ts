@@ -146,10 +146,13 @@ export async function getScheme(id: string) {
   return row ? { scheme: toScheme(row), snapshot: snapshotScheme(toScheme(row)) } : null;
 }
 
-export async function createScheme(actorUserId: string, input: z.infer<typeof schemeInput>) {
+/// `opts.hosted` (task 0116): a scheme that belongs to a result template, not to a class or the branch default. It has no class, so the one-live-scheme-per-class rule does not apply to it
+/// (the database index ignores hosted schemes); its name is still unique among the branch's live schemes.
+export async function createScheme(actorUserId: string, input: z.infer<typeof schemeInput>, opts: { hosted?: boolean } = {}) {
   const parsed = parseScheme({ totalMax: input.totalMax ?? 100, examMax: input.examMax, components: input.components });
   const schemeName = clean(input.name);
-  const classGroupId = input.classGroupId ?? null;
+  const hosted = opts.hosted === true;
+  const classGroupId = hosted ? null : (input.classGroupId ?? null);
   const { branchId } = input;
   try {
     return await prisma.$transaction(async (tx) => {
@@ -159,10 +162,13 @@ export async function createScheme(actorUserId: string, input: z.infer<typeof sc
       )
         throw new ConflictError("That class does not exist in this branch (or is archived).");
       await lockKey(tx, "assessment-scheme", branchId);
-      if (await tx.assessmentScheme.findFirst({ where: { branchId, classGroupId, archivedAt: null }, select: { id: true } }))
+      if (
+        !hosted &&
+        (await tx.assessmentScheme.findFirst({ where: { branchId, classGroupId, archivedAt: null, hosted: false }, select: { id: true } }))
+      )
         throw new ConflictError(classGroupId ? "That class already has a scheme." : "This branch already has a default scheme.");
       const created = await tx.assessmentScheme.create({
-        data: { branchId, classGroupId, name: schemeName, totalMax: parsed.totalMax, examMax: parsed.examMax },
+        data: { branchId, classGroupId, name: schemeName, totalMax: parsed.totalMax, examMax: parsed.examMax, hosted },
       });
       await tx.assessmentComponent.createMany({ data: parsed.components.map((c) => ({ branchId, schemeId: created.id, ...c })) });
       await tx.auditLog.create({
@@ -244,6 +250,8 @@ export async function newSchemeVersion(actorUserId: string, id: string, patch: z
         data: {
           branchId: old.branchId,
           classGroupId: old.classGroupId,
+          // A scheme that belongs to a result template stays hosted (task 0116): as a plain default it would collide with the branch's own default scheme.
+          hosted: old.hosted,
           name: schemeName,
           totalMax: parsed.totalMax,
           examMax: parsed.examMax,

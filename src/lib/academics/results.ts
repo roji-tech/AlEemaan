@@ -5,6 +5,7 @@ import { DomainError } from "@/lib/academics/sessions";
 import { ConflictError } from "@/lib/academics/structure";
 import { lockScale, lockScheme } from "@/lib/academics/assessment";
 import { gradeFor, toHundredths } from "@/lib/academics/scoring";
+import { templateMarks } from "@/lib/results/templates";
 
 // Results, Slice P2a: ENTERING them. One row per student x subject x period; the arm, scheme and scale are snapshotted onto it, the first result locks the scheme
 // and the scale, and every entry, edit and removal writes a ResultAudit row in the same transaction. The status machine beyond DRAFT is Slice P2b. The caller's
@@ -73,21 +74,28 @@ async function loadContext(branchId: string, periodId: string, classArmId: strin
   if (subject.archivedAt) throw new ConflictError("That subject is archived.");
   const offered = await prisma.subjectOffering.findFirst({ where: { classGroupId: arm.classGroupId, subjectId }, select: { id: true } });
   if (!offered) throw new ConflictError("That class does not study this subject.");
-  // A scheme for this class wins over the branch's default; both must be live. Same for the grade scale: the branch's live default.
+  // The marks structure (task 0116, docs/tasks/0116 D7): a scheme of this class's own wins, then the class's result template's scheme, then the branch's default scheme; the grade scale is
+  // the template's, else the branch's live default. All must be live. A scheme of a template that was archived with nothing replacing it is a 409 naming the template (templateMarks).
+  const own = await prisma.assessmentScheme.findFirst({
+    where: { branchId, classGroupId: arm.classGroupId, archivedAt: null },
+    include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
+  });
+  const fromTemplate = await templateMarks(branchId, arm.classGroupId, own === null);
   const scheme =
+    own ??
+    fromTemplate.scheme ??
+    // `hosted: false`: the branch's default is never a scheme made for a template or a school-wide one hosted here.
     (await prisma.assessmentScheme.findFirst({
-      where: { branchId, classGroupId: arm.classGroupId, archivedAt: null },
-      include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
-    })) ??
-    (await prisma.assessmentScheme.findFirst({
-      where: { branchId, classGroupId: null, archivedAt: null },
+      where: { branchId, classGroupId: null, archivedAt: null, hosted: false },
       include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
     }));
   if (!scheme) throw new ConflictError("Set up an assessment scheme for this branch first (Academics, Assessment and grading).");
-  const scale = await prisma.gradeScale.findFirst({
-    where: { branchId, isDefault: true, archivedAt: null },
-    include: { bands: { orderBy: { minScore: "asc" } } },
-  });
+  const scale =
+    fromTemplate.scale ??
+    (await prisma.gradeScale.findFirst({
+      where: { branchId, isDefault: true, archivedAt: null },
+      include: { bands: { orderBy: { minScore: "asc" } } },
+    }));
   if (!scale) throw new ConflictError("Set up a default grade scale for this branch first (Academics, Assessment and grading).");
   return { period, arm, subject, scheme, scale };
 }

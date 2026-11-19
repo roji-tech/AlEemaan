@@ -39,6 +39,8 @@ model Branch {
   reportRemarks          ReportRemark[]
   assessmentComps        AssessmentComponent[]
   gradeScales            GradeScale[]
+  resultTemplates        ResultTemplate[]
+  resultTemplateClasses  ResultTemplateClass[]
   gradeBands             GradeBand[]
   settingValues          SettingValue[]
   settingApprovals       SettingApproval[]

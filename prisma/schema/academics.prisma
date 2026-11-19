@@ -113,6 +113,7 @@ model ClassGroup {
   offerings              SubjectOffering[]
   schemes                AssessmentScheme[]
   schemeScopes           AssessmentSchemeScope[]
+  resultTemplateClasses  ResultTemplateClass[]
   feeStructures          FeeStructure[]
   lmsAssignments         Assignment[]
   learningMaterials      LearningMaterial[]
@@ -243,6 +244,7 @@ model AssessmentScheme {
   components AssessmentComponent[]
   results    Result[]
   scopes     AssessmentSchemeScope[]
+  templates  ResultTemplate[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -276,11 +278,12 @@ model GradeScale {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
-  branch     Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  supersedes GradeScale?  @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
-  successors GradeScale[] @relation("ScaleVersions")
+  branch     Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supersedes GradeScale?      @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors GradeScale[]     @relation("ScaleVersions")
   bands      GradeBand[]
   results    Result[]
+  templates  ResultTemplate[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -519,4 +522,47 @@ model ReportRemark {
 
   @@unique([studentId, periodId])
   @@index([branchId, periodId])
+}
+
+/// A result template (task 0116): a named bundle of a look (layout), a marks structure (scheme) and a grade scale, assigned to classes of ONE branch. A class is in at most one
+/// template (ResultTemplateClass is unique on branch + class); a class in none uses the branch's default template. Null layout, scheme or scale means "as the branch does today":
+/// the branch's standard layout (Approvals > Report cards), its own class scheme or default scheme, and its default grade scale. A live name is unique per branch and exactly one live
+/// template per branch is the default: both are partial unique indexes written in the migration (Prisma cannot express a WHERE).
+model ResultTemplate {
+  id            String    @id @default(cuid())
+  branchId      String
+  name          String
+  description   String?
+  /// "DEFAULT" or "LEGACY" (a ReportCardLayout code; no foreign key, the layouts are created the first time anyone asks). Null = the branch's standard layout.
+  layoutCode    String?
+  layoutOptions Json?
+  schemeId      String?
+  gradeScaleId  String?
+  isDefault     Boolean   @default(false)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  branch     Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scheme     AssessmentScheme?     @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+  gradeScale GradeScale?           @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
+  classes    ResultTemplateClass[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+model ResultTemplateClass {
+  id           String   @id @default(cuid())
+  branchId     String
+  templateId   String
+  classGroupId String
+  createdAt    DateTime @default(now())
+
+  branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template   ResultTemplate @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+  classGroup ClassGroup     @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, classGroupId])
+  @@index([templateId])
 }

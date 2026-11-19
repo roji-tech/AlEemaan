@@ -106,6 +106,10 @@ export function LayoutPanel({ branches, isSuperAdmin }: { branches: BranchChoice
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
       </div>
+      <p className="text-sm text-fg-muted">
+        This is the branch&apos;s <strong>standard</strong> layout. A result template that is set to the standard layout uses it; a template
+        with a look of its own prints that instead. Choose which template each class uses under Results &gt; Templates.
+      </p>
       {isSuperAdmin && enforced !== null && (
         <label className="flex items-start gap-2 rounded-2xl border border-line bg-surface p-4 text-sm text-fg">
           <input type="checkbox" className="mt-1" checked={enforced} onChange={(e) => void setEnforcement(e.target.checked)} />

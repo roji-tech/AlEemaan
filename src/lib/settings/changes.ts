@@ -13,7 +13,10 @@ export const ENFORCEABLE_KEYS = [LAYOUT_KEY] as const;
 export type EnforceableKey = (typeof ENFORCEABLE_KEYS)[number];
 export type RequestKey = EnforceableKey | typeof VERIFICATION_KEY;
 
-export type LayoutValue = { layoutCode: "DEFAULT" | "LEGACY"; options: Record<string, boolean> };
+/// `templateId` (task 0116): the change is to one result template's own look, not the branch's standard layout. A held change of a template's layout carries it, and approving applies it there.
+export type LayoutValue = { layoutCode: "DEFAULT" | "LEGACY"; options: Record<string, boolean>; templateId?: string };
+/// What a held change of a template's own look proposes: `layoutCode` null means "the branch's standard layout".
+export type TemplateLayoutValue = { layoutCode: "DEFAULT" | "LEGACY" | null; options: Record<string, boolean> | null; templateId: string };
 export type VerificationValue = {
   showPupilName?: boolean;
   pupilNameFormat?: PupilNameFormat;
@@ -34,6 +37,19 @@ export async function applyLayout(tx: Tx, branchId: string, value: LayoutValue) 
     where: { scope_branchId_key: { scope: SettingScope.BRANCH, branchId, key: LAYOUT_KEY } },
     create: { scope: SettingScope.BRANCH, branchId, key: LAYOUT_KEY, value, status: SettingStatus.APPROVED },
     update: { value, status: SettingStatus.APPROVED },
+  });
+}
+
+/// A held change of one result template's own look (task 0116), applied on approval. A template archived or removed since the request was filed is simply not changed.
+export async function applyTemplateLayoutValue(
+  tx: Tx,
+  branchId: string,
+  templateId: string,
+  value: Pick<TemplateLayoutValue, "layoutCode" | "options">,
+) {
+  await tx.resultTemplate.updateMany({
+    where: { id: templateId, branchId },
+    data: { layoutCode: value.layoutCode, layoutOptions: value.layoutCode && value.options ? value.options : Prisma.DbNull },
   });
 }
 
@@ -98,7 +114,9 @@ export async function applyApprovedRequest(
   approval: { settingKey: string; targetType: string; branchId: string | null; proposedValue: Prisma.JsonValue },
 ) {
   if (approval.targetType === "SETTING" && approval.settingKey === LAYOUT_KEY && approval.branchId) {
-    await applyLayout(tx, approval.branchId, approval.proposedValue as unknown as LayoutValue);
+    const value = approval.proposedValue as unknown as LayoutValue;
+    if (value.templateId) await applyTemplateLayoutValue(tx, approval.branchId, value.templateId, value as unknown as TemplateLayoutValue);
+    else await applyLayout(tx, approval.branchId, value);
   } else if (approval.targetType === "VERIFICATION_CONFIG" && approval.settingKey === VERIFICATION_KEY) {
     await applyVerification(tx, approval.branchId, approval.proposedValue as unknown as VerificationValue);
   }

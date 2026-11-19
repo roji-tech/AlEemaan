@@ -4,7 +4,8 @@ import { getSchoolSettings } from "@/lib/settings/school-settings";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
-import { getBranchReportCardLayout, getVerificationPageConfig } from "@/lib/settings/approvals";
+import { getVerificationPageConfig } from "@/lib/settings/approvals";
+import { layoutForClass } from "@/lib/results/templates";
 
 // Results, Slice P2c: the REPORT CARD (computed, never stored), the teacher's and principal's remarks, and the public verification of one published result.
 // The caller's authority over the BRANCH was checked by `withBranch` in the route (ADR 0015). Outside staff only ever see PUBLISHED / LOCKED results; an
@@ -88,7 +89,7 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     where: { branchId, studentId, periodId, ...(statuses ? { status: statuses } : {}) },
     include: {
       subject: { select: { name: true } },
-      classArm: { select: { name: true, classGroup: { select: { name: true } } } },
+      classArm: { select: { name: true, classGroup: { select: { id: true, name: true } } } },
       scale: { include: { bands: { orderBy: { minScore: "asc" } } } },
     },
     orderBy: [{ subject: { name: "asc" } }, { id: "asc" }],
@@ -147,7 +148,8 @@ export async function getReportCard(branchId: string, studentId: string, periodI
   const [school, remarks, layout] = await Promise.all([
     getSchoolSettings(),
     prisma.reportRemark.findUnique({ where: { studentId_periodId: { studentId, periodId } } }),
-    getBranchReportCardLayout(branchId),
+    // The look comes from the class's result template (task 0116), else the branch's standard layout.
+    layoutForClass(branchId, first?.classArm.classGroup.id ?? null),
   ]);
   return {
     school: { name: school.name, principal: school.principal, motto: school.motto, address: school.address, phone: school.phone },
