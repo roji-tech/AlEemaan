@@ -129,6 +129,68 @@ test("a pupil gets a full scholarship, the open invoice is settled by it and rea
   await expect(detail).toContainText("Scholarship: Hafiz award (100%)");
 });
 
+test("raising a share offers Apply the change to open invoices: it says how many and how much, does nothing until confirmed, then raises the invoice's line by the difference", async ({
+  page,
+}) => {
+  const { branch, admin, pupil } = await setUp(page);
+  const merit = await db.scholarshipType.create({ data: { branchId: branch.id, name: "Merit", percent: 50 } });
+  const grant = await db.studentScholarship.create({
+    data: { branchId: branch.id, studentId: pupil.id, typeId: merit.id, percent: 50, createdById: admin.id },
+  });
+  // An invoice that already carries the 50% (25000 of the 50000 fees taken off).
+  const invoice = await db.invoice.findFirstOrThrow();
+  await db.invoiceDiscount.create({
+    data: {
+      branchId: branch.id,
+      invoiceId: invoice.id,
+      amount: "25000.00",
+      reason: "Merit (50%)",
+      mode: "SCHOLARSHIP",
+      appliedByUserId: admin.id,
+      studentScholarshipId: grant.id,
+    },
+  });
+  await db.invoice.update({ where: { id: invoice.id }, data: { totalAmount: "25000.00" } });
+
+  await page.goto(`/students?branch=${branch.id}&q=Holder`);
+  await clickAction(page, "Scholarships of Holder Pupil");
+  const dialog = page.getByRole("dialog", { name: "Scholarships of Holder Pupil" });
+  await expect(dialog).toContainText("Merit");
+  // Nothing to top up yet: the share has not been raised.
+  await expect(dialog.getByRole("button", { name: /Apply the change to open invoices/ })).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Change Merit" }).click();
+  await dialog.getByLabel("Share of the fees (%)").fill("75");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page.getByText(/New invoices take the new share; for invoices already issued, use Apply the change to open invoices/),
+  ).toBeVisible();
+
+  // The preview: how many and how much, and nothing has changed yet.
+  const ask = dialog.getByRole("group", { name: "Apply the change to open invoices: Merit" });
+  await expect(ask).toContainText("₦12,500.00 more off 1 invoice");
+  await expect(ask).toContainText("Invoices already paid are not touched");
+  expect((await db.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).totalAmount.toString()).toBe("25000");
+  await expectAccessible(page, "the top-up confirmation");
+
+  await ask.getByRole("button", { name: "Not now" }).click();
+  await expect(ask).toHaveCount(0);
+  await dialog.getByRole("button", { name: /Apply the change to open invoices \(1\)/ }).click();
+  await dialog
+    .getByRole("group", { name: "Apply the change to open invoices: Merit" })
+    .getByRole("button", { name: "Apply the change" })
+    .click();
+  await expect(page.getByText(/1 invoice now takes the new share \(₦12,500.00 more off\)/)).toBeVisible();
+  const after = await db.invoice.findUniqueOrThrow({ where: { id: invoice.id }, include: { discounts: true } });
+  expect([after.totalAmount.toString(), after.status, after.discounts.length, after.discounts[0].amount.toString()]).toEqual([
+    "12500",
+    "UNPAID",
+    1,
+    "37500",
+  ]);
+  await expect(dialog.getByRole("button", { name: /Apply the change to open invoices/ })).toHaveCount(0);
+});
+
 test("the pupil filter: has a scholarship, none, one type", async ({ page }) => {
   const { branch, admin, pupil } = await setUp(page);
   const t = await db.scholarshipType.create({ data: { branchId: branch.id, name: "Academic merit", percent: 50 } });

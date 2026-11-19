@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { PortalStudentRecord } from "./PortalLoginCard";
+import { SETTLED_TEXT, type SettledBy } from "@/lib/finance/format";
 
 interface Invoice {
   id: string;
@@ -9,8 +10,9 @@ interface Invoice {
   totalAmount: number;
   amountPaid: number;
   status: string;
-  /// Settled with nothing paid because a scholarship took the fees off; only this yes or no reaches the family (task 0113 S1).
+  /// Settled with nothing paid because discounts took the fees off; only this yes or no reaches the family (task 0113 S1). `settledBy` names the KIND (never which scholarship or its share).
   paidByScholarship?: boolean;
+  settledBy?: SettledBy | null;
   dueDate: string | null;
   period: {
     label: string;
@@ -116,7 +118,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
                                 : "bg-danger-bg text-danger-text"
                           }`}
                         >
-                          {inv.status === "PAID" && inv.paidByScholarship ? "PAID BY SCHOLARSHIP" : inv.status}
+                          {inv.status === "PAID" && inv.settledBy ? SETTLED_TEXT[inv.settledBy].toUpperCase() : inv.status}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">

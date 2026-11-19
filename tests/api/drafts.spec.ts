@@ -256,7 +256,7 @@ test.describe("draft staff", () => {
 });
 
 test.describe("draft pupils", () => {
-  test("saved with the names and the gender; a class, a date of birth and a guardian are added by editing; completing is refused with the list, then allowed; audited", async () => {
+  test("saved with the names and the gender; a class and a guardian are added by editing (no date of birth: it is optional); completing is refused with the list, then allowed; audited", async () => {
     const admin = await asRole(Role.ADMIN);
     const { group, arm } = await classOf();
     const made = await api("/api/v1/students", {
@@ -271,19 +271,19 @@ test.describe("draft pupils", () => {
     const read = await api(`/api/v1/students/${id}`, { cookie: admin.cookie });
     expect(read.json.data.student).toMatchObject({
       isDraft: true,
-      missing: ["date of birth", "class", "guardian name", "guardian phone or e-mail"],
+      missing: ["class", "guardian name", "guardian phone or e-mail"],
     });
 
     const refused = await api(`/api/v1/students/${id}/complete`, { method: "POST", cookie: admin.cookie });
     expect(refused.status).toBe(409);
     expect(refused.json.error.code).toBe("INCOMPLETE");
-    expect(details(refused)).toEqual(["date of birth", "class", "guardian name", "guardian phone or e-mail"]);
+    expect(details(refused)).toEqual(["class", "guardian name", "guardian phone or e-mail"]);
 
     // A class on an edit places a pupil who has none.
     const edited = await api(`/api/v1/students/${id}`, {
       method: "PATCH",
       cookie: admin.cookie,
-      body: { dateOfBirth: "2017-03-04", guardianName: "Mr Aliyu", guardianPhone: "08031234567", className: group.name, arm: arm.name },
+      body: { guardianName: "Mr Aliyu", guardianPhone: "08031234567", className: group.name, arm: arm.name },
     });
     expect(edited.status).toBe(200);
     expect(edited.json.data.enrolled).toBe(true);
@@ -533,4 +533,29 @@ test.describe("Add many as drafts", () => {
     };
     expect((await api("/api/v1/staff/import", { method: "POST", cookie: teacher.cookie, body })).status).toBe(403);
   });
+});
+
+// 2026-11-19: "complete" is judged by the pupil's guardian LINKS (a guardian with a name and a phone or an e-mail), not by the contact mirror: a guardian blocked from this pupil still counts as
+// the family's contact, and a date of birth is not asked.
+test("a draft pupil with a class and one guardian link, blocked from them, and no date of birth, can be completed", async () => {
+  const admin = await asRole(Role.ADMIN);
+  const placed = await classOf("Basic 5", "C");
+  const draft = await pupil("Hauwa", { draft: true, into: placed });
+  await db.studentRecord.update({ where: { id: draft.id }, data: { dateOfBirth: null, guardianName: null, guardianPhone: null } });
+  const guardian = await db.guardian.create({ data: { name: "Mrs Bello", phone: "08051234567", phoneKey: "8051234567" } });
+  await db.studentGuardian.create({
+    data: {
+      studentId: draft.id,
+      guardianId: guardian.id,
+      branchId: home.id,
+      isMain: true,
+      blockedAt: new Date(),
+      blockedReason: "court order",
+    },
+  });
+  const read = await api(`/api/v1/students/${draft.id}`, { cookie: admin.cookie });
+  expect(read.json.data.student.missing).toEqual([]);
+  const done = await api(`/api/v1/students/${draft.id}/complete`, { method: "POST", cookie: admin.cookie });
+  expect(done.status).toBe(200);
+  expect(done.json.data.student.isDraft).toBe(false);
 });

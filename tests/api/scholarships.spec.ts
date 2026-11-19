@@ -447,7 +447,7 @@ test.describe("invoices", () => {
     ).rejects.toThrow();
   });
 
-  test("a full scholarship settles the invoice: PAID with nothing paid, labelled Paid by scholarship in the list and the detail; a manual discount of the whole fee keeps the status it always had", async () => {
+  test("a full scholarship settles the invoice: PAID with nothing paid, labelled Paid by scholarship in the list and the detail; a manual discount of the whole fee now settles it too, labelled Waived (2026-11-19)", async () => {
     const admin = await asRole(Role.ADMIN);
     const { period, enrol } = await termWithFees();
     const full = await type(home.id, "Hafiz award", 100);
@@ -473,7 +473,7 @@ test.describe("invoices", () => {
     });
     expect(pay.status).toBe(400);
 
-    // A manual discount that reaches the total: unchanged behaviour (UNPAID at nothing owed), and not labelled.
+    // A manual discount that reaches the total settles the invoice as well (the maintainer approved this on 2026-11-19; it used to stay UNPAID at nothing owed), labelled Waived, never "by scholarship".
     const m = await invoiceOf(manual.id);
     const discount = await api(`/api/v1/finance/invoices/${m.id}/discount?branchId=${home.id}`, {
       method: "POST",
@@ -482,9 +482,50 @@ test.describe("invoices", () => {
     });
     expect(discount.status, discount.text).toBeLessThan(300);
     const after = await db.invoice.findUniqueOrThrow({ where: { id: m.id } });
-    expect([after.totalAmount.toString(), after.status]).toEqual(["0", "UNPAID"]);
+    expect([after.totalAmount.toString(), after.status]).toEqual(["0", "PAID"]);
     const list2 = await api(`/api/v1/finance/invoices?branchId=${home.id}`, { cookie: admin.cookie });
-    expect((dto(list2).invoices as { id: string; paidByScholarship: boolean }[]).find((r) => r.id === m.id)!.paidByScholarship).toBe(false);
+    const row = (dto(list2).invoices as { id: string; paidByScholarship: boolean; settledBy: string | null }[]).find((r) => r.id === m.id)!;
+    expect([row.paidByScholarship, row.settledBy]).toEqual([false, "WAIVED"]);
+    expect((dto(list).invoices as { id: string; settledBy: string | null }[]).find((r) => r.id === inv.id)!.settledBy).toBe("SCHOLARSHIP");
+  });
+
+  test("any invoice that owes nothing is PAID and says what covered it: a sibling discount of the whole fee 'Paid by discount'; mixed kinds take the name of the one that took the most off; a partial discount changes nothing", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const { period, enrol } = await termWithFees();
+    const sib = await enrol("Sibling");
+    const mixed = await enrol("Mixed");
+    const part = await enrol("Partial");
+    await generate(admin.cookie, period.id);
+    const discount = (invoiceId: string, amount: number, mode: string) =>
+      api(`/api/v1/finance/invoices/${invoiceId}/discount?branchId=${home.id}`, {
+        method: "POST",
+        cookie: admin.cookie,
+        body: { amount, reason: "Test", mode },
+      });
+    const read = async (studentId: string) => {
+      const inv = await invoiceOf(studentId);
+      const list = await api(`/api/v1/finance/invoices?branchId=${home.id}`, { cookie: admin.cookie });
+      return {
+        status: inv.status,
+        settledBy: (dto(list).invoices as { id: string; settledBy: string | null }[]).find((r) => r.id === inv.id)!.settledBy,
+      };
+    };
+    expect((await discount((await invoiceOf(sib.id)).id, 50000, "SIBLING_DISCOUNT")).status).toBeLessThan(300);
+    expect(await read(sib.id)).toEqual({ status: "PAID", settledBy: "DISCOUNT" });
+    // 20000 manual, then 30000 scholarship-kind: the larger (scholarship) names it.
+    const mi = (await invoiceOf(mixed.id)).id;
+    expect((await discount(mi, 20000, "MANUAL_OVERRIDE")).status).toBeLessThan(300);
+    expect((await read(mixed.id)).status).toBe("UNPAID");
+    expect((await discount(mi, 30000, "SCHOLARSHIP")).status).toBeLessThan(300);
+    expect(await read(mixed.id)).toEqual({ status: "PAID", settledBy: "SCHOLARSHIP" });
+    // A discount that leaves something owed changes nothing.
+    expect((await discount((await invoiceOf(part.id)).id, 5000, "MANUAL_OVERRIDE")).status).toBeLessThan(300);
+    expect(await read(part.id)).toEqual({ status: "UNPAID", settledBy: null });
+    // Nothing owed means it is off the unpaid filter of the list.
+    const unpaid = await api(`/api/v1/finance/invoices?branchId=${home.id}&status=UNPAID`, { cookie: admin.cookie });
+    const ids = (dto(unpaid).invoices as { id: string }[]).map((r) => r.id);
+    expect(ids).not.toContain((await invoiceOf(sib.id)).id);
+    expect(ids).toContain((await invoiceOf(part.id)).id);
   });
 
   test("a manual discount still works as before: a smaller manual discount lowers the total and keeps the status", async () => {
@@ -552,6 +593,90 @@ test.describe("invoices", () => {
     await api(`${grantsOf(r.id)}/${g3}`, { method: "PATCH", cookie: admin.cookie, body: { end: true } });
     expect((await api(`${grantsOf(r.id)}/${g3}/apply`, { method: "POST", cookie: admin.cookie, body: {} })).status).toBe(409);
     expect((await api(`${grantsOf(p.id)}/${g3}/apply`, { method: "POST", cookie: admin.cookie, body: {} })).status).toBe(404); // another pupil's scholarship
+  });
+
+  test("Apply the change to open invoices (a raised share): previewed, then raises the line on unpaid and part-paid invoices by the difference only, capped at what is owed, once; paid ones, a lowering and an ended scholarship change nothing", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const { period, enrol } = await termWithFees();
+    const half = await type(home.id, "Merit", 50);
+    const p = await enrol("Raised");
+    const q = await enrol("Capped");
+    const r = await enrol("Paid");
+    const grant = async (studentId: string) =>
+      dto(await api(grantsOf(studentId), { method: "POST", cookie: admin.cookie, body: { typeId: half.id } })).scholarship.id as string;
+    const [gp, gq, gr] = [await grant(p.id), await grant(q.id), await grant(r.id)];
+    await generate(admin.cookie, period.id); // each takes 25000 off a 50000 invoice
+    const topUp = (studentId: string, id: string, method: "GET" | "POST" = "POST", cookie = admin.cookie) =>
+      api(`${grantsOf(studentId)}/${id}/top-up`, { method, cookie, body: method === "POST" ? {} : undefined });
+    const raise = (studentId: string, id: string, percent: number) =>
+      api(`${grantsOf(studentId)}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { percent } });
+
+    // Raising alone changes nothing already issued; the preview says what the button would do.
+    expect((await raise(p.id, gp, 75)).status).toBe(200);
+    expect((await invoiceOf(p.id)).totalAmount.toString()).toBe("25000");
+    const preview = await topUp(p.id, gp, "GET");
+    expect(preview.status, preview.text).toBe(200);
+    expect(dto(preview)).toEqual({ invoices: 1, kobo: 1_250_000 });
+    expect((await invoiceOf(p.id)).totalAmount.toString()).toBe("25000"); // a preview writes nothing
+    const list = await api(grantsOf(p.id), { cookie: admin.cookie });
+    expect(dto(list).scholarships[0].topUp).toEqual({ invoices: 1, kobo: 1_250_000 });
+
+    // The change: the SAME line is raised by the difference (25% of 50000), not a second line; a second press adds nothing.
+    const done = await topUp(p.id, gp);
+    expect(done.status, done.text).toBe(200);
+    expect(dto(done)).toEqual({ toppedUp: 1, settled: 0, kobo: 1_250_000 });
+    const inv = await invoiceOf(p.id);
+    expect([
+      inv.totalAmount.toString(),
+      inv.status,
+      inv.discounts.length,
+      inv.discounts[0].amount.toString(),
+      inv.discounts[0].studentScholarshipId,
+    ]).toEqual(["12500", "UNPAID", 1, "37500", gp]);
+    expect(dto(await topUp(p.id, gp))).toEqual({ toppedUp: 0, settled: 0, kobo: 0 });
+    expect(dto(await topUp(p.id, gp, "GET"))).toEqual({ invoices: 0, kobo: 0 });
+    const audits = await db.auditLog.findMany({ where: { action: "STUDENT_SCHOLARSHIP_TOPPED_UP", targetId: p.id } });
+    expect(audits).toHaveLength(1);
+    expect(audits[0].afterValue).toMatchObject({ scholarshipId: gp, percent: 75, invoices: 1, kobo: 1_250_000 });
+    expect(JSON.stringify(audits[0].afterValue)).not.toContain("note");
+
+    // A lowered share changes nothing already issued.
+    expect((await raise(p.id, gp, 25)).status).toBe(200);
+    expect(dto(await topUp(p.id, gp))).toEqual({ toppedUp: 0, settled: 0, kobo: 0 });
+    expect((await invoiceOf(p.id)).totalAmount.toString()).toBe("12500");
+
+    // Part paid: 20000 of 25000 paid, so 5000 is owed; raising to 100% can add only that, and the invoice is then settled.
+    const qi = await invoiceOf(q.id);
+    await db.invoice.update({ where: { id: qi.id }, data: { amountPaid: "20000", status: "PARTIALLY_PAID" } });
+    expect((await raise(q.id, gq, 100)).status).toBe(200);
+    expect(dto(await topUp(q.id, gq))).toEqual({ toppedUp: 1, settled: 1, kobo: 500_000 });
+    const capped = await invoiceOf(q.id);
+    expect([capped.totalAmount.toString(), capped.amountPaid.toString(), capped.status, capped.discounts[0].amount.toString()]).toEqual([
+      "20000",
+      "20000",
+      "PAID",
+      "30000",
+    ]);
+
+    // A paid invoice is never touched.
+    const ri = await invoiceOf(r.id);
+    await db.invoice.update({ where: { id: ri.id }, data: { amountPaid: "25000", status: "PAID" } });
+    expect((await raise(r.id, gr, 100)).status).toBe(200);
+    expect(dto(await topUp(r.id, gr))).toEqual({ toppedUp: 0, settled: 0, kobo: 0 });
+    expect((await invoiceOf(r.id)).discounts[0].amount.toString()).toBe("25000");
+
+    // An ended scholarship cannot be topped up (409); a teacher and another branch's administrator are refused.
+    await api(`${grantsOf(p.id)}/${gp}`, { method: "PATCH", cookie: admin.cookie, body: { end: true } });
+    expect((await topUp(p.id, gp)).status).toBe(409);
+    expect((await topUp(p.id, gp, "GET")).status).toBe(409);
+    const teacher = await asRole(Role.TEACHING_STAFF);
+    const away = await asRole(Role.ADMIN, [other.id]);
+    for (const method of ["GET", "POST"] as const) {
+      expect((await topUp(q.id, gq, method, teacher.cookie)).status, `teacher ${method}`).toBe(403);
+      expect((await topUp(q.id, gq, method, away.cookie)).status, `away ${method}`).toBe(404);
+    }
+    expect((await api(`${grantsOf(q.id)}/${gq}/top-up`, { method: "POST", body: {} })).status).toBe(401);
+    expect((await topUp(p.id, gq)).status).toBe(404); // another pupil's scholarship
   });
 
   test("ending a scholarship does not change invoices already issued", async () => {

@@ -6,12 +6,12 @@ import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { studentBranchId, studentNotFound } from "@/lib/students/scope";
 import { ScholarshipError, grant, listForStudent, listTypes } from "@/lib/scholarships/service";
-import { openInvoicesFor } from "@/lib/finance/service";
+import { openInvoicesFor, previewScholarshipTopUp } from "@/lib/finance/service";
 import { prisma } from "@/lib/db";
 
 type Context = { params: Promise<{ id: string }> };
 
-// GET  /api/v1/students/[id]/scholarships   the pupil's scholarships (live first), what each could still be applied to (the open invoices without it), and the branch's current types to grant.
+// GET  /api/v1/students/[id]/scholarships   the pupil's scholarships (live first), what each could still be applied to (the open invoices without it) and what a raised share would top up (`topUp`), and the branch's current types to grant.
 // POST /api/v1/students/[id]/scholarships { typeId, percent?, startsOn?, endsOn?, note? }   grant one: the share defaults to the type's; a pupil's live shares together may not pass 100 (409).
 // Task 0113 S1. Financial: only an administrator of the pupil's branch or a superadmin (a teacher is 403; another branch's pupil is the same 404 as an unknown one). Audited. Never cached.
 const day = z
@@ -42,6 +42,8 @@ export const GET = withAuth<Context>(
       scholarships.map(async (s) => ({
         ...s,
         openInvoices: s.live ? (await openInvoicesFor(prisma, pupil.branchId, id, s.id)).length : 0,
+        // What a raised share would add to the invoices that already carry it ("Apply the change to open invoices"); nothing when it is not live.
+        topUp: s.live ? await previewScholarshipTopUp(pupil.branchId, id, s.id) : { invoices: 0, kobo: 0 },
       })),
     );
     return noStore(

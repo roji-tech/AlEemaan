@@ -5,6 +5,9 @@ import {
   isPercent,
   liveOn,
   paidByScholarship,
+  planTopUp,
+  settledBy,
+  SETTLED_TEXT,
   peakPercent,
   percentText,
   planDiscounts,
@@ -127,11 +130,105 @@ test.describe("an invoice paid by scholarship", () => {
     expect(paidByScholarship({ status: "PAID", totalAmount: "0", amountPaid: "0", discounts: [manual("10000")] })).toBe(false);
     expect(scholarshipTotal([sch("100"), manual("50"), sch("25.5")]).toString()).toBe("125.5");
   });
-  test("an invoice whose whole fee scholarships took off is PAID; every other status is what money gave it, a manual discount that reaches the total included", () => {
+  test("an invoice whose whole fee discounts took off is PAID, whatever the kind of discount (2026-11-19: a manual one used to stay UNPAID at nothing owed); with something still owed, or nothing taken off, it is what money gave it", () => {
     expect(statusAfterDiscounts("UNPAID", "0", [sch("10000")])).toBe("PAID");
+    expect(statusAfterDiscounts("UNPAID", "0", [manual("10000")])).toBe("PAID"); // changed on purpose: nothing is owed, so it is settled
+    expect(statusAfterDiscounts("UNPAID", "0", [{ amount: "10000", mode: "SIBLING_DISCOUNT" }])).toBe("PAID");
     expect(statusAfterDiscounts("UNPAID", "5000", [sch("5000")])).toBe("UNPAID");
-    expect(statusAfterDiscounts("UNPAID", "0", [manual("10000")])).toBe("UNPAID"); // unchanged
+    expect(statusAfterDiscounts("UNPAID", "5000", [manual("5000")])).toBe("UNPAID");
     expect(statusAfterDiscounts("PARTIALLY_PAID", "3000", [sch("2000")])).toBe("PARTIALLY_PAID");
+    expect(statusAfterDiscounts("UNPAID", "0", [])).toBe("UNPAID"); // nothing was taken off: a fee of nothing is not "settled by" anything
+  });
+});
+
+test.describe("what settled an invoice (settledBy)", () => {
+  const facts = (discounts: { amount: string; mode: string }[], over: Partial<{ status: string; amountPaid: string }> = {}) => ({
+    status: "PAID",
+    totalAmount: "0",
+    amountPaid: "0",
+    discounts,
+    ...over,
+  });
+  test("one kind names it: scholarship, waived (a manual override) or discount (sibling or staff child)", () => {
+    expect(settledBy(facts([{ amount: "100", mode: "SCHOLARSHIP" }]))).toBe("SCHOLARSHIP");
+    expect(settledBy(facts([{ amount: "100", mode: "MANUAL_OVERRIDE" }]))).toBe("WAIVED");
+    expect(settledBy(facts([{ amount: "100", mode: "SIBLING_DISCOUNT" }]))).toBe("DISCOUNT");
+    expect(settledBy(facts([{ amount: "100", mode: "STAFF_CHILD" }]))).toBe("DISCOUNT");
+    expect(SETTLED_TEXT).toEqual({ SCHOLARSHIP: "Paid by scholarship", WAIVED: "Waived", DISCOUNT: "Paid by discount" });
+  });
+  test("mixed kinds: the one that took the MOST off names it; sibling and staff child count together as 'discount'; an exact tie goes scholarship, then discount, then waived", () => {
+    expect(
+      settledBy(
+        facts([
+          { amount: "60", mode: "MANUAL_OVERRIDE" },
+          { amount: "40", mode: "SCHOLARSHIP" },
+        ]),
+      ),
+    ).toBe("WAIVED");
+    expect(
+      settledBy(
+        facts([
+          { amount: "30", mode: "MANUAL_OVERRIDE" },
+          { amount: "70", mode: "SCHOLARSHIP" },
+        ]),
+      ),
+    ).toBe("SCHOLARSHIP");
+    expect(
+      settledBy(
+        facts([
+          { amount: "20", mode: "SIBLING_DISCOUNT" },
+          { amount: "20", mode: "STAFF_CHILD" },
+          { amount: "30", mode: "SCHOLARSHIP" },
+        ]),
+      ),
+    ).toBe("DISCOUNT");
+    expect(
+      settledBy(
+        facts([
+          { amount: "50", mode: "MANUAL_OVERRIDE" },
+          { amount: "50", mode: "SCHOLARSHIP" },
+        ]),
+      ),
+    ).toBe("SCHOLARSHIP");
+    expect(
+      settledBy(
+        facts([
+          { amount: "50", mode: "MANUAL_OVERRIDE" },
+          { amount: "50", mode: "SIBLING_DISCOUNT" },
+        ]),
+      ),
+    ).toBe("DISCOUNT");
+    expect(
+      settledBy(
+        facts([
+          { amount: "50", mode: "SIBLING_DISCOUNT" },
+          { amount: "50", mode: "SCHOLARSHIP" },
+        ]),
+      ),
+    ).toBe("SCHOLARSHIP");
+  });
+  test("nothing when money was paid, when it is not settled, or when nothing was taken off", () => {
+    expect(settledBy(facts([{ amount: "100", mode: "SCHOLARSHIP" }], { amountPaid: "10" }))).toBeNull();
+    expect(settledBy(facts([{ amount: "100", mode: "SCHOLARSHIP" }], { status: "UNPAID" }))).toBeNull();
+    expect(settledBy(facts([]))).toBeNull();
+  });
+});
+
+test.describe("the top-up of a raised share (planTopUp)", () => {
+  const t = (gross: string, percent: number, given: string, balance: string) => planTopUp(gross, percent, given, balance).toString();
+  test("only the difference between the share's amount now and what the invoice already got, to the kobo", () => {
+    expect(t("50000", 75, "25000", "25000")).toBe("12500"); // 50% was given; 75% is 37500
+    expect(t("100.01", 50, "25.01", "75")).toBe("25"); // 50.01 wanted (rounded half up), 25.01 given
+  });
+  test("never more than the invoice still owes", () => {
+    expect(t("50000", 100, "25000", "5000")).toBe("5000");
+    expect(t("50000", 100, "25000", "0")).toBe("0");
+    expect(t("50000", 100, "25000", "-10")).toBe("0");
+  });
+  test("a lowered share, an equal share and a second press all give nothing", () => {
+    expect(t("50000", 25, "25000", "25000")).toBe("0");
+    expect(t("50000", 50, "25000", "25000")).toBe("0");
+    expect(t("50000", 75, "37500", "12500")).toBe("0"); // pressed again after a top-up
   });
 });
 

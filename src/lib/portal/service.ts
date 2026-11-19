@@ -12,7 +12,7 @@ import { ResultStatus, AttendanceStatus, InvoiceStatus, MaterialStatus, QuizStat
 import { submitAssignment, attemptQuiz, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
 import { getReportCard, reportCardVisibleTo, studentBranch } from "@/lib/academics/report-card";
 import { accessFor, allowedTabs, type Access, type Actor } from "./access";
-import { paidByScholarship } from "@/lib/scholarships/rules";
+import { paidByScholarship, settledBy } from "@/lib/scholarships/rules";
 import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
 import { LIVE_PUPIL } from "@/lib/drafts/live";
@@ -608,6 +608,8 @@ export async function getStudentPortalInvoices(studentId: string, allowedStudent
     invoices: invoices.map(({ discounts, ...invoice }) => ({
       ...invoice,
       paidByScholarship: paidByScholarship({ ...invoice, discounts }),
+      // "Waived", "Paid by discount" or "Paid by scholarship" (a name for the kind only, never which scholarship or its share).
+      settledBy: settledBy({ ...invoice, discounts }),
       discounts: discounts.map((d) =>
         d.mode === "SCHOLARSHIP"
           ? { id: d.id, amount: d.amount, reason: "Discount", mode: "MANUAL_OVERRIDE", createdAt: d.createdAt }

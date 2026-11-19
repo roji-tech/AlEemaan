@@ -36,7 +36,6 @@ const pupil = (over: Partial<PupilDraftFacts> = {}): PupilDraftFacts => ({
   firstName: "Zainab",
   lastName: "Aliyu",
   gender: "FEMALE",
-  dateOfBirth: "2017-03-04",
   hasClass: true,
   guardianName: "Mr Aliyu",
   guardianPhone: "08031234567",
@@ -63,21 +62,20 @@ test.describe("a staff record is complete when", () => {
 });
 
 test.describe("a pupil is complete when", () => {
-  test("it has the names, gender, date of birth, a class and a guardian contact", () => {
+  test("it has the names, gender, a class and a guardian contact; the date of birth is not asked (2026-11-19)", () => {
     expect(pupilMissing(pupil())).toEqual([]);
-    expect(pupilMissing(pupil({ dateOfBirth: new Date("2017-03-04T00:00:00Z") }))).toEqual([]);
+    // The facts do not even carry a date of birth: a record without one is as complete as one with it.
+    expect(Object.keys(pupil())).not.toContain("dateOfBirth");
+    expect(pupilMissing({ ...pupil(), dateOfBirth: null } as PupilDraftFacts)).toEqual([]);
     expect(pupilMissing(pupil({ guardianPhone: null, guardianEmail: "dad@example.com" }))).toEqual([]);
   });
   test("each missing thing is named, in the order the form asks", () => {
-    expect(pupilMissing(pupil({ dateOfBirth: null }))).toEqual(["date of birth"]);
     expect(pupilMissing(pupil({ hasClass: false }))).toEqual(["class"]);
     expect(pupilMissing(pupil({ guardianName: null }))).toEqual(["guardian name"]);
     expect(pupilMissing(pupil({ guardianPhone: "", guardianEmail: "  " }))).toEqual(["guardian phone or e-mail"]);
     expect(
-      pupilMissing(
-        pupil({ firstName: "", lastName: " ", gender: null, dateOfBirth: null, hasClass: false, guardianName: null, guardianPhone: null }),
-      ),
-    ).toEqual(["first name", "last name", "gender", "date of birth", "class", "guardian name", "guardian phone or e-mail"]);
+      pupilMissing(pupil({ firstName: "", lastName: " ", gender: null, hasClass: false, guardianName: null, guardianPhone: null })),
+    ).toEqual(["first name", "last name", "gender", "class", "guardian name", "guardian phone or e-mail"]);
   });
 });
 

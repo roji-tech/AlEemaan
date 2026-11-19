@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
-import { formatNaira, InvoiceStatus } from "@/lib/finance/format";
+import { formatNaira, InvoiceStatus, SETTLED_TEXT, type SettledBy } from "@/lib/finance/format";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { DiscountModal } from "./DiscountModal";
 
@@ -52,6 +52,7 @@ export interface InvoiceDetail {
   }[];
   /// Settled with nothing paid because scholarships took the fees off (task 0113 S1).
   paidByScholarship?: boolean;
+  settledBy?: SettledBy | null;
 }
 
 export interface InvoiceDetailModalProps {
@@ -129,7 +130,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
             <div>
               {isPaid && (
                 <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-ok-fg">
-                  {invoice.paidByScholarship ? "✓ PAID BY SCHOLARSHIP" : "✓ PAID IN FULL"}
+                  {invoice.settledBy ? `✓ ${SETTLED_TEXT[invoice.settledBy].toUpperCase()}` : "✓ PAID IN FULL"}
                 </span>
               )}
               {isPartial && (

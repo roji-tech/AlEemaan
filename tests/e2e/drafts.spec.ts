@@ -130,7 +130,7 @@ test("staff: Add many can save the whole file as drafts", async ({ page }) => {
   expect(await db.staffRecord.count({ where: { firstName: { startsWith: tag }, isDraft: true } })).toBe(2);
 });
 
-test("pupils: Save as draft with only the names; the list says what is missing; Complete is refused, then allowed after a class, a date of birth and a guardian are added", async ({
+test("pupils: Save as draft with only the names; the list says what is missing; Complete is refused, then allowed after a class and a guardian are added (no date of birth needed)", async ({
   page,
 }) => {
   const branch = await signInAsAdmin(page);
@@ -157,7 +157,7 @@ test("pupils: Save as draft with only the names; the list says what is missing; 
 
   const row = () => page.getByRole("listitem").filter({ hasText: `${tag}Zainab` });
   await expect(row()).toContainText("Draft");
-  await expect(row()).toContainText("Missing: date of birth, class, guardian name, guardian phone or e-mail");
+  await expect(row()).toContainText("Missing: class, guardian name, guardian phone or e-mail");
   await expect(page.getByText(/1 draft among these pupils/)).toBeVisible();
   await expectAccessible(page, "the pupil list with a draft");
 
@@ -175,7 +175,6 @@ test("pupils: Save as draft with only the names; the list says what is missing; 
 
   // A pupil with no class can be given one from the edit form; then it can be completed.
   await clickAction(row(), `Edit ${tag}Zainab Aliyu`);
-  await dialog(page).getByLabel("Date of birth").fill("2017-03-04");
   await dialog(page).getByLabel("Class (optional)").selectOption(`${tag} JSS 1`);
   await dialog(page).getByLabel("Arm").selectOption("A");
   await dialog(page).getByLabel("Guardian name (optional)").fill("Mr Aliyu");

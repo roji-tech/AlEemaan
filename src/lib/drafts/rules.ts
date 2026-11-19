@@ -33,7 +33,6 @@ export type PupilDraftFacts = {
   firstName: string | null | undefined;
   lastName: string | null | undefined;
   gender: string | null | undefined;
-  dateOfBirth: string | Date | null | undefined;
   /// Placed in a class: an active enrolment.
   hasClass: boolean;
   guardianName: string | null | undefined;
@@ -41,14 +40,13 @@ export type PupilDraftFacts = {
   guardianEmail: string | null | undefined;
 };
 
-/// What a pupil record still needs to be complete: the names, the gender, the date of birth, a class (an active enrolment) and a guardian contact (the guardian's name and a phone or an
-/// e-mail address).
+/// What a pupil record still needs to be complete: the names, the gender, a class (an active enrolment) and a guardian contact (a guardian with a name and a phone or an e-mail address).
+/// The date of birth is NOT asked (the maintainer approved this on 2026-11-19: the ordinary pupil form does not require it either, so a draft cannot be held to more than a record).
 export function pupilMissing(r: PupilDraftFacts): string[] {
   const missing: string[] = [];
   if (!present(r.firstName)) missing.push("first name");
   if (!present(r.lastName)) missing.push("last name");
   if (!present(r.gender)) missing.push("gender");
-  if (!r.dateOfBirth) missing.push("date of birth");
   if (!r.hasClass) missing.push("class");
   if (!present(r.guardianName)) missing.push("guardian name");
   if (!present(r.guardianPhone) && !present(r.guardianEmail)) missing.push("guardian phone or e-mail");

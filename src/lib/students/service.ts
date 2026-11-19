@@ -446,8 +446,38 @@ export async function updateStudent(
 }
 
 /**
- * Completes a draft pupil (task 0101 D1): clears the flag when the record has everything `pupilMissing` asks for (the names, gender, date of birth, an active class and a guardian
- * contact), else says what is missing and changes nothing. A pupil who is not a draft is returned as they are (a second click is safe).
+ * The guardian contact a draft pupil is judged by (task 0101 D1, 2026-11-19): read from the pupil's guardian LINKS, not from the contact mirror, so a guardian who is blocked from this pupil
+ * (the mirror is then empty) still counts as the family's contact. Per pupil: the first linked guardian (main contact first) that has a name and a phone or an e-mail address, else the
+ * first linked one; an archived guardian is not counted. One query for all the pupils asked about.
+ */
+export async function guardianContactsFor(
+  db: Prisma.TransactionClient | typeof prisma,
+  studentIds: readonly string[],
+): Promise<Map<string, { guardianName: string | null; guardianPhone: string | null; guardianEmail: string | null }>> {
+  const out = new Map<string, { guardianName: string | null; guardianPhone: string | null; guardianEmail: string | null }>();
+  if (studentIds.length === 0) return out;
+  const links = await db.studentGuardian.findMany({
+    where: { studentId: { in: [...studentIds] }, guardian: { archivedAt: null } },
+    orderBy: [{ isMain: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+    select: { studentId: true, guardian: { select: { name: true, phone: true, email: true } } },
+  });
+  const usable = (g: { name: string; phone: string | null; email: string | null }) =>
+    g.name.trim() !== "" && ((g.phone ?? "").trim() !== "" || (g.email ?? "").trim() !== "");
+  for (const link of links) {
+    const facts = { guardianName: link.guardian.name, guardianPhone: link.guardian.phone, guardianEmail: link.guardian.email };
+    const seen = out.get(link.studentId);
+    if (
+      !seen ||
+      (!usable({ name: seen.guardianName ?? "", phone: seen.guardianPhone, email: seen.guardianEmail }) && usable(link.guardian))
+    )
+      out.set(link.studentId, facts);
+  }
+  return out;
+}
+
+/**
+ * Completes a draft pupil (task 0101 D1): clears the flag when the record has everything `pupilMissing` asks for (the names, gender, an active class and a guardian
+ * contact; the date of birth is optional), else says what is missing and changes nothing. A pupil who is not a draft is returned as they are (a second click is safe).
  */
 export async function completeStudent(
   actorUserId: string,
@@ -461,7 +491,14 @@ export async function completeStudent(
     if (!student) return { ok: false, error: "Student not found", code: "NOT_FOUND" };
     if (student.archivedAt) return { ok: false, error: "Restore this student before completing the record.", code: "ARCHIVED" };
     if (!student.isDraft) return { ok: true, data: { student: withoutSecrets(student) } };
-    const missing = pupilMissing({ ...student, hasClass: student.enrollments.length > 0 });
+    const contact = (await guardianContactsFor(tx, [id])).get(id);
+    const missing = pupilMissing({
+      ...student,
+      guardianName: contact?.guardianName ?? null,
+      guardianPhone: contact?.guardianPhone ?? null,
+      guardianEmail: contact?.guardianEmail ?? null,
+      hasClass: student.enrollments.length > 0,
+    });
     if (missing.length > 0) return { ok: false, error: "This record is not complete yet.", code: "INCOMPLETE", missing };
     // Conditional on still being a draft, so two administrators completing at once write one audit entry.
     const done = await tx.studentRecord.updateMany({ where: { id, isDraft: true }, data: { isDraft: false } });
@@ -691,6 +728,11 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
   const noDateOfBirth = withoutAge ? await prisma.studentRecord.count({ where: withoutAge }) : null;
   // How many of the pupils matched (before paging) are drafts: "N drafts" beside the count. Narrowed to "not drafts", it is none.
   const drafts = await prisma.studentRecord.count({ where: { AND: [where, { isDraft: true }] } });
+  // What a draft is still missing is judged by the guardian LINKS (one query for the drafts on this page).
+  const contacts = await guardianContactsFor(
+    prisma,
+    students.filter((s) => s.isDraft).map((s) => s.id),
+  );
 
   return {
     students: students.map((s) => ({
@@ -711,7 +753,15 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
       guardianEmail: s.guardianEmail,
       /// A draft (task 0101 D1): saved unfinished. `missing` is what the record still needs, by the server's rule; shown only on a draft.
       isDraft: s.isDraft,
-      missing: s.isDraft ? pupilMissing({ ...s, hasClass: s.enrollments[0]?.status === EnrollmentStatus.ACTIVE }) : [],
+      missing: s.isDraft
+        ? pupilMissing({
+            ...s,
+            guardianName: contacts.get(s.id)?.guardianName ?? null,
+            guardianPhone: contacts.get(s.id)?.guardianPhone ?? null,
+            guardianEmail: contacts.get(s.id)?.guardianEmail ?? null,
+            hasClass: s.enrollments[0]?.status === EnrollmentStatus.ACTIVE,
+          })
+        : [],
       residence: s.residence,
       currentClass: s.enrollments[0] ? `${s.enrollments[0].className}${s.enrollments[0].arm ? ` ${s.enrollments[0].arm}` : ""}` : null,
       sessionLabel: s.enrollments[0]?.session.label ?? null,
@@ -745,13 +795,20 @@ export async function getStudent(id: string, visible: "all" | string[] = []) {
   });
 
   if (!student) return null;
+  const contact = student.isDraft ? (await guardianContactsFor(prisma, [student.id])).get(student.id) : undefined;
 
   return {
     ...withoutSecrets(student),
     dateOfBirth: dayText(student.dateOfBirth),
     archived: student.archivedAt !== null,
     missing: student.isDraft
-      ? pupilMissing({ ...student, hasClass: student.enrollments.some((e) => e.status === EnrollmentStatus.ACTIVE) })
+      ? pupilMissing({
+          ...student,
+          guardianName: contact?.guardianName ?? null,
+          guardianPhone: contact?.guardianPhone ?? null,
+          guardianEmail: contact?.guardianEmail ?? null,
+          hasClass: student.enrollments.some((e) => e.status === EnrollmentStatus.ACTIVE),
+        })
       : [],
     // What applies today (an ended suspension reads as in good standing), not the stored value.
     standing: studentStandingNow(student, dayOf(new Date())),

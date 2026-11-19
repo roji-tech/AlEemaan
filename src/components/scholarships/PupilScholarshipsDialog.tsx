@@ -12,8 +12,9 @@ import { GENERIC_ERROR, getJson, problemFor, sendJson } from "@/components/auth/
 import { formatNaira } from "@/lib/finance/format";
 
 // A pupil's scholarships (task 0113 S1), from the pupil's Actions list, for an administrator of the pupil's branch (the API refuses anyone else). The pupil may hold several at once; their live
-// shares together may not pass 100%. Granting or raising one offers "Apply to this pupil's open invoices": a new invoice takes a live scholarship off by itself, but invoices already issued are only
-// changed when you press it, once per scholarship per invoice. Ending a scholarship never changes invoices already issued.
+// shares together may not pass 100%. Granting one offers "Apply to this pupil's open invoices": a new invoice takes a live scholarship off by itself, but invoices already issued are only
+// changed when you press it, once per scholarship per invoice. RAISING a share offers "Apply the change to open invoices" (2026-11-19): it says how many unpaid or part-paid invoices and how
+// much more comes off, and does nothing until you confirm; paid invoices are never touched. Lowering a share and ending a scholarship never change invoices already issued.
 
 type Grant = {
   id: string;
@@ -26,6 +27,8 @@ type Grant = {
   endedAt: string | null;
   live: boolean;
   openInvoices: number;
+  /// What a raised share would add to the open invoices that already carry this scholarship.
+  topUp: { invoices: number; kobo: number };
 };
 type Type = { id: string; name: string; percent: number };
 
@@ -53,6 +56,8 @@ export function PupilScholarshipsDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  // The scholarship whose "Apply the change to open invoices" is asking for confirmation.
+  const [confirmTop, setConfirmTop] = useState<string | null>(null);
   const [form, setForm] = useState({ typeId: "", percent: "", startsOn: "", endsOn: "", note: "" });
   const [problems, setProblems] = useState<Record<string, string | undefined>>({});
 
@@ -70,6 +75,7 @@ export function PupilScholarshipsDialog({
     /* eslint-disable react-hooks/set-state-in-effect -- a newly opened pupil starts from a clean dialog */
     setGrants(null);
     setEditing(null);
+    setConfirmTop(null);
     setError(null);
     setProblems({});
     setForm({ typeId: "", percent: "", startsOn: "", endsOn: "", note: "" });
@@ -131,7 +137,13 @@ export function PupilScholarshipsDialog({
     if (!reply.ok) return fail(reply);
     setEditing(null);
     await load(pupil!.id);
-    onChanged(`${g.typeName} is saved for ${pupil!.name}. Invoices already issued are not changed.`);
+    // A raised share offers the top-up straight away (the panel appears only when there is something to top up).
+    if (Number(form.percent) > g.percent) setConfirmTop(g.id);
+    onChanged(
+      Number(form.percent) > g.percent
+        ? `${g.typeName} is saved for ${pupil!.name}. New invoices take the new share; for invoices already issued, use Apply the change to open invoices.`
+        : `${g.typeName} is saved for ${pupil!.name}. Invoices already issued are not changed.`,
+    );
   }
 
   async function finish(g: Grant) {
@@ -157,6 +169,21 @@ export function PupilScholarshipsDialog({
     );
   }
 
+  async function topUp(g: Grant) {
+    setBusy(`top-${g.id}`);
+    const reply = await sendJson(`${base}/${g.id}/top-up`, "POST", {});
+    setBusy(null);
+    setConfirmTop(null);
+    if (!reply.ok) return setError(reply.message ?? GENERIC_ERROR);
+    const r = reply.data as { toppedUp: number; settled: number; kobo: number };
+    await load(pupil!.id);
+    onChanged(
+      r.toppedUp === 0
+        ? "There was nothing to change."
+        : `${r.toppedUp} ${r.toppedUp === 1 ? "invoice now takes" : "invoices now take"} the new share (${formatNaira(r.kobo / 100)} more off)${r.settled > 0 ? `; ${r.settled} ${r.settled === 1 ? "is" : "are"} now settled` : ""}.`,
+    );
+  }
+
   const GrantCard = ({ g }: { g: Grant }) => (
     <li className="space-y-2 py-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -176,6 +203,11 @@ export function PupilScholarshipsDialog({
             {g.openInvoices > 0 && (
               <Button variant="secondary" loading={busy === `apply-${g.id}`} disabled={busy !== null} onClick={() => void apply(g)}>
                 Apply to this pupil&apos;s open invoices ({g.openInvoices})
+              </Button>
+            )}
+            {g.topUp.invoices > 0 && confirmTop !== g.id && (
+              <Button variant="secondary" disabled={busy !== null} onClick={() => setConfirmTop(g.id)}>
+                Apply the change to open invoices ({g.topUp.invoices})
               </Button>
             )}
             <Button
@@ -208,6 +240,27 @@ export function PupilScholarshipsDialog({
           </div>
         )}
       </div>
+      {g.live && confirmTop === g.id && g.topUp.invoices > 0 && (
+        <div
+          role="group"
+          aria-label={`Apply the change to open invoices: ${g.typeName}`}
+          className="space-y-2 rounded-xl border border-brand bg-brand-tint p-3"
+        >
+          <p className="text-sm text-fg">
+            {g.typeName} is now {shareText(g.percent)}. This takes {formatNaira(g.topUp.kobo / 100)} more off {g.topUp.invoices}{" "}
+            {g.topUp.invoices === 1 ? "invoice" : "invoices"} that {g.topUp.invoices === 1 ? "is" : "are"} unpaid or part paid and already
+            carry it, never more than {g.topUp.invoices === 1 ? "it still owes" : "each still owes"}. Invoices already paid are not touched.
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="ghost" disabled={busy !== null} onClick={() => setConfirmTop(null)}>
+              Not now
+            </Button>
+            <Button loading={busy === `top-${g.id}`} disabled={busy !== null} onClick={() => void topUp(g)}>
+              Apply the change
+            </Button>
+          </div>
+        </div>
+      )}
       {editing === g.id && (
         <form
           onSubmit={(e) => void save(g, e)}
@@ -216,8 +269,9 @@ export function PupilScholarshipsDialog({
         >
           <Fields form={form} setForm={setForm} problems={problems} disabled={busy !== null} showType={false} types={types} />
           <p className="text-xs text-fg-muted">
-            Invoices already issued are not changed. Use Apply to open invoices for ones not yet paid; a scholarship already on an invoice
-            is not topped up.
+            New invoices take the new share. Invoices already issued are not changed until you press Apply the change to open invoices,
+            which tops up the unpaid and part-paid ones that already carry this scholarship (after a raise only; lowering the share never
+            changes an invoice).
           </p>
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" onClick={() => setEditing(null)} disabled={busy !== null}>
