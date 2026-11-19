@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/db";
 import {
-  findSiblingStudentIds,
   matchesDateOfBirth,
   matchesPhone,
   PORTAL_SESSION_MAX_AGE_SECONDS,
@@ -13,13 +12,17 @@ import { ResultStatus, AttendanceStatus, InvoiceStatus, MaterialStatus, QuizStat
 import { submitAssignment, attemptQuiz, PUPIL_VISIBLE_ASSIGNMENT_STATUSES } from "@/lib/lms/service";
 import { getReportCard, reportCardVisibleTo, studentBranch } from "@/lib/academics/report-card";
 import { accessFor, allowedTabs, type Access, type Actor } from "./access";
+import { paidByScholarship } from "@/lib/scholarships/rules";
 import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
 import { LIVE_PUPIL } from "@/lib/drafts/live";
+import { verifyAccessCode, type Door } from "./door";
 
 export interface PortalAuthResult {
   success: boolean;
   error?: string;
+  /// "LOGIN_CLOSED": the secret was right, but sign-in for this family's branch is switched off (task 0113, said plainly only after the secret).
+  code?: "LOGIN_CLOSED";
   sessionToken?: string;
   student?: Record<string, unknown>;
   siblingStudents?: Record<string, unknown>[];
@@ -42,15 +45,22 @@ export const NO_ACCESS: Access = {
 
 export const hasAnyAccess = (access: Access): boolean => allowedTabs(access).length > 0;
 
-/// A pupil's record as the portal shows it: the standing that applies TODAY and the last day of a suspension (a day, "YYYY-MM-DD"), never the stored value or the reason (task 0045).
-export function withStandingShown<S extends { standing?: string; standingUntil?: Date | null }>(
+/// A pupil's record as the portal shows it: the standing that applies TODAY and the last day of a suspension (a day, "YYYY-MM-DD"), never the stored value or the reason (task 0045), and
+/// never the access code's hash (task 0113 D7).
+export function withStandingShown<S extends { standing?: string; standingUntil?: Date | null; pupilCodeHash?: string | null }>(
   student: S,
-): Omit<S, "standing" | "standingUntil"> & { standing: string; standingUntil: string | null } {
+): Omit<S, "standing" | "standingUntil" | "pupilCodeHash"> & { standing: string; standingUntil: string | null } {
   const now = studentStandingNow(
     { standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null },
     dayOf(new Date()),
   );
-  return { ...student, standing: now, standingUntil: now === "SUSPENDED" && student.standingUntil ? dayOf(student.standingUntil) : null };
+  const { pupilCodeHash, ...rest } = student;
+  void pupilCodeHash;
+  return {
+    ...(rest as Omit<S, "standing" | "standingUntil" | "pupilCodeHash">),
+    standing: now,
+    standingUntil: now === "SUSPENDED" && student.standingUntil ? dayOf(student.standingUntil) : null,
+  };
 }
 
 type Standing = { standing?: string; standingUntil?: Date | null };
@@ -85,112 +95,54 @@ async function reachableStudents<S extends { id: string; branchId: string } & St
   return students.filter((student) => hasAnyAccess(access[student.id]!));
 }
 
-/// The pupils this sign-in reaches: the pupil alone, or every pupil sharing the guardian's contact when the branch's setting for this actor allows siblings. (A later
-/// change of the setting is also applied on every request: lib/portal/guard.ts.)
-async function linkedStudentIds(
-  student: { id: string; branchId: string; guardianPhone: string | null; guardianEmail: string | null },
-  actor: Actor,
-): Promise<string[]> {
-  const access = accessFor(await getPortalAccess(student.branchId), actor);
-  return access.siblings ? findSiblingStudentIds(student) : [student.id];
+/// The children a guardian's sign-in reaches (task 0113 D5, D6): their links that are not blocked, to pupils who are not archived. Read on every request, so a link made or blocked later
+/// shows at once.
+export async function guardianChildIds(guardianId: string): Promise<string[]> {
+  const rows = await prisma.studentGuardian.findMany({
+    where: { guardianId, blockedAt: null, student: LIVE_PUPIL },
+    select: { studentId: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return [...new Set(rows.map((r) => r.studentId))];
 }
 
-/**
- * Authenticates a portal user using a one-time or persistent GuardianLinkToken.
- */
-export async function authenticatePortalViaToken(token: string): Promise<PortalAuthResult> {
-  const clean = token.trim();
-  if (!clean) {
-    return { success: false, error: "Token is required" };
-  }
-
-  const tokenHash = crypto.createHash("sha256").update(clean).digest("hex");
-  const linkToken = await prisma.guardianLinkToken.findFirst({
-    where: {
-      tokenHash,
-      expiresAt: { gt: new Date() },
-    },
-    include: {
-      student: {
-        include: {
-          branch: true,
-          enrollments: {
-            where: { status: "ACTIVE" },
-            include: { session: true, classArm: true },
-            take: 1,
-          },
-        },
-      },
-    },
+/// The pupils a pupil's sign-in may reach when their branch lets pupils see brothers and sisters: the pupil and every live pupil who shares an ALLOWED guardian with them (both links not
+/// blocked). The explicit links replace the old guess by a shared phone or e-mail (ISS-0022).
+export async function pupilSiblingIds(studentId: string): Promise<string[]> {
+  const mine = await prisma.studentGuardian.findMany({
+    where: { studentId, blockedAt: null, guardian: { archivedAt: null } },
+    select: { guardianId: true },
   });
+  if (mine.length === 0) return [studentId];
+  const rows = await prisma.studentGuardian.findMany({
+    where: { guardianId: { in: mine.map((m) => m.guardianId) }, blockedAt: null, student: LIVE_PUPIL },
+    select: { studentId: true },
+  });
+  return [...new Set([studentId, ...rows.map((r) => r.studentId)])];
+}
 
-  // A draft pupil (task 0101 D1) has no portal: complete the record first.
-  if (!linkToken || !linkToken.student || linkToken.student.isDraft) {
-    return { success: false, error: "Invalid or expired access token" };
-  }
-
-  // Stamp usedAt if not set
-  if (!linkToken.usedAt) {
-    await prisma.guardianLinkToken.update({
-      where: { id: linkToken.id },
-      data: { usedAt: new Date() },
+/// Who a session reaches NOW (task 0113 D6), or null when it has ended: a guardian session ends when it has no guardian (a cookie from before guardians were records), the guardian is
+/// archived, their version moved on (a new code, a block, an unblock) or the child they signed in with is no longer theirs; a pupil session's reach is re-read from the links. The
+/// pupil's own version and the branch switches are checked by the callers, with the records they load.
+export async function sessionReach(session: PortalSessionPayload): Promise<string[] | null> {
+  if (session.actor === "GUARDIAN") {
+    if (!session.guardianId) return null;
+    const guardian = await prisma.guardian.findUnique({
+      where: { id: session.guardianId },
+      select: { portalVersion: true, archivedAt: true },
     });
+    if (!guardian || guardian.archivedAt || (session.version ?? 0) !== guardian.portalVersion) return null;
+    const children = await guardianChildIds(session.guardianId);
+    return children.includes(session.primaryStudentId) ? children : null;
   }
-
-  const primaryStudent = linkToken.student;
-  const actor: Actor = "GUARDIAN"; // the link is sent to the guardian
-  const siblingIds = await linkedStudentIds(primaryStudent, actor);
-
-  const siblingStudents = await prisma.studentRecord.findMany({
-    where: {
-      id: { in: siblingIds },
-      ...LIVE_PUPIL,
-    },
-    include: {
-      branch: true,
-      enrollments: {
-        where: { status: "ACTIVE" },
-        include: { session: true, classArm: true },
-        take: 1,
-      },
-    },
-  });
-
-  const reachable = await reachableStudents(siblingStudents, actor);
-  if (!reachable.some((candidate) => candidate.id === primaryStudent.id))
-    return { success: false, error: "Invalid or expired access token" };
-
-  const now = Math.floor(Date.now() / 1000);
-  const payload: PortalSessionPayload = {
-    actor,
-    primaryStudentId: primaryStudent.id,
-    allowedStudentIds: reachable.map((s) => s.id),
-    guardianPhone: primaryStudent.guardianPhone,
-    guardianEmail: primaryStudent.guardianEmail,
-    issuedAt: now,
-    expiresAt: now + PORTAL_SESSION_MAX_AGE_SECONDS,
-  };
-
-  const sessionToken = signPortalSession(payload);
-
-  return {
-    success: true,
-    sessionToken,
-    student: withStandingShown(primaryStudent),
-    siblingStudents: reachable.map(withStandingShown),
-    actor,
-    access: await portalAccessFor(reachable, actor),
-  };
+  return pupilSiblingIds(session.primaryStudentId);
 }
 
-/**
- * Authenticates a portal user using Admission Number + Verification Secret (Date of Birth or Guardian Phone).
- */
 /// The one answer to every failed admission-number sign-in: an unknown number, an archived pupil and a wrong secret all say this, so the wording (and, as far as one
 /// extra lookup allows, the timing) never reveals which admission numbers exist. Found by the bug hunt of 2026-10-19: "No active student found with this admission
 /// number" versus "Verification failed" confirmed every number to anyone who tried.
 export const PORTAL_SIGNIN_FAILED =
-  "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
+  "Verification failed. Please check the admission number and the access code, date of birth or guardian phone number.";
 
 /// Admission numbers compare case-insensitively and EXACTLY. Not Prisma's `{ equals, mode: "insensitive" }`: that is an ILIKE, so `%` and `_` were wildcards: the
 /// admission number "%" with one pupil's real guardian phone signed in as that pupil, without knowing any number, and "2026/00__" probed the numbering. A raw
@@ -201,59 +153,140 @@ async function activeStudentIdsByAdmissionNo(admissionNo: string): Promise<strin
   return rows.map((row) => row.id);
 }
 
-export async function authenticatePortalViaAdmission(admissionNo: string, secret: string): Promise<PortalAuthResult> {
+type GuardianOfCandidate = { id: string; phone: string | null; email: string | null; codeHash: string | null; portalVersion: number };
+type Candidate = {
+  id: string;
+  dateOfBirth: Date | null;
+  pupilCodeHash: string | null;
+  branch: { legacyPortalSecrets: boolean };
+  guardians: { guardian: GuardianOfCandidate }[];
+};
+type Proven = { actor: "PUPIL" } | { actor: "GUARDIAN"; guardian: GuardianOfCandidate };
+
+/// Who the secret proves, for this door (task 0113 D6, task 0094 D2, D3, D7, D9): the pupil, by the pupil's access code (or, while the branch allows it, the date of birth); or one of the
+/// child's ALLOWED guardians, by that guardian's access code (or, while the branch allows it, that guardian's FULL phone number or e-mail address). A blocked guardian proves nothing for
+/// this child: the same generic failure. A secret meant for the other door proves nothing here. `ANY` (portals off: one address for everyone) tries the pupil first.
+function provenActor(door: Door, secret: string, candidate: Candidate): Proven | null {
+  const legacy = candidate.branch.legacyPortalSecrets;
+  if (door === "PUPIL" || door === "ANY") {
+    if (verifyAccessCode(secret, candidate.pupilCodeHash, candidate.id, "pupil")) return { actor: "PUPIL" };
+    if (legacy && matchesDateOfBirth(secret, candidate.dateOfBirth)) return { actor: "PUPIL" };
+  }
+  if (door === "GUARDIAN" || door === "ANY") {
+    for (const { guardian } of candidate.guardians)
+      if (verifyAccessCode(secret, guardian.codeHash, guardian.id, "guardian")) return { actor: "GUARDIAN", guardian };
+    if (legacy) {
+      const typed = secret.trim().toLowerCase();
+      for (const { guardian } of candidate.guardians) {
+        if (matchesPhone(secret, guardian.phone)) return { actor: "GUARDIAN", guardian };
+        if (guardian.email && guardian.email === typed) return { actor: "GUARDIAN", guardian };
+      }
+    }
+  }
+  return null;
+}
+
+/// Is family sign-in open in this branch for this actor (task 0091's per-branch switches, task 0094 D4/D8)?
+export const familySignInOpen = (branch: { studentLoginEnabled: boolean; parentLoginEnabled: boolean }, actor: Actor): boolean =>
+  actor === "PUPIL" ? branch.studentLoginEnabled : branch.parentLoginEnabled;
+
+export const FAMILY_SIGNIN_CLOSED = "Sign-in for your school is closed at the moment. The school will tell you when it opens.";
+
+/// A failed or refused family sign-in leaves a trail (task 0094 D6): which pupil, which door, why. Never the secret. Best effort: a failure to write never changes the answer.
+async function auditFamilyAttempt(studentId: string, door: Door, why: "secret" | "closed", clientKey: string) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: "family-sign-in",
+        action: why === "closed" ? "PORTAL_SIGNIN_REFUSED" : "PORTAL_SIGNIN_FAILED",
+        targetType: "StudentRecord",
+        targetId: studentId,
+        afterValue: { door, client: crypto.createHash("sha256").update(clientKey).digest("hex").slice(0, 16) },
+      },
+    });
+  } catch (error) {
+    console.error("[portal sign-in audit]", error instanceof Error ? error.message : error);
+  }
+}
+
+const STUDENT_INCLUDE = {
+  branch: true,
+  enrollments: {
+    where: { status: "ACTIVE" as const },
+    include: { session: true, classArm: true },
+    take: 1,
+  },
+};
+
+/**
+ * Authenticates a family member with the admission number and one secret, at the door the address decides (task 0113 D6).
+ */
+export async function authenticatePortalViaAdmission(
+  admissionNo: string,
+  secret: string,
+  door: Door = "ANY",
+  clientKey = "",
+): Promise<PortalAuthResult> {
   const cleanAdmission = admissionNo.trim();
   const cleanSecret = secret.trim();
 
-  if (!cleanAdmission || !cleanSecret) {
+  if (!cleanAdmission || !cleanSecret || door === "NONE") {
     return { success: false, error: PORTAL_SIGNIN_FAILED };
   }
 
   const students = await prisma.studentRecord.findMany({
     where: { id: { in: await activeStudentIdsByAdmissionNo(cleanAdmission) } },
     include: {
-      branch: true,
-      enrollments: {
-        where: { status: "ACTIVE" },
-        include: { session: true, classArm: true },
-        take: 1,
+      ...STUDENT_INCLUDE,
+      guardians: {
+        where: { blockedAt: null, guardian: { archivedAt: null } },
+        orderBy: [{ isMain: "desc" }, { createdAt: "asc" }],
+        select: { guardian: { select: { id: true, phone: true, email: true, codeHash: true, portalVersion: true } } },
       },
     },
   });
 
-  const student = students.find(
-    (candidate) =>
-      matchesDateOfBirth(cleanSecret, candidate.dateOfBirth) ||
-      matchesPhone(cleanSecret, candidate.guardianPhone) ||
-      (!!candidate.guardianEmail && candidate.guardianEmail.trim().toLowerCase() === cleanSecret.toLowerCase()),
-  );
-
-  if (!student) {
-    return { success: false, error: PORTAL_SIGNIN_FAILED };
+  let student: (typeof students)[number] | undefined;
+  let proven: Proven | null = null;
+  for (const candidate of students) {
+    proven = provenActor(door, cleanSecret, candidate);
+    if (proven) {
+      student = candidate;
+      break;
+    }
   }
 
-  // The date of birth is the pupil's own; a phone number or an e-mail address is the guardian's.
-  const actor: Actor = matchesDateOfBirth(cleanSecret, student.dateOfBirth) ? "PUPIL" : "GUARDIAN";
-  const siblingIds = await linkedStudentIds(student, actor);
+  if (!student || !proven) {
+    for (const candidate of students) await auditFamilyAttempt(candidate.id, door, "secret", clientKey);
+    return { success: false, error: PORTAL_SIGNIN_FAILED };
+  }
+  const actor: Actor = proven.actor;
+  // The secret was right: a closed branch is said plainly (it tells nothing a holder of the secret does not know).
+  if (!familySignInOpen(student.branch, actor)) {
+    await auditFamilyAttempt(student.id, door, "closed", clientKey);
+    return { success: false, error: FAMILY_SIGNIN_CLOSED, code: "LOGIN_CLOSED" };
+  }
+  // Who the sign-in reaches: a guardian their allowed children, a pupil themself and (when the branch allows it) those who share an allowed guardian; the branch's `siblings` setting for
+  // this actor decides whether anyone but the pupil signed in with is part of it.
+  const siblings = accessFor(await getPortalAccess(student.branchId), actor).siblings;
+  const reach =
+    proven.actor === "GUARDIAN"
+      ? siblings
+        ? await guardianChildIds(proven.guardian.id)
+        : [student.id]
+      : siblings
+        ? await pupilSiblingIds(student.id)
+        : [student.id];
 
   const siblingStudents = await prisma.studentRecord.findMany({
-    where: {
-      id: { in: siblingIds },
-      ...LIVE_PUPIL,
-    },
-    include: {
-      branch: true,
-      enrollments: {
-        where: { status: "ACTIVE" },
-        include: { session: true, classArm: true },
-        take: 1,
-      },
-    },
+    where: { id: { in: reach }, ...LIVE_PUPIL },
+    include: STUDENT_INCLUDE,
   });
 
   // Task 0045: a pupil whose standing leaves nothing to open (an expelled pupil, signing in as the pupil) is refused with the one generic sentence, and a family's other children
   // who have nothing to open are not part of the sign-in. An expelled pupil's guardian still gets in, to the invoices only.
-  const reachable = await reachableStudents(siblingStudents, actor);
+  // Children in a branch whose sign-in for this actor is closed are left out (task 0094 D4).
+  const reachable = (await reachableStudents(siblingStudents, actor)).filter((s) => familySignInOpen(s.branch, actor));
   if (!reachable.some((candidate) => candidate.id === student.id)) return { success: false, error: PORTAL_SIGNIN_FAILED };
 
   const now = Math.floor(Date.now() / 1000);
@@ -261,18 +294,20 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
     actor,
     primaryStudentId: student.id,
     allowedStudentIds: reachable.map((s) => s.id),
-    guardianPhone: student.guardianPhone,
-    guardianEmail: student.guardianEmail,
+    ...(proven.actor === "GUARDIAN"
+      ? { guardianId: proven.guardian.id, version: proven.guardian.portalVersion }
+      : { version: student.portalVersion }),
     issuedAt: now,
     expiresAt: now + PORTAL_SESSION_MAX_AGE_SECONDS,
   };
 
   const sessionToken = signPortalSession(payload);
+  const primary = reachable.find((s) => s.id === student.id)!;
 
   return {
     success: true,
     sessionToken,
-    student: withStandingShown(student),
+    student: withStandingShown(primary),
     siblingStudents: reachable.map(withStandingShown),
     actor,
     access: await portalAccessFor(reachable, actor),
@@ -285,30 +320,27 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
 export async function resolvePortalSessionData(cookieToken: string | undefined | null) {
   const payload = verifyPortalSession(cookieToken);
   if (!payload) return null;
+  const reach = await sessionReach(payload);
+  if (!reach) return null;
 
   const students = await prisma.studentRecord.findMany({
-    where: {
-      id: { in: payload.allowedStudentIds },
-      ...LIVE_PUPIL,
-    },
-    include: {
-      branch: true,
-      enrollments: {
-        where: { status: "ACTIVE" },
-        include: { session: true, classArm: true },
-        take: 1,
-      },
-    },
+    where: { id: { in: reach }, ...LIVE_PUPIL },
+    include: STUDENT_INCLUDE,
   });
 
-  if (students.length === 0) return null;
+  // Task 0113: a regenerated pupil code ends the pupil's sessions made before it (a guardian's version is checked by `sessionReach`), and a branch whose family sign-in is switched off
+  // signs its families out at their next request (task 0094 D5): its pupils drop out of the session, and when that is the pupil signed in as, the session is over.
+  const primary = students.find((s) => s.id === payload.primaryStudentId);
+  if (!primary || !familySignInOpen(primary.branch, payload.actor)) return null;
+  if (payload.actor === "PUPIL" && (payload.version ?? 0) !== primary.portalVersion) return null;
+  const open = students.filter((s) => familySignInOpen(s.branch, payload.actor));
 
   // Ensure primary student is at index 0
-  students.sort((a, b) => (a.id === payload.primaryStudentId ? -1 : b.id === payload.primaryStudentId ? 1 : 0));
+  open.sort((a, b) => (a.id === payload.primaryStudentId ? -1 : b.id === payload.primaryStudentId ? 1 : 0));
 
   return {
-    session: payload,
-    students,
+    session: { ...payload, allowedStudentIds: open.map((s) => s.id) },
+    students: open,
   };
 }
 
@@ -323,6 +355,7 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
 
   const student = await prisma.studentRecord.findUnique({
     where: { id: studentId },
+    omit: { pupilCodeHash: true },
     include: {
       branch: true,
       enrollments: {
@@ -569,7 +602,19 @@ export async function getStudentPortalInvoices(studentId: string, allowedStudent
     orderBy: { createdAt: "desc" },
   });
 
-  return { invoices };
+  // The family sees the invoice as settled and, when scholarships did it, that it was "Paid by scholarship": a yes or no. Which scholarship, its share and its note are the school's
+  // (task 0113 S1): a scholarship's own discount line reads "Discount" here, with no link to the scholarship.
+  return {
+    invoices: invoices.map(({ discounts, ...invoice }) => ({
+      ...invoice,
+      paidByScholarship: paidByScholarship({ ...invoice, discounts }),
+      discounts: discounts.map((d) =>
+        d.mode === "SCHOLARSHIP"
+          ? { id: d.id, amount: d.amount, reason: "Discount", mode: "MANUAL_OVERRIDE", createdAt: d.createdAt }
+          : { id: d.id, amount: d.amount, reason: d.reason, mode: d.mode, createdAt: d.createdAt },
+      ),
+    })),
+  };
 }
 
 /**

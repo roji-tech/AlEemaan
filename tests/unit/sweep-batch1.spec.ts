@@ -94,6 +94,9 @@ test.describe("export", () => {
       '=HYPERLINK("x")',
       "+2348031234567",
       "",
+      "", // Day or boarding: not set (task 0113 R1)
+      "", // Scholarship: none (task 0113 S1)
+      "", // Scholarship %
     ]);
     const csv = toCsv(table.headers, table.rows);
     expect(csv).toContain(`"'=HYPERLINK(""x"")"`);

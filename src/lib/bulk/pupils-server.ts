@@ -1,5 +1,8 @@
 import { EnrollmentStatus, SessionStatus } from "@prisma/client";
 import { generateAdmissionNo, lockStudents } from "@/lib/students/service";
+import { adminScope } from "@/lib/auth/branch-access";
+import { applyMainGuardianFields } from "@/lib/guardians/service";
+import { grantTx } from "@/lib/scholarships/service";
 import { pupilEntity, type PupilRow } from "./pupils";
 import type { CheckedRow, ServerKind, Tx } from "./server";
 import type { Problem } from "./types";
@@ -109,6 +112,22 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
       if (!placed.ok) add(r.line, placed.problem);
     }
 
+    // Scholarships (task 0113 S1): a share without a type has nothing to be a share of.
+    for (const r of rows)
+      if (r.row.scholarshipPercent !== undefined && !r.row.scholarship)
+        add(r.line, { column: "scholarshipPercent", message: "Name the scholarship type too, or leave the share empty." });
+    // A type must be one of this branch's current ones, by name.
+    if (rows.some((r) => r.row.scholarship)) {
+      const types = await db.scholarshipType.findMany({ where: { branchId: ctx.branchId, archivedAt: null }, select: { name: true } });
+      const known = new Set(types.map((t) => t.name.trim().toLowerCase()));
+      for (const r of rows)
+        if (r.row.scholarship && !known.has(r.row.scholarship.trim().toLowerCase()))
+          add(r.line, {
+            column: "scholarship",
+            message: `There is no scholarship type called "${r.row.scholarship}" in this branch. Add it under Finance > Scholarships first.`,
+          });
+    }
+
     const numbers = rows.flatMap((r) => (r.row.admissionNo ? [r.row.admissionNo] : []));
     if (numbers.length > 0) {
       const taken = await db.studentRecord.findMany({ where: { admissionNo: { in: numbers } }, select: { admissionNo: true } });
@@ -155,6 +174,14 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
       ? await namesakes(tx, ctx.branchId, rows)
       : new Map<number, { admissionNo: string; withDob: boolean }>();
     const year = new Date().getFullYear();
+    const scope = rows.some((r) => r.row.guardianName || r.row.guardianPhone || r.row.guardianEmail) ? await adminScope(actorUserId) : null;
+    const scholarshipTypes = rows.some((r) => r.row.scholarship)
+      ? new Map(
+          (
+            await tx.scholarshipType.findMany({ where: { branchId: ctx.branchId, archivedAt: null }, select: { id: true, name: true } })
+          ).map((t) => [t.name.trim().toLowerCase(), t.id]),
+        )
+      : null;
     for (const { line, row } of rows) {
       const admissionNo = row.admissionNo ?? (await generateAdmissionNo(tx, year));
       const student = await tx.studentRecord.create({
@@ -166,13 +193,25 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
           gender: row.gender,
           dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth) : null,
           admissionNo,
-          guardianName: row.guardianName ?? null,
-          guardianPhone: row.guardianPhone ?? null,
-          guardianEmail: row.guardianEmail ?? null,
           isDraft: ctx.asDraft === true,
+          residence: row.residence ?? null,
         },
-        select: { id: true },
+        select: { id: true, branchId: true, firstName: true, lastName: true },
       });
+      // The row's guardian (task 0113 D9): the one with that whole phone and name in the administrator's reach, or a new one, linked as the main contact; the pupil's guardian columns
+      // follow (the mirror). Brothers and sisters in one file with the same guardian share one record.
+      if (scope && (row.guardianName || row.guardianPhone || row.guardianEmail))
+        await applyMainGuardianFields(tx, scope, {
+          student,
+          name: row.guardianName ?? null,
+          phone: row.guardianPhone ?? null,
+          email: row.guardianEmail ?? null,
+          actorUserId,
+        });
+      // The row's scholarship (task 0113 S1): the share from the type unless the row gives one; granted in this transaction, audited like any grant.
+      const typeId = row.scholarship ? scholarshipTypes?.get(row.scholarship.trim().toLowerCase()) : undefined;
+      if (typeId)
+        await grantTx(tx, actorUserId, { branchId: ctx.branchId, studentId: student.id, typeId, percent: row.scholarshipPercent });
       if (row.className && structure) {
         const placed = place(structure, row.className, row.arm);
         // checked a moment ago in this same transaction: if it is not true now, nothing is saved

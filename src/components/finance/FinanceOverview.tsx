@@ -46,6 +46,7 @@ function Card({ title, tone, children, hint }: { title: string; tone: Tone; chil
 function Kpis({ totals }: { totals: Totals }) {
   const extras = [
     totals.discountsKobo > 0 ? `${naira(totals.discountsKobo)} in discounts` : null,
+    totals.scholarshipsKobo > 0 ? `${naira(totals.scholarshipsKobo)} in scholarships (not counted as collected)` : null,
     totals.waived > 0 ? `${totals.waived} waived` : null,
     totals.cancelled > 0 ? `${totals.cancelled} cancelled` : null,
   ].filter(Boolean);

@@ -27,6 +27,12 @@ import { OwnProgramCard, type OwnProgram } from "@/components/students/OwnProgra
 import { ExportButton } from "@/components/bulk/ExportButton";
 import { draftPill } from "@/components/academics/StaffDetails";
 import { AGE_MAX, activePupilFilters, pupilFilterQuery, type PupilFilters } from "@/lib/students/list-filters";
+import { PupilGuardiansDialog } from "@/components/guardians/PupilGuardiansDialog";
+import { AccessCodesDialog } from "@/components/guardians/AccessCodesDialog";
+import { ClassSlipsDialog } from "@/components/guardians/ClassSlipsDialog";
+import { RELATIONSHIP_OPTIONS, type GuardianMatch } from "@/components/guardians/model";
+import { PupilScholarshipsDialog } from "@/components/scholarships/PupilScholarshipsDialog";
+import { TONE } from "@/components/ui/tone";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
 // decides who may read and change what, refuses a namesake unless an administrator confirms it (ADR 0011), and audits that confirmation.
@@ -50,6 +56,10 @@ type Student = {
   guardianName: string | null;
   guardianPhone: string | null;
   guardianEmail: string | null;
+  /// Day pupil or boarder (task 0113 R1); null = not set.
+  residence: "DAY" | "BOARDING" | null;
+  /// The live scholarships (task 0113 S1): only an administrator of the pupil's branch is sent them; absent for anyone else.
+  scholarships?: { typeName: string; percent: number }[];
   currentClass: string | null;
   sessionLabel: string | null;
 };
@@ -61,6 +71,8 @@ type Editing = { kind: "form"; item: Student | null } | null;
 const USUAL_SIZE = 25;
 
 type Show = "live" | "suspended" | "expelled" | "archived";
+
+const RESIDENCE_TEXT = { DAY: "Day", BOARDING: "Boarding" } as const;
 
 /// "AY" for Amina Yusuf: the first letter of the first and the last name (whole characters, so an emoji or an accented letter is not cut in half).
 const initialsOf = (first: string, last: string) => `${Array.from(first.trim())[0] ?? ""}${Array.from(last.trim())[0] ?? ""}`.toUpperCase();
@@ -108,6 +120,30 @@ export function StudentsPanel({
   const [restoreAsk, setRestoreAsk] = useState<{ student: Student; message: string } | null>(null);
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
   const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
+  // Task 0113: a pupil's guardians, their access codes, and a class's printable slips.
+  const [guardiansOf, setGuardiansOf] = useState<{ id: string; name: string } | null>(null);
+  const [codesOf, setCodesOf] = useState<{ id: string; name: string } | null>(null);
+  const [slips, setSlips] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
+  const [scholarshipsOf, setScholarshipsOf] = useState<{ id: string; name: string } | null>(null);
+  // The branch's current scholarship types, for the filter (administrators only: the API refuses anyone else).
+  const [scholarshipTypes, setScholarshipTypes] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!branch.canEdit) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a branch the person cannot administer has no scholarship filter
+      setScholarshipTypes([]);
+      return;
+    }
+    const controller = new AbortController();
+    void getJson(`/api/v1/finance/scholarship-types?branchId=${encodeURIComponent(branchId)}`, controller.signal).then((reply) => {
+      if (!controller.signal.aborted && reply.ok)
+        setScholarshipTypes(
+          (reply.data!.types as { id: string; name: string; archived: boolean }[])
+            .filter((t) => !t.archived)
+            .map(({ id, name }) => ({ id, name })),
+        );
+    });
+    return () => controller.abort();
+  }, [branch.canEdit, branchId]);
   const can: StandingCan = standingCan[branchId] ?? { suspend: false, remove: false };
 
   // Changing the page size or the view moves the page and the size in the same breath; an answer to the request before that must not land after the one that replaced it.
@@ -229,6 +265,9 @@ export function StudentsPanel({
             </h2>
             {branch.canEdit && (
               <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setSlips((v) => ({ open: true, key: v.key + 1 }))}>
+                  Print access slips
+                </Button>
                 <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
                   Add many
                 </Button>
@@ -327,6 +366,30 @@ export function StudentsPanel({
               { value: "NO", label: "Not drafts" },
             ]}
           />
+          <SelectField
+            label="Day or boarding"
+            value={pf.residence ?? ""}
+            onChange={(e) => setFilter({ ...pf, residence: (e.target.value || undefined) as PupilFilters["residence"] })}
+            options={[
+              { value: "", label: "Any" },
+              { value: "DAY", label: "Day" },
+              { value: "BOARDING", label: "Boarding" },
+              { value: "NONE", label: "Not set" },
+            ]}
+          />
+          {branch.canEdit && (
+            <SelectField
+              label="Scholarship"
+              value={pf.scholarship ?? ""}
+              onChange={(e) => setFilter({ ...pf, scholarship: e.target.value || undefined })}
+              options={[
+                { value: "", label: "Any" },
+                { value: "ANY", label: "Has a scholarship" },
+                { value: "NONE", label: "None" },
+                ...scholarshipTypes.map((t) => ({ value: t.id, label: t.name })),
+              ]}
+            />
+          )}
           <TextField
             label="Age from"
             type="number"
@@ -414,6 +477,32 @@ export function StudentsPanel({
                 ariaLabel: `Standing history of ${name}`,
                 onSelect: () => setHistoryOf({ endpoint: `/api/v1/students/${s.id}/standing`, name }),
               },
+              ...(s.archived
+                ? []
+                : [
+                    {
+                      id: "guardians",
+                      label: "Guardians",
+                      ariaLabel: `Guardians of ${name}`,
+                      onSelect: () => setGuardiansOf({ id: s.id, name }),
+                    },
+                    ...(branch.canEdit
+                      ? [
+                          {
+                            id: "scholarships",
+                            label: "Scholarships",
+                            ariaLabel: `Scholarships of ${name}`,
+                            onSelect: () => setScholarshipsOf({ id: s.id, name }),
+                          },
+                        ]
+                      : []),
+                    {
+                      id: "access-codes",
+                      label: "Access codes",
+                      ariaLabel: `Access codes of ${name}`,
+                      onSelect: () => setCodesOf({ id: s.id, name }),
+                    },
+                  ]),
             ];
             return (
               <Item
@@ -432,13 +521,25 @@ export function StudentsPanel({
                 }
                 facts={facts}
                 badges={
-                  s.archived || s.isDraft || s.standing !== "ACTIVE" ? (
+                  s.archived || s.isDraft || s.standing !== "ACTIVE" || s.residence || (s.scholarships?.length ?? 0) > 0 ? (
                     <>
                       {s.isDraft && draftPill()}
                       {(s.archived || s.standing !== "ACTIVE") && <StandingBadge standing={s.standing} until={s.standingUntil} />}
                       {s.archived && (
                         <span className="shrink-0 rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs font-semibold text-fg-2">
                           Archived
+                        </span>
+                      )}
+                      {s.scholarships?.map((sc) => (
+                        <span key={sc.typeName} className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${TONE.ok.chip}`}>
+                          {sc.percent >= 100 ? `Full scholarship: ${sc.typeName}` : `Scholarship: ${sc.typeName} ${sc.percent}%`}
+                        </span>
+                      ))}
+                      {s.residence && (
+                        <span
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${TONE[s.residence === "BOARDING" ? "info" : "neutral"].chip}`}
+                        >
+                          {RESIDENCE_TEXT[s.residence]}
                         </span>
                       )}
                     </>
@@ -472,6 +573,33 @@ export function StudentsPanel({
         }}
       />
       <StandingHistoryDialog endpoint={historyOf?.endpoint ?? null} name={historyOf?.name ?? ""} onClose={() => setHistoryOf(null)} />
+      <PupilGuardiansDialog
+        pupil={guardiansOf}
+        onClose={() => {
+          setGuardiansOf(null);
+          void load();
+        }}
+        onChanged={(text) => setNotice({ variant: "success", text })}
+      />
+      <PupilScholarshipsDialog
+        pupil={scholarshipsOf}
+        onClose={() => {
+          setScholarshipsOf(null);
+          void load();
+        }}
+        onChanged={(text) => setNotice({ variant: "success", text })}
+      />
+      <AccessCodesDialog pupil={codesOf} onClose={() => setCodesOf(null)} onChanged={(text) => setNotice({ variant: "success", text })} />
+      {branch.canEdit && (
+        <ClassSlipsDialog
+          key={`slips-${slips.key}`}
+          open={slips.open}
+          branchId={branchId}
+          classes={classes}
+          onClose={() => setSlips((v) => ({ ...v, open: false }))}
+          onDone={(text) => setNotice({ variant: "success", text })}
+        />
+      )}
       <StudentDialog
         key={editing?.kind === "form" ? (editing.item?.id ?? "new") : "none"}
         open={editing?.kind === "form"}
@@ -560,7 +688,21 @@ function StudentDialog({
     guardianName: item?.guardianName ?? "",
     guardianPhone: item?.guardianPhone ?? "",
     guardianEmail: item?.guardianEmail ?? "",
+    guardianRelationship: "",
+    residence: item?.residence ?? "",
   });
+  // Task 0113 D9: an existing guardian found by phone or e-mail (offered instead of typing them again), and the one chosen.
+  const [matches, setMatches] = useState<GuardianMatch[] | null>(null);
+  const [chosenGuardian, setChosenGuardian] = useState<GuardianMatch | null>(null);
+  const [finding, setFinding] = useState(false);
+  async function findGuardian() {
+    const contact = (f.guardianPhone.trim() || f.guardianEmail.trim()).slice(0, 254);
+    if (contact.length < 3) return;
+    setFinding(true);
+    const reply = await getJson(`/api/v1/guardians/match?contact=${encodeURIComponent(contact)}`);
+    setFinding(false);
+    setMatches(reply.ok ? (reply.data!.guardians as GuardianMatch[]) : []);
+  }
   const [problem, setProblem] = useState<string | null>(null);
   const [fieldProblems, setFieldProblems] = useState<Record<string, string>>({});
   const [namesake, setNamesake] = useState<string | null>(null);
@@ -583,15 +725,31 @@ function StudentDialog({
       setAskedAsDraft(asDraft);
     }
     setPending(true);
+    // The main guardian (task 0113 D9): a guardian chosen from the ones found, or the three fields; on an edit, only when something about the guardian changed (an untouched form does not
+    // rewrite the guardian).
+    const guardianTouched =
+      !item ||
+      f.guardianName.trim() !== (item.guardianName ?? "") ||
+      f.guardianPhone.trim() !== (item.guardianPhone ?? "") ||
+      f.guardianEmail.trim() !== (item.guardianEmail ?? "");
+    const guardian = chosenGuardian
+      ? { guardianId: chosenGuardian.id }
+      : guardianTouched
+        ? {
+            guardianName: f.guardianName.trim() || null,
+            guardianPhone: f.guardianPhone.trim() || null,
+            guardianEmail: f.guardianEmail.trim() || null,
+          }
+        : {};
     const person = {
       firstName: f.firstName,
       middleName: f.middleName.trim() || null,
       lastName: f.lastName,
       gender: f.gender,
       dateOfBirth: f.dateOfBirth,
-      guardianName: f.guardianName.trim() || null,
-      guardianPhone: f.guardianPhone.trim() || null,
-      guardianEmail: f.guardianEmail.trim() || null,
+      ...guardian,
+      ...(f.guardianRelationship ? { guardianRelationship: f.guardianRelationship } : {}),
+      residence: f.residence || null,
       ...(f.admissionNo.trim() ? { admissionNo: f.admissionNo.trim() } : {}),
       allowDuplicate,
       ...(asDraft ? { isDraft: true } : {}),
@@ -717,33 +875,107 @@ function StudentDialog({
               />
             </div>
           )}
-          <TextField
-            label="Guardian name (optional)"
-            value={f.guardianName}
-            onChange={(e) => set("guardianName", e.target.value)}
-            error={fieldProblems.guardianName}
-            maxLength={100}
-            autoComplete="off"
+          <SelectField
+            label="Day or boarding"
+            value={f.residence}
+            onChange={(e) => set("residence", e.target.value)}
+            error={fieldProblems.residence}
+            options={[
+              { value: "", label: "Not set" },
+              { value: "DAY", label: "Day" },
+              { value: "BOARDING", label: "Boarding" },
+            ]}
             disabled={pending}
           />
-          <TextField
-            label="Guardian phone (optional)"
-            inputMode="tel"
-            value={f.guardianPhone}
-            onChange={(e) => set("guardianPhone", e.target.value)}
-            error={fieldProblems.guardianPhone}
-            autoComplete="off"
-            disabled={pending}
-          />
-          <TextField
-            label="Guardian email (optional)"
-            inputMode="email"
-            value={f.guardianEmail}
-            onChange={(e) => set("guardianEmail", e.target.value)}
-            error={fieldProblems.guardianEmail}
-            autoComplete="off"
-            disabled={pending}
-          />
+          <fieldset className="space-y-4 rounded-2xl border border-line p-4">
+            <legend className="px-1 text-sm font-semibold text-fg">Main guardian</legend>
+            {chosenGuardian ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 p-3">
+                <p className="text-sm text-fg">
+                  <span className="font-semibold">{chosenGuardian.name}</span>
+                  {chosenGuardian.children.length > 0 ? `, already the guardian of ${chosenGuardian.children.join(", ")}` : ""}
+                </p>
+                <Button variant="ghost" onClick={() => setChosenGuardian(null)} disabled={pending}>
+                  Not this guardian
+                </Button>
+              </div>
+            ) : (
+              <>
+                <TextField
+                  label="Guardian name (optional)"
+                  value={f.guardianName}
+                  onChange={(e) => set("guardianName", e.target.value)}
+                  error={fieldProblems.guardianName}
+                  maxLength={100}
+                  autoComplete="off"
+                  disabled={pending}
+                />
+                <TextField
+                  label="Guardian phone (optional)"
+                  inputMode="tel"
+                  value={f.guardianPhone}
+                  onChange={(e) => (set("guardianPhone", e.target.value), setMatches(null))}
+                  error={fieldProblems.guardianPhone}
+                  autoComplete="off"
+                  disabled={pending}
+                />
+                <TextField
+                  label="Guardian email (optional)"
+                  inputMode="email"
+                  value={f.guardianEmail}
+                  onChange={(e) => (set("guardianEmail", e.target.value), setMatches(null))}
+                  error={fieldProblems.guardianEmail}
+                  autoComplete="off"
+                  disabled={pending}
+                />
+                {!item && (
+                  <div className="space-y-2">
+                    <Button
+                      variant="secondary"
+                      loading={finding}
+                      disabled={pending || (f.guardianPhone.trim() || f.guardianEmail.trim()).length < 3}
+                      onClick={() => void findGuardian()}
+                    >
+                      Find an existing guardian
+                    </Button>
+                    {matches && matches.length === 0 && (
+                      <p className="text-sm text-fg-muted">
+                        No guardian you can see has this number or address: a new one is added when you register.
+                      </p>
+                    )}
+                    {matches && matches.length > 0 && (
+                      <ul aria-label="Guardians found" className="space-y-2">
+                        {matches.map((m) => (
+                          <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3">
+                            <p className="min-w-0 text-sm text-fg">
+                              <span className="font-semibold">{m.name}</span>
+                              {m.children.length > 0 ? `, guardian of ${m.children.join(", ")}` : ""}
+                            </p>
+                            <Button variant="secondary" onClick={() => setChosenGuardian(m)} aria-label={`Use ${m.name}`}>
+                              Use
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            <SelectField
+              label="Relationship to the pupil (optional)"
+              value={f.guardianRelationship}
+              onChange={(e) => set("guardianRelationship", e.target.value)}
+              options={[{ value: "", label: item ? "Leave as it is" : "Not said" }, ...RELATIONSHIP_OPTIONS]}
+              disabled={pending}
+            />
+            {item && (
+              <p className="text-xs text-fg-muted">
+                Changing these changes the main guardian, for all their children when you run all their branches. More guardians, blocking
+                and codes: Guardians and Access codes in the pupil&apos;s Actions list.
+              </p>
+            )}
+          </fieldset>
           {namesake && (
             <Alert variant="error">
               <p>{namesake}</p>

@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { resolveArmId } from "@/lib/academics/structure";
 import { prisma } from "@/lib/db";
-import { Gender, EnrollmentStatus, SessionStatus, StandingState, Prisma } from "@prisma/client";
+import { Gender, EnrollmentStatus, SessionStatus, StandingState, Prisma, GuardianRelationship, Residence } from "@prisma/client";
+import { adminScope } from "@/lib/auth/branch-access";
+import { applyMainGuardianFields, guardianInScope, linkGuardian } from "@/lib/guardians/service";
 import { dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { birthDateRange, schoolDay, type PupilFilters } from "@/lib/students/list-filters";
 import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
@@ -24,9 +26,15 @@ export const studentInputSchema = z.object({
   ),
   admissionNo: z.string().trim().max(40).optional(),
   allowDuplicate: z.boolean().optional().default(false),
+  // The main guardian (task 0113 D9): an existing guardian in the administrator's reach (`guardianId`, found by phone or e-mail), or the three fields, which find the guardian with that
+  // whole phone and name in reach or make one. Either way the guardian is linked as the main contact; the pupil's own three columns are a mirror of the links.
+  guardianId: z.string().trim().min(1).max(64).optional(),
+  guardianRelationship: z.enum(GuardianRelationship).nullable().optional(),
   guardianName: z.string().trim().max(100).nullable().optional(),
   guardianPhone: z.string().trim().max(40).nullable().optional(),
   guardianEmail: z.string().trim().email("Invalid guardian email").nullable().optional().or(z.literal("")),
+  /// Day pupil or boarder (task 0113 R1); null or missing = not set.
+  residence: z.enum(Residence).nullable().optional(),
   className: z.string().trim().max(50).optional(),
   arm: z.string().trim().max(30).optional(),
   // Save as a draft (task 0101 D1): the pupil is kept unfinished and left out of everything that counts or acts on pupils until it is completed. Absent or false is a normal record.
@@ -49,6 +57,7 @@ export const studentUpdateSchema = z.object({
   ),
   admissionNo: z.string().trim().max(40).optional(),
   allowDuplicate: z.boolean().optional().default(false),
+  guardianRelationship: z.enum(GuardianRelationship).nullable().optional(),
   guardianName: z.string().trim().max(100).nullable().optional(),
   guardianPhone: z.string().trim().max(40).nullable().optional(),
   guardianEmail: z.string().trim().email().nullable().optional().or(z.literal("")),
@@ -58,7 +67,15 @@ export const studentUpdateSchema = z.object({
   // pupil is Promotion's job.
   className: z.string().trim().max(50).optional(),
   arm: z.string().trim().max(30).optional(),
+  residence: z.enum(Residence).nullable().optional(),
 });
+
+/// A pupil record as an answer carries it: never the access code's hash (task 0113 D7), whoever asks.
+export function withoutSecrets<S extends { pupilCodeHash?: string | null }>(student: S): Omit<S, "pupilCodeHash"> {
+  const { pupilCodeHash, ...rest } = student;
+  void pupilCodeHash;
+  return rest;
+}
 
 export type StudentInput = z.infer<typeof studentInputSchema>;
 export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>;
@@ -138,106 +155,141 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
   const now = new Date();
   const year = now.getFullYear();
 
-  return prisma.$transaction(async (tx) => {
-    await lockStudents(tx);
+  return prisma
+    .$transaction(async (tx): Promise<StudentResult<{ student: unknown; enrolled: boolean }>> => {
+      await lockStudents(tx);
 
-    // 1. Duplicate detection
-    const duplicate = await findDuplicate(
-      tx,
-      input.branchId,
-      input.firstName,
-      input.lastName,
-      input.dateOfBirth,
-      undefined,
-      input.middleName,
-    );
+      // 1. Duplicate detection
+      const duplicate = await findDuplicate(
+        tx,
+        input.branchId,
+        input.firstName,
+        input.lastName,
+        input.dateOfBirth,
+        undefined,
+        input.middleName,
+      );
 
-    if (duplicate && !input.allowDuplicate) {
-      return {
-        ok: false,
-        error: `A student with this ${namesakeText(!!input.dateOfBirth, duplicate)} already exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to register.`,
-        code: "POSSIBLE_DUPLICATE",
-        details: { existingAdmissionNo: duplicate.admissionNo },
-      };
-    }
-
-    // 2. Admission Number resolution
-    let admissionNo = input.admissionNo;
-    if (admissionNo) {
-      const existing = await tx.studentRecord.findUnique({
-        where: { admissionNo },
-      });
-      if (existing) {
+      if (duplicate && !input.allowDuplicate) {
         return {
           ok: false,
-          error: `Admission number "${admissionNo}" is already taken.`,
-          code: "ADMISSION_NUMBER_TAKEN",
+          error: `A student with this ${namesakeText(!!input.dateOfBirth, duplicate)} already exists (Admission No: ${duplicate.admissionNo}). Confirm namesake override to register.`,
+          code: "POSSIBLE_DUPLICATE",
+          details: { existingAdmissionNo: duplicate.admissionNo },
         };
       }
-    } else {
-      admissionNo = await generateAdmissionNo(tx, year);
-    }
 
-    // 3. Insert student record
-    const student = await tx.studentRecord.create({
-      data: {
-        branchId: input.branchId,
-        firstName: input.firstName,
-        middleName: input.middleName || null,
-        lastName: input.lastName,
-        gender: input.gender,
-        dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-        admissionNo,
-        guardianName: input.guardianName || null,
-        guardianPhone: input.guardianPhone || null,
-        guardianEmail: input.guardianEmail || null,
-        isDraft: input.isDraft,
-      },
-    });
-
-    // 4. Optional active session enrolment
-    let enrolled = false;
-    if (input.className) {
-      const activeSession = await tx.academicSession.findFirst({
-        where: { branchId: input.branchId, status: SessionStatus.ACTIVE, archivedAt: null },
-      });
-      if (activeSession) {
-        await tx.studentEnrollment.create({
-          data: {
-            studentId: student.id,
-            branchId: input.branchId,
-            sessionId: activeSession.id,
-            className: input.className,
-            arm: input.arm || null,
-            classArmId: await resolveArmId(tx, input.branchId, input.className, input.arm),
-            status: EnrollmentStatus.ACTIVE,
-          },
+      // 2. Admission Number resolution
+      let admissionNo = input.admissionNo;
+      if (admissionNo) {
+        const existing = await tx.studentRecord.findUnique({
+          where: { admissionNo },
         });
-        enrolled = true;
+        if (existing) {
+          return {
+            ok: false,
+            error: `Admission number "${admissionNo}" is already taken.`,
+            code: "ADMISSION_NUMBER_TAKEN",
+          };
+        }
+      } else {
+        admissionNo = await generateAdmissionNo(tx, year);
       }
-    }
 
-    // 5. Audit Log (Zero PII: only IDs, admission numbers, and override flags)
-    await tx.auditLog.create({
-      data: {
-        actorUserId,
-        action: "STUDENT_CREATED",
-        targetType: "StudentRecord",
-        targetId: student.id,
-        afterValue: {
-          id: student.id,
-          admissionNo,
+      // 3. Insert student record
+      const student = await tx.studentRecord.create({
+        data: {
           branchId: input.branchId,
-          ...(input.isDraft ? { isDraft: true } : {}),
-          ...(duplicate && input.allowDuplicate ? { duplicateOverridden: true, existingAdmissionNo: duplicate.admissionNo } : {}),
+          firstName: input.firstName,
+          middleName: input.middleName || null,
+          lastName: input.lastName,
+          gender: input.gender,
+          dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+          admissionNo,
+          residence: input.residence ?? null,
+          isDraft: input.isDraft,
         },
-      },
-    });
+      });
 
-    // `enrolled` is false when a class was asked for but the branch has no ACTIVE session to place the pupil in (the record is still created); the screen says so.
-    return { ok: true, data: { student, enrolled } };
-  });
+      // 3b. The main guardian (task 0113 D9): an existing one in reach, or the one the three fields name (found or made). The pupil's guardian columns follow (the mirror).
+      if (input.guardianId) {
+        const scope = await adminScope(actorUserId);
+        const guardian = await tx.guardian.findFirst({
+          where: { id: input.guardianId, archivedAt: null, ...guardianInScope(scope) },
+          select: { id: true },
+        });
+        if (!guardian) throw new GuardianChoiceError();
+        await linkGuardian(tx, {
+          studentId: student.id,
+          branchId: input.branchId,
+          guardianId: guardian.id,
+          relationship: input.guardianRelationship,
+          isMain: true,
+          actorUserId,
+        });
+      } else if (input.guardianName?.trim() || input.guardianPhone?.trim() || input.guardianEmail?.trim()) {
+        await applyMainGuardianFields(tx, await adminScope(actorUserId), {
+          student,
+          name: input.guardianName ?? null,
+          phone: input.guardianPhone ?? null,
+          email: input.guardianEmail ?? null,
+          relationship: input.guardianRelationship,
+          actorUserId,
+        });
+      }
+
+      // 4. Optional active session enrolment
+      let enrolled = false;
+      if (input.className) {
+        const activeSession = await tx.academicSession.findFirst({
+          where: { branchId: input.branchId, status: SessionStatus.ACTIVE, archivedAt: null },
+        });
+        if (activeSession) {
+          await tx.studentEnrollment.create({
+            data: {
+              studentId: student.id,
+              branchId: input.branchId,
+              sessionId: activeSession.id,
+              className: input.className,
+              arm: input.arm || null,
+              classArmId: await resolveArmId(tx, input.branchId, input.className, input.arm),
+              status: EnrollmentStatus.ACTIVE,
+            },
+          });
+          enrolled = true;
+        }
+      }
+
+      // 5. Audit Log (Zero PII: only IDs, admission numbers, and override flags)
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "STUDENT_CREATED",
+          targetType: "StudentRecord",
+          targetId: student.id,
+          afterValue: {
+            id: student.id,
+            admissionNo,
+            branchId: input.branchId,
+            ...(input.isDraft ? { isDraft: true } : {}),
+            ...(duplicate && input.allowDuplicate ? { duplicateOverridden: true, existingAdmissionNo: duplicate.admissionNo } : {}),
+          },
+        },
+      });
+
+      // `enrolled` is false when a class was asked for but the branch has no ACTIVE session to place the pupil in (the record is still created); the screen says so.
+      const saved = await tx.studentRecord.findUniqueOrThrow({ where: { id: student.id } });
+      return { ok: true, data: { student: withoutSecrets(saved), enrolled } };
+    })
+    .catch((error: unknown) => {
+      if (error instanceof GuardianChoiceError)
+        return { ok: false, error: "That guardian is not one you can choose.", code: "GUARDIAN_NOT_FOUND" };
+      throw error;
+    });
 }
+
+/// The guardian chosen on the form is unknown, archived or out of the administrator's reach: the whole registration is undone (thrown out of the transaction) and the form says so.
+class GuardianChoiceError extends Error {}
 
 /**
  * Updates a student record, validating against duplicates if names or birth date change.
@@ -307,12 +359,27 @@ export async function updateStudent(
         ...(input.gender !== undefined ? { gender: input.gender } : {}),
         ...(input.dateOfBirth !== undefined ? { dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null } : {}),
         ...(input.admissionNo !== undefined ? { admissionNo: input.admissionNo } : {}),
-        ...(input.guardianName !== undefined ? { guardianName: input.guardianName } : {}),
-        ...(input.guardianPhone !== undefined ? { guardianPhone: input.guardianPhone } : {}),
-        ...(input.guardianEmail !== undefined ? { guardianEmail: input.guardianEmail || null } : {}),
         ...(input.isDraft ? { isDraft: true } : {}),
+        ...(input.residence !== undefined ? { residence: input.residence } : {}),
       },
     });
+
+    // The main guardian (task 0113 D9): the old three fields keep working, now through the guardian links (`applyMainGuardianFields`); the pupil's columns follow (the mirror).
+    const guardianChanged =
+      input.guardianName !== undefined ||
+      input.guardianPhone !== undefined ||
+      input.guardianEmail !== undefined ||
+      input.guardianRelationship !== undefined;
+    if (guardianChanged)
+      await applyMainGuardianFields(tx, await adminScope(actorUserId), {
+        student: updated,
+        name: input.guardianName,
+        phone: input.guardianPhone,
+        email: input.guardianEmail,
+        relationship: input.guardianRelationship,
+        actorUserId,
+      });
+    const saved = guardianChanged ? await tx.studentRecord.findUniqueOrThrow({ where: { id } }) : updated;
 
     // Audit log
     if (input.isDraft && !student.isDraft) {
@@ -336,6 +403,7 @@ export async function updateStudent(
         afterValue: {
           id,
           admissionNo: updated.admissionNo,
+          ...(input.residence !== undefined && input.residence !== student.residence ? { residence: input.residence } : {}),
           ...(duplicate && input.allowDuplicate ? { duplicateOverridden: true, existingAdmissionNo: duplicate.admissionNo } : {}),
         },
       },
@@ -373,7 +441,7 @@ export async function updateStudent(
       }
     }
 
-    return { ok: true, data: { student: updated, enrolled } };
+    return { ok: true, data: { student: withoutSecrets(saved), enrolled } };
   });
 }
 
@@ -392,7 +460,7 @@ export async function completeStudent(
     });
     if (!student) return { ok: false, error: "Student not found", code: "NOT_FOUND" };
     if (student.archivedAt) return { ok: false, error: "Restore this student before completing the record.", code: "ARCHIVED" };
-    if (!student.isDraft) return { ok: true, data: { student } };
+    if (!student.isDraft) return { ok: true, data: { student: withoutSecrets(student) } };
     const missing = pupilMissing({ ...student, hasClass: student.enrollments.length > 0 });
     if (missing.length > 0) return { ok: false, error: "This record is not complete yet.", code: "INCOMPLETE", missing };
     // Conditional on still being a draft, so two administrators completing at once write one audit entry.
@@ -409,7 +477,7 @@ export async function completeStudent(
         },
       });
     }
-    return { ok: true, data: { student: await tx.studentRecord.findUniqueOrThrow({ where: { id } }) } };
+    return { ok: true, data: { student: withoutSecrets(await tx.studentRecord.findUniqueOrThrow({ where: { id } })) } };
   });
 }
 
@@ -451,7 +519,7 @@ export async function restoreStudent(
       return { ok: false, error: "Student not found", code: "NOT_FOUND" };
     }
     if (!student.archivedAt) {
-      return { ok: true, data: { student } };
+      return { ok: true, data: { student: withoutSecrets(student) } };
     }
 
     await lockStudents(tx);
@@ -494,7 +562,7 @@ export async function restoreStudent(
       },
     });
 
-    return { ok: true, data: { student: restored } };
+    return { ok: true, data: { student: withoutSecrets(restored) } };
   });
 }
 
@@ -544,6 +612,18 @@ export async function studentListWhere(
   if (filters.gender) and.push({ gender: filters.gender });
   // Drafts (task 0101 D1): the list shows them by default, with a badge; this narrows to drafts only or to none.
   if (filters.draft) and.push({ isDraft: filters.draft === "YES" });
+  if (filters.residence) and.push({ residence: filters.residence === "NONE" ? null : filters.residence });
+  if (filters.scholarship) {
+    // "Live" is the school's day today: not ended, started (or no start), not past its last day (or no end). The same definition as the invoices use (lib/scholarships/rules.ts `liveOn`).
+    const day = new Date(`${schoolDay(new Date(), resolveSchoolTimeZone())}T00:00:00Z`);
+    const live: Prisma.StudentScholarshipWhereInput = {
+      endedAt: null,
+      OR: [{ startsOn: null }, { startsOn: { lte: day } }],
+      AND: [{ OR: [{ endsOn: null }, { endsOn: { gte: day } }] }],
+      ...(filters.scholarship !== "ANY" && filters.scholarship !== "NONE" ? { typeId: filters.scholarship } : {}),
+    };
+    and.push(filters.scholarship === "NONE" ? { scholarships: { none: live } } : { scholarships: { some: live } });
+  }
 
   const where: Prisma.StudentRecordWhereInput = {
     ...(branchId ? { branchId } : {}),
@@ -632,6 +712,7 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
       /// A draft (task 0101 D1): saved unfinished. `missing` is what the record still needs, by the server's rule; shown only on a draft.
       isDraft: s.isDraft,
       missing: s.isDraft ? pupilMissing({ ...s, hasClass: s.enrollments[0]?.status === EnrollmentStatus.ACTIVE }) : [],
+      residence: s.residence,
       currentClass: s.enrollments[0] ? `${s.enrollments[0].className}${s.enrollments[0].arm ? ` ${s.enrollments[0].arm}` : ""}` : null,
       sessionLabel: s.enrollments[0]?.session.label ?? null,
     })),
@@ -666,7 +747,7 @@ export async function getStudent(id: string, visible: "all" | string[] = []) {
   if (!student) return null;
 
   return {
-    ...student,
+    ...withoutSecrets(student),
     dateOfBirth: dayText(student.dateOfBirth),
     archived: student.archivedAt !== null,
     missing: student.isDraft

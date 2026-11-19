@@ -19,6 +19,7 @@ import { StandingSettingsPanel } from "@/components/standing/StandingSettingsPan
 import { ResultsApprovalPanel } from "@/components/settings/ResultsApprovalPanel";
 import { LoginSwitchPanel } from "@/components/settings/LoginSwitchPanel";
 import { BranchProfileEditor } from "@/components/settings/BranchProfilePanel";
+import { FamilySecretsPanel } from "@/components/settings/FamilySecretsPanel";
 import type { BranchLoginRow } from "@/lib/auth/login-switch-rules";
 
 type SchoolSettingsState = {
@@ -186,7 +187,12 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
         {activeTab === "discipline" && <StandingSettingsPanel />}
 
         {/* Tab 7: may students and parents sign in (task 0091) */}
-        {activeTab === "signin" && <LoginSwitchPanel initial={loginBranches} canBulk />}
+        {activeTab === "signin" && (
+          <div className="space-y-6">
+            <LoginSwitchPanel initial={loginBranches} canBulk />
+            <FamilySecretsPanel />
+          </div>
+        )}
 
         {/* Tab 4: who approves results, and where (task 0039) */}
         {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}

@@ -19,8 +19,11 @@ test.beforeAll(async () => {
   await seedInstance();
 });
 
+// On student. and parent. the first form is the families' (admission number and code, task 0113); the e-mail sign-in of an invited account is one click under it.
+const EMAIL_LINK = "I have an account with an e-mail address";
 async function signIn(page: Page, portal: string, email: string, password: string) {
   await page.goto(at(portal, "/login"));
+  if (portal === "student" || portal === "parent") await page.getByRole("button", { name: EMAIL_LINK }).click();
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -64,6 +67,15 @@ for (const [portal, title] of HEADINGS) {
     await page.goto(at(portal, "/login"));
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect(page.locator(`[data-portal="${portal}"]`)).toBeVisible();
+    if (portal === "student" || portal === "parent") {
+      // The families' form first: admission number and code, with the e-mail sign-in one click away.
+      await expect(page.getByLabel("Admission number", { exact: true })).toBeVisible();
+      await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+      await expectAccessible(page, `the ${portal} sign-in (families)`);
+      await page.getByRole("button", { name: EMAIL_LINK }).click();
+      await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+      await expect(page.locator(`[data-portal="${portal}"]`)).toBeVisible();
+    }
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     await expectAccessible(page, `the ${portal} sign-in`);
   });

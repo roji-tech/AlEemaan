@@ -15,6 +15,8 @@ import { getPaystackGateway } from "./paystack";
 import { checkPart } from "./part-payment";
 import { loadEffectivePolicy } from "./part-payment-service";
 import { NOT_DRAFT } from "@/lib/drafts/live";
+import { paidByScholarship, planDiscounts, statusAfterDiscounts } from "@/lib/scholarships/rules";
+import { liveForInvoices, today as schoolToday } from "@/lib/scholarships/service";
 
 export class FinanceError extends Error {
   public code?: string;
@@ -187,8 +189,15 @@ export async function generateInvoices(
 
     let created = 0;
     let skipped = 0;
+    let scholarshipDiscounts = 0;
     const year = new Date().getFullYear();
     const branchCode = period.branch.code;
+    // Task 0113 S1: the scholarships live on the invoices' issue day (today, the school's day), for every pupil of the run, read once.
+    const liveScholarships = await liveForInvoices(
+      tx,
+      enrollments.map((e) => e.studentId),
+      schoolToday(),
+    );
 
     for (const enrollment of enrollments) {
       // Check if invoice already exists (idempotent)
@@ -228,7 +237,7 @@ export async function generateInvoices(
 
       const invoiceNo = await allocateInvoiceNo(tx, branchId, branchCode, year);
 
-      await tx.invoice.create({
+      const invoice = await tx.invoice.create({
         data: {
           branchId,
           studentId: enrollment.studentId,
@@ -242,10 +251,22 @@ export async function generateInvoices(
         },
       });
 
+      // A scholarship live today takes its share off the new invoice, through the one discount function (net total and status as for a manual discount); one discount per scholarship.
+      for (const { scholarship, amount } of planDiscounts(totalAmount, liveScholarships.get(enrollment.studentId) ?? [], totalAmount)) {
+        await addDiscountTx(tx, branchId, invoice.id, {
+          amount,
+          reason: `${scholarship.typeName} (${scholarship.percent}%)`,
+          mode: DiscountWorkflowMode.SCHOLARSHIP,
+          appliedByUserId: options.actorUserId ?? "system",
+          studentScholarshipId: scholarship.id,
+        });
+        scholarshipDiscounts++;
+      }
+
       created++;
     }
 
-    return { created, skipped };
+    return { created, skipped, scholarshipDiscounts };
   });
 }
 
@@ -271,7 +292,7 @@ export async function listInvoices(
         student: { select: { id: true, firstName: true, lastName: true, admissionNo: true } },
         period: { select: { id: true, label: true } },
         payments: { select: { id: true, amount: true, status: true, paidAt: true, channel: true } },
-        discounts: { select: { id: true, amount: true, reason: true } },
+        discounts: { select: { id: true, amount: true, reason: true, mode: true } },
       },
       orderBy: [{ createdAt: "desc" }],
       skip,
@@ -280,14 +301,21 @@ export async function listInvoices(
     prisma.invoice.count({ where }),
   ]);
 
-  return { invoices, total, page, limit, totalPages: Math.ceil(total / limit) };
+  // "Paid by scholarship" (task 0113 S1) is worked out here, once, for the list and the detail.
+  return {
+    invoices: invoices.map((invoice) => ({ ...invoice, paidByScholarship: paidByScholarship(invoice) })),
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
 
 export async function getInvoice(branchId: string, id: string) {
-  return prisma.invoice.findFirstOrThrow({
+  const invoice = await prisma.invoice.findFirstOrThrow({
     where: { branchId, id },
     include: {
-      student: true,
+      student: { omit: { pupilCodeHash: true } },
       period: {
         include: {
           session: true,
@@ -302,6 +330,7 @@ export async function getInvoice(branchId: string, id: string) {
       },
     },
   });
+  return { ...invoice, paidByScholarship: paidByScholarship(invoice) };
 }
 
 // --- Payments & Concurrency Fulfilment ---
@@ -639,56 +668,145 @@ export async function processPaystackWebhook(
 
 // --- Discounts & Waivers ---
 
-export async function applyDiscount(
+type DiscountData = {
+  amount: DecimalLike;
+  reason: string;
+  mode: DiscountWorkflowMode;
+  appliedByUserId: string;
+  /// Task 0113 S1: the scholarship this discount is one share of (at most one per scholarship per invoice, by a unique index).
+  studentScholarshipId?: string | null;
+};
+
+/// Takes a discount off an invoice, in the caller's transaction: the ONE place a discount is written, for the manual form, for invoice generation and for "Apply to open invoices", so the net
+/// total and the status are worked out the same way for all three. The net is the fees less every discount; the status is what money gives for it, except that an invoice whose whole fee
+/// scholarships took off is PAID (task 0113 S1).
+export async function addDiscountTx(tx: Prisma.TransactionClient, branchId: string, invoiceId: string, data: DiscountData) {
+  const invoice = await tx.invoice.findFirstOrThrow({
+    where: { branchId, id: invoiceId },
+    include: { discounts: true },
+  });
+
+  const discountAmount = toDecimal(data.amount);
+  if (discountAmount.lte(0)) {
+    throw new FinanceError("Discount amount must be greater than zero");
+  }
+
+  const mode = data.mode;
+  const allDiscounts = [...invoice.discounts.map((d) => ({ amount: d.amount, mode: d.mode })), { amount: discountAmount, mode }];
+
+  // Parse line items
+  const rawItems = (invoice.lineItems as { amount: string }[] | null) || [];
+  const breakdown = computeInvoiceBreakdown(rawItems, allDiscounts);
+
+  const discount = await tx.invoiceDiscount.create({
+    data: {
+      branchId,
+      invoiceId: invoice.id,
+      amount: discountAmount,
+      reason: data.reason.trim(),
+      mode,
+      appliedByUserId: data.appliedByUserId,
+      ...(data.studentScholarshipId ? { studentScholarshipId: data.studentScholarshipId } : {}),
+    },
+  });
+
+  // Update invoice totalAmount to reflect net amount
+  const newStatus = statusAfterDiscounts(
+    resolveInvoiceStatus(breakdown.netAmount, invoice.amountPaid),
+    breakdown.netAmount,
+    allDiscounts,
+  ) as InvoiceStatus;
+
+  await tx.invoice.update({
+    where: { branchId_id: { branchId, id: invoice.id } },
+    data: {
+      totalAmount: breakdown.netAmount,
+      status: newStatus,
+    },
+  });
+
+  return discount;
+}
+
+export async function applyDiscount(branchId: string, invoiceId: string, data: DiscountData) {
+  return prisma.$transaction((tx) => addDiscountTx(tx, branchId, invoiceId, data));
+}
+
+/// How many of a pupil's open invoices a scholarship has not been applied to yet (the number on "Apply to this pupil's open invoices"): invoices that are Unpaid or Part paid, with something
+/// still owed, and no discount from this scholarship.
+export async function openInvoicesFor(
+  db: Prisma.TransactionClient | typeof prisma,
   branchId: string,
-  invoiceId: string,
-  data: {
-    amount: DecimalLike;
-    reason: string;
-    mode: DiscountWorkflowMode;
-    appliedByUserId: string;
-  },
+  studentId: string,
+  scholarshipId: string,
 ) {
+  const rows = await db.invoice.findMany({
+    where: {
+      branchId,
+      studentId,
+      status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID] },
+      discounts: { none: { studentScholarshipId: scholarshipId } },
+    },
+    select: { id: true, totalAmount: true, amountPaid: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.filter((r) => r.totalAmount.gt(r.amountPaid));
+}
+
+/// "Apply to this pupil's open invoices" (task 0113 S1): adds the scholarship's share to each open invoice of the pupil that does not have it yet, never more than the invoice still owes, once per
+/// scholarship per invoice (the unique link makes a second press do nothing). The invoice is locked as for a payment, so a payment racing it cannot make the balance wrong. Invoices already
+/// paid, waived or cancelled are not touched; neither are invoices that already have a discount from this scholarship (a raised share does not top them up).
+export async function applyScholarshipToOpenInvoices(
+  branchId: string,
+  studentId: string,
+  scholarshipId: string,
+  actorUserId: string,
+): Promise<{ applied: number; settled: number; kobo: number }> {
   return prisma.$transaction(async (tx) => {
-    const invoice = await tx.invoice.findFirstOrThrow({
-      where: { branchId, id: invoiceId },
-      include: { discounts: true },
+    const scholarship = await tx.studentScholarship.findFirst({
+      where: { id: scholarshipId, studentId, branchId },
+      select: { id: true, percent: true, startsOn: true, endsOn: true, endedAt: true, type: { select: { name: true } } },
     });
-
-    const discountAmount = toDecimal(data.amount);
-    if (discountAmount.lte(0)) {
-      throw new FinanceError("Discount amount must be greater than zero");
+    if (!scholarship) throw new FinanceError("Scholarship not found");
+    const day = schoolToday();
+    const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+    if (scholarship.endedAt || (iso(scholarship.startsOn) ?? day) > day || (iso(scholarship.endsOn) ?? day) < day)
+      throw new FinanceError("This scholarship is not live today, so it cannot be applied.");
+    let applied = 0;
+    let settled = 0;
+    let total = new Prisma.Decimal(0);
+    for (const candidate of await openInvoicesFor(tx, branchId, studentId, scholarshipId)) {
+      await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${candidate.id} AND "branchId" = ${branchId} FOR UPDATE`;
+      const invoice = await tx.invoice.findFirstOrThrow({ where: { id: candidate.id, branchId }, include: { discounts: true } });
+      // Re-read under the lock: it may have been paid, or already carry this scholarship.
+      if (invoice.status !== InvoiceStatus.UNPAID && invoice.status !== InvoiceStatus.PARTIALLY_PAID) continue;
+      if (invoice.discounts.some((d) => d.studentScholarshipId === scholarshipId)) continue;
+      const balance = invoice.totalAmount.sub(invoice.amountPaid);
+      const gross = computeInvoiceBreakdown((invoice.lineItems as { amount: string }[] | null) ?? [], []).grossAmount;
+      const [plan] = planDiscounts(gross, [{ id: scholarshipId, percent: scholarship.percent }], balance);
+      if (!plan) continue;
+      await addDiscountTx(tx, branchId, invoice.id, {
+        amount: plan.amount,
+        reason: `${scholarship.type.name} (${scholarship.percent}%)`,
+        mode: DiscountWorkflowMode.SCHOLARSHIP,
+        appliedByUserId: actorUserId,
+        studentScholarshipId: scholarshipId,
+      });
+      applied++;
+      total = total.add(plan.amount);
+      const after = await tx.invoice.findFirstOrThrow({ where: { id: invoice.id }, include: { discounts: true } });
+      if (paidByScholarship(after)) settled++;
     }
-
-    const currentDiscounts = invoice.discounts.map((d) => ({ amount: d.amount }));
-    const allDiscounts = [...currentDiscounts, { amount: discountAmount }];
-
-    // Parse line items
-    const rawItems = (invoice.lineItems as { amount: string }[] | null) || [];
-    const breakdown = computeInvoiceBreakdown(rawItems, allDiscounts);
-
-    const discount = await tx.invoiceDiscount.create({
-      data: {
-        branchId,
-        invoiceId: invoice.id,
-        amount: discountAmount,
-        reason: data.reason.trim(),
-        mode: data.mode,
-        appliedByUserId: data.appliedByUserId,
-      },
-    });
-
-    // Update invoice totalAmount to reflect net amount
-    const newStatus = resolveInvoiceStatus(breakdown.netAmount, invoice.amountPaid);
-
-    await tx.invoice.update({
-      where: { branchId_id: { branchId, id: invoice.id } },
-      data: {
-        totalAmount: breakdown.netAmount,
-        status: newStatus,
-      },
-    });
-
-    return discount;
+    if (applied > 0)
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "STUDENT_SCHOLARSHIP_APPLIED",
+          targetType: "StudentRecord",
+          targetId: studentId,
+          afterValue: { scholarshipId, invoices: applied, settled, kobo: toKobo(total) },
+        },
+      });
+    return { applied, settled, kobo: toKobo(total) };
   });
 }

@@ -211,6 +211,14 @@ const FINANCE = tabs("/finance", "Finance", "page", [
     summary: "Whether families may pay an invoice in parts, and the smallest part, for the school and for each branch.",
     keywords: ["part payment", "installment", "instalment", "partial payment", "pay in full", "minimum payment"],
   },
+  {
+    id: "scholarships",
+    title: "Scholarships",
+    summary:
+      "The kinds of scholarship a branch gives, each with its share of the fees. A pupil is given one from the pupil's Actions list.",
+    keywords: ["scholarship", "bursary", "award", "free place", "full scholarship", "hafiz", "merit", "paid by scholarship"],
+    steps: ["Open Finance", "Choose the Scholarships tab", "Add a type with its share, then give it to a pupil from Students"],
+  },
 ]).map((d) => ({ ...d, only: "admin" as const }));
 
 const USERS = tabs("/users", "Users", "page", [
@@ -233,6 +241,13 @@ const USERS = tabs("/users", "Users", "page", [
       "The staff records of your branches: tick the ones who should sign in and invite them at the address on their record, or move someone to another branch.",
     keywords: ["invite staff", "staff email", "corper", "transfer", "move staff", "another branch", "sign in"],
     steps: ["Open Users", "Choose the Staff tab", "Tick the people to invite, then press Invite to sign in"],
+  },
+  {
+    id: "guardians",
+    title: "Guardians",
+    summary: "Pupils' guardians, each with their children: block a guardian from a child, change their details, or make their access code.",
+    keywords: ["guardian", "parent", "parents", "mother", "father", "block guardian", "access code", "family", "children"],
+    steps: ["Open Users", "Choose the Guardians tab", "Open a guardian to see their children"],
   },
 ]);
 

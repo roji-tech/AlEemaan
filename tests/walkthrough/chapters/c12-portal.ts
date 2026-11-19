@@ -15,7 +15,8 @@ const sections = (page: Page) => page.getByRole("tablist", { name: "Student Port
 export const section = (page: Page, name: string) => sections(page).getByRole("tab", { name, exact: true });
 const refusal = (page: Page) => page.getByRole("alert").filter({ hasText: /\w/ });
 // the sentence the portal gives for every failed sign-in (src/lib/portal/service.ts, PORTAL_SIGNIN_FAILED): it does not say which of the two things was wrong
-const SIGN_IN_FAILED = "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
+const SIGN_IN_FAILED =
+  "Verification failed. Please check the admission number and the access code, date of birth or guardian phone number.";
 
 /// From the staff sign-in page to the portal's own sign-in card, the way a parent finds it: the logo leads to the front page, which has a link to the portal.
 export async function findPortal(walk: Walk, page: Page): Promise<void> {
