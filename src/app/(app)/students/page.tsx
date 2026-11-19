@@ -5,6 +5,10 @@ import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-acces
 import { PageHeader } from "@/components/shell/PageHeader";
 import { StudentsPanel } from "@/components/students/StudentsPanel";
 import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
+import { ProgramPlaceStatus } from "@prisma/client";
+import { viewerOf } from "@/lib/programs/access";
+import { schoolEnabled } from "@/lib/programs/common";
+import type { OwnProgram } from "@/components/students/OwnProgramCard";
 
 export const metadata: Metadata = { title: "Students" };
 export const dynamic = "force-dynamic";
@@ -35,6 +39,30 @@ export default async function StudentsPage() {
     ),
   );
 
+  // A branch made for a program (task 0043, 8.6) says how pupils of the other branches join it (task 0110), to whoever has a place in that program: a super admin may add them (while
+  // programs are on for the school), and a super admin or program admin sees how many there are. Display only: the program's API decides on every request.
+  const ownPrograms = await prisma.program.findMany({
+    where: { ownBranchId: { in: branches.map((b) => b.id) } },
+    select: { id: true, name: true, ownBranchId: true },
+  });
+  const schoolOn = ownPrograms.length > 0 && (await schoolEnabled()) !== false;
+  const programs: Record<string, OwnProgram> = {};
+  for (const program of ownPrograms) {
+    const viewer = await viewerOf(session.userId, program.id);
+    if (!viewer || !program.ownBranchId) continue;
+    const seesAll = viewer.level === "SUPER" || viewer.level === "ADMIN";
+    programs[program.ownBranchId] = {
+      id: program.id,
+      name: program.name,
+      mayAdd: viewer.level === "SUPER" && schoolOn,
+      fromOtherBranches: seesAll
+        ? await prisma.programParticipant.count({
+            where: { programId: program.id, status: ProgramPlaceStatus.ACTIVE, branchId: { not: program.ownBranchId } },
+          })
+        : null,
+    };
+  }
+
   return (
     <div>
       <PageHeader
@@ -52,6 +80,7 @@ export default async function StudentsPage() {
       ) : (
         <StudentsPanel
           standingCan={standingCan}
+          programs={programs}
           branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
         />
       )}
