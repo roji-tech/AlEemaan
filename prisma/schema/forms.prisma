@@ -203,7 +203,7 @@ model FormMarkingAudit {
   scoreAwarded Float
   maxScore     Float
   feedback     String?  @db.VarChar(2000)
-  action       String  @db.VarChar(50)
+  action       String   @db.VarChar(50)
   actorUserId  String
   createdAt    DateTime @default(now())
 
@@ -235,7 +235,7 @@ model FormTurnIn {
   markedById  String?
   markedAt    DateTime?
   requestedAt DateTime?
-  note        String?  @db.VarChar(500)
+  note        String?      @db.VarChar(500)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @default(now()) @updatedAt
 
@@ -259,18 +259,17 @@ model FormTurnInAudit {
   formId      String
   studentId   String
   status      TurnInStatus
-  action      String  @db.VarChar(50)
+  action      String       @db.VarChar(50)
   actorUserId String?
-  note        String?  @db.VarChar(500)
+  note        String?      @db.VarChar(500)
   createdAt   DateTime     @default(now())
 
-  branch  Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  turnIn  FormTurnIn @relation(fields: [branchId, turnInId], references: [branchId, id], onDelete: Cascade)
-  actor   User?      @relation("TurnInAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  branch Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  turnIn FormTurnIn @relation(fields: [branchId, turnInId], references: [branchId, id], onDelete: Cascade)
+  actor  User?      @relation("TurnInAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@unique([branchId, id])
   @@index([branchId, formId])
   @@index([branchId, turnInId])
   @@index([branchId, createdAt])
 }
-

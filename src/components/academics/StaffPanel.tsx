@@ -22,6 +22,19 @@ import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
 import { KIND_TEXT, kindsFor, type StandingValue } from "@/components/standing/model";
+import { CheckboxField } from "@/components/ui/CheckboxField";
+import { BookOpenIcon, ShieldCheckIcon } from "@/components/ui/icons";
+import { STAFF_TITLE_SUGGESTIONS } from "@/lib/academics/staff-rules";
+import {
+  FILTER_OPTIONS,
+  NO_STAFF_FILTERS,
+  activeStaffFilters,
+  displayName,
+  filterStaff,
+  roleLine,
+  type StaffFilters,
+} from "@/components/academics/staff-model";
+import { StaffDetailsDialog, corpsPill, kindPill } from "@/components/academics/StaffDetails";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
 // sign-in account is an existing member it can be linked to. Presentation only: the API decides who may read and change what.
@@ -32,8 +45,14 @@ type Account =
 type Staff = {
   id: string;
   category: "TEACHING" | "NON_TEACHING";
+  /// Task 0111: Mr, Mrs, Dr…; gender; the job title (`designation`); the qualification; the NYSC corps member flag.
+  title: string | null;
   firstName: string;
   lastName: string;
+  gender: "MALE" | "FEMALE" | null;
+  designation: string | null;
+  qualification: string | null;
+  corpsMember: boolean;
   phone: string | null;
   email: string | null;
   archived: boolean;
@@ -47,8 +66,6 @@ type Linkable = { userId: string; name: string | null; email: string | null };
 type ClassOption = { id: string; name: string; subjectIds: string[]; arms: { id: string; name: string }[] };
 type SubjectOption = { id: string; name: string };
 type Editing = { kind: "record"; item: Staff | null } | { kind: "manage"; item: Staff } | null;
-
-const CATEGORY = { TEACHING: "Teaching", NON_TEACHING: "Non-teaching" } as const;
 
 // The kit's Item keeps its actions at z-10, in a card at the left of the footer. An Actions list opened there would sit under the next item's own actions and, from `md`, run off the
 // card's left edge (it opens leftwards from the button). Until Item handles it, the item that holds an open list is raised and a card's footer is right-aligned (reported to the kit's owner).
@@ -71,6 +88,9 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
   const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
+  // Task 0111: the filters beyond Show (kind, gender, corps member, sign-in, standing), applied here; and the record whose details are open.
+  const [filters, setFilters] = useState<StaffFilters>(NO_STAFF_FILTERS);
+  const [viewing, setViewing] = useState<Staff | null>(null);
   const can = branch.standing ?? { suspend: false, remove: false };
 
   const load = useCallback(async () => {
@@ -109,13 +129,20 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
     await load();
   }
 
-  const filtered = q !== "" || status !== "live";
+  const filterCount = activeStaffFilters(filters) + (status === "live" ? 0 : 1);
+  const filtered = q !== "" || filterCount > 0;
   const clearFilters = () => {
     setQ("");
     setStatus("live");
+    setFilters(NO_STAFF_FILTERS);
     setPage(1);
   };
-  const shown = paginate(staff ?? [], page, layout.size);
+  const setFilter = <K extends keyof StaffFilters>(key: K, value: StaffFilters[K]) => {
+    setFilters((all) => ({ ...all, [key]: value }));
+    setPage(1);
+  };
+  const list = staff === null ? null : filterStaff(staff, filters);
+  const shown = paginate(list ?? [], page, layout.size);
 
   return (
     <div className="space-y-6">
@@ -159,7 +186,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
           onSearch={(v) => (setQ(v), setPage(1))}
           searchPlaceholder="Name, email or phone"
           searchMaxLength={100}
-          activeCount={status === "live" ? 0 : 1}
+          activeCount={filterCount}
           onClear={clearFilters}
           trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
         >
@@ -172,14 +199,44 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
               { value: "archived", label: "Archived" },
             ]}
           />
+          <SelectField
+            label="Kind of staff"
+            value={filters.kind}
+            onChange={(e) => setFilter("kind", e.target.value as StaffFilters["kind"])}
+            options={FILTER_OPTIONS.kind}
+          />
+          <SelectField
+            label="Gender"
+            value={filters.gender}
+            onChange={(e) => setFilter("gender", e.target.value as StaffFilters["gender"])}
+            options={FILTER_OPTIONS.gender}
+          />
+          <SelectField
+            label="NYSC corps member"
+            value={filters.corps}
+            onChange={(e) => setFilter("corps", e.target.value as StaffFilters["corps"])}
+            options={FILTER_OPTIONS.corps}
+          />
+          <SelectField
+            label="Sign-in"
+            value={filters.signIn}
+            onChange={(e) => setFilter("signIn", e.target.value as StaffFilters["signIn"])}
+            options={FILTER_OPTIONS.signIn}
+          />
+          <SelectField
+            label="Standing"
+            value={filters.standing}
+            onChange={(e) => setFilter("standing", e.target.value as StaffFilters["standing"])}
+            options={FILTER_OPTIONS.standing}
+          />
         </ListToolbar>
         <p className="text-sm text-fg-muted" aria-live="polite">
-          {staff === null ? " " : `${staff.length} staff ${staff.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
+          {list === null ? " " : `${list.length} staff ${list.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
         </p>
         <Collection
           label="Staff"
           view={layout.view}
-          state={staff === null ? "loading" : staff.length === 0 ? (filtered ? "nomatch" : "empty") : "ready"}
+          state={list === null ? "loading" : list.length === 0 ? (filtered ? "nomatch" : "empty") : "ready"}
           emptyText="No staff records yet."
           noMatchText="No staff match."
           onClear={clearFilters}
@@ -187,10 +244,11 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
           {shown.rows.map((p) => {
             const who = `${p.firstName} ${p.lastName}`;
             const contact = [p.email, p.phone].filter(Boolean).join(" · ");
+            const linked = p.account.state === "linked";
             // Manage (or View) and Edit stay as buttons; the rest of what can be done to a record is one Actions list, so a row never runs six buttons wide (the kit's rule for many actions).
             const buttons: ItemAction[] = [
               {
-                id: "manage",
+                id: branch.canEdit ? "manage" : "view",
                 label: branch.canEdit ? "Manage" : "View",
                 ariaLabel: `${branch.canEdit ? "Manage" : "View"} ${who}`,
                 onClick: () => setEditing({ kind: "manage", item: p }),
@@ -236,13 +294,49 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
               <Item
                 key={p.id}
                 leading={<ItemInitials text={initialsOf(who, p.email)} />}
-                title={who}
-                subtitle={contact || undefined}
-                badges={p.standing !== "ACTIVE" ? <StandingBadge standing={p.standing} until={p.standingUntil} /> : undefined}
+                name={who}
+                // The name opens everything about the person (task 0111).
+                title={
+                  <button
+                    type="button"
+                    onClick={() => setViewing(p)}
+                    aria-label={`Details of ${who}`}
+                    className="rounded text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {displayName(p)}
+                  </button>
+                }
+                subtitle={
+                  <>
+                    <span className="block text-fg-2">{roleLine(p)}</span>
+                    {contact && (
+                      <span className="block truncate" title={contact}>
+                        {contact}
+                      </span>
+                    )}
+                  </>
+                }
+                badges={
+                  <>
+                    {kindPill(p.category)}
+                    {p.corpsMember && corpsPill()}
+                    {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
+                  </>
+                }
+                factsStyle="stats"
                 facts={[
-                  { label: "Kind", value: CATEGORY[p.category] },
-                  { label: "Account", value: p.account.state === "linked" ? "Can sign in" : "No sign-in" },
-                  { label: "Assignments", value: p.assignmentCount },
+                  {
+                    label: linked ? "Can sign in" : "No sign-in",
+                    value: linked ? "Yes" : "No",
+                    icon: <ShieldCheckIcon className="h-4 w-4" />,
+                    tone: linked ? "ok" : undefined,
+                  },
+                  {
+                    label: p.assignmentCount === 1 ? "Assignment" : "Assignments",
+                    value: p.assignmentCount,
+                    icon: <BookOpenIcon className="h-4 w-4" />,
+                    tone: p.assignmentCount > 0 ? "info" : undefined,
+                  },
                 ]}
                 actions={buttons}
                 menu={{ name: who, actions: more }}
@@ -272,6 +366,17 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
         }}
       />
       <StandingHistoryDialog endpoint={historyOf?.endpoint ?? null} name={historyOf?.name ?? ""} onClose={() => setHistoryOf(null)} />
+      <StaffDetailsDialog
+        person={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={
+          viewing && branch.canEdit && !viewing.archived
+            ? () => (setEditing({ kind: "record", item: viewing }), setViewing(null))
+            : undefined
+        }
+        onManage={() => viewing && (setEditing({ kind: "manage", item: viewing }), setViewing(null))}
+        manageLabel={branch.canEdit ? "Manage" : "View"}
+      />
       <RecordDialog
         key={editing?.kind === "record" ? (editing.item?.id ?? "new") : "none"}
         open={editing?.kind === "record"}
@@ -335,11 +440,16 @@ function RecordDialog({
 }) {
   const [f, setF] = useState({
     category: item?.category ?? "TEACHING",
+    title: item?.title ?? "",
     firstName: item?.firstName ?? "",
     lastName: item?.lastName ?? "",
+    gender: item?.gender ?? "",
+    designation: item?.designation ?? "",
+    qualification: item?.qualification ?? "",
     phone: item?.phone ?? "",
     email: item?.email ?? "",
   });
+  const [corpsMember, setCorpsMember] = useState(item?.corpsMember ?? false);
   const [problem, setProblem] = useState<string | null>(null);
   const [fieldProblems, setFieldProblems] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
@@ -353,8 +463,14 @@ function RecordDialog({
     setPending(true);
     const body = {
       category: f.category,
+      title: f.title.trim() || null,
       firstName: f.firstName,
       lastName: f.lastName,
+      gender: f.gender || null,
+      // The job title is asked for non-teaching staff only (the maintainer); a teacher's stays as it was.
+      ...(f.category === "NON_TEACHING" ? { designation: f.designation.trim() || null } : {}),
+      qualification: f.qualification.trim() || null,
+      corpsMember,
       phone: f.phone.trim() || null,
       email: f.email.trim() || null,
     };
@@ -364,7 +480,7 @@ function RecordDialog({
     setPending(false);
     if (reply.ok) return void (await onDone(`${f.firstName} ${f.lastName} ${item ? "saved" : "added"}.`));
     const found: Record<string, string> = {};
-    for (const key of ["firstName", "lastName", "phone", "email"]) {
+    for (const key of ["title", "firstName", "lastName", "gender", "designation", "qualification", "phone", "email"]) {
       const message = problemFor(reply, key);
       if (message) found[key] = message;
     }
@@ -388,6 +504,22 @@ function RecordDialog({
             hint={item?.account.state === "linked" ? "This person has a sign-in; change their role on the Users page first." : undefined}
           />
           <TextField
+            label="Title (optional)"
+            value={f.title}
+            onChange={(e) => set("title", e.target.value)}
+            error={fieldProblems.title}
+            hint="Mr, Mrs, Miss, Dr, Mallam…"
+            list="staff-title-suggestions"
+            maxLength={30}
+            autoComplete="off"
+            disabled={pending}
+          />
+          <datalist id="staff-title-suggestions">
+            {STAFF_TITLE_SUGGESTIONS.map((title) => (
+              <option key={title} value={title} />
+            ))}
+          </datalist>
+          <TextField
             label="First name"
             value={f.firstName}
             onChange={(e) => set("firstName", e.target.value)}
@@ -403,6 +535,46 @@ function RecordDialog({
             error={fieldProblems.lastName}
             maxLength={80}
             autoComplete="off"
+            disabled={pending}
+          />
+          <SelectField
+            label="Gender (optional)"
+            value={f.gender}
+            onChange={(e) => set("gender", e.target.value)}
+            options={[
+              { value: "", label: "Not given" },
+              { value: "MALE", label: "Male" },
+              { value: "FEMALE", label: "Female" },
+            ]}
+            error={fieldProblems.gender}
+            disabled={pending}
+          />
+          {f.category === "NON_TEACHING" && (
+            <TextField
+              label="Job title (optional)"
+              value={f.designation}
+              onChange={(e) => set("designation", e.target.value)}
+              error={fieldProblems.designation}
+              hint="For example Bursar, Driver, Security, Cook, Secretary."
+              maxLength={120}
+              autoComplete="off"
+              disabled={pending}
+            />
+          )}
+          <TextField
+            label="Qualification (optional)"
+            value={f.qualification}
+            onChange={(e) => set("qualification", e.target.value)}
+            error={fieldProblems.qualification}
+            hint="For example B.Ed. Mathematics, NCE, OND."
+            maxLength={120}
+            autoComplete="off"
+            disabled={pending}
+          />
+          <CheckboxField
+            label="NYSC corps member"
+            checked={corpsMember}
+            onChange={(e) => setCorpsMember(e.target.checked)}
             disabled={pending}
           />
           <TextField
@@ -513,7 +685,7 @@ function ManageDialog({
       onClose={onClose}
       wide
       title={person ? `${person.firstName} ${person.lastName}` : "Staff"}
-      description={person ? CATEGORY[person.category] : undefined}
+      description={person ? roleLine(person) : undefined}
     >
       {person && (
         <div className="space-y-6">

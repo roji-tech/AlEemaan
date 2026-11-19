@@ -53,21 +53,21 @@ enum BankReviewerScope {
 /// A reusable question. `branchId` null = general (every branch), set = that branch only. Class and subject tags are TEXT (a label as typed plus a key from
 /// `normalizeLabel`), never foreign keys: ClassGroup and Subject rows belong to one branch (maintainer's decision of 2026-10-19, design note 16a).
 model QuestionBankItem {
-  id            String           @id @default(cuid())
-  branchId      String?
-  bank          BankKind         @default(ASSESSMENT)
-  type          BankQuestionType
-  prompt        String
-  explanation   String?
-  points        Int              @default(1)
-  difficulty    Int?
-  topic         String?
-  options       Json             @default("[]")
+  id                 String           @id @default(cuid())
+  branchId           String?
+  bank               BankKind         @default(ASSESSMENT)
+  type               BankQuestionType
+  prompt             String
+  explanation        String?
+  points             Int              @default(1)
+  difficulty         Int?
+  topic              String?
+  options            Json             @default("[]")
   /// A string, or an array of strings for MULTI; null for questionnaire items. Never sent to a pupil before the question is answered.
-  correctAnswer Json?
-  subjectLabel  String?
-  subjectKey    String?
-  visibility    BankVisibility   @default(TEACHERS_ONLY)
+  correctAnswer      Json?
+  subjectLabel       String?
+  subjectKey         String?
+  visibility         BankVisibility   @default(TEACHERS_ONLY)
   /// For TEACHERS_ONLY_UNTIL: the date from which pupils may see it (the "until an assessment closes" form arrives with slice 3).
   visibleFrom        DateTime?
   /// For TEACHERS_ONLY_UNTIL: the assessment whose close unlocks the item for pupils.
@@ -82,15 +82,15 @@ model QuestionBankItem {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @default(now()) @updatedAt
 
-  branch      Branch?                @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  submittedBy User                   @relation("BankItemSubmitter", fields: [submittedById], references: [id], onDelete: NoAction)
-  approvedBy  User?                  @relation("BankItemApprover", fields: [approvedById], references: [id], onDelete: NoAction)
-  images      QuestionBankImage[]
-  classTags   QuestionBankClassTag[]
-  reviews     QuestionBankReview[]
-  versions    QuestionBankItemVersion[]
-  flags       QuestionOverlapFlag[]  @relation("FlagItem")
-  similarTo   QuestionOverlapFlag[]  @relation("FlagSimilarTo")
+  branch              Branch?                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  submittedBy         User                      @relation("BankItemSubmitter", fields: [submittedById], references: [id], onDelete: NoAction)
+  approvedBy          User?                     @relation("BankItemApprover", fields: [approvedById], references: [id], onDelete: NoAction)
+  images              QuestionBankImage[]
+  classTags           QuestionBankClassTag[]
+  reviews             QuestionBankReview[]
+  versions            QuestionBankItemVersion[]
+  flags               QuestionOverlapFlag[]     @relation("FlagItem")
+  similarTo           QuestionOverlapFlag[]     @relation("FlagSimilarTo")
   practiceAttempts    PracticeAttempt[]
   reports             QuestionReport[]
   copiedFormQuestions FormQuestion[]
@@ -313,8 +313,8 @@ model QuestionReport {
   branchId          String?
   itemId            String
   itemVersion       Int
-  reporterRole      String                 // "TEACHER" | "PUPIL"
-  reporterSection   String                 // e.g. "JSS", "SSS", or branch name
+  reporterRole      String // "TEACHER" | "PUPIL"
+  reporterSection   String // e.g. "JSS", "SSS", or branch name
   reporterUserId    String?
   reporterStudentId String?
   reason            String
@@ -357,13 +357,13 @@ model QuestionBankPrintLog {
   studentId          String?
   targetKind         PrintTargetKind
   targetId           String
-  title              String  @db.VarChar(255)
+  title              String          @db.VarChar(255)
   watermark          String
   pageCount          Int             @default(1)
-  reason             String?  @db.VarChar(500)
+  reason             String?         @db.VarChar(500)
   recipientStudentId String?
-  ipAddress          String?  @db.VarChar(100)
-  userAgent          String?  @db.VarChar(500)
+  ipAddress          String?         @db.VarChar(100)
+  userAgent          String?         @db.VarChar(500)
   createdAt          DateTime        @default(now())
 
   branch           Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
@@ -378,4 +378,3 @@ model QuestionBankPrintLog {
   @@index([branchId, recipientStudentId])
   @@index([branchId, createdAt])
 }
-

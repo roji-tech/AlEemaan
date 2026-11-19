@@ -27,7 +27,7 @@ model AcademicSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch                 Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
   periods                AcademicPeriod[]
   enrollments            StudentEnrollment[]
   sourcePromotionBatches PromotionBatch[]    @relation("SourceSessionBatches")
@@ -54,10 +54,10 @@ model AcademicPeriod {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch  Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  session AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  results Result[]
-  remarks ReportRemark[]
+  branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session       AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results       Result[]
+  remarks       ReportRemark[]
   feeStructures FeeStructure[]
   invoices      Invoice[]
   breaks        AcademicBreak[]
@@ -106,15 +106,15 @@ model ClassGroup {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
 
-  branch    Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  section   Section?           @relation(fields: [branchId, sectionId], references: [branchId, id], onDelete: NoAction)
-  approvalScopes ResultApprovalScope[]
-  arms      ClassArm[]
-  offerings SubjectOffering[]
-  schemes      AssessmentScheme[]
-  schemeScopes AssessmentSchemeScope[]
-  feeStructures FeeStructure[]
-  lmsAssignments    Assignment[]
+  branch                 Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  section                Section?                @relation(fields: [branchId, sectionId], references: [branchId, id], onDelete: NoAction)
+  approvalScopes         ResultApprovalScope[]
+  arms                   ClassArm[]
+  offerings              SubjectOffering[]
+  schemes                AssessmentScheme[]
+  schemeScopes           AssessmentSchemeScope[]
+  feeStructures          FeeStructure[]
+  lmsAssignments         Assignment[]
   learningMaterials      LearningMaterial[]
   quizzes                Quiz[]
   sourcePromotionBatches PromotionBatch[]        @relation("SourceClassBatches")
@@ -146,15 +146,15 @@ model Section {
 
 /// An arm of a class ("A", "Gold"). Capacity lives on the arm and is display-only. Live names are unique per class (ignoring case) by a partial index.
 model ClassArm {
-  id           String    @id @default(cuid())
-  branchId     String
-  classGroupId String
-  name         String
-  capacity     Int?
+  id             String    @id @default(cuid())
+  branchId       String
+  classGroupId   String
+  name           String
+  capacity       Int?
   classTeacherId String?
-  archivedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now()) @updatedAt
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 
   branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   classGroup       ClassGroup               @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
@@ -182,13 +182,13 @@ model Subject {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
 
-  branch      Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  offerings   SubjectOffering[]
-  assignments StaffSubjectAssignment[]
-  results      Result[]
-  schemeScopes AssessmentSchemeScope[]
-  schemeDrafts AssessmentSchemeDraft[]
-  timetableSlots TimetableSlot[]
+  branch            Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  offerings         SubjectOffering[]
+  assignments       StaffSubjectAssignment[]
+  results           Result[]
+  schemeScopes      AssessmentSchemeScope[]
+  schemeDrafts      AssessmentSchemeDraft[]
+  timetableSlots    TimetableSlot[]
   lmsAssignments    Assignment[]
   learningMaterials LearningMaterial[]
   quizzes           Quiz[]
@@ -236,10 +236,10 @@ model AssessmentScheme {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
-  branch     Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  classGroup ClassGroup?           @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
-  supersedes AssessmentScheme?     @relation("SchemeVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
-  successors AssessmentScheme[]    @relation("SchemeVersions")
+  branch     Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup?             @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  supersedes AssessmentScheme?       @relation("SchemeVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors AssessmentScheme[]      @relation("SchemeVersions")
   components AssessmentComponent[]
   results    Result[]
   scopes     AssessmentSchemeScope[]
@@ -316,39 +316,44 @@ enum StaffCategory {
 /// must be a member of this same branch (composite key to Membership) and is unique per branch (partial unique index). `email` is lower-cased and unique among
 /// the branch's live records (partial index). Creating a record never creates a login.
 model StaffRecord {
-  id                    String                   @id @default(cuid())
+  id                    String        @id @default(cuid())
   branchId              String
   userId                String?
   category              StaffCategory
+  /// How the person is addressed: Mr, Mrs, Miss, Dr, Mallam, Ustadh… (task 0111). Optional, shown before the name.
+  title                 String?
   firstName             String
   middleName            String?
   lastName              String
   gender                Gender?
-  dateOfBirth           DateTime?                @db.Date
+  dateOfBirth           DateTime?     @db.Date
   phone                 String?
   email                 String?
   address               String?
+  /// The job title (task 0111: "a specific title for non-teaching staff", e.g. Bursar, Driver); the form asks for it for non-teaching staff.
   designation           String?
   qualification         String?
-  employmentDate        DateTime?                @db.Date
+  /// An NYSC corps member serving at the school (task 0101 D5, built in task 0111). Shown as a badge on the staff list.
+  corpsMember           Boolean       @default(false)
+  employmentDate        DateTime?     @db.Date
   nextOfKinName         String?
   nextOfKinRelationship String?
   nextOfKinPhone        String?
   nextOfKinAddress      String?
   archivedAt            DateTime?
   /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`) or TERMINATED (the record is also archived).
-  standing              StandingState            @default(ACTIVE)
-  standingUntil         DateTime?                @db.Date
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @default(now()) @updatedAt
+  standing              StandingState @default(ACTIVE)
+  standingUntil         DateTime?     @db.Date
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @default(now()) @updatedAt
 
-  branch           Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  membership       Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
-  assignments      StaffSubjectAssignment[]
-  teacherOfArms    ClassArm[]               @relation("ClassTeacherArms")
-  attendanceGrants AttendanceGrant[]
-  programPlaces    ProgramParticipant[]
-  timetableSlots   TimetableSlot[]
+  branch             Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  membership         Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
+  assignments        StaffSubjectAssignment[]
+  teacherOfArms      ClassArm[]               @relation("ClassTeacherArms")
+  attendanceGrants   AttendanceGrant[]
+  programPlaces      ProgramParticipant[]
+  timetableSlots     TimetableSlot[]
   createdAssignments Assignment[]
   gradedSubmissions  AssignmentSubmission[]
   createdMaterials   LearningMaterial[]

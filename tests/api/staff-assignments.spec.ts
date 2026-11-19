@@ -72,6 +72,55 @@ test.describe("records", () => {
     ).map((r) => r.action);
     expect(actions).toEqual(["STAFF_CREATED", "STAFF_UPDATED", "STAFF_ARCHIVED", "STAFF_RESTORED"]);
   });
+
+  test("task 0111: title, gender, job title, qualification and NYSC corps member are saved, shown, changed, cleared and audited; a record without them reads as not given", async () => {
+    const { user, cookie } = await asRole(Role.ADMIN);
+    const plain = (await api(STAFF, { method: "POST", cookie, body: person() })).json.data.staff;
+    expect(plain).toMatchObject({ title: null, gender: null, designation: null, qualification: null, corpsMember: false });
+    const made = await api(STAFF, {
+      method: "POST",
+      cookie,
+      body: person({
+        category: "NON_TEACHING",
+        firstName: "Bala",
+        title: " Mallam ",
+        gender: "MALE",
+        designation: "Bursar",
+        qualification: "HND Accounting",
+        corpsMember: true,
+      }),
+    });
+    expect(made.status, made.text).toBe(201);
+    expect(made.json.data.staff).toMatchObject({
+      title: "Mallam",
+      gender: "MALE",
+      designation: "Bursar",
+      qualification: "HND Accounting",
+      corpsMember: true,
+    });
+    const id = made.json.data.staff.id;
+    const listed = (await api(`${STAFF}?branchId=${home.id}`, { cookie })).json.data.staff.find((s: { id: string }) => s.id === id);
+    expect(listed).toMatchObject({ title: "Mallam", corpsMember: true, designation: "Bursar" });
+    // changed, and cleared with null or a blank string
+    const changed = await api(`${STAFF}/${id}`, {
+      method: "PATCH",
+      cookie,
+      body: { corpsMember: false, qualification: "  ", title: null, gender: "FEMALE" },
+    });
+    expect(changed.json.data.staff).toMatchObject({
+      corpsMember: false,
+      qualification: null,
+      title: null,
+      gender: "FEMALE",
+      designation: "Bursar",
+    });
+    const audit = await db.auditLog.findFirstOrThrow({ where: { actorUserId: user.id, action: "STAFF_UPDATED", targetId: id } });
+    expect((audit.afterValue as { changed: string[] }).changed.sort()).toEqual(["corpsMember", "gender", "qualification", "title"]);
+    // the rules reach the caller
+    for (const body of [{ title: "x".repeat(31) }, { designation: "x".repeat(121) }, { gender: "OTHER" }, { corpsMember: "yes" }]) {
+      expect((await api(`${STAFF}/${id}`, { method: "PATCH", cookie, body })).status, JSON.stringify(body)).toBe(400);
+    }
+  });
 });
 
 test.describe("the sign-in account", () => {

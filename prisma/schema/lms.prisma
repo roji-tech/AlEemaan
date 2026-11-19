@@ -109,7 +109,7 @@ model AssignmentSubmission {
 }
 
 model LearningMaterial {
-  id           String    @id @default(cuid())
+  id           String         @id @default(cuid())
   branchId     String
   subjectId    String
   classGroupId String?
@@ -138,7 +138,7 @@ model LearningMaterial {
 }
 
 model Quiz {
-  id               String       @id @default(cuid())
+  id               String     @id @default(cuid())
   branchId         String
   subjectId        String
   classGroupId     String?
@@ -146,14 +146,14 @@ model Quiz {
   instructions     String?
   timeLimitMinutes Int?
   passingScore     Float?
-  isExamTemplate   Boolean      @default(false)
+  isExamTemplate   Boolean    @default(false)
   examWindowStart  DateTime?
   examWindowEnd    DateTime?
-  status           QuizStatus   @default(DRAFT)
+  status           QuizStatus @default(DRAFT)
   createdById      String?
   archivedAt       DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @default(now()) @updatedAt
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @default(now()) @updatedAt
 
   branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
   subject    Subject        @relation(fields: [branchId, subjectId], references: [branchId, id], onDelete: NoAction)
@@ -168,20 +168,20 @@ model Quiz {
 }
 
 model QuizQuestion {
-  id                 String       @id @default(cuid())
-  branchId           String
-  quizId             String
-  prompt             String
-  questionType       QuestionType @default(MULTIPLE_CHOICE)
-  options            Json         @default("[]")
-  correctAnswer      String
-  points             Int          @default(1)
-  sortOrder          Int          @default(0)
-  sourceItemId       String?
-  sourceVersion      Int?
-  exposedToPractice  Boolean      @default(false)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @default(now()) @updatedAt
+  id                String       @id @default(cuid())
+  branchId          String
+  quizId            String
+  prompt            String
+  questionType      QuestionType @default(MULTIPLE_CHOICE)
+  options           Json         @default("[]")
+  correctAnswer     String
+  points            Int          @default(1)
+  sortOrder         Int          @default(0)
+  sourceItemId      String?
+  sourceVersion     Int?
+  exposedToPractice Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @default(now()) @updatedAt
 
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
   quiz   Quiz   @relation(fields: [branchId, quizId], references: [branchId, id], onDelete: Cascade)

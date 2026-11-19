@@ -15,6 +15,14 @@ export const optionalEmail = z.preprocess(blankToUndefined, staffEmail.optional(
 export const optionalText = (max: number) =>
   z.preprocess(blankToUndefined, z.string().trim().max(max, `Use at most ${max} characters.`).optional());
 export const letters = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
+/// M / Male / Boy and F / Female / Girl, in any capitals; an empty cell is "not given". Anything else is left as it is, so the rule refuses it. Pupils and staff share it.
+export const toGender = (v: unknown): unknown => {
+  if (typeof v !== "string") return v;
+  const g = letters(v);
+  if (["m", "male", "boy", "man"].includes(g)) return "MALE";
+  if (["f", "female", "girl", "woman"].includes(g)) return "FEMALE";
+  return v.trim() === "" ? undefined : v;
+};
 
 /// A cell that holds a short list ("A, B, C"): commas, semicolons, bars and new lines separate; empty pieces are dropped; the same item twice (without regard to capitals) is kept once and
 /// reported by `repeatedItems`. A value that is not text is left for the rule to refuse.
