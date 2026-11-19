@@ -130,7 +130,7 @@ test("export: the shown rows are the list's rows on every page, in the template'
     cookie: admin.cookie,
     body: { kind: "staff", branchId: home.id, scope: "shown", ids: [mine.id, theirs.id] },
   });
-  expect(staff.json.data.rows).toEqual([["Teaching", "Musa", "Bello", "", "", "", "", "", "", "Yes"]]);
+  expect(staff.json.data.rows).toEqual([["Teaching staff", "Musa", "Bello", "", "", "", "", "", "", "Yes"]]);
 });
 
 test("export: at most five per person in a few minutes", async () => {
@@ -167,7 +167,8 @@ test("search: records from the viewer's branches only; invoices only for an admi
   // Too short: nothing, and nothing counted.
   expect((await api(`/api/v1/search?q=z`, { cookie: teacher.cookie })).json.data.results).toEqual([]);
   // Accounts: a superadmin only.
-  const sa = await createUser({ superAdmin: true, name: "Zainab Admin" });
+  // A superadmin holds at least one membership (lib/auth/branch-access: a superadmin flag alone grants nothing); `role: ADMIN` gives both.
+  const sa = await createUser({ role: Role.ADMIN, name: "Zainab Admin" });
   const saCookie = cookieHeader((await loginAs(sa)).token!);
   const saHits = (await api(`/api/v1/search?q=zainab`, { cookie: saCookie })).json.data.results as { kind: string }[];
   expect(saHits.some((h) => h.kind === "user")).toBe(true);
