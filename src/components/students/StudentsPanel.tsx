@@ -24,6 +24,8 @@ import { StandingDialog, type StandingAsk } from "@/components/standing/Standing
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
 import { KIND_TEXT, kindsFor, prettyDay, type StandingCan, type StandingValue } from "@/components/standing/model";
 import { OwnProgramCard, type OwnProgram } from "@/components/students/OwnProgramCard";
+import { ExportButton } from "@/components/bulk/ExportButton";
+import { AGE_MAX, activePupilFilters, pupilFilterQuery, type PupilFilters } from "@/lib/students/list-filters";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
 // decides who may read and change what, refuses a namesake unless an administrator confirms it (ADR 0011), and audits that confirmation.
@@ -81,6 +83,9 @@ export function StudentsPanel({
   const [show, setShow] = useState<Show>("live");
   const status = show === "archived" ? "archived" : "live";
   const [q, setQ] = useState("");
+  // Class, arm, gender and age (task 0103 D1), applied by the server so the counts and pages follow them.
+  const [pf, setPf] = useState<PupilFilters>({});
+  const [noDob, setNoDob] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered in this browser (task 0089). The list is paged by the server, so the size is sent as `limit` (every size the kit offers is at most 50, the API's cap).
   const layout = useCollectionView("students", { defaultView: "list", defaultSize: USUAL_SIZE, page, onPage: setPage });
@@ -100,7 +105,7 @@ export function StudentsPanel({
     const base = `branchId=${encodeURIComponent(branchId)}`;
     const [s, c] = await Promise.all([
       getJson(
-        `/api/v1/students?${base}&status=${status}${show === "suspended" || show === "expelled" ? `&standing=${show}` : ""}&q=${encodeURIComponent(q)}&page=${page}&limit=${size}`,
+        `/api/v1/students?${base}&status=${status}${show === "suspended" || show === "expelled" ? `&standing=${show}` : ""}&q=${encodeURIComponent(q)}${pupilFilterQuery(pf)}&page=${page}&limit=${size}`,
       ),
       getJson(`/api/v1/academics/class-groups?${base}`),
     ]);
@@ -110,8 +115,9 @@ export function StudentsPanel({
     setError(null);
     setStudents(s.data!.students as Student[]);
     setPaging(s.data!.pagination as Paging);
+    setNoDob((s.data!.noDateOfBirth as number | null | undefined) ?? null);
     setClasses(c.data!.classGroups as ClassOption[]);
-  }, [branchId, status, show, q, page, size]);
+  }, [branchId, status, show, q, pf, page, size]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading data on a branch / filter / page change is exactly what this effect is for
@@ -145,8 +151,16 @@ export function StudentsPanel({
   const clearFilters = () => {
     setQ("");
     setShow("live");
+    setPf({});
     setPage(1);
   };
+  const setFilter = (next: PupilFilters) => {
+    setPf(next);
+    setPage(1);
+  };
+  const filterCount = (show === "live" ? 0 : 1) + activePupilFilters(pf);
+  const chosenClass = classes.find((c) => c.id === pf.classGroupId);
+  const ageValue = (v: string) => (v === "" ? undefined : Math.max(0, Math.min(AGE_MAX, Math.trunc(Number(v)) || 0)));
 
   return (
     <div className="space-y-6">
@@ -157,6 +171,7 @@ export function StudentsPanel({
           setNotice(null);
           setStudents(null);
           setPage(1);
+          setPf({});
           setBranchId(id);
         }}
       />
@@ -208,9 +223,22 @@ export function StudentsPanel({
             setPage(1);
           }}
           searchPlaceholder="Name or admission number"
-          activeCount={show === "live" ? 0 : 1}
+          activeCount={filterCount}
           onClear={clearFilters}
-          trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+          trailing={
+            <>
+              {branch.canEdit && (
+                <ExportButton
+                  kind="pupils"
+                  branchId={branch.id}
+                  branchName={branch.name}
+                  shownCount={students === null ? null : paging.total}
+                  shown={() => ({ pupils: { q, show, query: pupilFilterQuery(pf) } })}
+                />
+              )}
+              <ViewToggle view={layout.view} onChange={layout.setView} />
+            </>
+          }
         >
           <SelectField
             label="Show"
@@ -227,11 +255,65 @@ export function StudentsPanel({
               { value: "archived", label: "Archived" },
             ]}
           />
+          <SelectField
+            label="Class"
+            value={pf.noClass ? "none" : (pf.classGroupId ?? "")}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFilter({ ...pf, classGroupId: v && v !== "none" ? v : undefined, classArmId: undefined, noClass: v === "none" ? "1" : undefined });
+            }}
+            options={[
+              { value: "", label: "Any class" },
+              { value: "none", label: "No class yet" },
+              ...classes.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
+          {chosenClass && chosenClass.arms.length > 1 && (
+            <SelectField
+              label="Arm"
+              value={pf.classArmId ?? ""}
+              onChange={(e) => setFilter({ ...pf, classArmId: e.target.value || undefined })}
+              options={[{ value: "", label: "Every arm" }, ...chosenClass.arms.map((a) => ({ value: a.id, label: a.name }))]}
+            />
+          )}
+          <SelectField
+            label="Gender"
+            value={pf.gender ?? ""}
+            onChange={(e) => setFilter({ ...pf, gender: (e.target.value || undefined) as PupilFilters["gender"] })}
+            options={[
+              { value: "", label: "Any" },
+              { value: "MALE", label: "Male" },
+              { value: "FEMALE", label: "Female" },
+            ]}
+          />
+          <TextField
+            label="Age from"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={AGE_MAX}
+            value={pf.ageMin ?? ""}
+            onChange={(e) => setFilter({ ...pf, ageMin: ageValue(e.target.value) })}
+          />
+          <TextField
+            label="Age to"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={AGE_MAX}
+            value={pf.ageMax ?? ""}
+            onChange={(e) => setFilter({ ...pf, ageMax: ageValue(e.target.value) })}
+          />
         </ListToolbar>
+        {noDob !== null && noDob > 0 && (
+          <p className="text-sm text-fg-muted" aria-live="polite">
+            {noDob} {noDob === 1 ? "pupil has" : "pupils have"} no date of birth, so their age cannot be checked: they are left out.
+          </p>
+        )}
         <Collection
           label="Students"
           view={layout.view}
-          state={students === null ? "loading" : students.length === 0 ? (q || show !== "live" ? "nomatch" : "empty") : "ready"}
+          state={students === null ? "loading" : students.length === 0 ? (q || filterCount > 0 ? "nomatch" : "empty") : "ready"}
           emptyText={branch.canEdit ? "No students yet. Add one, or import a class from a spreadsheet." : "No students yet."}
           noMatchText="No students match."
           onClear={clearFilters}

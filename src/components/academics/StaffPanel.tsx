@@ -8,6 +8,7 @@ import { BranchPicker } from "@/components/ui/BranchPicker";
 import { Collection, Item, ItemInitials, type ItemAction } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
 import { ListToolbar } from "@/components/ui/ListToolbar";
+import { ExportButton } from "@/components/bulk/ExportButton";
 import { Pager, paginate } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
@@ -188,7 +189,20 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
           searchMaxLength={100}
           activeCount={filterCount}
           onClear={clearFilters}
-          trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+          trailing={
+            <>
+              {branch.canEdit && (
+                <ExportButton
+                  kind="staff"
+                  branchId={branch.id}
+                  branchName={branch.name}
+                  shownCount={list === null ? null : list.length}
+                  shown={() => ({ ids: (list ?? []).map((p) => p.id) })}
+                />
+              )}
+              <ViewToggle view={layout.view} onChange={layout.setView} />
+            </>
+          }
         >
           <SelectField
             label="Show"

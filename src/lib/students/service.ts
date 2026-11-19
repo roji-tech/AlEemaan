@@ -3,6 +3,8 @@ import { resolveArmId } from "@/lib/academics/structure";
 import { prisma } from "@/lib/db";
 import { Gender, EnrollmentStatus, SessionStatus, StandingState, Prisma } from "@prisma/client";
 import { dayOf, studentStandingNow } from "@/lib/standing/rules";
+import { birthDateRange, schoolDay, type PupilFilters } from "@/lib/students/list-filters";
+import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
 
 export const studentInputSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
@@ -407,7 +409,7 @@ export async function restoreStudent(
 /**
  * Lists students with pagination, search, and filtering.
  */
-export async function listStudents(filters: {
+export type StudentListFilters = {
   /// Branches the caller may see: `"all"` (an ADMIN) or a list. A requested `branchId` outside it yields an empty page (the route answers 404 first).
   visible: "all" | string[];
   branchId?: string;
@@ -415,12 +417,36 @@ export async function listStudents(filters: {
   /// Only pupils whose standing applies today: "suspended" (a suspension that has not ended) or "expelled" (task 0045).
   standing?: "suspended" | "expelled";
   q?: string;
-  page?: number;
-  limit?: number;
-}) {
-  const { visible, branchId, status = "live", standing, q, page = 1, limit = 25 } = filters;
+  /// Class, arm, gender and age (task 0103 D1).
+  filters?: PupilFilters;
+};
+
+/// Which pupils a list (and its export, task 0103 D3) holds: one `where` for both, so they can never disagree. A class is the class of the pupil's enrolment in the branch's ACTIVE session
+/// (where registration puts them); with no active session, any enrolment. "No class yet" is no such enrolment. Age is on the school's day today; a pupil with no date of birth is left out
+/// when an age is asked for, and `noDateOfBirth` says how many matched everything else.
+export async function studentListWhere(
+  args: StudentListFilters,
+): Promise<{ where: Prisma.StudentRecordWhereInput; withoutAge: Prisma.StudentRecordWhereInput | null }> {
+  const { visible, branchId, status = "live", standing, q, filters = {} } = args;
   const todayDay = dayOf(new Date());
-  const skip = (page - 1) * limit;
+  const and: Prisma.StudentRecordWhereInput[] = [];
+  if (filters.classGroupId || filters.noClass) {
+    const active = branchId
+      ? await prisma.academicSession.findFirst({ where: { branchId, status: SessionStatus.ACTIVE, archivedAt: null }, select: { id: true } })
+      : null;
+    const session = active ? { sessionId: active.id } : {};
+    if (filters.noClass) and.push({ enrollments: { none: session } });
+    else
+      and.push({
+        enrollments: {
+          some: {
+            ...session,
+            classArm: { classGroupId: filters.classGroupId, ...(filters.classArmId ? { id: filters.classArmId } : {}) },
+          },
+        },
+      });
+  }
+  if (filters.gender) and.push({ gender: filters.gender });
 
   const where: Prisma.StudentRecordWhereInput = {
     ...(branchId ? { branchId } : {}),
@@ -435,15 +461,38 @@ export async function listStudents(filters: {
           }
         : {}),
   };
-
   if (q && q.trim()) {
     const query = q.trim();
-    where.OR = [
-      { firstName: { contains: query, mode: "insensitive" } },
-      { lastName: { contains: query, mode: "insensitive" } },
-      { admissionNo: { contains: query, mode: "insensitive" } },
-    ];
+    and.push({
+      OR: [
+        { firstName: { contains: query, mode: "insensitive" } },
+        { lastName: { contains: query, mode: "insensitive" } },
+        { admissionNo: { contains: query, mode: "insensitive" } },
+      ],
+    });
   }
+  const base: Prisma.StudentRecordWhereInput = and.length > 0 ? { ...where, AND: and } : where;
+  if (filters.ageMin === undefined && filters.ageMax === undefined) return { where: base, withoutAge: null };
+  const range = birthDateRange(filters.ageMin, filters.ageMax, schoolDay(new Date(), resolveSchoolTimeZone()));
+  const born: Prisma.DateTimeNullableFilter = {
+    not: null,
+    ...(range.earliest ? { gte: new Date(`${range.earliest}T00:00:00Z`) } : {}),
+    ...(range.latest ? { lte: new Date(`${range.latest}T00:00:00Z`) } : {}),
+  };
+  return {
+    where: { ...where, AND: [...and, { dateOfBirth: born }] },
+    withoutAge: { ...where, AND: [...and, { dateOfBirth: null }] },
+  };
+}
+
+/**
+ * Lists students with pagination, search, and filtering.
+ */
+export async function listStudents(args: StudentListFilters & { page?: number; limit?: number }) {
+  const { page = 1, limit = 25 } = args;
+  const todayDay = dayOf(new Date());
+  const skip = (page - 1) * limit;
+  const { where, withoutAge } = await studentListWhere(args);
 
   const [students, total] = await Promise.all([
     prisma.studentRecord.findMany({
@@ -462,6 +511,7 @@ export async function listStudents(filters: {
     }),
     prisma.studentRecord.count({ where }),
   ]);
+  const noDateOfBirth = withoutAge ? await prisma.studentRecord.count({ where: withoutAge }) : null;
 
   return {
     students: students.map((s) => ({
@@ -489,6 +539,8 @@ export async function listStudents(filters: {
       total,
       totalPages: Math.ceil(total / limit),
     },
+    /// When an age was asked for: how many pupils matched everything else but have no date of birth, so their age could not be checked (task 0103 D1).
+    noDateOfBirth,
   };
 }
 

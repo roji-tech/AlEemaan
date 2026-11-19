@@ -13,6 +13,7 @@ import { BookOpenIcon, GraduationCapIcon, LayersIcon, PencilIcon, UsersIcon } fr
 import { TONE } from "@/components/ui/tone";
 import { BranchPicker } from "@/components/ui/BranchPicker";
 import { ListToolbar } from "@/components/ui/ListToolbar";
+import { ExportButton } from "@/components/bulk/ExportButton";
 import { Pager, paginate } from "@/components/ui/Pager";
 import { useCollectionView } from "@/components/ui/useCollectionView";
 import { ViewToggle } from "@/components/ui/ViewToggle";
@@ -180,7 +181,20 @@ export function ClassesPanel({
             searchPlaceholder="Search classes, arms or subjects"
             activeCount={gap === "" ? 0 : 1}
             onClear={clearFilters}
-            trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+            trailing={
+              <>
+                {branch.canEdit && (
+                  <ExportButton
+                    kind="classes"
+                    branchId={branch.id}
+                    branchName={branch.name}
+                    shownCount={groups === null ? null : shownGroups.length}
+                    shown={() => ({ ids: shownGroups.map((g) => g.id) })}
+                  />
+                )}
+                <ViewToggle view={layout.view} onChange={layout.setView} />
+              </>
+            }
           >
             <SelectField
               label="Set-up"
@@ -350,7 +364,20 @@ export function ClassesPanel({
             searchPlaceholder="Search subjects by name or code"
             activeCount={gap === "" ? 0 : 1}
             onClear={clearFilters}
-            trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+            trailing={
+              <>
+                {branch.canEdit && (
+                  <ExportButton
+                    kind="subjects"
+                    branchId={branch.id}
+                    branchName={branch.name}
+                    shownCount={subjects === null ? null : shownSubjects.length}
+                    shown={() => ({ ids: shownSubjects.map((x) => x.id) })}
+                  />
+                )}
+                <ViewToggle view={layout.view} onChange={layout.setView} />
+              </>
+            }
           >
             <SelectField
               label="Used by"
