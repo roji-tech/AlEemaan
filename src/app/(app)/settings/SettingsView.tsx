@@ -18,6 +18,7 @@ import { ProgramsSettingsPanel } from "@/components/programs/ProgramsSettingsPan
 import { StandingSettingsPanel } from "@/components/standing/StandingSettingsPanel";
 import { ResultsApprovalPanel } from "@/components/settings/ResultsApprovalPanel";
 import { LoginSwitchPanel } from "@/components/settings/LoginSwitchPanel";
+import { BranchProfileEditor } from "@/components/settings/BranchProfilePanel";
 import type { BranchLoginRow } from "@/lib/auth/login-switch-rules";
 
 type SchoolSettingsState = {
@@ -72,7 +73,9 @@ const SETTINGS_TABS: readonly { id: (typeof SETTINGS_TAB_IDS)[number]; label: st
 export function SettingsView({ initialSettings, branches, initialSessions, hasMfa, loginBranches }: Props) {
   const [activeTab, setActiveTab] = useTabParam(SETTINGS_TAB_IDS, "profile");
 
-  // Profile Form State
+  // Profile Form State. `profileScope` is "school" (the school-wide form, as it always was) or a branch id (that branch's own details, task 0115).
+  const [profileScope, setProfileScope] = useState<string>("school");
+  const profileBranch = branches.find((b) => b.id === profileScope) ?? null;
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -190,65 +193,92 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
 
         {/* Tab 1: Profile */}
         {activeTab === "profile" && (
-          <Card className="max-w-3xl space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-fg">School Information</h2>
-              <p className="mt-1 text-sm text-fg-muted">
-                These details appear on report cards, transcripts, invoices, and official communications.
-              </p>
+          <div className="space-y-4">
+            <div className="max-w-xs">
+              <SelectField
+                label="Edit details for"
+                value={profileBranch ? profileBranch.id : "school"}
+                onChange={(e) => setProfileScope(e.target.value)}
+                options={[{ value: "school", label: "School-wide" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+              />
             </div>
+            {profileBranch ? (
+              <Card className="max-w-3xl space-y-6">
+                <div>
+                  <h2 className="text-lg font-bold text-fg">Details for {profileBranch.name}</h2>
+                  <p className="mt-1 text-sm text-fg-muted">
+                    What {profileBranch.name} prints on its report cards. A field left empty uses the school-wide value; the school&apos;s
+                    name is always the school&apos;s.
+                  </p>
+                </div>
+                <BranchProfileEditor key={profileBranch.id} branchId={profileBranch.id} branchName={profileBranch.name} />
+              </Card>
+            ) : (
+              <Card className="max-w-3xl space-y-6">
+                <div>
+                  <h2 className="text-lg font-bold text-fg">School Information</h2>
+                  <p className="mt-1 text-sm text-fg-muted">
+                    These details appear on report cards, transcripts, invoices, and official communications.
+                  </p>
+                </div>
 
-            {profileMsg && <Alert variant={profileMsg.kind === "success" ? "success" : "error"}>{profileMsg.text}</Alert>}
+                {profileMsg && <Alert variant={profileMsg.kind === "success" ? "success" : "error"}>{profileMsg.text}</Alert>}
 
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <TextField
-                label="School Name"
-                value={settings.name}
-                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                required
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextField
-                  label="Principal / Head of School"
-                  info="settings.principal"
-                  value={settings.principal}
-                  onChange={(e) => setSettings({ ...settings, principal: e.target.value })}
-                />
-                <TextField
-                  label="Phone Number"
-                  value={settings.phone}
-                  onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-                />
-              </div>
-              <TextField
-                label="Motto / Slogan"
-                info="settings.motto"
-                value={settings.motto}
-                onChange={(e) => setSettings({ ...settings, motto: e.target.value })}
-              />
-              <TextField label="Address" value={settings.address} onChange={(e) => setSettings({ ...settings, address: e.target.value })} />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextField
-                  label="Official Email"
-                  type="email"
-                  value={settings.email}
-                  onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-                />
-                <TextField
-                  label="Website URL"
-                  type="url"
-                  value={settings.website}
-                  onChange={(e) => setSettings({ ...settings, website: e.target.value })}
-                />
-              </div>
+                <form onSubmit={handleSaveProfile} className="space-y-4">
+                  <TextField
+                    label="School Name"
+                    value={settings.name}
+                    onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                    required
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <TextField
+                      label="Principal / Head of School"
+                      info="settings.principal"
+                      value={settings.principal}
+                      onChange={(e) => setSettings({ ...settings, principal: e.target.value })}
+                    />
+                    <TextField
+                      label="Phone Number"
+                      value={settings.phone}
+                      onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+                    />
+                  </div>
+                  <TextField
+                    label="Motto / Slogan"
+                    info="settings.motto"
+                    value={settings.motto}
+                    onChange={(e) => setSettings({ ...settings, motto: e.target.value })}
+                  />
+                  <TextField
+                    label="Address"
+                    value={settings.address}
+                    onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <TextField
+                      label="Official Email"
+                      type="email"
+                      value={settings.email}
+                      onChange={(e) => setSettings({ ...settings, email: e.target.value })}
+                    />
+                    <TextField
+                      label="Website URL"
+                      type="url"
+                      value={settings.website}
+                      onChange={(e) => setSettings({ ...settings, website: e.target.value })}
+                    />
+                  </div>
 
-              <div className="pt-2">
-                <Button type="submit" disabled={savingProfile}>
-                  {savingProfile ? "Saving Changes..." : "Save Profile"}
-                </Button>
-              </div>
-            </form>
-          </Card>
+                  <div className="pt-2">
+                    <Button type="submit" disabled={savingProfile}>
+                      {savingProfile ? "Saving Changes..." : "Save Profile"}
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* Tab 2: Academic Sessions */}

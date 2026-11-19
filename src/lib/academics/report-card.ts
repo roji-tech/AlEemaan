@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSchoolSettings } from "@/lib/settings/school-settings";
+import { profileFor } from "@/lib/settings/branch-profile";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
@@ -144,13 +145,21 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     summary = { ...summary, average: avg / 100, position: mine?.position ?? null, classSize: mine?.size ?? null };
   }
 
-  const [school, remarks, layout] = await Promise.all([
-    getSchoolSettings(),
+  // The details printed in the header are THIS branch's (task 0115): its own principal, motto, address and phone where it has set them, the school's where it has not. The school's name
+  // stays school-wide.
+  const [profile, remarks, layout] = await Promise.all([
+    profileFor(branchId),
     prisma.reportRemark.findUnique({ where: { studentId_periodId: { studentId, periodId } } }),
     getBranchReportCardLayout(branchId),
   ]);
   return {
-    school: { name: school.name, principal: school.principal, motto: school.motto, address: school.address, phone: school.phone },
+    school: {
+      name: profile.schoolName,
+      principal: profile.values.principal,
+      motto: profile.values.motto,
+      address: profile.values.address,
+      phone: profile.values.phone,
+    },
     branch,
     student: {
       id: student.id,
