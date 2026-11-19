@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { ROLE_LABELS } from "@/lib/roles";
 
 // Task 0114: inviting staff to sign in from their records (one or many, nobody copies an address), and moving a member of staff to another branch or adding them there as well.
 // Presentation only: the staff invite and transfer APIs decide who may do what and check every record again.
@@ -252,5 +253,85 @@ export function StaffTransferDialog({
         </div>
       </div>
     </Dialog>
+  );
+}
+
+type Unlisted = { userId: string; role: "ADMIN" | "TEACHING_STAFF" | "NON_TEACHING_STAFF"; name: string | null; email: string | null };
+
+/// Task 0112 (the maintainer, 2026-11-19: "if I invite a new user ... as admin for a branch, why am I not seeing the person as part of the staff of that branch?"): the people who sign
+/// in to this branch with a staff role and are on none of its records, each with "Add to staff". Accepting an invitation now does this by itself; this catches up the people who joined
+/// before. Nothing is shown when there is nobody to add. `version` changes when the list changes, so a record linked elsewhere drops out of here.
+export function UnlistedMembers({
+  branchId,
+  version,
+  onAdded,
+}: {
+  branchId: string;
+  version: number;
+  onAdded: (text: string) => void | Promise<void>;
+}) {
+  const [members, setMembers] = useState<Unlisted[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const headingId = useId();
+
+  useEffect(() => {
+    let live = true;
+    void getJson(`/api/v1/staff/unlisted?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
+      if (live) setMembers(reply.ok ? (reply.data!.members as Unlisted[]) : []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [branchId, version]);
+
+  if (members.length === 0) return null;
+  async function add(m: Unlisted) {
+    setBusy(m.userId);
+    setError(null);
+    const reply = await sendJson("/api/v1/staff/from-member", "POST", { branchId, userId: m.userId });
+    setBusy(null);
+    const who = m.name || m.email || "They";
+    if (!reply.ok) return setError(say(reply, `${who} could not be added to the staff list.`));
+    setMembers((all) => all.filter((x) => x.userId !== m.userId));
+    await onAdded(
+      reply.data!.done === "linked"
+        ? `${who} is now linked to their staff record.`
+        : `${who} added to the staff list. Open their card to fill in the rest.`,
+    );
+  }
+  return (
+    <section aria-labelledby={headingId} className="space-y-2 rounded-2xl border border-line bg-brand-tint px-4 py-3">
+      <h3 id={headingId} className="text-sm font-semibold text-fg">
+        Signs in here, not on the staff list yet ({members.length})
+      </h3>
+      <p className="text-xs text-fg-muted">
+        These people can sign in to this branch but have no staff record here. Add them so they appear on the list, in exports and in
+        assignments.
+      </p>
+      {error && <Alert variant="error">{error}</Alert>}
+      <ul className="divide-y divide-line" aria-label="Members without a record">
+        {members.map((m) => (
+          <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <span className="min-w-0 text-sm">
+              <span className="block font-medium text-fg">{m.name || m.email}</span>
+              <span className="block truncate text-xs text-fg-muted">
+                {ROLE_LABELS[m.role]}
+                {m.name && m.email ? ` · ${m.email}` : ""}
+              </span>
+            </span>
+            <Button
+              variant="secondary"
+              loading={busy === m.userId}
+              disabled={busy !== null}
+              onClick={() => void add(m)}
+              aria-label={`Add ${m.name || m.email} to staff`}
+            >
+              Add to staff
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
