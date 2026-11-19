@@ -14,6 +14,8 @@ export type StaffDetail = StaffLike & {
   title: string | null;
   firstName: string;
   lastName: string;
+  /// A short display role label (e.g. "Head of Science", "Form Tutor"). Optional.
+  role: string | null;
   phone: string | null;
   email: string | null;
   archived: boolean;
@@ -39,7 +41,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid grid-cols-1 gap-0.5 py-2.5 sm:grid-cols-[10rem_1fr] sm:gap-4">
       <dt className="text-xs font-semibold tracking-wide text-fg-muted uppercase sm:pt-0.5">{label}</dt>
-      <dd className="min-w-0 text-sm break-words text-fg">{children}</dd>
+      <dd className="min-w-0 text-sm wrap-break-word text-fg">{children}</dd>
     </div>
   );
 }
@@ -84,6 +86,7 @@ export function StaffDetailsDialog({
             <Row label="Gender">{person.gender ? GENDER_TEXT[person.gender] : notGiven}</Row>
             <Row label="Kind of staff">{CATEGORY_TEXT[person.category]}</Row>
             {person.category === "NON_TEACHING" && <Row label="Job title">{person.designation ?? notGiven}</Row>}
+            <Row label="Role">{person.role ?? notGiven}</Row>
             <Row label="Qualification">{person.qualification ?? notGiven}</Row>
             <Row label="NYSC corps member">{person.corpsMember ? "Yes" : "No"}</Row>
             <Row label="Phone">

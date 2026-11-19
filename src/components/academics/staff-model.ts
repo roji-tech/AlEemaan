@@ -11,6 +11,8 @@ export type StaffLike = {
   corpsMember: boolean;
   designation: string | null;
   qualification: string | null;
+  /// A short display role label (e.g. "Head of Science", "Form Tutor"). Optional.
+  role: string | null;
   standing: "ACTIVE" | "SUSPENDED" | "TERMINATED";
   account: { state: "none" | "linked" };
 };
@@ -84,7 +86,8 @@ export function displayName(row: { title: string | null; firstName: string; last
 }
 
 /// The line under a person's name: what they do. A non-teaching member's job title when there is one ("Bursar"), otherwise their kind; then the qualification when there is one.
-export function roleLine(row: Pick<StaffLike, "category" | "designation" | "qualification">): string {
-  const role = row.category === "NON_TEACHING" && row.designation ? row.designation : CATEGORY_TEXT[row.category];
-  return row.qualification ? `${role} · ${row.qualification}` : role;
+export function roleLine(row: Pick<StaffLike, "category" | "designation" | "qualification" | "role">): string {
+  const base = row.category === "NON_TEACHING" && row.designation ? row.designation : CATEGORY_TEXT[row.category];
+  const withRole = row.role ? `${base} · ${row.role}` : base;
+  return row.qualification ? `${withRole} · ${row.qualification}` : withRole;
 }

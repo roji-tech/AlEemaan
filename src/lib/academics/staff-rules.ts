@@ -28,6 +28,9 @@ export const staffDetail = z.string().trim().max(STAFF_DETAIL_MAX, `Use at most 
 /// How the person is addressed (Mr, Mrs, Miss, Dr, Mallam, Ustadh…): free text, optional, at most 30 characters (task 0111). The form suggests the common ones.
 export const STAFF_TITLE_MAX = 30;
 export const staffTitle = z.string().trim().max(STAFF_TITLE_MAX, `Use at most ${STAFF_TITLE_MAX} characters.`);
+/// A short display role label shown on the staff card (e.g. "Head of Science", "Form Tutor"). Optional, at most 80 characters.
+export const STAFF_ROLE_MAX = 80;
+export const staffRole = z.string().trim().max(STAFF_ROLE_MAX, `Use at most ${STAFF_ROLE_MAX} characters.`);
 export const STAFF_TITLE_SUGGESTIONS = [
   "Mr",
   "Mrs",

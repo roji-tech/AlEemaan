@@ -1,7 +1,7 @@
 # 0110: Add pupils and staff of any branch to a program, without registering them again
 
 - **Period / Focus:** 2026-11-19 (maintainer request, programs)
-- **Status:** In Progress
+- **Status:** Built (merged with this record)
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/program-pupils-other-branches` / PR to `dev`
@@ -47,7 +47,18 @@ Success:
 
 ## 4. Verification
 
-Filled from the run logs before merge.
+Gates on the branch: typecheck, lint, build, and Prettier on the changed files. CI on the PR: build and unit tests, typecheck/lint/format, and Vercel all passed.
+
+**Batch 2, 2026-11-19.** One build of this branch merged with #298 (task 0111), one worker on the shared test database. Projects: setup; unit (all); api program-people; browser programs, program-people and students-screen on desktop and phone (with 0111's specs). Run total: **1632 passed, 19 failed, 11 skipped**. **None of the 19 failures was in this task's specs.** They were all 0111's, and its record (task 0111, section 5) lists them.
+
+**Batch 3, 2026-11-19.** This branch and #298 rebuilt on the current `dev` (9e62c32). Run total: **1653 passed, 1 failed, 1 skipped**. The one failure was a false alarm in the phone tap check on the Branches page; 0111's record explains it, and it passed after the test fix.
+
+For this task in batch 3:
+- `tests/api/program-people.spec.ts` and `tests/e2e/program-people.spec.ts`: 60 passed, 0 failed. This includes the new describe block: the search note; adding links the branch once, with its audit; a class preview links nothing and confirming links; a branch with programs off is neither offered nor linked; a typed-in person and a program admin cannot link.
+- `tests/e2e/programs.spec.ts`: 26 passed, 0 failed. This includes the own-branch card for a super admin (accessible, fits, opens the dialog) and for that branch's administrator (no add button, no count).
+- `tests/e2e/students-screen.spec.ts`: 8 passed, 0 failed (the same counts as in batch 2).
+
+**Not run:** the full browser suite; the walkthrough (deferred).
 
 ## 5. Not in this task
 

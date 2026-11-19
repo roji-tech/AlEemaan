@@ -1,7 +1,7 @@
 # 0111: Staff details (title, gender, job title, qualification, NYSC corps member), a details popup, nicer cards, real filters, menu icons and themed scrollbars
 
 - **Period / Focus:** 2026-11-19 (maintainer requests, Academics > Staff and the whole dashboard)
-- **Status:** In Progress
+- **Status:** Built (merged with this record)
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/staff-details-corps` / PR to `dev`
@@ -68,4 +68,32 @@ The maintainer, 2026-11-19, on the staff edit dialog and the staff cards:
 
 ## 5. Verification
 
-Filled from the run logs before merge.
+Gates on the branch: typecheck, lint, build, and Prettier on the changed files. CI on the PR: build and unit tests, typecheck/lint/format, and validate schema and migrations all passed.
+
+**Batch 2, 2026-11-19.** One build of this branch merged with #297 (task 0110), one worker on the shared test database. Projects: setup; unit (all); api (program-people, staff-assignments, staff-bulk); browser on desktop and phone (staff-bulk, staff-details, responsive-and-a11y, programs, program-people, academics-grading-staff, students-screen). **1632 passed, 19 failed, 11 skipped** (22.8 min).
+
+The 19 failures, each read:
+- **Unit (6):**
+  - bulk-validate (2): an empty corps member cell is now absent, not `false`, and the new columns needed samples.
+  - bulk-export (1): the problem-rows table has the new columns.
+  - bulk-xlsx (1): the workbook has two dropdowns (category and gender), not one.
+  - staff-details (2): the icon test used `React.isValidElement`, which fails on elements made by Playwright's own runtime. It now reads `.type.name`.
+- **staff-bulk (4):** an old paste or template put the e-mail in the Title column, because Title came before Email. **Product fix:** the new columns come after Email, so old pastes and templates still fit.
+- **staff-details (4):** the details popup had two buttons named "Close" (the dialog's own and the footer's), and "Title" matched two labels. The footer button is now **Done**, and the test names the exact label "Title (optional)".
+- **responsive-and-a11y, phone (5):**
+  - Four screens failed the 44 px tap check on the info tip. It is now held to 24 px, the size the maintainer accepted on 2026-11-12.
+  - The fifth, "Branches — the list…", was missed in this reading and failed again in batch 3 (below).
+
+**Batch 3, 2026-11-19.** #297 and this branch rebuilt on the current `dev` (9e62c32), same projects. **1653 passed, 1 failed, 1 skipped** (27.0 min). Every batch 2 failure above passed.
+
+The one failure: `responsive-and-a11y.spec.ts` "Branches — the list…", phone. The four branch names were measured at 21 px tall. They are **stretched links**: the title's `::after` covers the whole card (task 0100), so the place to tap is the card, about 100 px tall. The check measured only the line of text. That is a false alarm in the test, and it would fail on `dev` too, since the list kit and the Branches page are unchanged there.
+- **Fix (test):** a link whose `::after` is absolutely placed is measured by the card it covers.
+- **Rerun on the same build:** desktop and phone, **3 passed, 0 failed**.
+
+For this task in batch 3:
+- staff-details (unit and browser), staff-bulk (api and browser) and staff-assignments: 43 passed.
+- `tests/unit/bulk-*`: passed.
+- responsive-and-a11y on desktop and phone: passed apart from the false alarm above.
+
+**Not run:** the full browser suite (only the specs above); the walkthrough (deferred).
+
