@@ -4,7 +4,7 @@ import { Gender } from "@prisma/client";
 import { test, expect } from "../support/fixtures";
 import { BRANCH_NAMES, Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { HTTP_URL } from "../support/env";
-import { openRowActions, rowAction, signInThroughUi } from "./helpers";
+import { openRowActions, rowAction, signInThroughUi, switchBranch } from "./helpers";
 
 // Suspension, expulsion and termination (task 0045) and part payment (task 0046) as a person sees and uses them, on a desktop and a phone, in both themes. What the API allows is
 // tested in tests/api/standing.spec.ts and tests/api/part-payment.spec.ts; here is what the screens offer, say and do, that nobody is shown a button they cannot use, and that
@@ -132,7 +132,7 @@ async function showFilter(page: Page) {
 /// branch administrator or a teacher is already in theirs).
 async function openStudents(page: Page) {
   await page.goto("/students");
-  await page.getByLabel("Branch").selectOption({ label: FIRST });
+  await switchBranch(page, FIRST);
 }
 
 test.describe("students: a super admin", () => {
@@ -182,6 +182,7 @@ test.describe("students: a super admin", () => {
     await openPupilActions(page, "Amina Musa");
     await expect(page.getByRole("button", { name: "Suspend Amina Musa" })).toHaveCount(0); // an expelled pupil is offered Reinstate, not Suspend
     await expect(page.getByRole("button", { name: "Reinstate Amina Musa" })).toBeVisible();
+    await page.keyboard.press("Escape"); // close the list: an open list is drawn over the toolbar's Filters button
 
     // The filter finds them.
     await (await showFilter(page)).selectOption("expelled");
@@ -292,7 +293,7 @@ test.describe("settings: Discipline", () => {
     await createUser({ role: Role.ADMIN, name: "Amina Yusuf" });
     await signInThroughUi(page, await createUser({ role: Role.ADMIN, name: "Second Super" }));
     await page.goto("/settings");
-    await page.getByRole("button", { name: "Discipline" }).click();
+    await page.getByRole("tab", { name: "Discipline" }).click();
     await expect(page.getByText("Branch administrators may suspend", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Turn off for the school" }).click();
     await expect(page.getByText("Branch administrators may no longer suspend.")).toBeVisible();
@@ -484,7 +485,7 @@ test.describe("accessible and fits the width, in both themes", () => {
       await dialog(page).getByRole("button", { name: "Cancel" }).click();
 
       await page.goto("/settings");
-      await page.getByRole("button", { name: "Discipline" }).click();
+      await page.getByRole("tab", { name: "Discipline" }).click();
       await expect(page.getByText("Branch administrators may suspend", { exact: true })).toBeVisible();
       await expectAccessible(page, `${theme} discipline settings`);
       await expectFits(page, `${theme} discipline settings`);

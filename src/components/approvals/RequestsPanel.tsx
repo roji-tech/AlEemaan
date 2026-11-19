@@ -139,6 +139,7 @@ export function RequestsPanel({ branches }: { branches: BranchChoice[] }) {
               title={what(a)}
               subtitle={`Asked by ${asker} on ${a.createdAt.slice(0, 10)}${a.decider ? ` · ${a.status.toLowerCase()} by ${a.decider.name ?? "an administrator"}` : ""}`}
               badges={<span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badge.style}`}>{badge.text}</span>}
+              actionsStyle="buttons"
               actions={
                 a.status === "PENDING"
                   ? [

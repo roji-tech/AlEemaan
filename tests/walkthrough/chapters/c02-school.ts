@@ -145,7 +145,7 @@ export async function c02School(walk: Walk, page: Page): Promise<void> {
       covers: ["STG-02"],
     },
     async () => {
-      await walk.click(page.getByRole("button", { name: "Academic Sessions & Terms" }));
+      await walk.click(page.getByRole("tab", { name: "Academic Sessions & Terms" }));
       await expect(page.getByText("No academic sessions configured for this branch.")).toBeVisible();
       await walk.click(page.getByRole("button", { name: "New Academic Session" }));
       const dialog = page.getByRole("dialog", { name: "Create Academic Session" });
@@ -216,7 +216,7 @@ export async function c02School(walk: Walk, page: Page): Promise<void> {
       await walk.click(mainNav(page).getByRole("link", { name: "Overview" }));
       await expect(page).toHaveURL(/\/dashboard$/);
       await walk.click(mainNav(page).getByRole("link", { name: "Settings" }));
-      await walk.click(page.getByRole("button", { name: "Academic Sessions & Terms" }));
+      await walk.click(page.getByRole("tab", { name: "Academic Sessions & Terms" }));
       await walk.selectOption(page.getByLabel("Filter by Branch"), school.branches.englishPrimary);
       await expect(page.getByRole("heading", { level: 3, name: school.session.label })).toBeVisible();
       await expect(page.getByText("CURRENT TERM", { exact: true })).toHaveCount(1);

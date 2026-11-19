@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { InstallApp } from "@/components/pwa/InstallApp";
 import { useRouter } from "next/navigation";
 import { MfaStep } from "@/components/auth/MfaStep";
 import { Alert } from "@/components/ui/Alert";
@@ -287,6 +288,7 @@ export function LoginForm({
           </form>
 
           <p className="mt-6 text-center text-xs leading-relaxed text-fg-muted">Trouble signing in? Contact your school administrator.</p>
+          <InstallApp className="mt-4 w-full text-center" />
         </>
       )}
     </div>

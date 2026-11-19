@@ -52,7 +52,8 @@ test("a superadmin opens a branch's student sign-in in Settings, is told what ch
   await page.context().clearCookies();
   await signInThroughUi(page, superAdmin);
   await page.goto("/settings");
-  await page.getByRole("button", { name: "Sign-in access" }).click();
+  // At 320 px the tab strip snaps (scroll-snap mandatory): a pointer click can land while the strip settles under it and become no click at all. The tab is chosen with its own click event.
+  await page.getByRole("tab", { name: "Sign-in access" }).dispatchEvent("click");
   await expect(page.getByRole("heading", { level: 2, name: "Student and parent sign-in" })).toBeVisible();
   await expect(studentsBox(page, A_NAME)).not.toBeChecked(); // off by default
   await expect(parentsBox(page, A_NAME)).not.toBeChecked();
@@ -82,7 +83,7 @@ test("a superadmin selects several branches and turns a switch on for them in on
   await signInThroughUi(page, await createUser({ role: Role.ADMIN, name: "Sade Superadmin" }));
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/settings");
-  await page.getByRole("button", { name: "Sign-in access" }).click();
+  await page.getByRole("tab", { name: "Sign-in access" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Student and parent sign-in" })).toBeVisible();
 
   const turnOn = page.getByRole("button", { name: "Turn on parent sign-in" });

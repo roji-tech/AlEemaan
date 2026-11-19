@@ -1,5 +1,6 @@
 "use client";
 
+import { BranchPicker } from "@/components/ui/BranchPicker";
 import { useState, useEffect, useCallback } from "react";
 import { TimetableCanvas } from "./TimetableCanvas";
 import type { SlotDto } from "./SlotEditModal";
@@ -75,25 +76,7 @@ export function TimetablePanel({ branches, isAdmin }: TimetablePanelProps) {
   return (
     <div className="space-y-6">
       {/* Branch selector if more than one branch is available */}
-      {branches.length > 1 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4">
-          <label htmlFor="timetable-branch-select" className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
-            Active Branch:
-          </label>
-          <select
-            id="timetable-branch-select"
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="rounded-xl border border-line bg-field px-3 py-1.5 text-xs font-semibold text-fg focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {branches.length > 1 && <BranchPicker branches={branches} value={selectedBranchId} onChange={setSelectedBranchId} />}
 
       {error && <div className="rounded-xl border border-danger-line bg-danger-bg p-3 text-xs text-danger-text">{error}</div>}
 

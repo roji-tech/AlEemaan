@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNotice } from "@/components/ui/Toaster";
+import { useTabParam } from "@/components/ui/useTabParam";
+import { USERS_TAB_IDS } from "@/lib/search/tab-ids";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -74,7 +76,7 @@ export function UsersPanel({
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered for this list (task 0089). The size is the request's `limit` (the API's cap is 50; every size the kit offers is 50 or less).
   const layout = useCollectionView("users-people", { defaultView: "list", page, onPage: setPage });
-  const [tab, setTab] = useState<"people" | "invitations">("people");
+  const [tab, setTab] = useTabParam(USERS_TAB_IDS, "people");
 
   const [members, setMembers] = useState<Member[] | null>(null);
   const [meta, setMeta] = useState<PageMeta | null>(null);

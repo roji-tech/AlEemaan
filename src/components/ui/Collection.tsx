@@ -5,6 +5,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { ActionsMenu, type MenuAction } from "./ActionsMenu";
 import { Button } from "./Button";
 import type { ViewMode } from "./collection-model";
+import { TONE, type Tone } from "./tone";
 
 // One way to show a list of records, as rows or as cards (task 0089). A page describes each record with <Item> and puts the items in a <Collection>; the collection says whether they are
 // laid out as a list or a grid, so the two can never get out of step. The width a collection has decides its shape (container queries), not the width of the screen: a grid has as many
@@ -73,7 +74,8 @@ export function Collection({
   );
 }
 
-export type ItemFact = { label: string; value: ReactNode };
+/// A fact; in the "stats" style it may carry an icon and a tone (task 0105), drawn as a tinted chip so three numbers on a card are told apart at a glance.
+export type ItemFact = { label: string; value: ReactNode; icon?: ReactNode; tone?: Tone };
 export type ItemAction = {
   id: string;
   label: ReactNode;
@@ -111,14 +113,54 @@ export function ItemInitials({ text }: { text: string }) {
   );
 }
 
-/// One record. The same props are drawn as a card in a grid and as a row in a list.
+/// When a list row can be one line, and how wide its facts are then, depends on how much the row has to carry: a row with one short fact (a pupil's class) is one line from 42 rem of list
+/// width, with two facts from 48 rem, with three or more from 56 rem. The name always gets everything the facts and the three dots leave, and below that width the row stacks (name,
+/// then facts) instead of squeezing the name into a column of letters (the maintainer, 2026-11-18: "it's shrinking the name even though there are lots of spaces"). The class names are
+/// written out in full: Tailwind only builds classes it can read in the source.
+const ONE_LINE = {
+  "2xl": {
+    row: "@2xl:flex-row @2xl:items-center @2xl:gap-5",
+    headPad: "pr-11 @2xl:pr-0",
+    keep: "@2xl:shrink-0 @2xl:flex-nowrap",
+    spread: "@2xl:gap-x-5",
+    width: "@2xl:w-44",
+    end: "@2xl:shrink-0 @2xl:justify-end",
+    dots: "@2xl:static @2xl:shrink-0",
+  },
+  "3xl": {
+    row: "@3xl:flex-row @3xl:items-center @3xl:gap-5",
+    headPad: "pr-11 @3xl:pr-0",
+    keep: "@3xl:shrink-0 @3xl:flex-nowrap",
+    spread: "@3xl:gap-x-5",
+    width: "@3xl:w-80",
+    end: "@3xl:shrink-0 @3xl:justify-end",
+    dots: "@3xl:static @3xl:shrink-0",
+  },
+  "4xl": {
+    row: "@4xl:flex-row @4xl:items-center @4xl:gap-5",
+    headPad: "pr-11 @4xl:pr-0",
+    keep: "@4xl:shrink-0 @4xl:flex-nowrap",
+    spread: "@4xl:gap-x-5",
+    width: "@4xl:w-[26rem]",
+    end: "@4xl:shrink-0 @4xl:justify-end",
+    dots: "@4xl:static @4xl:shrink-0",
+  },
+} as const;
+
+const oneLineFor = (facts: number, style: "stats" | "details") =>
+  ONE_LINE[facts === 0 || style === "stats" || facts === 1 ? "2xl" : facts === 2 ? "3xl" : "4xl"];
+
+/// One record. The same props are drawn as a card in a grid and as a row in a list (task 0089, redesigned in task 0100).
 ///   title / subtitle  what it is; the title wraps rather than being cut off
 ///   leading           an <ItemTile> or <ItemInitials>
-///   badges            status badges (a few words each)
+///   badges            status badges (a few words each); they sit under the title, where a long one ("Suspended until 12 Nov 2026") has the room it needs
 ///   facts             short label/value pairs; `factsStyle` "stats" draws big numbers ("3 / arms"), "details" (the default) small labels over values
-///   children          anything else (chips, a line of text)
+///   children          a line or two under the title (chips, a line of text); narrow by design
+///   below             anything that needs the WHOLE width of the item, under everything else: a session's terms, a class's arms. Not squeezed beside the facts and the buttons.
 ///   href              the whole item opens this page (a stretched link on the title; the actions stay clickable above it)
-///   actions / menu    buttons that stay buttons with their full accessible names, and one "Actions" disclosure for the rest
+///   actions / menu    what can be done to the item. Two or more fold into ONE three-dots button (`ActionsMenu`) at the item's top right, so a row is never a wall of buttons and
+///                     a phone gets the same tidy card as a desktop. One action alone stays a button. `actionsStyle="buttons"` keeps them all visible: for the one or two decisions
+///                     a screen exists for (Approve, Reject). `name` is what the three dots are called ("Actions for <name>"); it defaults to the title when that is plain text.
 export function Item({
   title,
   subtitle,
@@ -127,10 +169,13 @@ export function Item({
   facts,
   factsStyle = "details",
   children,
+  below,
   href,
   hrefLabel,
   actions,
   menu,
+  actionsStyle = "menu",
+  name,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
@@ -139,15 +184,34 @@ export function Item({
   facts?: readonly ItemFact[];
   factsStyle?: "stats" | "details";
   children?: ReactNode;
+  below?: ReactNode;
   href?: string;
   hrefLabel?: string;
   actions?: readonly ItemAction[];
   menu?: { name: string; actions: readonly MenuAction[] };
+  actionsStyle?: "menu" | "buttons";
+  name?: string;
 }) {
   const grid = useContext(LayoutContext) === "grid";
+  const line = oneLineFor(facts?.length ?? 0, factsStyle);
+
+  // Every action of the item, as menu entries (an action's variant "danger" becomes a danger entry; one that is busy cannot be chosen again).
+  const every: MenuAction[] = [
+    ...(actions ?? []).map((a) => ({
+      id: a.id,
+      label: a.label,
+      ariaLabel: a.ariaLabel,
+      onSelect: a.onClick,
+      disabled: a.disabled || a.loading,
+      danger: a.variant === "danger",
+    })),
+    ...(menu?.actions ?? []),
+  ];
+  const folded = actionsStyle === "menu" && every.length > 1;
+  const menuName = name ?? menu?.name ?? (typeof title === "string" ? title : "this item");
 
   const titleBlock = (
-    <div className="min-w-0 flex-1">
+    <>
       <p className="text-base leading-snug font-semibold wrap-break-word text-fg">
         {href ? (
           <Link
@@ -163,7 +227,7 @@ export function Item({
         )}
       </p>
       {subtitle && <p className="mt-0.5 text-sm wrap-break-word text-fg-muted">{subtitle}</p>}
-    </div>
+    </>
   );
 
   const factsBlock =
@@ -171,20 +235,25 @@ export function Item({
       factsStyle === "stats" ? (
         <dl
           className={
-            grid
-              ? "mt-4 grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-2"
-              : "flex flex-wrap gap-x-5 gap-y-1 text-sm @2xl:shrink-0 @2xl:flex-nowrap"
+            grid ? "mt-4 grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-2" : `flex flex-wrap gap-x-5 gap-y-1 text-sm ${line.keep}`
           }
         >
           {facts.map((f) => (
             <div
               key={f.label}
               className={
-                grid ? "flex flex-col-reverse rounded-xl bg-surface-2 px-2 py-2 text-center" : "flex flex-row-reverse items-baseline gap-1"
+                grid
+                  ? `flex flex-col-reverse items-center rounded-xl px-2 py-2 text-center ${f.tone ? `border ${TONE[f.tone].chip}` : "bg-surface-2"}`
+                  : "flex flex-row-reverse items-center gap-1"
               }
             >
-              <dt className={grid ? "mt-1 text-xs text-fg-muted" : "text-fg-muted"}>{f.label}</dt>
+              <dt className={grid ? `mt-1 text-xs ${f.tone ? "" : "text-fg-muted"}` : "text-fg-muted"}>{f.label}</dt>
               <dd className={grid ? "text-lg leading-none font-semibold text-fg" : "font-semibold text-fg"}>{f.value}</dd>
+              {f.icon && (
+                <span aria-hidden="true" className={`${grid ? "mb-1" : "mr-0.5"} ${f.tone ? TONE[f.tone].icon : "text-fg-muted"}`}>
+                  {f.icon}
+                </span>
+              )}
             </div>
           ))}
         </dl>
@@ -193,7 +262,7 @@ export function Item({
           className={
             grid
               ? "mt-3 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-2 text-sm"
-              : "flex flex-wrap gap-x-6 gap-y-2 text-sm @2xl:w-[22rem] @2xl:shrink-0 @2xl:flex-nowrap @2xl:gap-x-5"
+              : `flex flex-wrap gap-x-6 gap-y-2 text-sm ${line.keep} ${line.spread} ${line.width}`
           }
         >
           {facts.map((f) => (
@@ -206,13 +275,34 @@ export function Item({
       )
     ) : null;
 
-  const hasActions = (actions && actions.length > 0) || (menu && menu.actions.length > 0);
-  const actionsBlock = hasActions ? (
+  // The head of the item: the picture, the title, its badges and its short lines. It leaves room at the right for the three dots when they sit on top of it.
+  const head = (
+    <div className={`flex min-w-0 flex-1 items-start gap-3 ${folded ? (grid ? "pr-11" : line.headPad) : ""}`}>
+      {leading}
+      <div className="min-w-0 flex-1">
+        {titleBlock}
+        {badges && <div className="mt-1.5 flex flex-wrap items-center gap-1">{badges}</div>}
+        {children && <div className="mt-2 min-w-0 text-sm">{children}</div>}
+      </div>
+    </div>
+  );
+
+  // The three dots. In a card, and in a list row too narrow for one line, they sit at the top right corner of the item; in a list row with room for one line they are its last cell.
+  // While the menu is open the corner is raised above the corners of the items after it (`z-30`), or their buttons would be drawn over the list.
+  const dots = folded ? (
+    <div className={`absolute top-2 right-2 z-10 has-[[aria-expanded=true]]:z-30 ${grid ? "" : line.dots}`}>
+      <ActionsMenu name={menuName} actions={every} />
+    </div>
+  ) : null;
+
+  // Not folded: the actions stay visible as buttons (and a `menu`, if there is one, as the three dots after them).
+  const hasButtons = !folded && ((actions && actions.length > 0) || (menu && menu.actions.length > 0));
+  const buttons = hasButtons ? (
     <div
       className={
         grid
           ? "relative z-10 mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3"
-          : "relative z-10 flex flex-wrap items-center gap-2 @2xl:shrink-0 @2xl:justify-end"
+          : `relative z-10 flex flex-wrap items-center gap-2 ${line.end}`
       }
     >
       {actions?.map((a) => (
@@ -231,34 +321,30 @@ export function Item({
     </div>
   ) : null;
 
+  const belowBlock = below ? <div className="mt-3 min-w-0">{below}</div> : null;
+
   if (grid) {
     return (
       <li className="relative flex h-full flex-col rounded-2xl border border-line bg-surface p-4 shadow-card transition-shadow hover:shadow-md focus-within:shadow-md">
         <div className="flex-1">
-          <div className="flex items-start gap-3">
-            {leading}
-            {titleBlock}
-            {badges && <div className="flex max-w-[45%] shrink-0 flex-wrap justify-end gap-1">{badges}</div>}
-          </div>
+          {head}
           {factsBlock}
-          {children && <div className="mt-3 min-w-0 text-sm">{children}</div>}
+          {belowBlock}
         </div>
-        {actionsBlock}
+        {buttons}
+        {dots}
       </li>
     );
   }
   return (
-    <li className="relative flex flex-col gap-3 p-4 @2xl:flex-row @2xl:items-center @2xl:gap-5">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
-        {leading}
-        <div className="min-w-0 flex-1">
-          {titleBlock}
-          {children && <div className="mt-2 min-w-0 text-sm">{children}</div>}
-        </div>
+    <li className="relative p-4">
+      <div className={`flex flex-col gap-3 ${line.row}`}>
+        {head}
+        {factsBlock}
+        {buttons}
+        {dots}
       </div>
-      {factsBlock}
-      {badges && <div className="flex flex-wrap items-center gap-1 @2xl:shrink-0 @2xl:justify-end">{badges}</div>}
-      {actionsBlock}
+      {belowBlock}
     </li>
   );
 }

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useSignOut } from "@/components/auth/useSignOut";
 import { ChevronDownIcon, LogOutIcon, MonitorIcon, SlidersIcon, UserIcon } from "@/components/ui/icons";
+import { InstallApp } from "@/components/pwa/InstallApp";
 import { FOCUS_RING, initialsOf } from "./nav";
 
 type ProfileMenuProps = {
@@ -117,6 +118,7 @@ export function ProfileMenu({ name, email, roleLabel, isSuperAdmin }: ProfileMen
           )}
 
           <div className="my-1 h-px bg-line" />
+          <InstallApp className="mx-3 my-2 w-[calc(100%-1.5rem)] text-center" />
           <button
             type="button"
             onClick={signOut}

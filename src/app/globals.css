@@ -164,6 +164,14 @@ body {
   input[type="file"]:disabled::file-selector-button {
     cursor: not-allowed;
   }
+
+  /* The list a browser opens for a native <select> (the form fields of dialogs; the branch bar has its own list now): in the page's colours. Without this the list took the select's
+     light text over the browser's own white, which could not be read in the dark theme (task 0100). */
+  select option,
+  select optgroup {
+    background-color: var(--surface);
+    color: var(--fg);
+  }
 }
 
 /* The sign-in brand panel's faint dot-and-cross grid (the artifact draws it as an

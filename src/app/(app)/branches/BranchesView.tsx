@@ -225,7 +225,7 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
                       </>
                     ),
                     ariaLabel: `Delete ${branch.name}`,
-                    variant: "ghost",
+                    variant: "danger",
                     onClick: () => setDeleting(branch),
                   },
                 ]}

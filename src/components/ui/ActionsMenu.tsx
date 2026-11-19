@@ -1,83 +1,78 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { Button } from "./Button";
-import { ChevronDownIcon } from "./icons";
+import { useId, type ReactNode } from "react";
+import { actionLook } from "./action-look";
+import { MoreIcon } from "./icons";
+import { TONE, type Tone } from "./tone";
+import { POPOVER_ITEM, POPOVER_LIST, popoverSide, usePopover } from "./usePopover";
 
 export type MenuAction = {
   id: string;
   /// What is drawn.
-  label: string;
+  label: ReactNode;
   /// The full accessible name ("Deactivate Tola Teacher"), when the label alone is not enough to tell which row it belongs to.
   ariaLabel?: string;
   onSelect: () => void;
   disabled?: boolean;
+  /// Draws the item in the danger colour and sets it apart from the others (Archive, Remove, Revoke).
+  danger?: boolean;
+  /// The colour and the icon of the item's tile (task 0105). Left out, they are chosen from the action's `id` (ui/action-look.tsx); an action it does not know has no tile.
+  tone?: Tone;
+  icon?: ReactNode;
 };
 
-/// One button that opens and closes the list of things that can be done to a row. A disclosure, not an ARIA menu: the items are ordinary buttons in the tab order, the button says
-/// whether the list is open (`aria-expanded`), Escape closes it and puts focus back on the button, a press outside or choosing an item closes it. On a phone the list opens in the
-/// row under the button; from `md` it is a popover under the button. Nothing is drawn when there are no actions.
+/// The three-dots button of a row, and the list of what can be done to it (task 0100). An icon-only button, 44 px square, named "Actions for <name>" and saying whether the list is open
+/// (`aria-expanded`). The list is a popover under the button, right edge to right edge, at every screen size (over it when there is no room below); behaviour is in `usePopover`.
+/// While it is open the whole menu is raised above everything after it (`z-30`), so the buttons of the rows below can never be drawn over it (the bug of 2026-11-18: the next row's own
+/// buttons were stacked above the open list). Choosing an item closes the list and hands focus back to the button first, so a dialog the item opens returns focus to it. Nothing is
+/// drawn when there are no actions.
 export function ActionsMenu({ name, actions }: { name: string; actions: readonly MenuAction[] }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
+  const { open, setOpen, up, rootRef, buttonRef, listRef, focusButton, onListKeyDown } = usePopover();
   const listId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      button.current?.focus();
-    };
-    const onPress = (e: MouseEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onPress);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onPress);
-    };
-  }, [open]);
-
   if (actions.length === 0) return null;
   return (
-    <div ref={root} className="relative">
-      <Button
-        ref={button}
-        variant="secondary"
-        className="w-full md:w-auto"
+    <div ref={rootRef} className="relative has-[[aria-expanded=true]]:z-30">
+      <button
+        ref={buttonRef}
+        type="button"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         aria-label={`Actions for ${name}`}
         onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-expanded:bg-surface-2 aria-expanded:text-fg"
       >
-        Actions
-        <ChevronDownIcon className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-      </Button>
+        <MoreIcon aria-hidden="true" className="h-5 w-5" />
+      </button>
       {open && (
-        <ul
-          id={listId}
-          className="mt-2 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface md:absolute md:right-0 md:z-20 md:mt-1 md:w-56 md:shadow-menu"
-        >
-          {actions.map((a) => (
-            <li key={a.id}>
-              <button
-                type="button"
-                aria-label={a.ariaLabel}
-                disabled={a.disabled}
-                onClick={() => {
-                  setOpen(false);
-                  button.current?.focus(); // the list is about to close: a dialog this opens hands focus back to the Actions button, not to nothing
-                  a.onSelect();
-                }}
-                className="flex min-h-11 w-full items-center px-4 text-left text-sm font-medium text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:text-fg-muted"
-              >
-                {a.label}
-              </button>
-            </li>
-          ))}
+        <ul ref={listRef} id={listId} onKeyDown={onListKeyDown} className={`${POPOVER_LIST} ${popoverSide(up)}`}>
+          {actions.map((a, index) => {
+            const look = actionLook(a);
+            return (
+              <li key={a.id} className={a.danger && index > 0 ? "mt-1 border-t border-line pt-1" : undefined}>
+                <button
+                  type="button"
+                  aria-label={a.ariaLabel}
+                  disabled={a.disabled}
+                  onClick={() => {
+                    setOpen(false);
+                    focusButton(); // the list is about to close: a dialog this opens hands focus back to the three-dots button, not to nothing
+                    a.onSelect();
+                  }}
+                  className={`${POPOVER_ITEM} ${a.danger ? "text-danger-fg" : ""}`}
+                >
+                  {look.icon && (
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${TONE[look.tone].tile}`}
+                    >
+                      {look.icon}
+                    </span>
+                  )}
+                  <span className="min-w-0">{a.label}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

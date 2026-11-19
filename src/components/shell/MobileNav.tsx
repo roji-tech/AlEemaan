@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSignOut } from "@/components/auth/useSignOut";
 import { Button } from "@/components/ui/Button";
 import { ChevronDownIcon, LogOutIcon, MoreIcon, UserIcon, XIcon } from "@/components/ui/icons";
+import { InstallApp } from "@/components/pwa/InstallApp";
 import { SoonTag } from "./SoonTag";
 import { FOCUS_RING, groupNav, initialsOf, isActive, navFor, phoneNav, type PageOverrides } from "./nav";
 
@@ -57,7 +58,11 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
 
   return (
     <>
-      <nav aria-label="Main" className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
+      <nav
+        aria-label="Main"
+        data-fixed-bottom
+        className="fixed inset-x-3 bottom-3 z-30 pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
+      >
         <ul className="flex gap-1 rounded-2xl border border-line bg-surface p-1.5 shadow-menu">
           {tabs.map(({ label, href, icon: Icon }) => (
             <li key={label} className="flex-1">
@@ -181,6 +186,7 @@ export function MobileNav({ name, email, roleLabel, isAdmin, isSuperAdmin, isTea
           </ul>
 
           <div className="mt-2 border-t border-line pt-3">
+            <InstallApp className="mb-3 w-full text-center" />
             <Button variant="secondary" className="w-full" loading={pending} onClick={signOut}>
               {!pending && <LogOutIcon className="h-4 w-4" />}
               Sign out

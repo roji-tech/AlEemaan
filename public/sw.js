@@ -1,7 +1,7 @@
 // AlEemaan Progressive Web App Service Worker
-const CACHE_NAME = "aleemaan-pwa-v1";
+const CACHE_NAME = "aleemaan-pwa-v2";
 
-const PRECACHE_RESOURCES = ["/offline", "/brand.css", "/icon", "/apple-icon"];
+const PRECACHE_RESOURCES = ["/offline", "/brand.css", "/icon", "/apple-icon", "/pwa-icons/icon-192.png"];
 
 // Install: Cache offline shell and activate immediately
 self.addEventListener("install", (event) => {

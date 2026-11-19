@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Tabs, panelId, tabId } from "@/components/ui/Tabs";
+import { useTabParam } from "@/components/ui/useTabParam";
+import { SETTINGS_TAB_IDS } from "@/lib/search/tab-ids";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/TextField";
@@ -55,10 +58,19 @@ type Props = {
   loginBranches: BranchLoginRow[];
 };
 
+/// The sections of the Settings page, in the shared tab strip (task 0100): labels never wrap, the strip scrolls sideways when they do not fit, and the open one is `?tab=`.
+const SETTINGS_TABS: readonly { id: (typeof SETTINGS_TAB_IDS)[number]; label: string }[] = [
+  { id: "profile", label: "School Profile" },
+  { id: "academics", label: "Academic Sessions & Terms" },
+  { id: "portal", label: "Portal access" },
+  { id: "approval", label: "Results approval" },
+  { id: "programs", label: "Programs" },
+  { id: "discipline", label: "Discipline" },
+  { id: "signin", label: "Sign-in access" },
+] as const;
+
 export function SettingsView({ initialSettings, branches, initialSessions, hasMfa, loginBranches }: Props) {
-  const [activeTab, setActiveTab] = useState<"profile" | "academics" | "portal" | "approval" | "programs" | "discipline" | "signin">(
-    "profile",
-  );
+  const [activeTab, setActiveTab] = useTabParam(SETTINGS_TAB_IDS, "profile");
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);
@@ -159,229 +171,166 @@ export function SettingsView({ initialSettings, branches, initialSessions, hasMf
     <div className="space-y-6">
       <PageHeader title="Settings" description="Configure institution profile, contact details, and branch academic sessions." />
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-line">
-        <button
-          type="button"
-          onClick={() => setActiveTab("profile")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
-            activeTab === "profile" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          School Profile
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("academics")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
-            activeTab === "academics" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          Academic Sessions & Terms
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("portal")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
-            activeTab === "portal" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          Portal access
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("approval")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
-            activeTab === "approval" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          Results approval
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("programs")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
-            activeTab === "programs" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          Programs
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("discipline")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
-            activeTab === "discipline" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          Discipline
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("signin")}
-          className={`border-b-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
-            activeTab === "signin" ? "border-brand-primary text-brand-primary" : "border-transparent text-fg-muted hover:text-fg"
-          }`}
-        >
-          Sign-in access
-        </button>
-      </div>
+      <Tabs label="Settings sections" prefix="settings" tabs={SETTINGS_TABS} active={activeTab} onChange={setActiveTab} className="mt-0" />
+      <div role="tabpanel" id={panelId("settings", activeTab)} aria-labelledby={tabId("settings", activeTab)} className="space-y-6">
+        {/* Tab 3: what a pupil and a guardian may do in the portal */}
+        {activeTab === "portal" && <PortalAccessPanel branches={branches} />}
 
-      {/* Tab 3: what a pupil and a guardian may do in the portal */}
-      {activeTab === "portal" && <PortalAccessPanel branches={branches} />}
+        {/* Tab 5: the programs switch (task 0043) */}
+        {activeTab === "programs" && <ProgramsSettingsPanel />}
 
-      {/* Tab 5: the programs switch (task 0043) */}
-      {activeTab === "programs" && <ProgramsSettingsPanel />}
+        {/* Tab 6: may branch administrators suspend (task 0045) */}
+        {activeTab === "discipline" && <StandingSettingsPanel />}
 
-      {/* Tab 6: may branch administrators suspend (task 0045) */}
-      {activeTab === "discipline" && <StandingSettingsPanel />}
+        {/* Tab 7: may students and parents sign in (task 0091) */}
+        {activeTab === "signin" && <LoginSwitchPanel initial={loginBranches} canBulk />}
 
-      {/* Tab 7: may students and parents sign in (task 0091) */}
-      {activeTab === "signin" && <LoginSwitchPanel initial={loginBranches} canBulk />}
+        {/* Tab 4: who approves results, and where (task 0039) */}
+        {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}
 
-      {/* Tab 4: who approves results, and where (task 0039) */}
-      {activeTab === "approval" && <ResultsApprovalPanel branches={branches} hasMfa={hasMfa} />}
+        {/* Tab 1: Profile */}
+        {activeTab === "profile" && (
+          <Card className="max-w-3xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-fg">School Information</h2>
+              <p className="mt-1 text-sm text-fg-muted">
+                These details appear on report cards, transcripts, invoices, and official communications.
+              </p>
+            </div>
 
-      {/* Tab 1: Profile */}
-      {activeTab === "profile" && (
-        <Card className="max-w-3xl space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-fg">School Information</h2>
-            <p className="mt-1 text-sm text-fg-muted">
-              These details appear on report cards, transcripts, invoices, and official communications.
-            </p>
-          </div>
+            {profileMsg && <Alert variant={profileMsg.kind === "success" ? "success" : "error"}>{profileMsg.text}</Alert>}
 
-          {profileMsg && <Alert variant={profileMsg.kind === "success" ? "success" : "error"}>{profileMsg.text}</Alert>}
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <TextField
+                label="School Name"
+                value={settings.name}
+                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                required
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  label="Principal / Head of School"
+                  info="settings.principal"
+                  value={settings.principal}
+                  onChange={(e) => setSettings({ ...settings, principal: e.target.value })}
+                />
+                <TextField
+                  label="Phone Number"
+                  value={settings.phone}
+                  onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+                />
+              </div>
+              <TextField
+                label="Motto / Slogan"
+                info="settings.motto"
+                value={settings.motto}
+                onChange={(e) => setSettings({ ...settings, motto: e.target.value })}
+              />
+              <TextField label="Address" value={settings.address} onChange={(e) => setSettings({ ...settings, address: e.target.value })} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  label="Official Email"
+                  type="email"
+                  value={settings.email}
+                  onChange={(e) => setSettings({ ...settings, email: e.target.value })}
+                />
+                <TextField
+                  label="Website URL"
+                  type="url"
+                  value={settings.website}
+                  onChange={(e) => setSettings({ ...settings, website: e.target.value })}
+                />
+              </div>
 
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <TextField
-              label="School Name"
-              value={settings.name}
-              onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-              required
-            />
+              <div className="pt-2">
+                <Button type="submit" disabled={savingProfile}>
+                  {savingProfile ? "Saving Changes..." : "Save Profile"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        )}
+
+        {/* Tab 2: Academic Sessions */}
+        {activeTab === "academics" && (
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="w-full sm:w-64">
+                <SelectField
+                  label="Filter by Branch"
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  options={[{ value: "all", label: "All Branches" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+                />
+              </div>
+              <Button onClick={() => setIsNewSessionOpen(true)}>New Academic Session</Button>
+            </div>
+
+            {termProblem && <Alert variant="error">{termProblem}</Alert>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField
-                label="Principal / Head of School"
-                info="settings.principal"
-                value={settings.principal}
-                onChange={(e) => setSettings({ ...settings, principal: e.target.value })}
-              />
-              <TextField
-                label="Phone Number"
-                value={settings.phone}
-                onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-              />
-            </div>
-            <TextField
-              label="Motto / Slogan"
-              info="settings.motto"
-              value={settings.motto}
-              onChange={(e) => setSettings({ ...settings, motto: e.target.value })}
-            />
-            <TextField label="Address" value={settings.address} onChange={(e) => setSettings({ ...settings, address: e.target.value })} />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField
-                label="Official Email"
-                type="email"
-                value={settings.email}
-                onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-              />
-              <TextField
-                label="Website URL"
-                type="url"
-                value={settings.website}
-                onChange={(e) => setSettings({ ...settings, website: e.target.value })}
-              />
-            </div>
-
-            <div className="pt-2">
-              <Button type="submit" disabled={savingProfile}>
-                {savingProfile ? "Saving Changes..." : "Save Profile"}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
-      {/* Tab 2: Academic Sessions */}
-      {activeTab === "academics" && (
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="w-full sm:w-64">
-              <SelectField
-                label="Filter by Branch"
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                options={[{ value: "all", label: "All Branches" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
-              />
-            </div>
-            <Button onClick={() => setIsNewSessionOpen(true)}>New Academic Session</Button>
-          </div>
-
-          {termProblem && <Alert variant="error">{termProblem}</Alert>}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {filteredSessions.map((session) => (
-              <Card key={session.id} className="space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="inline-block rounded-full bg-field px-2.5 py-0.5 text-xs font-semibold text-fg-muted">
-                      {session.branchName}
+              {filteredSessions.map((session) => (
+                <Card key={session.id} className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-block rounded-full bg-field px-2.5 py-0.5 text-xs font-semibold text-fg-muted">
+                        {session.branchName}
+                      </span>
+                      <h3 className="mt-2 text-lg font-bold text-fg">{session.label}</h3>
+                      <p className="text-xs text-fg-muted">
+                        {session.startDate} &rarr; {session.endDate}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        session.status === "ACTIVE" ? "bg-brand-primary/10 text-brand-primary" : "bg-field text-fg-muted"
+                      }`}
+                    >
+                      {session.status}
                     </span>
-                    <h3 className="mt-2 text-lg font-bold text-fg">{session.label}</h3>
-                    <p className="text-xs text-fg-muted">
-                      {session.startDate} &rarr; {session.endDate}
-                    </p>
                   </div>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      session.status === "ACTIVE" ? "bg-brand-primary/10 text-brand-primary" : "bg-field text-fg-muted"
-                    }`}
-                  >
-                    {session.status}
-                  </span>
-                </div>
 
-                <div className="border-t border-line pt-3">
-                  <p className="mb-2 text-xs font-bold tracking-wide text-fg-2 uppercase">Terms & Calendars</p>
-                  <div className="space-y-2">
-                    {session.periods.map((period) => (
-                      <div key={period.id} className="flex items-center justify-between rounded-lg bg-field p-2.5 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-fg">{period.label}</span>
-                          {period.isCurrent && (
-                            <span className="rounded bg-brand-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-primary">
-                              CURRENT TERM
-                            </span>
+                  <div className="border-t border-line pt-3">
+                    <p className="mb-2 text-xs font-bold tracking-wide text-fg-2 uppercase">Terms & Calendars</p>
+                    <div className="space-y-2">
+                      {session.periods.map((period) => (
+                        <div key={period.id} className="flex items-center justify-between rounded-lg bg-field p-2.5 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-fg">{period.label}</span>
+                            {period.isCurrent && (
+                              <span className="rounded bg-brand-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-primary">
+                                CURRENT TERM
+                              </span>
+                            )}
+                          </div>
+                          {!period.isCurrent && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetCurrentPeriod(session.branchId, period.id)}
+                              disabled={settingPeriod !== null}
+                              aria-busy={settingPeriod === period.id}
+                              className="inline-flex min-h-6 items-center gap-1.5 text-xs font-semibold text-brand-fg hover:underline disabled:opacity-60"
+                            >
+                              {settingPeriod === period.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
+                              {settingPeriod === period.id ? "Setting…" : "Set Current"}
+                            </button>
                           )}
                         </div>
-                        {!period.isCurrent && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetCurrentPeriod(session.branchId, period.id)}
-                            disabled={settingPeriod !== null}
-                            aria-busy={settingPeriod === period.id}
-                            className="inline-flex min-h-6 items-center gap-1.5 text-xs font-semibold text-brand-fg hover:underline disabled:opacity-60"
-                          >
-                            {settingPeriod === period.id && <SpinnerIcon className="h-3.5 w-3.5 motion-safe:animate-spin" />}
-                            {settingPeriod === period.id ? "Setting…" : "Set Current"}
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
 
-            {filteredSessions.length === 0 && (
-              <Card className="col-span-2 py-10 text-center text-fg-muted">No academic sessions configured for this branch.</Card>
-            )}
+              {filteredSessions.length === 0 && (
+                <Card className="col-span-2 py-10 text-center text-fg-muted">No academic sessions configured for this branch.</Card>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* New Session Dialog */}
+        {/* New Session Dialog */}
+      </div>
+
       <Dialog
         open={isNewSessionOpen}
         onClose={() => setIsNewSessionOpen(false)}

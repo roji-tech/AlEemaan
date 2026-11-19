@@ -62,6 +62,7 @@ export function InvitationsList({
               }
               title={<span className="break-all">{invitation.email}</span>}
               subtitle={invitation.invitedByName ? `invited by ${invitation.invitedByName}` : undefined}
+              name={invitation.email}
               facts={facts}
               actions={[
                 {
@@ -77,7 +78,7 @@ export function InvitationsList({
                   id: "revoke",
                   label: "Revoke",
                   ariaLabel: `Revoke the invitation to ${invitation.email}`,
-                  variant: "ghost",
+                  variant: "danger",
                   disabled: busyId !== null,
                   onClick: () => onRevoke(invitation),
                 },

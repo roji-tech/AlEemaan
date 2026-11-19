@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, clickAction } from "./helpers";
 
 // The Students screen in a real browser (Slice UI1): a branch administrator registers a pupil (with the server's namesake refusal and the audited "register
 // anyway"), edits, archives and restores, and imports a small spreadsheet; a teacher only looks. Axe (WCAG 2.2 A/AA) runs on the list and each dialog in BOTH themes.
@@ -97,22 +97,16 @@ for (const theme of ["dark", "light"] as const) {
     ).toBeGreaterThanOrEqual(1);
 
     // Edit the first, archive it, find it under Archived, restore it.
-    await page
-      .getByRole("button", { name: `Edit ${tag}Amina Yusuf` })
-      .first()
-      .click();
+    await clickAction(page, `Edit ${tag}Amina Yusuf`);
     await dialog(page).getByLabel("Guardian phone (optional)").fill("08030000000");
     await dialog(page).getByRole("button", { name: "Save", exact: true }).click();
     // Two pupils share the name and birth date, but changing a guardian's phone is not a new identity: it saves without asking again (task 0090: the namesake check runs only when the name or the date of birth changes).
     await expect(page.getByText(`${tag}Amina Yusuf saved.`)).toBeVisible();
-    await page
-      .getByRole("button", { name: `Archive ${tag}Amina Yusuf` })
-      .first()
-      .click();
+    await clickAction(page, `Archive ${tag}Amina Yusuf`);
     await expect(page.getByText(`${tag}Amina Yusuf archived.`)).toBeVisible();
     await (await showFilter(page)).selectOption("archived");
-    await expect(page.getByRole("button", { name: `Restore ${tag}Amina Yusuf` })).toBeVisible();
-    await page.getByRole("button", { name: `Restore ${tag}Amina Yusuf` }).click();
+    await expect(page.getByRole("button", { name: `Actions for ${tag}Amina Yusuf`, exact: true })).toBeVisible(); // the archived pupil's row; Restore is in its list
+    await clickAction(page, `Restore ${tag}Amina Yusuf`);
     // A current namesake exists, so restoring asks before it goes through.
     await expect(page.getByText(/An active student with this name/)).toBeVisible();
     await page.getByRole("button", { name: "Restore anyway" }).click();

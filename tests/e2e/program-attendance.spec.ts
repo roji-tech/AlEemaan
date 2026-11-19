@@ -441,7 +441,7 @@ test.describe("an administrator", () => {
     const seed = await seedProgram(sa.id, { both: true });
     await signInThroughUi(page, sa);
     await page.goto("/settings");
-    await page.getByRole("button", { name: "Programs", exact: true }).click();
+    await page.getByRole("tab", { name: "Programs", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Attendance in programs" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Programs in the school" })).toBeVisible();
     await expect(page.getByText("Attendance is on for the school", { exact: true })).toBeVisible();
@@ -588,7 +588,7 @@ test.describe("accessible and fits the width, in both themes", () => {
       await expectAccessible(page, `${theme} program settings with an error`);
 
       await page.goto("/settings");
-      await page.getByRole("button", { name: "Programs", exact: true }).click();
+      await page.getByRole("tab", { name: "Programs", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Attendance in programs" })).toBeVisible();
       await expectAccessible(page, `${theme} school switches`);
       await expectFits(page, `${theme} school switches`);

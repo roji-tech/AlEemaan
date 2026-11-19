@@ -1,12 +1,15 @@
 "use client";
 
 import { useId } from "react";
-import { ChevronDownIcon } from "./icons";
+import { CheckIcon, ChevronDownIcon } from "./icons";
+import { POPOVER_ITEM, POPOVER_LIST, popoverSide, usePopover } from "./usePopover";
 
 /// Which branch a page is showing, as one slim bar (the maintainer, 2026-11-18: the full-width "Branch" field took too much of the screen, and then asked for exactly this):
 ///   BRANCH: Primary (English)                                      [ Switch branch v ]
-/// The name is bold on the left; the button is at the far end. The button is a real native <select> laid invisibly over a button-looking label, so the keyboard, typeahead and a phone's
-/// own picker all work, and a screen reader hears "Switch branch" with the branch it is on. With one branch there is nothing to switch, so the bar is the name alone.
+/// The name is bold on the left; the button is at the far end. The list the button opens is our own (task 0100), not the browser's: the browser's list ignored the dark theme (pale grey
+/// text on white), was narrower than its button, and opened over the page below. Ours is a popover in the page's colours under the button, as wide as its longest name, with a tick on the
+/// branch you are on; Up and Down move through it, Enter picks, Escape closes (`usePopover`). The branches are buttons, the current one marked `aria-current`. With one branch there is
+/// nothing to switch, so the bar is the name alone.
 export function BranchPicker({
   branches,
   value,
@@ -18,7 +21,8 @@ export function BranchPicker({
   onChange: (id: string) => void;
   className?: string;
 }) {
-  const id = useId();
+  const listId = useId();
+  const { open, setOpen, up, rootRef, buttonRef, listRef, focusButton, onListKeyDown } = usePopover();
   const current = branches.find((b) => b.id === value) ?? branches[0];
   if (!current) return null;
   return (
@@ -30,24 +34,42 @@ export function BranchPicker({
         </strong>
       </p>
       {branches.length > 1 && (
-        <div className="relative shrink-0 rounded-lg border border-line-strong bg-surface-2 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring hover:border-ring">
-          <span aria-hidden="true" className="flex min-h-9 items-center gap-1.5 px-3 text-sm font-semibold text-fg">
-            Switch branch
-            <ChevronDownIcon className="h-4 w-4 text-fg-muted" />
-          </span>
-          <select
-            id={id}
-            aria-label="Switch branch"
-            value={current.id}
-            onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+        <div ref={rootRef} className="relative shrink-0 has-[[aria-expanded=true]]:z-30">
+          <button
+            ref={buttonRef}
+            type="button"
+            aria-expanded={open}
+            aria-controls={open ? listId : undefined}
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line-strong bg-surface-2 px-3 text-sm font-semibold text-fg transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+            Switch branch
+            <ChevronDownIcon aria-hidden="true" className={`h-4 w-4 text-fg-muted transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+          {open && (
+            <ul ref={listRef} id={listId} aria-label="Branches" onKeyDown={onListKeyDown} className={`${POPOVER_LIST} ${popoverSide(up)}`}>
+              {branches.map((b) => {
+                const here = b.id === current.id;
+                return (
+                  <li key={b.id}>
+                    <button
+                      type="button"
+                      aria-current={here ? "true" : undefined}
+                      onClick={() => {
+                        setOpen(false);
+                        focusButton();
+                        if (!here) onChange(b.id);
+                      }}
+                      className={`${POPOVER_ITEM} justify-between ${here ? "font-semibold text-brand-fg" : ""}`}
+                    >
+                      <span className="min-w-0 wrap-break-word">{b.name}</span>
+                      {here && <CheckIcon aria-hidden="true" className="h-4 w-4 shrink-0" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
     </div>
