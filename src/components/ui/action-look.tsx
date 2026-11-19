@@ -3,10 +3,12 @@ import {
   AlertTriangleIcon,
   ArchiveIcon,
   BookOpenIcon,
+  BuildingIcon,
   CheckIcon,
   ClockIcon,
   EyeIcon,
   LogOutIcon,
+  MailIcon,
   PencilIcon,
   PlusIcon,
   SlidersIcon,
@@ -37,6 +39,9 @@ const RULES: readonly { test: RegExp; look: () => Look }[] = [
   { test: /remove|delete|revoke/, look: () => ({ tone: "danger", icon: <TrashIcon className={ICON} /> }) },
   { test: /subject/, look: () => ({ tone: "brand", icon: <BookOpenIcon className={ICON} /> }) },
   { test: /current|approve|accept|grant|lift|activate/, look: () => ({ tone: "ok", icon: <CheckIcon className={ICON} /> }) },
+  // Task 0114: inviting someone to sign in is an e-mail; moving a person to another branch is a building.
+  { test: /invite/, look: () => ({ tone: "ok", icon: <MailIcon className={ICON} /> }) },
+  { test: /transfer/, look: () => ({ tone: "brand", icon: <BuildingIcon className={ICON} /> }) },
   { test: /^(add|new|create|invite|arm|break)|add$|-add|-new/, look: () => ({ tone: "ok", icon: <PlusIcon className={ICON} /> }) },
   // Manage (open everything about it) is told apart from Edit (change its details) by shape (task 0111: both were a pencil); View only reads.
   { test: /manage|settings/, look: () => ({ tone: "brand", icon: <SlidersIcon className={ICON} /> }) },

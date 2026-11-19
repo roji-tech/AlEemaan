@@ -107,7 +107,7 @@ async function membershipRefusal(
 async function writeInvitation(
   tx: Prisma.TransactionClient,
   actorUserId: string,
-  input: { email: string; role: Role; branchId: string },
+  input: { email: string; role: Role; branchId: string; staffRecordId?: string },
   now: Date,
 ): Promise<{ invitation: PublicInvitation; token: string }> {
   const earlier = await tx.invitation.findMany({
@@ -137,6 +137,7 @@ async function writeInvitation(
       tokenHash: hashInvitationToken(token),
       invitedById: actorUserId,
       expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
+      ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
     },
     select: PUBLIC_SELECT,
   });
@@ -146,7 +147,12 @@ async function writeInvitation(
       action: "INVITATION_CREATED",
       targetType: "Invitation",
       targetId: created.id,
-      afterValue: { email: input.email, role: input.role, branchId: input.branchId },
+      afterValue: {
+        email: input.email,
+        role: input.role,
+        branchId: input.branchId,
+        ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+      },
     },
   });
   return { invitation: toPublic(created, now), token };
@@ -172,7 +178,8 @@ export async function createInvitation(
 export async function createInvitationIn(
   tx: Prisma.TransactionClient,
   actorUserId: string,
-  input: { email: string; role: Role; branchId: string },
+  /// `staffRecordId`: the staff record the invitation is sent from (task 0114); accepting links the new account to it. The caller has checked that it is a record of `branchId`.
+  input: { email: string; role: Role; branchId: string; staffRecordId?: string },
   scope: AdminScope,
 ): Promise<CreateInvitationResult> {
   await lockAddress(tx, input.email);
@@ -423,6 +430,31 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
 
       await tx.membership.create({ data: { userId, branchId: found.branchId, role: found.role } });
       await tx.invitation.update({ where: { id: found.id }, data: { acceptedById: userId } });
+      // An invitation sent from a staff record (task 0114) links the new account to that record, in the same transaction: only a live record of THIS branch that has no account yet, whose
+      // kind matches the role, and only when this account is not already the account of another record of the branch. Otherwise the membership stands and the record stays as it was (an
+      // administrator can still link it from Manage).
+      if (found.staffRecordId) {
+        const record = await tx.staffRecord.findFirst({
+          where: { id: found.staffRecordId, branchId: found.branchId, userId: null, archivedAt: null },
+          select: { id: true, category: true },
+        });
+        const matches = record && (record.category === "TEACHING" ? "TEACHING_STAFF" : "NON_TEACHING_STAFF") === found.role;
+        const taken = await tx.staffRecord.count({ where: { branchId: found.branchId, userId } });
+        if (record && matches && taken === 0) {
+          const linked = await tx.staffRecord.updateMany({ where: { id: record.id, userId: null }, data: { userId } });
+          if (linked.count === 1) {
+            await tx.auditLog.create({
+              data: {
+                actorUserId: userId,
+                action: "STAFF_ACCOUNT_LINKED",
+                targetType: "StaffRecord",
+                targetId: record.id,
+                afterValue: { userId, byInvitation: found.id },
+              },
+            });
+          }
+        }
+      }
       await tx.auditLog.create({
         data: {
           actorUserId: userId,

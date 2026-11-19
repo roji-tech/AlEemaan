@@ -7,6 +7,8 @@ import { TONE, type Tone } from "@/components/ui/tone";
 import { DESTINATIONS, type Destination } from "@/lib/search/destinations";
 import { highlight, search } from "@/lib/search/match";
 import { visibleDestinations, type Viewer } from "@/lib/search/visible";
+import type { RecordHit } from "@/lib/search/records";
+import { getJson } from "@/components/auth/postJson";
 import { FOCUS_RING } from "./nav";
 
 // Search the whole app from the top bar (task 0107). The controls are named "Find a page or setting", not "Search…": every list on a page has its own field labelled "Search", and a screen reader (or a test that looks a field up by that word) must not meet two of them; the placeholder still says "Search". A field from `lg` up, a magnifier button on a phone that opens a full-screen sheet; the same box in both. It finds pages, tabs, settings
@@ -41,8 +43,47 @@ function remember(id: string) {
   }
 }
 
-type Row = { destination: Destination; id: string };
+/// A row is a destination of the index, or a record found by the server (task 0113).
+type Row = { id: string; destination: Destination; record?: undefined } | { id: string; record: RecordHit; destination?: undefined };
 type Section = { key: string; label: string; rows: Row[] };
+
+// Records (task 0113): asked of the server once the typing pauses, shown AFTER the pages and settings so a result that arrives late never moves the one already chosen.
+const RECORD_GROUPS: { kind: RecordHit["kind"]; label: string; chip: string }[] = [
+  { kind: "pupil", label: "Pupils", chip: "Pupil" },
+  { kind: "staff", label: "Staff", chip: "Staff" },
+  { kind: "class", label: "Classes", chip: "Class" },
+  { kind: "subject", label: "Subjects", chip: "Subject" },
+  { kind: "invoice", label: "Invoices", chip: "Invoice" },
+  { kind: "user", label: "People with an account", chip: "Account" },
+];
+const RECORD_WAIT_MS = 250;
+
+/// The server's records for a query, after a pause in the typing; nothing for a query under two characters or for someone who is not staff.
+function useRecords(query: string, enabled: boolean): RecordHit[] {
+  const [hits, setHits] = useState<{ q: string; rows: RecordHit[] }>({ q: "", rows: [] });
+  const q = query.trim();
+  useEffect(() => {
+    if (!enabled || q.length < 2) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void getJson(`/api/v1/search?q=${encodeURIComponent(q.slice(0, 64))}`, controller.signal).then((reply) => {
+        if (!controller.signal.aborted && reply.ok) setHits({ q, rows: reply.data!.results as RecordHit[] });
+      });
+    }, RECORD_WAIT_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q, enabled]);
+  return enabled && q.length >= 2 && hits.q === q ? hits.rows : [];
+}
+
+function recordSections(records: readonly RecordHit[]): Section[] {
+  return RECORD_GROUPS.flatMap((g) => {
+    const rows = records.filter((r) => r.kind === g.kind).map((r): Row => ({ id: `record-${r.kind}-${r.id}`, record: r }));
+    return rows.length === 0 ? [] : [{ key: `record-${g.kind}`, label: g.label, rows }];
+  });
+}
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
@@ -113,15 +154,17 @@ function SearchBox({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the device's own storage is exactly what this effect is for
     setRecent(readRecent());
   }, []);
-  const sections = sectionsFor(query, visible, recent);
+  const records = useRecords(query, viewer.isStaff || viewer.isAdmin);
+  const sections = [...sectionsFor(query, visible, recent), ...recordSections(records)];
   const rows = sections.flatMap((s) => s.rows);
   const current = rows[Math.min(active, Math.max(rows.length - 1, 0))];
 
   const choose = useCallback(
     (row: Row) => {
-      remember(row.destination.id);
+      // Only destinations are remembered on the device; a record never is (its name stays off the device).
+      if (row.destination) remember(row.destination.id);
       onDone();
-      router.push(row.destination.href);
+      router.push(row.destination ? row.destination.href : row.record.href);
     },
     [onDone, router],
   );
@@ -169,7 +212,7 @@ function SearchBox({
           spellCheck={false}
           enterKeyHint="go"
           value={query}
-          placeholder="Search pages, settings, how to…"
+          placeholder="Search pages, pupils, staff, invoices…"
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);
@@ -208,8 +251,39 @@ function SearchBox({
                 <p className="px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wide text-fg-muted uppercase">{section.label}</p>
                 <ul role="presentation">
                   {section.rows.map((row) => {
-                    const d = row.destination;
                     const isActive = current?.id === row.id;
+                    if (row.record) {
+                      const r = row.record;
+                      const chip = RECORD_GROUPS.find((g) => g.kind === r.kind)!.chip;
+                      return (
+                        <li
+                          key={row.id}
+                          id={optionId(row)}
+                          role="option"
+                          aria-selected={isActive}
+                          onMouseMove={() => {
+                            const at = rows.findIndex((x) => x.id === row.id);
+                            if (at >= 0 && at !== active) setActive(at);
+                          }}
+                          onMouseDown={(e) => e.preventDefault() /* keep the focus in the field */}
+                          onClick={() => choose(row)}
+                          className={`min-h-11 cursor-pointer rounded-xl px-3 py-2.5 ${isActive ? "bg-surface-2 ring-1 ring-line-strong ring-inset" : ""}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold wrap-break-word text-fg">
+                                <Marked text={r.title} query={query} />
+                              </p>
+                              <p className="mt-0.5 text-xs wrap-break-word text-fg-muted">{r.line}</p>
+                            </div>
+                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${TONE.info.chip}`}>
+                              {chip}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    }
+                    const d = row.destination;
                     const look = GROUPS.find((g) => g.group === d.group)!;
                     return (
                       <li

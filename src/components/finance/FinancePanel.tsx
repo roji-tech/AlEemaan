@@ -15,9 +15,11 @@ export interface FinancePanelProps {
   isSuperAdmin?: boolean;
   canManage?: boolean;
   userBranchId?: string | null;
+  /// The invoice search a link opens with (the top-bar search, task 0113).
+  initialQuery?: string;
 }
 
-export function FinancePanel({ branches, isSuperAdmin = false, canManage = true, userBranchId }: FinancePanelProps) {
+export function FinancePanel({ branches, isSuperAdmin = false, canManage = true, userBranchId, initialQuery }: FinancePanelProps) {
   const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
   // The open tab is in the address (`?tab=`, task 0100). Overview is the first tab and opens by default (task 0106); the old tab names are kept as they were in the page's own state.
   const [openTab, chooseTab] = useTabParam(FINANCE_TAB_IDS, "overview");
@@ -177,6 +179,7 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
           periods={periods}
           classGroups={classGroups}
           canManage={canManage}
+          initialQuery={initialQuery}
           onRefresh={() => loadData(selectedBranchId, true)}
         />
       ) : (

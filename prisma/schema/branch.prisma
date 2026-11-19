@@ -161,17 +161,21 @@ model Invitation {
 
   tokenHash String @unique
 
-  invitedById  String?
-  acceptedById String?
-  createdAt    DateTime  @default(now())
-  expiresAt    DateTime
-  acceptedAt   DateTime?
-  revokedAt    DateTime?
+  invitedById   String?
+  acceptedById  String?
+  /// The staff record this invitation was sent from (task 0114, task 0101 D6): accepting it links the new account to that record. Null for an invitation typed by hand.
+  staffRecordId String?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  revokedAt     DateTime?
 
-  branch     Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  invitedBy  User?  @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: SetNull)
-  acceptedBy User?  @relation("InvitationsAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invitedBy   User?        @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: SetNull)
+  acceptedBy  User?        @relation("InvitationsAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+  staffRecord StaffRecord? @relation(fields: [staffRecordId], references: [id], onDelete: SetNull)
 
   @@index([email])
+  @@index([staffRecordId])
   @@index([createdAt])
 }
