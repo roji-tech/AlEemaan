@@ -9,7 +9,10 @@ import { FinancePanel } from "@/components/finance/FinancePanel";
 export const metadata: Metadata = { title: "Finance & Fee Invoicing" };
 export const dynamic = "force-dynamic";
 
-export default async function FinancePage() {
+export default async function FinancePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // A link from the top-bar search (task 0113): the branch and the invoice number to search for. The branch is used only when it is one of the branches below.
+  const query = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const { session, isAdmin, isSuperAdmin, memberships } = await requirePageSession();
 
   if (!isAdmin) {
@@ -53,7 +56,13 @@ export default async function FinancePage() {
           You don&apos;t belong to a branch with finance administration access yet.
         </p>
       ) : (
-        <FinancePanel branches={branches} isSuperAdmin={isSuperAdmin} canManage={isAdmin} userBranchId={userBranchId} />
+        <FinancePanel
+          branches={branches}
+          isSuperAdmin={isSuperAdmin}
+          canManage={isAdmin}
+          userBranchId={branches.some((b) => b.id === one(query.branch)) ? one(query.branch)! : userBranchId}
+          initialQuery={one(query.q)?.slice(0, 64)}
+        />
       )}
     </div>
   );

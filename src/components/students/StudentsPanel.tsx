@@ -66,13 +66,18 @@ export function StudentsPanel({
   branches,
   standingCan = {},
   programs = {},
+  initialBranchId,
+  initialQuery = "",
 }: {
   branches: BranchChoice[];
+  /// From a link (the top-bar search, task 0113): the branch to open and the search to start with. A branch the person does not have is ignored.
+  initialBranchId?: string;
+  initialQuery?: string;
   standingCan?: Record<string, StandingCan>;
   /// The program each branch was made for, if any, as this person may see it (task 0110).
   programs?: Record<string, OwnProgram>;
 }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+  const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [students, setStudents] = useState<Student[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -82,7 +87,7 @@ export function StudentsPanel({
   const [paging, setPaging] = useState<Paging>({ page: 1, totalPages: 1, total: 0 });
   const [show, setShow] = useState<Show>("live");
   const status = show === "archived" ? "archived" : "live";
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery);
   // Class, arm, gender and age (task 0103 D1), applied by the server so the counts and pages follow them.
   const [pf, setPf] = useState<PupilFilters>({});
   const [noDob, setNoDob] = useState<number | null>(null);
@@ -260,7 +265,12 @@ export function StudentsPanel({
             value={pf.noClass ? "none" : (pf.classGroupId ?? "")}
             onChange={(e) => {
               const v = e.target.value;
-              setFilter({ ...pf, classGroupId: v && v !== "none" ? v : undefined, classArmId: undefined, noClass: v === "none" ? "1" : undefined });
+              setFilter({
+                ...pf,
+                classGroupId: v && v !== "none" ? v : undefined,
+                classArmId: undefined,
+                noClass: v === "none" ? "1" : undefined,
+              });
             }}
             options={[
               { value: "", label: "Any class" },

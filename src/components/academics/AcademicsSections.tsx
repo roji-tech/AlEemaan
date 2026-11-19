@@ -19,6 +19,7 @@ export function AcademicsSections({
   isSuperAdmin = false,
   initialSection = "classes",
   initialBranchId,
+  initialQuery,
   openNew = false,
 }: {
   branches: BranchChoice[];
@@ -26,6 +27,8 @@ export function AcademicsSections({
   /// Which tab opens first (a link from the Overview, or /academics/sessions).
   initialSection?: SectionId;
   initialBranchId?: string;
+  /// The search a link opens the first tab with (the top-bar search, task 0113).
+  initialQuery?: string;
   /// Open the "new" form of the first tab at once (a shortcut from the Overview): New session or New class. Used once.
   openNew?: boolean;
 }) {
@@ -52,6 +55,7 @@ export function AcademicsSections({
             onBranchChange={setBranchId}
             autoNew={autoNew}
             onAutoNewDone={autoNewDone}
+            initialQuery={active === initialSection ? initialQuery : undefined}
           />
         )}
         {active === "sessions" && (
@@ -70,7 +74,13 @@ export function AcademicsSections({
             <SchemeLevelsPanel branches={branches} isSuperAdmin={isSuperAdmin} />
           </div>
         )}
-        {active === "staff" && <StaffPanel branches={branches} />}
+        {active === "staff" && (
+          <StaffPanel
+            branches={branches}
+            initialBranchId={initialBranchId}
+            initialQuery={initialSection === "staff" ? initialQuery : undefined}
+          />
+        )}
         {active === "promotion" && <PromotionConsole branches={branches} />}
       </div>
     </div>

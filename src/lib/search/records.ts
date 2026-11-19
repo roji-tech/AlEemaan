@@ -40,7 +40,7 @@ export async function searchRecords(userId: string, q: string): Promise<RecordHi
   const [visible, scope] = await Promise.all([branchIdsFor(userId), adminScope(userId)]);
   if (visible !== "all" && visible.length === 0) return [];
   const inBranches = visible === "all" ? {} : { branchId: { in: visible } };
-  const administered = scope.superAdmin ? {} : { branchId: { in: scope.branchIds } };
+  const administered = scope.superAdmin ? {} : { branchId: { in: [...scope.branchIds] } };
   const mayInvoices = scope.superAdmin || scope.branchIds.length > 0;
 
   const [pupils, staff, classes, subjects, invoices, users] = await Promise.all([
@@ -63,10 +63,22 @@ export async function searchRecords(userId: string, q: string): Promise<RecordHi
       },
     }),
     prisma.staffRecord.findMany({
-      where: { ...inBranches, archivedAt: null, AND: everyWord(words, (w) => [{ firstName: like(w) }, { lastName: like(w) }, { email: like(w) }]) },
+      where: {
+        ...inBranches,
+        archivedAt: null,
+        AND: everyWord(words, (w) => [{ firstName: like(w) }, { lastName: like(w) }, { email: like(w) }]),
+      },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
       take: PER_KIND,
-      select: { id: true, branchId: true, firstName: true, lastName: true, title: true, category: true, branch: { select: { name: true } } },
+      select: {
+        id: true,
+        branchId: true,
+        firstName: true,
+        lastName: true,
+        title: true,
+        category: true,
+        branch: { select: { name: true } },
+      },
     }),
     prisma.classGroup.findMany({
       where: { ...inBranches, archivedAt: null, AND: everyWord(words, (w) => [{ name: like(w) }]) },

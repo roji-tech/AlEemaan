@@ -13,7 +13,9 @@ import { switchableBranches } from "@/lib/auth/login-switch";
 export const metadata: Metadata = { title: "Users" };
 export const dynamic = "force-dynamic";
 
-export default async function UsersPage() {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // A link from the top-bar search (task 0113): who to search for.
+  const q = (await searchParams).q;
   const { session, isAdmin, isSuperAdmin } = await requirePageSession();
 
   // The page enforces what the API enforces (the members and invitations routes are for administrators): hiding the nav entry from other roles is
@@ -70,6 +72,7 @@ export default async function UsersPage() {
         currentUserId={session.userId}
         isSuperAdmin={isSuperAdmin}
         hasMfa={isSuperAdmin && (await hasActiveMfa(session.userId))}
+        initialQuery={(Array.isArray(q) ? q[0] : q)?.slice(0, 64)}
       />
     </div>
   );

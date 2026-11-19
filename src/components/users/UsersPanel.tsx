@@ -26,6 +26,7 @@ import { EditMemberDialog } from "./EditMemberDialog";
 import { InvitationsList } from "./InvitationsList";
 import { BulkInviteDialog } from "./BulkInviteDialog";
 import { InviteDialog } from "./InviteDialog";
+import { StaffPanel } from "@/components/academics/StaffPanel";
 import { SuperAdminDialog } from "./SuperAdminDialog";
 import { ROLE_OPTIONS, displayName, roleOptionsFor, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
 
@@ -58,8 +59,11 @@ export function UsersPanel({
   isSuperAdmin,
   hasMfa,
   standingCan = {},
+  initialQuery = "",
 }: {
   branches: BranchOption[];
+  /// The search a link opens the People tab with (the top-bar search, task 0113).
+  initialQuery?: string;
   currentUserId: string;
   isSuperAdmin: boolean;
   /// The signed-in superadmin has two-step verification on, so a change that needs a fresh proof asks for a code and not the password.
@@ -67,8 +71,8 @@ export function UsersPanel({
   /// What this person may do about a member's standing in each branch (display only: the API decides).
   standingCan?: Record<string, StandingCan>;
 }) {
-  const [searchText, setSearchText] = useState("");
-  const [q, setQ] = useState("");
+  const [searchText, setSearchText] = useState(initialQuery);
+  const [q, setQ] = useState(initialQuery);
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("active");
   const [access, setAccess] = useState(""); // "" = anyone, "formResults" = only the people who may read form results
@@ -246,6 +250,8 @@ export function UsersPanel({
             tabs={[
               { id: "people", label: "People" },
               { id: "invitations", label: invitations === null ? "Pending invitations" : `Pending invitations (${invitations.length})` },
+              // Task 0114: the staff records of the branches this person administers, to tick and invite at the addresses on the records, or move to another branch.
+              { id: "staff", label: "Staff" },
             ]}
           />
         </div>
@@ -376,6 +382,15 @@ export function UsersPanel({
         </section>
       )}
 
+      {tab === "staff" && (
+        <section role="tabpanel" id={panelId("users", "staff")} aria-labelledby={tabId("users", "staff")}>
+          <StaffPanel
+            branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: true, standing: standingCan[b.id] }))}
+            initialBranchId={undefined}
+          />
+        </section>
+      )}
+
       {tab === "invitations" && (
         <section role="tabpanel" id={panelId("users", "invitations")} aria-labelledby={tabId("users", "invitations")}>
           <InvitationsList invitations={invitations} busyId={busyInvitation} onResend={resend} onRevoke={revoke} />
@@ -402,6 +417,10 @@ export function UsersPanel({
         onClose={() => setInviting(false)}
         branches={branches}
         roleOptions={roleOptionsFor(isSuperAdmin)}
+        onFromStaff={() => {
+          setInviting(false);
+          setTab("staff");
+        }}
         onInvited={(sent) => {
           flushSync(() => setInviting(false)); // the dialog is closed (and focus handed back) before the lists are reloaded
           setNotice({ variant: "success", text: invitedText(sent) });

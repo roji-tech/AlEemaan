@@ -9,7 +9,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { Collection, Item, ItemTile } from "@/components/ui/Collection";
-import { BookOpenIcon, GraduationCapIcon, LayersIcon, PencilIcon, UsersIcon } from "@/components/ui/icons";
+import { BookOpenIcon, GraduationCapIcon, LayersIcon, PencilIcon, UserIcon, UsersIcon } from "@/components/ui/icons";
 import { TONE } from "@/components/ui/tone";
 import { BranchPicker } from "@/components/ui/BranchPicker";
 import { ListToolbar } from "@/components/ui/ListToolbar";
@@ -27,7 +27,14 @@ import { subjectEntity } from "@/lib/bulk/subjects";
 // The Academics page's lists and dialogs (Slice P1): classes with their arms and subjects, and the branch's subjects. Presentation only - the academics API
 // enforces who may read and change what, and every outcome (duplicate name, archived parent, signed out, offline) has its own honest message.
 
-type Arm = { id: string; name: string; capacity: number | null; archivedAt: string | null; enrolments: number };
+type Arm = {
+  id: string;
+  name: string;
+  capacity: number | null;
+  archivedAt: string | null;
+  enrolments: number;
+  classTeacher: { id: string; name: string } | null;
+};
 type ClassGroup = { id: string; name: string; sortOrder: number; archivedAt: string | null; subjectIds: string[]; arms: Arm[] };
 type Subject = { id: string; name: string; code: string | null; archivedAt: string | null };
 type Editing =
@@ -35,6 +42,7 @@ type Editing =
   | { kind: "arm"; classGroup: ClassGroup; item: Arm | null }
   | { kind: "subject"; item: Subject | null }
   | { kind: "offerings"; classGroup: ClassGroup }
+  | { kind: "teacher"; classGroup: ClassGroup; arm: Arm }
   | null;
 
 const same = (text: string, query: string) => text.toLowerCase().includes(query.trim().toLowerCase());
@@ -48,6 +56,7 @@ export function ClassesPanel({
   onBranchChange,
   autoNew = false,
   onAutoNewDone,
+  initialQuery = "",
 }: {
   branches: BranchChoice[];
   view: "classes" | "subjects";
@@ -56,6 +65,8 @@ export function ClassesPanel({
   /// Open the New class form at once (a shortcut from the Overview). Used once.
   autoNew?: boolean;
   onAutoNewDone?: () => void;
+  /// The search a link opens the list with (the top-bar search, task 0113).
+  initialQuery?: string;
 }) {
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [groups, setGroups] = useState<ClassGroup[] | null>(null);
@@ -69,7 +80,7 @@ export function ClassesPanel({
   }, [autoNew, onAutoNewDone]);
   // "Add many" (task 0084): whether the dialog is open, and a key that gives each opening a clean dialog.
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialQuery);
   const [gap, setGap] = useState(""); // classes: "" | "noSubjects" | "noArms"; subjects: "" | "unused"
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered per list (task 0089). Classes read best as cards, subjects as rows.
@@ -306,6 +317,25 @@ export function ClassesPanel({
                                   {label}
                                 </span>
                               )}
+                              {/* The arm's class teacher (task 0114): shown to everyone, chosen here by an administrator. */}
+                              {branch.canEdit ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditing({ kind: "teacher", classGroup: g, arm: a })}
+                                  aria-label={`Class teacher of ${g.name} ${a.name}: ${a.classTeacher ? a.classTeacher.name : "none yet"}. Change`}
+                                  className="relative z-10 mt-1 flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                >
+                                  <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                                  {a.classTeacher ? a.classTeacher.name : "Set class teacher"}
+                                </button>
+                              ) : (
+                                a.classTeacher && (
+                                  <p className="mt-1 flex items-center gap-1.5 px-2 text-xs text-fg-muted">
+                                    <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                                    {a.classTeacher.name}
+                                  </p>
+                                )
+                              )}
                             </li>
                           );
                         })}
@@ -533,6 +563,13 @@ export function ClassesPanel({
           return reply;
         }}
       />
+      <ClassTeacherDialog
+        key={editing?.kind === "teacher" ? editing.arm.id : "no-arm"}
+        branchId={branchId}
+        target={editing?.kind === "teacher" ? { classGroup: editing.classGroup, arm: editing.arm } : null}
+        onClose={() => setEditing(null)}
+        onDone={(text) => done(text)}
+      />
       <OfferingsDialog
         key={editing?.kind === "offerings" ? editing.classGroup.id : "none"}
         classGroup={editing?.kind === "offerings" ? editing.classGroup : null}
@@ -683,6 +720,101 @@ function OfferingsDialog({
           </div>
         </form>
       )}
+    </Dialog>
+  );
+}
+
+type StaffChoice = {
+  id: string;
+  title: string | null;
+  firstName: string;
+  lastName: string;
+  category: "TEACHING" | "NON_TEACHING";
+  archived: boolean;
+  standing: string;
+};
+
+/// Choose an arm's class teacher (task 0114): a live member of staff of the branch, teaching staff first, or nobody. The API checks again (an administrator of the branch, a live record of it).
+function ClassTeacherDialog({
+  branchId,
+  target,
+  onClose,
+  onDone,
+}: {
+  branchId: string;
+  target: { classGroup: ClassGroup; arm: Arm } | null;
+  onClose: () => void;
+  onDone: (text: string) => Promise<void>;
+}) {
+  const [staff, setStaff] = useState<StaffChoice[] | null>(null);
+  const [chosen, setChosen] = useState(target?.arm.classTeacher?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!target) return;
+    let live = true;
+    void getJson(`/api/v1/staff?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
+      if (!live) return;
+      if (!reply.ok) return setError(say(reply, "Couldn't load the staff."));
+      const rows = (reply.data!.staff as StaffChoice[]).filter((p) => !p.archived && p.standing === "ACTIVE");
+      rows.sort((a, b) => (a.category === b.category ? 0 : a.category === "TEACHING" ? -1 : 1));
+      setStaff(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, [branchId, target]);
+  if (!target) return null;
+  const where = `${target.classGroup.name} ${target.arm.name}`;
+  async function save() {
+    setBusy(true);
+    setError(null);
+    const reply = await sendJson(`/api/v1/academics/arms/${target!.arm.id}/class-teacher`, "PATCH", {
+      branchId,
+      staffRecordId: chosen || null,
+    });
+    setBusy(false);
+    if (!reply.ok) return setError(say(reply, "That didn't work."));
+    const person = staff?.find((p) => p.id === chosen);
+    await onDone(
+      person ? `${person.firstName} ${person.lastName} is the class teacher of ${where}.` : `${where} has no class teacher now.`,
+    );
+  }
+  const nameOf = (p: StaffChoice) => `${p.title ? `${p.title} ` : ""}${p.firstName} ${p.lastName}`;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`Class teacher of ${where}`}
+      description="The class teacher can take the register for this arm. One per arm; choosing another replaces them."
+    >
+      <div className="mt-4 space-y-4">
+        {staff === null && !error ? (
+          <p className="text-sm text-fg-muted">Loading the staff…</p>
+        ) : (
+          <SelectField
+            label="Class teacher"
+            value={chosen}
+            onChange={(e) => setChosen(e.target.value)}
+            options={[
+              { value: "", label: "No class teacher" },
+              ...(staff ?? []).map((p) => ({
+                value: p.id,
+                label: `${nameOf(p)}${p.category === "NON_TEACHING" ? " (non-teaching)" : ""}`,
+              })),
+            ]}
+          />
+        )}
+        {error && <Alert variant="error">{error}</Alert>}
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={busy} onClick={() => void save()} disabled={staff === null}>
+            Save
+          </Button>
+        </div>
+      </div>
     </Dialog>
   );
 }

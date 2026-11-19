@@ -220,6 +220,14 @@ const USERS = tabs("/users", "Users", "page", [
     summary: "Invitations sent and not yet accepted: resend or revoke them.",
     keywords: ["invite", "invitation", "resend", "revoke", "pending"],
   },
+  {
+    id: "staff",
+    title: "Staff sign-in",
+    summary:
+      "The staff records of your branches: tick the ones who should sign in and invite them at the address on their record, or move someone to another branch.",
+    keywords: ["invite staff", "staff email", "corper", "transfer", "move staff", "another branch", "sign in"],
+    steps: ["Open Users", "Choose the Staff tab", "Tick the people to invite, then press Invite to sign in"],
+  },
 ]);
 
 // The pages that have no tabs of their own in the address, or that are one screen. `summary` is about what is there, not about the page's name.
