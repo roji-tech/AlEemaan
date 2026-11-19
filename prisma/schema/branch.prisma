@@ -17,6 +17,7 @@ model Branch {
   studentLoginEnabled Boolean @default(false)
   parentLoginEnabled  Boolean @default(false)
 
+  profile                BranchProfile?
   memberships            Membership[]
   invitations            Invitation[]
   sessions               AcademicSession[]

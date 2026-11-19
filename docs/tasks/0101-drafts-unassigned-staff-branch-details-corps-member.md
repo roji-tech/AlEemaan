@@ -1,7 +1,7 @@
 # 0101: Draft pupils and staff, a draft (unsent) invitation, staff with no branch yet, school details per branch, an NYSC corps member flag, inviting staff from the staff list, and departments with heads of department
 
 - **Period / Focus:** 2026-11-18 (the maintainer: "can we add draft student and draft staff, so we can add and still leave out some info, so we can add a draft user without sending an invite yet"; "I wanna be able to add staff without adding them to any branch yet"; "what if these infos are relative to branches?" (School Information: principal, phone, motto, address, e-mail, website); "we need to be able to indicate if a staff is a corper (corp member NYSC) or not"; "so what if we wanna invite a staff, what if we wanna invite multiple staff, a multi-select would be good, because I'm not sure if adding a staff creates a user account"; "can we assign staffs to department if we want to use departments, can we assign HODs"; "keep in mind, we can have a teacher teaching in two or more branches")
-- **Status:** Designed; nothing built; the five decisions marked (ask) need the maintainer's answer before the migrations are written
+- **Status:** D5 built (task 0111), D6 and R1 built (task 0112), D4 (school details per branch) built in task 0115 (2026-11-19, below); D1, D2, D3 and D7 not built yet
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** to be opened after task 0100 / PR into `dev`
@@ -33,12 +33,44 @@
 
 - **D7. Departments, optional, and heads of department.** A branch that wants them turns on "Use departments" (a branch setting, off by default, so a school that does not use departments sees nothing new). Then: a `Department` is a branch's own named group (Sciences, Languages, Arabic and Islamic Studies, Bursary; unique by name within the branch, archived and never deleted like everything else here, teaching or non-teaching). A staff record can belong to several departments (a teacher of Chemistry and of Arabic), through `DepartmentMember` (department, staff record, `isHead`). **R1: departments belong to a branch and membership is on the branch's record, so a teacher can be head of Sciences in one branch and an ordinary member of Languages in another.** **A head of department** is a member marked as head; a department has one head (the choice replaces the old one, with a confirmation and an audit row) unless the maintainer wants co-heads. Subjects may be put in a department (`Subject.departmentId`, nullable), so "Mathematics belongs to Sciences". On screen: Academics > Staff gets a Department filter, a department badge and an "HOD" badge on a record; a "Departments" tab lists each department with its head, members and subjects; assigning many people at once uses the same multi-select as D6 ("Add to department"); the bulk staff file gets a Department column. **What an HOD can do is the open question** *(ask)*: (a) nothing yet, it is a title that shows on the list, the department page and, later, printed documents; (b) the head sees and edits their department's members and subjects; (c) the head approves the marks of their department's subjects through the existing results-approval flow (`CAN_APPROVE_RESULTS`, scoped to the department's subjects) before the administrator's. Recommended: build (a) and (b) now, and (c) as its own task once the approval rules are agreed, because it changes who can publish results.
 
+### D4 as built (task 0115, 2026-11-19): school details per branch
+
+The (ask) of D4 is answered with the secure default, and every decision below is a default the maintainer may change.
+
+**Who may edit.** A superadmin edits the school-wide values (as before, `PATCH /api/v1/settings/school`, superadmin only, unchanged) and the details of any branch. An administrator of a branch edits ONLY that branch's details. Teachers and everyone else: no access (404 for a branch that is not theirs to administer, 403 for a role that cannot administer).
+
+**Where it is on screen.**
+- Settings is still a superadmin page (the sidebar entry, the page and `tests/e2e/shell.spec.ts` / `users.spec.ts` all say so, and a branch administrator was never meant to open it), so it is NOT opened to branch administrators.
+- Settings > School Profile: a chooser "Edit details for": School-wide (the form as it was, the default) or one branch.
+- Approvals > Report cards (an administrator's page, with the branch's own report-card layout): a card "Details printed on <branch>'s report cards" with the branch chooser limited to the branches the person administers. That is where a branch administrator reaches it, next to the rest of what their report cards show.
+- Both use one component, `BranchProfilePanel`: each field shows the branch's own value, or "Using the school's: <value>" in muted text with the field empty; a field is cleared back to the school's with "Use the school's"; saving sends only the fields that changed; a line says what the report cards will show.
+
+**The table.** `BranchProfile` (`branchId` unique, cascade; principal, phone, motto, address, email, website, all nullable; created/updated). The school's name stays school-wide (a branch has its own name already). The public website's contact page stays the school-wide record (`lib/landing/contact.ts` is unchanged). Additive migration `20261119170000_branch_profile`, the maintainer's to run on production after the prod merge.
+
+**One place decides.** `lib/settings/branch-profile.ts`: `mergeProfile(school, branch)` is pure (a branch value that is blank or only spaces counts as not set; each field says `source: "branch"` or `"school"`), and `profileFor(branchId)` reads the school row (never creating it) and the branch row and merges. A reader of details about ONE branch asks `profileFor(thatBranch)`; a document that spans branches or has none keeps the school-wide value.
+
+**Readers.** Read from the code: the only things that print or send the six fields are the report card (`getReportCard`, then `ReportCard.tsx` and `report-card-export.ts`: principal, motto, address, phone). Certificates, invoices, invitation and broadcast e-mails and the public verification page use the school's NAME only, which stays school-wide, so they are not switched. Nothing prints the branch's e-mail address or website yet; they are kept so a branch can have its own and the next printed document can use them without another migration.
+
+**API.** `GET /api/v1/settings/branch-profile?branchId=` answers `{ school, branch, effective }` (the school's values, the branch's own, and the merged value with its `source` per field). `PATCH` takes `{ branchId, ...fields }`, strict, with the same field rules and lengths as the school settings; an empty string or null clears that field's override. Only changed fields are written and only they are audited (`BRANCH_PROFILE_UPDATED`, before and after); a patch that changes nothing writes nothing. Rate limit: 30 saves per administrator per 5 minutes (the school settings route has none; this one is open to many more people).
+
+**Files.** `prisma/schema/settings.prisma` (`BranchProfile`), `prisma/migrations/20261119170000_branch_profile`, `lib/settings/branch-profile-rules.ts` (pure) and `branch-profile.ts` (server), the shared field rules `contactFields` in `lib/settings/school-settings.ts` (the school's form and a branch's cannot drift), `app/api/v1/settings/branch-profile/route.ts`, `components/settings/BranchProfilePanel.tsx`, `SettingsView.tsx` (the chooser), `ApprovalsSections.tsx` (the card), `lib/academics/report-card.ts` (the one reader switched), the search index (School Profile and Report cards now answer "principal", "motto", "branch details").
+
+**Tests written (task 0115).** Unit `tests/unit/branch-profile.spec.ts` (the merge rule, blank and whitespace, source flags, the preview line). API `tests/api/branch-profile.spec.ts` (who may: signed out, teacher, another branch's administrator, a superadmin; reading creates nothing; saving trims, names what changed and audits only that; saving the same value changes and audits nothing; clearing by empty, spaces or null; the school changing later; one branch never reaching another; the cascade; the school's rules refuse bad input; the rate limit; the report card shows the branch's value, the school's elsewhere, and the school's name always). Browser `tests/e2e/branch-profile.spec.ts` (Settings: choose a branch, "Using the school's", set, take back; a refused value shown by its field; Approvals: an administrator of one branch sees only theirs, of two chooses between exactly those two; axe in both themes; desktop and phone).
+
+**Decisions beyond the brief.**
+- A branch administrator reaches it from Approvals > Report cards, not Settings (Settings stays superadmin only everywhere). The school-wide route is unchanged.
+- Saving a value equal to the school's still stores it as the branch's own (an explicit choice: it stays when the school's changes); "Use the school's" is how it is given back.
+- The branch's e-mail and website are stored and editable but nothing prints them yet; the next printed document can use `profileFor` without another migration.
+- The rate limit (30 saves per administrator per 5 minutes) is new for this route; the school's own route has none.
+
+**Not verified here (written, not run, per the brief):** the API and browser specs. The migration was checked against the schema on a throwaway local database (`prisma migrate diff --exit-code` gave 0), and the pure unit spec was run alone: 11 passed.
+
 ## 3. Migrations (the maintainer's to run, in this order; every one is additive or loosens a rule, none drops data)
 
 1. `staff_draft_corps_branchless`: `StaffRecord.isDraft`, `StaffRecord.corpsMember`, `StaffRecord.personId` (nullable), `StaffRecord.branchId` nullable (the foreign keys to `Branch` and to `Membership` allow null).
 2. `student_draft`: `StudentRecord.isDraft`.
 3. `invitation_draft`: `Invitation.sentAt`, `Invitation.staffRecordId` (nullable, foreign key to `StaffRecord`, set null on delete), and `tokenHash`, `expiresAt` nullable.
-4. `branch_profile`: the new table.
+4. `branch_profile`: the new table (built as `20261119170000_branch_profile`, task 0115).
 5. `departments`: `Department`, `DepartmentMember`, `Subject.departmentId` (nullable), the branch's "use departments" switch.
 
 ## 4. Order of work

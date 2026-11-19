@@ -46,8 +46,8 @@ const SETTINGS = tabs("/settings", "Settings", "setting", [
   {
     id: "profile",
     title: "School Profile",
-    summary: "The school's name, address, contact details and how it signs its documents.",
-    keywords: ["school name", "address", "logo", "details", "information"],
+    summary: "The school's name, address, contact details and how it signs its documents, for the school or for one branch.",
+    keywords: ["school name", "address", "logo", "details", "information", "principal", "motto", "phone", "branch details"],
   },
   {
     id: "academics",
@@ -147,8 +147,8 @@ const APPROVALS = tabs("/approvals", "Approvals", "page", [
   {
     id: "layout",
     title: "Report cards",
-    summary: "How report cards look, and what they say.",
-    keywords: ["report card", "layout", "template", "print"],
+    summary: "How report cards look, and what they say, including the principal, motto, address and phone a branch prints.",
+    keywords: ["report card", "layout", "template", "print", "principal", "motto", "branch details"],
   },
   {
     id: "verification",
