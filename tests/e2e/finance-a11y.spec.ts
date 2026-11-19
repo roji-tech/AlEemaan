@@ -121,7 +121,7 @@ test.describe("Slice P4 — Finance & Billing Accessibility & Workflows", () => 
     });
 
     await signInThroughUi(page, admin);
-    await page.goto("/finance");
+    await page.goto("/finance?tab=invoices");
 
     await expect(page.getByRole("heading", { name: "Finance & Fee Invoicing" })).toBeVisible();
     await expect(page.getByText("INV-2026-0001")).toBeVisible();
@@ -202,7 +202,7 @@ test.describe("Slice P4 — Finance & Billing Accessibility & Workflows", () => 
     });
 
     await signInThroughUi(page, admin);
-    await page.goto("/finance");
+    await page.goto("/finance?tab=invoices");
 
     // Switch to Fee Structures tab
     await page.getByRole("tab", { name: /Fee Schedules/i }).click();
