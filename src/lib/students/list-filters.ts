@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// The pupil list's filters (task 0103 D1): class (or no class yet), arm, gender and age, read from the address by the list AND by its export, so "the pupils shown" can never differ from
-// what the export writes. Pure: no database.
+// The pupil list's filters (task 0103 D1): class (or no class yet), arm, gender, age, and day or boarding (task 0113 R1), read from the address by the list AND by its export, so "the
+// pupils shown" can never differ from what the export writes. Pure: no database.
 
 export const AGE_MAX = 40;
 const id = z.string().trim().min(1).max(64);
@@ -13,6 +13,10 @@ export const pupilFilterSchema = z
     classArmId: id.optional(),
     noClass: z.enum(["1"]).optional(),
     gender: z.enum(["MALE", "FEMALE"]).optional(),
+    /// Day pupils, boarders, or those not set yet (task 0113 R1).
+    residence: z.enum(["DAY", "BOARDING", "NONE"]).optional(),
+    /// Scholarships (task 0113 S1; an administrator's filter only): "ANY" (holds a live one), "NONE", or the id of a scholarship type that the pupil holds live.
+    scholarship: id.optional(),
     ageMin: age.optional(),
     ageMax: age.optional(),
   })
@@ -38,6 +42,8 @@ export function readPupilFilters(params: URLSearchParams): ReturnType<typeof pup
     classArmId: pick("classArmId"),
     noClass: pick("noClass"),
     gender: pick("gender"),
+    residence: pick("residence"),
+    scholarship: pick("scholarship"),
     ageMin: pick("ageMin"),
     ageMax: pick("ageMax"),
   });
@@ -50,7 +56,11 @@ export function pupilFilterQuery(f: PupilFilters): string {
 }
 
 export const activePupilFilters = (f: PupilFilters): number =>
-  (f.classGroupId || f.noClass ? 1 : 0) + (f.gender ? 1 : 0) + (f.ageMin !== undefined || f.ageMax !== undefined ? 1 : 0);
+  (f.classGroupId || f.noClass ? 1 : 0) +
+  (f.gender ? 1 : 0) +
+  (f.residence ? 1 : 0) +
+  (f.scholarship ? 1 : 0) +
+  (f.ageMin !== undefined || f.ageMax !== undefined ? 1 : 0);
 
 /// The school's day today (YYYY-MM-DD) in the school's time zone.
 export function schoolDay(now: Date, zone: string): string {

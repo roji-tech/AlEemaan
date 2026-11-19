@@ -9,6 +9,8 @@ interface Invoice {
   totalAmount: number;
   amountPaid: number;
   status: string;
+  /// Settled with nothing paid because a scholarship took the fees off; only this yes or no reaches the family (task 0113 S1).
+  paidByScholarship?: boolean;
   dueDate: string | null;
   period: {
     label: string;
@@ -114,7 +116,7 @@ export function PortalFinanceTab({ invoices, student }: PortalFinanceTabProps) {
                                 : "bg-danger-bg text-danger-text"
                           }`}
                         >
-                          {inv.status}
+                          {inv.status === "PAID" && inv.paidByScholarship ? "PAID BY SCHOLARSHIP" : inv.status}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">

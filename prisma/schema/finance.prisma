@@ -108,21 +108,73 @@ model Payment {
 
 /// Audited fee discounts, waivers or scholarships applied to an invoice.
 model InvoiceDiscount {
-  id               String               @id @default(cuid())
-  branchId         String
-  invoiceId        String
-  amount           Decimal              @db.Decimal(12, 2)
-  reason           String
-  mode             DiscountWorkflowMode @default(MANUAL_OVERRIDE)
-  appliedByUserId  String
-  approvedByUserId String?
-  createdAt        DateTime             @default(now())
+  id                   String               @id @default(cuid())
+  branchId             String
+  invoiceId            String
+  amount               Decimal              @db.Decimal(12, 2)
+  reason               String
+  mode                 DiscountWorkflowMode @default(MANUAL_OVERRIDE)
+  appliedByUserId      String
+  approvedByUserId     String?
+  /// The scholarship this discount came from (task 0113 S1), when it is a scholarship's. At most one per scholarship per invoice (the unique index below), so applying a scholarship to an
+  /// invoice twice, by generation and by "Apply to open invoices", can never double it. Many manual discounts have null here; they never clash.
+  studentScholarshipId String?
+  createdAt            DateTime             @default(now())
 
-  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  invoice Invoice @relation(fields: [branchId, invoiceId], references: [branchId, id], onDelete: Cascade)
+  branch             Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invoice            Invoice             @relation(fields: [branchId, invoiceId], references: [branchId, id], onDelete: Cascade)
+  studentScholarship StudentScholarship? @relation(fields: [studentScholarshipId], references: [id], onDelete: SetNull)
 
   @@unique([branchId, id])
+  @@unique([invoiceId, studentScholarshipId])
   @@index([branchId, invoiceId])
+}
+
+/// A kind of scholarship a branch gives (task 0113 S1, the maintainer 2026-11-19: "scholarship can be of different types"): a name and a default share of each invoice it covers, 1 to 100 (100 =
+/// full). Archived, not deleted: pupils who hold it keep it. A name is used once among a branch's live types (checked by the service).
+model ScholarshipType {
+  id          String    @id @default(cuid())
+  branchId    String
+  name        String
+  /// 1 to 100 (a CHECK in the migration).
+  percent     Int
+  description String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  branch Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  grants StudentScholarship[]
+
+  @@unique([branchId, id])
+  @@index([branchId, archivedAt])
+}
+
+/// A pupil holding a scholarship (task 0113 S1): a type, the share it covers for this pupil (copied from the type, changeable), from and to days (null = open ended), a note. A pupil may hold
+/// several at once; their live shares together may not exceed 100 (the service checks it in a transaction). Ended, never deleted. Financial: only an administrator of the pupil's branch (or a
+/// superadmin) sees it; teachers and the family portal never receive it.
+model StudentScholarship {
+  id          String    @id @default(cuid())
+  branchId    String
+  studentId   String
+  typeId      String
+  /// 1 to 100 (a CHECK in the migration).
+  percent     Int
+  startsOn    DateTime? @db.Date
+  endsOn      DateTime? @db.Date
+  note        String?
+  createdById String
+  endedAt     DateTime?
+  endedById   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  student   StudentRecord     @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade, onUpdate: Cascade)
+  type      ScholarshipType   @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  discounts InvoiceDiscount[]
+
+  @@index([branchId, studentId])
+  @@index([branchId, typeId])
 }
 
 /// Webhook audit ledger recording incoming gateway deliveries and signature verifications.

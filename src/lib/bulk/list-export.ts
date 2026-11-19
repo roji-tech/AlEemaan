@@ -64,6 +64,11 @@ export type PupilExportRow = {
   guardianName: string | null;
   guardianPhone: string | null;
   guardianEmail: string | null;
+  /// Day or boarding (task 0113 R1); absent or null = not set.
+  residence?: string | null;
+  /// Task 0113 S1: the names of the pupil's live scholarships and their shares added up (an administrator's export only: exports already are).
+  scholarship?: string | null;
+  scholarshipPercent?: number | null;
 };
 export type StaffExportRow = {
   category: string;
@@ -94,6 +99,9 @@ export const exportValues = {
     guardianName: text(r.guardianName),
     guardianPhone: text(r.guardianPhone),
     guardianEmail: text(r.guardianEmail),
+    residence: r.residence === "DAY" ? "Day" : r.residence === "BOARDING" ? "Boarding" : "",
+    scholarship: text(r.scholarship),
+    scholarshipPercent: r.scholarshipPercent ? String(r.scholarshipPercent) : "",
   }),
   staff: (r: StaffExportRow): Record<string, string> => ({
     category: STAFF_CATEGORY_LABELS[r.category as keyof typeof STAFF_CATEGORY_LABELS] ?? r.category,

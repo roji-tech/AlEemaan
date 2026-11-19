@@ -1,6 +1,4 @@
 import crypto from "node:crypto";
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
 import { portalSecret } from "./secret";
 import type { Actor } from "./access";
 
@@ -43,13 +41,18 @@ export function getPortalSession(req: { cookies: { get(name: string): { value: s
 }
 
 export interface PortalSessionPayload {
-  /// Who is acting: a PUPIL (signed in with the date of birth) or a GUARDIAN (the guardian's phone or e-mail, or a link token). Task 0040. A cookie signed before this existed has
-  /// no actor and is read as a GUARDIAN, which is what it could do before; it is never widened to a pupil's or anyone's more.
+  /// Who is acting: a PUPIL or a GUARDIAN (task 0040; which door, task 0113 D6). A cookie signed before this existed has no actor and is read as a GUARDIAN with no `guardianId`, which
+  /// the session check now ends (task 0113 D6): it is never widened to a pupil's or anyone's more.
   actor: Actor;
   primaryStudentId: string;
   allowedStudentIds: string[];
   guardianPhone?: string | null;
   guardianEmail?: string | null;
+  /// The guardian signed in as (task 0113 D6): their children are their allowed links, re-read on every request. Absent for a pupil.
+  guardianId?: string;
+  /// The `portalVersion` of whoever signed in (the pupil, or the guardian) when the session was made (task 0113): a new code, a block or an unblock raises it and ends this session.
+  /// Absent in sessions made before codes existed (= 0).
+  version?: number;
   issuedAt: number;
   expiresAt: number;
 }
@@ -132,12 +135,16 @@ function parsePayload(raw: unknown): PortalSessionPayload | null {
   if (!Array.isArray(p.allowedStudentIds) || !p.allowedStudentIds.every(isId)) return null;
   if (!isTime(p.issuedAt) || !isTime(p.expiresAt)) return null;
   if (!isContact(p.guardianPhone) || !isContact(p.guardianEmail)) return null;
+  if (p.version !== undefined && !(typeof p.version === "number" && Number.isInteger(p.version) && p.version >= 0)) return null;
+  if (p.guardianId !== undefined && !isId(p.guardianId)) return null;
   return {
     actor: p.actor === "PUPIL" ? "PUPIL" : "GUARDIAN",
     primaryStudentId: p.primaryStudentId,
     allowedStudentIds: [...p.allowedStudentIds],
     ...(p.guardianPhone !== undefined ? { guardianPhone: p.guardianPhone } : {}),
     ...(p.guardianEmail !== undefined ? { guardianEmail: p.guardianEmail } : {}),
+    ...(p.guardianId !== undefined ? { guardianId: p.guardianId as string } : {}),
+    ...(p.version !== undefined ? { version: p.version as number } : {}),
     issuedAt: p.issuedAt,
     expiresAt: p.expiresAt,
   };
@@ -165,7 +172,7 @@ export function extractNationalDigits(phone: string): string {
 }
 
 /**
- * Checks whether an input matches a target phone (full match, national significant digits match, or last 4+ digits match).
+ * Checks whether an input matches a target phone: the whole number, written either way (0803... or +234803...). Task 0094 D3: never a part of it.
  */
 export function matchesPhone(input: string, targetPhone: string | null | undefined): boolean {
   if (!targetPhone) return false;
@@ -179,11 +186,7 @@ export function matchesPhone(input: string, targetPhone: string | null | undefin
   const natTarget = extractNationalDigits(cleanTarget);
   if (natInput && natTarget && natInput === natTarget) return true;
 
-  // Match suffix if at least 4 digits provided
-  const digitsInput = cleanInput.replace(/\D/g, "");
-  const digitsTarget = cleanTarget.replace(/\D/g, "");
-  if (digitsInput.length >= 4 && digitsTarget.endsWith(digitsInput)) return true;
-  if (digitsTarget.length >= 4 && digitsInput.endsWith(digitsTarget)) return true;
+  // The WHOLE number only (task 0113, task 0094 D3): the old "last 4 or more digits" match let 10,000 guesses cover any family, and is gone.
   return false;
 }
 
@@ -191,7 +194,7 @@ export function matchesPhone(input: string, targetPhone: string | null | undefin
  * Checks whether an input matches a date of birth (accepting YYYY-MM-DD or DD/MM/YYYY).
  */
 export function matchesDateOfBirth(input: string, dob: Date | null): boolean {
-  // A pupil with no date of birth on record cannot sign in with one (the guardian's phone or e-mail still work).
+  // A pupil with no date of birth on record cannot sign in with one.
   if (!dob) return false;
   const clean = input.trim();
   const year = dob.getUTCFullYear();
@@ -203,35 +206,4 @@ export function matchesDateOfBirth(input: string, dob: Date | null): boolean {
   const ddmmyyyyDash = `${day}-${month}-${year}`;
 
   return clean === iso || clean === ddmmyyyy || clean === ddmmyyyyDash;
-}
-
-/**
- * Resolves all sibling students that share the same guardian contact details.
- */
-export async function findSiblingStudentIds(student: {
-  id: string;
-  branchId: string;
-  guardianPhone: string | null;
-  guardianEmail: string | null;
-}): Promise<string[]> {
-  const orConditions: Prisma.StudentRecordWhereInput[] = [{ id: student.id }];
-
-  if (student.guardianPhone && student.guardianPhone.trim().length >= 7) {
-    orConditions.push({ guardianPhone: student.guardianPhone.trim() });
-  }
-
-  if (student.guardianEmail && student.guardianEmail.trim().length >= 5) {
-    orConditions.push({ guardianEmail: student.guardianEmail.trim().toLowerCase() });
-  }
-
-  const siblings = await prisma.studentRecord.findMany({
-    where: {
-      archivedAt: null,
-      OR: orConditions,
-    },
-    select: { id: true },
-  });
-
-  const ids = Array.from(new Set(siblings.map((s) => s.id)));
-  return ids.length > 0 ? ids : [student.id];
 }

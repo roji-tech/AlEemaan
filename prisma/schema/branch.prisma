@@ -16,6 +16,9 @@ model Branch {
   /// a PARENT membership `parentLoginEnabled`, of that very branch). Anyone with another active role, and any superadmin, is never affected.
   studentLoginEnabled Boolean @default(false)
   parentLoginEnabled  Boolean @default(false)
+  /// Task 0113 (task 0094 D7): families of this branch may still sign in with the date of birth (pupil) or the guardian's full phone or e-mail, besides an access code. On until
+  /// the branch's codes are out; an administrator turns it off on Settings > Sign-in access.
+  legacyPortalSecrets Boolean @default(true)
 
   memberships            Membership[]
   invitations            Invitation[]
@@ -23,6 +26,7 @@ model Branch {
   periods                AcademicPeriod[]
   academicBreaks         AcademicBreak[]
   students               StudentRecord[]
+  scholarshipTypes       ScholarshipType[]
   enrollments            StudentEnrollment[]
   attendanceRecords      AttendanceRecord[]
   classGroups            ClassGroup[]

@@ -32,10 +32,21 @@ model StudentRecord {
   /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`, or until lifted when null) or EXPELLED. Separate from archiving, which hides the record.
   standing      StandingState @default(ACTIVE)
   standingUntil DateTime?     @db.Date
+  /// Day pupil or boarder (task 0113 R1, the maintainer 2026-11-19: "we have day students and burden students, we need to be able to classify"). Null = not set: no default, so no
+  /// pupil is labelled wrongly.
+  residence     Residence?
 
+  /// A read-only MIRROR of the pupil's first allowed guardian (task 0113 D3): written only by `syncGuardianMirror` (lib/guardians/service.ts) from the `guardians` links, main contact
+  /// first, and empty when every guardian is blocked. Kept so the readers (broadcasts, programs, exports, finance, the lookup tool) work unchanged until they move to the links.
   guardianName  String?
   guardianPhone String?
   guardianEmail String?
+  /// The pupil's school-issued access code (task 0113, task 0094 D7/D9) for the student. sign-in. Only a slow, peppered hash is kept; the code itself is shown once to the administrator
+  /// who makes it. Null until one is issued. (A guardian's code is on the guardian.)
+  pupilCodeHash String?
+  pupilCodeAt   DateTime?
+  /// Raised whenever the pupil code is regenerated: a pupil sign-in made before carries the old number and ends at its next request (task 0094 D7, revocation).
+  portalVersion Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -58,10 +69,75 @@ model StudentRecord {
   printLogs             QuestionBankPrintLog[] @relation("PrintLogStudent")
   programPlaces         ProgramParticipant[]
   receivedPrintLogs     QuestionBankPrintLog[] @relation("PrintLogRecipient")
+  guardians             StudentGuardian[]
+  scholarships          StudentScholarship[]
 
   @@unique([branchId, id])
   @@index([branchId])
   @@index([branchId, firstName, lastName])
+  @@index([branchId, residence])
+}
+
+enum Residence {
+  DAY
+  BOARDING
+}
+
+enum GuardianRelationship {
+  MOTHER
+  FATHER
+  GUARDIAN
+  OTHER
+}
+
+/// A pupil's guardian, a record of its own (task 0113 D1, the maintainer 2026-11-19: "why don't we separate the guardian info and just use foreign key to connect it"). One person across
+/// every branch; linked to each child by `StudentGuardian`. Phone and e-mail are NOT unique: two guardians may share a phone.
+model Guardian {
+  id            String    @id @default(cuid())
+  name          String
+  /// As typed, spaces and dashes removed.
+  phone         String?
+  /// The national digits of `phone` (`0803…` and `+234803…` are one number): how a guardian is found by phone and how a phone sign-in is compared.
+  phoneKey      String?
+  /// Lower case.
+  email         String?
+  /// The guardian's access code (task 0113 D7): one per guardian, whatever the number of children. Only a slow, peppered hash; null until one is made.
+  codeHash      String?
+  codeAt        DateTime?
+  /// Raised by a new code, a block or an unblock: a guardian sign-in made before carries the old number and ends at its next request.
+  portalVersion Int       @default(0)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  children StudentGuardian[]
+
+  @@index([phoneKey])
+  @@index([email])
+  @@index([name])
+}
+
+/// A child and one of their guardians (task 0113 D1, D5). `branchId` is the child's branch, kept equal to it by the foreign key on (branch, pupil), which follows a change of branch.
+/// A blocked link (the maintainer: "block access to some students under a guardian"): that guardian cannot sign in with this child, does not see them, and is not this child's contact.
+model StudentGuardian {
+  id            String                @id @default(cuid())
+  studentId     String
+  guardianId    String
+  branchId      String
+  relationship  GuardianRelationship?
+  /// The child's main contact (at most one per child is kept by the service).
+  isMain        Boolean               @default(false)
+  blockedAt     DateTime?
+  blockedById   String?
+  blockedReason String?
+  createdAt     DateTime              @default(now())
+
+  student  StudentRecord @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade, onUpdate: Cascade)
+  guardian Guardian      @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, guardianId])
+  @@index([guardianId])
+  @@index([branchId])
 }
 
 /// Sequence counter for admission numbers per year (school-wide).

@@ -12,6 +12,8 @@ export interface InvoiceItemSummary {
   totalAmount: number | string;
   amountPaid: number | string;
   status: InvoiceStatus;
+  /// Settled with nothing paid because scholarships took the fees off (task 0113 S1).
+  paidByScholarship?: boolean;
   student: {
     id: string;
     firstName: string;
@@ -222,7 +224,7 @@ export function InvoicesDashboard({
                     <td className="px-4 py-3 text-center">
                       {inv.status === InvoiceStatus.PAID && (
                         <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-ok-fg">
-                          PAID
+                          {inv.paidByScholarship ? "PAID BY SCHOLARSHIP" : "PAID"}
                         </span>
                       )}
                       {inv.status === InvoiceStatus.PARTIALLY_PAID && (

@@ -27,6 +27,7 @@ import { InvitationsList } from "./InvitationsList";
 import { BulkInviteDialog } from "./BulkInviteDialog";
 import { InviteDialog } from "./InviteDialog";
 import { StaffPanel } from "@/components/academics/StaffPanel";
+import { GuardiansPanel } from "@/components/guardians/GuardiansPanel";
 import { SuperAdminDialog } from "./SuperAdminDialog";
 import { ROLE_OPTIONS, displayName, roleOptionsFor, type BranchOption, type Invitation, type Member, type PageMeta } from "./model";
 
@@ -252,6 +253,8 @@ export function UsersPanel({
               { id: "invitations", label: invitations === null ? "Pending invitations" : `Pending invitations (${invitations.length})` },
               // Task 0114: the staff records of the branches this person administers, to tick and invite at the addresses on the records, or move to another branch.
               { id: "staff", label: "Staff" },
+              // Task 0113 D10: pupils' guardians, each with their children; block a guardian from a child, make their access code.
+              { id: "guardians", label: "Guardians" },
             ]}
           />
         </div>
@@ -388,6 +391,12 @@ export function UsersPanel({
             branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: true, standing: standingCan[b.id] }))}
             initialBranchId={undefined}
           />
+        </section>
+      )}
+
+      {tab === "guardians" && (
+        <section role="tabpanel" id={panelId("users", "guardians")} aria-labelledby={tabId("users", "guardians")}>
+          <GuardiansPanel onNotice={(text) => setNotice({ variant: "success", text })} />
         </section>
       )}
 

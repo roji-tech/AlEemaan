@@ -367,6 +367,7 @@ const NOT_WRAPPED: Record<string, string> = {
     "portal form response print: no staff login; branch resolved via student record and portal session limits which pupils",
   "GET v1/academics/sessions/route.ts": "a list narrowed to the caller's own branches (branchIdsFor); acts on no single branch",
   "GET v1/branches/route.ts": "lists the branches the caller can see (narrowed by branchIdsFor); acts on no single branch",
+  "GET v1/settings/family-secrets/route.ts": "lists the branches the caller administers (narrowed by adminScope); acts on no single branch",
   "GET v1/students/route.ts": "a list narrowed to the caller's visible branches (branchIdsFor); acts on no single branch",
   "GET v1/students/[id]/route.ts":
     "reads one student through a visible-branches filter (another branch's student is the same 404); to move to staff-read",
