@@ -39,7 +39,9 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
     setError(null);
     const list = c.data!.classGroups as Group[];
     const schemes = await Promise.all(list.map((x) => getJson(`/api/v1/academics/schemes/class-group/${x.id}`)));
-    setGroups(list.map((x, i) => ({ id: x.id, name: x.name, scheme: schemes[i].ok ? (schemes[i].data!.scheme as Scheme) : null })));
+    setGroups(
+      list.map((x, i) => ({ id: x.id, name: x.name, scheme: schemes[i].ok ? ((schemes[i].data!.scheme as Scheme | null) ?? null) : null })),
+    );
   }, [branchId, isSuperAdmin]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading on a branch change is exactly what this effect is for

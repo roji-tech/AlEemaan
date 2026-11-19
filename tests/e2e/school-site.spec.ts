@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
+import { seedInstance } from "../support/db";
 import { SCHOOL_SITE_PAGES } from "@/lib/school-site/paths";
 
 // The school's own website in a real browser (task 0080), on a desktop and on a phone: every page loads with no policy violation and no script error (the shared fixture fails on both), has one h1 and passes axe
@@ -34,6 +35,9 @@ test("the menu: on a phone its button opens and closes the links, Escape closes 
   page,
   isMobile,
 }) => {
+  // The sign-in page shows a parent's and a student's button only while some branch has that sign-in on (task 0109). The shared helper makes the seeded branches with both on, so this
+  // test does not depend on what the spec before it left (the batch run of 2026-11-19 found one button here: the spec before had emptied the database, so no branch was open).
+  await seedInstance();
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main" });
   if (isMobile) {

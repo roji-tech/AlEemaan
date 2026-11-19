@@ -1,4 +1,5 @@
 import type { Searchable } from "./match";
+import { FINANCE_TAB_IDS } from "@/lib/finance/tabs";
 import { ACADEMICS_TAB_IDS, APPROVALS_TAB_IDS, SETTINGS_TAB_IDS, USERS_TAB_IDS } from "./tab-ids";
 
 // The map of the app that the top-bar search reads (task 0107): every page, every tab that has its own address (`?tab=`), and the questions people ask ("How do I add a pupil?"), each with
@@ -163,6 +164,48 @@ const APPROVALS = tabs("/approvals", "Approvals", "page", [
     only: "superadmin" as const,
   },
 ]);
+
+const FINANCE = tabs("/finance", "Finance", "page", [
+  {
+    id: "overview",
+    title: "Overview",
+    summary:
+      "How much has been invoiced, collected and is still owed, month by month, by class and by how it was paid. With several branches, every branch side by side.",
+    keywords: [
+      "statistics",
+      "stats",
+      "money",
+      "income",
+      "revenue",
+      "collected",
+      "outstanding",
+      "owing",
+      "debtors",
+      "overdue",
+      "collection rate",
+      "compare branches",
+      "how much",
+    ],
+  },
+  {
+    id: "invoices",
+    title: "Student Invoices & Payments",
+    summary: "Every pupil's invoice: generate them, record a payment, apply a discount.",
+    keywords: ["invoice", "invoices", "payment", "receipt", "discount", "bill", "fees owed"],
+  },
+  {
+    id: "fees",
+    title: "Fee Schedules & Structures",
+    summary: "The fee items of each class and term, one by one or in bulk.",
+    keywords: ["fee", "fee items", "tuition", "levy", "price", "schedule", "bulk fees"],
+  },
+  {
+    id: "rules",
+    title: "Payment Rules",
+    summary: "Whether families may pay an invoice in parts, and the smallest part, for the school and for each branch.",
+    keywords: ["part payment", "installment", "instalment", "partial payment", "pay in full", "minimum payment"],
+  },
+]).map((d) => ({ ...d, only: "admin" as const }));
 
 const USERS = tabs("/users", "Users", "page", [
   {
@@ -522,26 +565,53 @@ const TASKS: Destination[] = [
   {
     id: "task:invoices",
     title: "Generate invoices for a class or the whole branch",
-    href: "/finance",
+    href: "/finance?tab=invoices",
     page: "/finance",
     trail: ["Finance", "Student Invoices & Payments"],
     summary: "Make this term's invoices from the fee schedules.",
     keywords: ["bill", "billing", "fees", "invoice all", "batch invoices"],
-    steps: ["Open Finance.", "Stay on the Student Invoices & Payments tab.", "Press Batch Generate Invoices."],
+    steps: ["Open Finance.", "Choose the Student Invoices & Payments tab.", "Press Batch Generate Invoices."],
     group: "task",
   },
   {
     id: "task:record-payment",
     title: "Record a payment a family made",
-    href: "/finance",
+    href: "/finance?tab=invoices",
     page: "/finance",
     trail: ["Finance", "Student Invoices & Payments"],
     summary: "Cash, transfer or POS: record it and issue the receipt.",
     keywords: ["receipt", "cash payment", "bank transfer", "pay fees", "part payment", "installment"],
     steps: [
-      "Open Finance.",
+      "Open Finance, then the Student Invoices & Payments tab.",
       "On the invoice's row press View & Pay.",
       "Press Record Payment, fill it in, and press Record Payment & Issue Receipt.",
+    ],
+    group: "task",
+  },
+  {
+    id: "task:finance-stats",
+    title: "See how much has been collected and what is still owed",
+    href: "/finance?tab=overview",
+    page: "/finance",
+    only: "admin",
+    trail: ["Finance", "Overview"],
+    summary: "Invoiced, collected, outstanding and overdue, with the collection rate, by class and by how it was paid.",
+    keywords: [
+      "statistics",
+      "stats",
+      "income",
+      "revenue",
+      "collection rate",
+      "debtors",
+      "who owes",
+      "overdue",
+      "report",
+      "compare branches",
+    ],
+    steps: [
+      "Open Finance: it opens on the Overview tab.",
+      "Choose the term at the top, or All terms.",
+      "With more than one branch, press All branches to see every branch side by side.",
     ],
     group: "task",
   },
@@ -558,18 +628,20 @@ const TASKS: Destination[] = [
   },
 ];
 
-export const DESTINATIONS: readonly Destination[] = [...PAGES, ...SETTINGS, ...ACADEMICS, ...APPROVALS, ...USERS, ...TASKS];
+export const DESTINATIONS: readonly Destination[] = [...PAGES, ...SETTINGS, ...ACADEMICS, ...APPROVALS, ...FINANCE, ...USERS, ...TASKS];
 
 /// The tab ids this index reaches for each page, for the test that compares them with the pages' own lists.
 export const INDEXED_TABS: Record<string, readonly string[]> = {
   "/settings": SETTINGS.map((d) => d.id.split("#")[1]!),
   "/academics": ACADEMICS.map((d) => d.id.split("#")[1]!),
   "/approvals": APPROVALS.map((d) => d.id.split("#")[1]!),
+  "/finance": FINANCE.map((d) => d.id.split("#")[1]!),
   "/users": USERS.map((d) => d.id.split("#")[1]!),
 };
 export const PAGE_TAB_IDS = {
   "/settings": SETTINGS_TAB_IDS,
   "/academics": ACADEMICS_TAB_IDS,
   "/approvals": APPROVALS_TAB_IDS,
+  "/finance": FINANCE_TAB_IDS,
   "/users": USERS_TAB_IDS,
 } as const;
