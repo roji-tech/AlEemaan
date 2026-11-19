@@ -339,6 +339,8 @@ model StaffRecord {
   role                  String?
   /// One person's records in several branches share this id (task 0114, task 0101 R1): set when a record is transferred or added to another branch. Null for a person with one record.
   personId              String?
+  /// A draft (task 0101 D1, batch 3a): saved unfinished, shown with a "Draft" badge, and left out of everything that counts or acts on staff (invitations, assignments, class teacher, linking an account, transfer, broadcasts, programs) until it is completed.
+  isDraft               Boolean       @default(false)
   employmentDate        DateTime?     @db.Date
   nextOfKinName         String?
   nextOfKinRelationship String?
@@ -367,6 +369,7 @@ model StaffRecord {
   @@unique([branchId, id])
   @@index([branchId])
   @@index([personId])
+  @@index([branchId, isDraft])
 }
 
 /// "This person teaches this subject to this arm." A real DELETE for now (nothing references it); the day a later slice does, a test fails and forces

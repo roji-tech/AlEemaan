@@ -22,6 +22,8 @@ export type StaffDetail = StaffLike & {
   standingUntil: string | null;
   assignmentCount: number;
   account: { state: "none" } | { state: "linked"; name: string | null; email: string | null; deactivated: boolean };
+  /// What a draft still needs (task 0101 D1), by the server's rule; empty for a record that is not a draft.
+  missing?: string[];
 };
 
 /// A small coloured label (the kind, "NYSC corps member").
@@ -36,6 +38,8 @@ export function Pill({ tone, children }: { tone: Tone; children: ReactNode }) {
 const KIND_TONE: Record<StaffLike["category"], Tone> = { TEACHING: "info", NON_TEACHING: "brand" };
 export const kindPill = (category: StaffLike["category"]) => <Pill tone={KIND_TONE[category]}>{CATEGORY_TEXT[category]}</Pill>;
 export const corpsPill = () => <Pill tone="ok">NYSC corps member</Pill>;
+/// "Draft" (task 0101 D1): a record saved unfinished, left out of invitations, assignments and everything that counts people until it is completed.
+export const draftPill = () => <Pill tone="warn">Draft</Pill>;
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -71,6 +75,7 @@ export function StaffDetailsDialog({
           <div className="flex flex-wrap items-center gap-1.5">
             {kindPill(person.category)}
             {person.corpsMember && corpsPill()}
+            {person.isDraft && draftPill()}
             {person.standing !== "ACTIVE" && (
               <Pill tone={person.standing === "SUSPENDED" ? "warn" : "danger"}>
                 {STANDING_TEXT[person.standing]}
@@ -79,6 +84,13 @@ export function StaffDetailsDialog({
             )}
             {person.archived && <Pill tone="neutral">Archived</Pill>}
           </div>
+          {person.isDraft && (
+            <p className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg-2">
+              This record is a draft
+              {person.missing && person.missing.length > 0 ? `. Missing: ${person.missing.join(", ")}` : ", and has everything it needs"}.
+              It is left out of invitations, subject assignments and class teacher choices until it is completed.
+            </p>
+          )}
           <dl className="divide-y divide-line">
             <Row label="Title">{person.title ?? notGiven}</Row>
             <Row label="First name">{person.firstName}</Row>

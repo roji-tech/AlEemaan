@@ -25,6 +25,7 @@ import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDial
 import { KIND_TEXT, kindsFor, prettyDay, type StandingCan, type StandingValue } from "@/components/standing/model";
 import { OwnProgramCard, type OwnProgram } from "@/components/students/OwnProgramCard";
 import { ExportButton } from "@/components/bulk/ExportButton";
+import { draftPill } from "@/components/academics/StaffDetails";
 import { AGE_MAX, activePupilFilters, pupilFilterQuery, type PupilFilters } from "@/lib/students/list-filters";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
@@ -40,6 +41,9 @@ type Student = {
   dateOfBirth: string | null;
   admissionNo: string;
   archived: boolean;
+  /// A draft (task 0101 D1): saved unfinished. `missing` is what it still needs, by the server's rule.
+  isDraft: boolean;
+  missing: string[];
   /// What applies today, and the last day of a suspension (task 0045).
   standing: StandingValue;
   standingUntil: string | null;
@@ -91,6 +95,9 @@ export function StudentsPanel({
   // Class, arm, gender and age (task 0103 D1), applied by the server so the counts and pages follow them.
   const [pf, setPf] = useState<PupilFilters>({});
   const [noDob, setNoDob] = useState<number | null>(null);
+  // How many of the pupils matched are drafts (task 0101 D1), and whether "Add many" saves its rows as drafts.
+  const [drafts, setDrafts] = useState(0);
+  const [asDraft, setAsDraft] = useState(false);
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered in this browser (task 0089). The list is paged by the server, so the size is sent as `limit` (every size the kit offers is at most 50, the API's cap).
   const layout = useCollectionView("students", { defaultView: "list", defaultSize: USUAL_SIZE, page, onPage: setPage });
@@ -121,6 +128,7 @@ export function StudentsPanel({
     setStudents(s.data!.students as Student[]);
     setPaging(s.data!.pagination as Paging);
     setNoDob((s.data!.noDateOfBirth as number | null | undefined) ?? null);
+    setDrafts((s.data!.drafts as number | undefined) ?? 0);
     setClasses(c.data!.classGroups as ClassOption[]);
   }, [branchId, status, show, q, pf, page, size]);
 
@@ -134,6 +142,19 @@ export function StudentsPanel({
     setNotice({ variant: "success", text });
     await load();
   };
+  /// Task 0101 D1: finish a draft, or put a pupil back to unfinished. The server decides (what is missing) and says so.
+  async function setDraft(s: Student, draft: boolean) {
+    const reply = draft
+      ? await sendJson(`/api/v1/students/${s.id}`, "PATCH", { isDraft: true })
+      : await sendJson(`/api/v1/students/${s.id}/complete`, "POST");
+    const who = `${s.firstName} ${s.lastName}`;
+    setNotice(
+      reply.ok
+        ? { variant: "success", text: draft ? `${who} is now a draft.` : `${who} is complete: no longer a draft.` }
+        : { variant: "error", text: say(reply, "That didn't work.") },
+    );
+    await load();
+  }
   async function setArchived(s: Student, archived: boolean, allowDuplicate = false) {
     setRestoreAsk(null);
     const reply = archived
@@ -296,6 +317,16 @@ export function StudentsPanel({
               { value: "FEMALE", label: "Female" },
             ]}
           />
+          <SelectField
+            label="Drafts"
+            value={pf.draft ?? ""}
+            onChange={(e) => setFilter({ ...pf, draft: (e.target.value || undefined) as PupilFilters["draft"] })}
+            options={[
+              { value: "", label: "Any" },
+              { value: "YES", label: "Drafts only" },
+              { value: "NO", label: "Not drafts" },
+            ]}
+          />
           <TextField
             label="Age from"
             type="number"
@@ -315,6 +346,12 @@ export function StudentsPanel({
             onChange={(e) => setFilter({ ...pf, ageMax: ageValue(e.target.value) })}
           />
         </ListToolbar>
+        {drafts > 0 && (
+          <p className="text-sm text-fg-muted" aria-live="polite">
+            {drafts} {drafts === 1 ? "draft" : "drafts"} among these pupils: kept unfinished and left out of classes, attendance, invoices
+            and results until completed.
+          </p>
+        )}
         {noDob !== null && noDob > 0 && (
           <p className="text-sm text-fg-muted" aria-live="polite">
             {noDob} {noDob === 1 ? "pupil has" : "pupils have"} no date of birth, so their age cannot be checked: they are left out.
@@ -359,6 +396,18 @@ export function StudentsPanel({
                     ariaLabel: `${KIND_TEXT[kind]} ${name}`,
                     onSelect: () => setStandingAsk({ kind, subject: "student", endpoint: `/api/v1/students/${s.id}/standing`, name }),
                   }))),
+              ...(s.archived
+                ? []
+                : [
+                    s.isDraft
+                      ? { id: "complete", label: "Complete", ariaLabel: `Complete ${name}`, onSelect: () => void setDraft(s, false) }
+                      : {
+                          id: "draft",
+                          label: "Mark as draft",
+                          ariaLabel: `Mark ${name} as a draft`,
+                          onSelect: () => void setDraft(s, true),
+                        },
+                  ]),
               {
                 id: "history",
                 label: "Standing history",
@@ -371,12 +420,22 @@ export function StudentsPanel({
                 key={s.id}
                 leading={<ItemInitials text={initialsOf(s.firstName, s.lastName)} />}
                 title={`${s.firstName} ${s.middleName ? `${s.middleName} ` : ""}${s.lastName}`}
-                subtitle={`${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`}
+                subtitle={
+                  s.isDraft && s.missing.length > 0 ? (
+                    <>
+                      <span className="block">{`${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`}</span>
+                      <span className="block">Missing: {s.missing.join(", ")}</span>
+                    </>
+                  ) : (
+                    `${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`
+                  )
+                }
                 facts={facts}
                 badges={
-                  s.archived || s.standing !== "ACTIVE" ? (
+                  s.archived || s.isDraft || s.standing !== "ACTIVE" ? (
                     <>
-                      <StandingBadge standing={s.standing} until={s.standingUntil} />
+                      {s.isDraft && draftPill()}
+                      {(s.archived || s.standing !== "ACTIVE") && <StandingBadge standing={s.standing} until={s.standingUntil} />}
                       {s.archived && (
                         <span className="shrink-0 rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs font-semibold text-fg-2">
                           Archived
@@ -441,18 +500,29 @@ export function StudentsPanel({
           title="Add pupils in bulk"
           description={`Into ${branch.name}. Nothing is saved until you press Save. A pupil is placed in a class only when a class of this branch is named and the branch has an active academic session.`}
           endpoint="/api/v1/students/import"
-          context={{ branchId, allowDuplicates }}
+          context={{ branchId, allowDuplicates, asDraft }}
           contextControl={(locked) => (
-            <CheckboxField
-              label="Add even if a pupil with the same name (and date of birth, when given) is already here (recorded against your name)"
-              checked={allowDuplicates}
-              disabled={locked}
-              onChange={(e) => setAllowDuplicates(e.target.checked)}
-            />
+            <div className="space-y-2">
+              <CheckboxField
+                label="Add even if a pupil with the same name (and date of birth, when given) is already here (recorded against your name)"
+                checked={allowDuplicates}
+                disabled={locked}
+                onChange={(e) => setAllowDuplicates(e.target.checked)}
+              />
+              <CheckboxField
+                label="Save these as drafts (kept unfinished: left out of classes, attendance, invoices and results until each is completed)"
+                checked={asDraft}
+                disabled={locked}
+                onChange={(e) => setAsDraft(e.target.checked)}
+              />
+            </div>
           )}
           noun={{ one: "pupil", many: "pupils" }}
           onSaved={async (count) => {
-            setNotice({ variant: "success", text: `${count} ${count === 1 ? "pupil" : "pupils"} added to ${branch.name}.` });
+            setNotice({
+              variant: "success",
+              text: `${count} ${count === 1 ? "pupil" : "pupils"} added to ${branch.name}${asDraft ? " as drafts" : ""}.`,
+            });
             await load();
           }}
         />
@@ -494,16 +564,24 @@ function StudentDialog({
   const [problem, setProblem] = useState<string | null>(null);
   const [fieldProblems, setFieldProblems] = useState<Record<string, string>>({});
   const [namesake, setNamesake] = useState<string | null>(null);
+  // Whether the attempt a namesake question came from was "Save as draft": confirming it keeps it a draft.
+  const [askedAsDraft, setAskedAsDraft] = useState(false);
   const [pending, setPending] = useState(false);
   const set = (key: keyof typeof f, value: string) => setF((all) => ({ ...all, [key]: value }));
   const arms = classes.find((c) => c.name === f.className)?.arms ?? [];
+  // A new pupil, or an existing one with no class yet, can be placed in a class from this form.
+  const canPlace = !item || item.currentClass === null;
 
-  async function submit(event: FormEvent<HTMLFormElement>, allowDuplicate = false) {
-    event.preventDefault();
+  /// `asDraft` (task 0101 D1): keep the pupil unfinished. A plain save never changes a pupil's draft state (a new pupil is a normal record; a draft stays a draft until it is completed).
+  async function submit(event: FormEvent<HTMLFormElement> | null, allowDuplicate = false, asDraft = false) {
+    event?.preventDefault();
     if (pending) return;
     setProblem(null);
     setFieldProblems({});
-    if (!allowDuplicate) setNamesake(null);
+    if (!allowDuplicate) {
+      setNamesake(null);
+      setAskedAsDraft(asDraft);
+    }
     setPending(true);
     const person = {
       firstName: f.firstName,
@@ -516,9 +594,14 @@ function StudentDialog({
       guardianEmail: f.guardianEmail.trim() || null,
       ...(f.admissionNo.trim() ? { admissionNo: f.admissionNo.trim() } : {}),
       allowDuplicate,
+      ...(asDraft ? { isDraft: true } : {}),
     };
     const reply = item
-      ? await sendJson(`/api/v1/students/${item.id}`, "PATCH", person)
+      ? await sendJson(`/api/v1/students/${item.id}`, "PATCH", {
+          ...person,
+          // A pupil with no class yet can be given one here (a draft needs one to be completed); for a pupil already in a class the form has no such field.
+          ...(canPlace && f.className ? { className: f.className, arm: f.arm || undefined } : {}),
+        })
       : await sendJson("/api/v1/students", "POST", {
           branchId,
           ...person,
@@ -526,9 +609,9 @@ function StudentDialog({
         });
     setPending(false);
     if (reply.ok) {
-      const unplaced = !item && f.className && reply.data?.enrolled === false;
+      const unplaced = f.className && canPlace && reply.data?.enrolled === false;
       return void (await onDone(
-        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
+        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}${asDraft ? " as a draft" : ""}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
       ));
     }
     if (reply.code === "POSSIBLE_DUPLICATE")
@@ -608,7 +691,7 @@ function StudentDialog({
             autoComplete="off"
             disabled={pending}
           />
-          {!item && (
+          {canPlace && (
             <div className="grid gap-4 sm:grid-cols-2">
               <SelectField
                 label="Class (optional)"
@@ -671,7 +754,7 @@ function StudentDialog({
                 variant="secondary"
                 className="mt-3"
                 loading={pending}
-                onClick={(e) => void submit(e as unknown as FormEvent<HTMLFormElement>, true)}
+                onClick={(e) => void submit(e as unknown as FormEvent<HTMLFormElement>, true, askedAsDraft)}
               >
                 {item ? "Save anyway" : "Register anyway"}
               </Button>
@@ -681,6 +764,9 @@ function StudentDialog({
           <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
             <Button variant="ghost" onClick={onClose} disabled={pending}>
               Cancel
+            </Button>
+            <Button variant="secondary" onClick={() => void submit(null, false, true)} disabled={pending}>
+              Save as draft
             </Button>
             <Button type="submit" loading={pending}>
               {pending ? "Working…" : item ? "Save" : "Register student"}

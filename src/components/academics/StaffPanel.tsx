@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -31,12 +31,13 @@ import {
   FILTER_OPTIONS,
   NO_STAFF_FILTERS,
   activeStaffFilters,
+  countDrafts,
   displayName,
   filterStaff,
   roleLine,
   type StaffFilters,
 } from "@/components/academics/staff-model";
-import { StaffDetailsDialog, corpsPill, kindPill } from "@/components/academics/StaffDetails";
+import { StaffDetailsDialog, corpsPill, draftPill, kindPill } from "@/components/academics/StaffDetails";
 import { StaffInviteDialog, StaffTransferDialog, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
@@ -61,6 +62,9 @@ type Staff = {
   phone: string | null;
   email: string | null;
   archived: boolean;
+  /// A draft (task 0101 D1): saved unfinished. `missing` is what it still needs, by the server's rule.
+  isDraft: boolean;
+  missing: string[];
   standing: Exclude<StandingValue, "EXPELLED">;
   standingUntil: string | null;
   account: Account;
@@ -129,6 +133,8 @@ export function StaffPanel({
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
+  // Task 0101 D1: save the rows of "Add many" as drafts.
+  const [asDraft, setAsDraft] = useState(false);
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
   const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
   // Task 0111: the filters beyond Show (kind, gender, corps member, sign-in, standing), applied here; and the record whose details are open.
@@ -162,6 +168,19 @@ export function StaffPanel({
     setNotice({ variant: "success", text });
     await load();
   };
+  /// Task 0101 D1: finish a draft, or put a record back to unfinished. The server decides (what is missing; what a draft may not hold) and says so.
+  async function setDraft(person: Staff, draft: boolean) {
+    const who = `${person.firstName} ${person.lastName}`;
+    const reply = draft
+      ? await sendJson(`/api/v1/staff/${person.id}`, "PATCH", { isDraft: true })
+      : await sendJson(`/api/v1/staff/${person.id}/complete`, "POST");
+    setNotice(
+      reply.ok
+        ? { variant: "success", text: draft ? `${who} is now a draft.` : `${who} is complete: no longer a draft.` }
+        : { variant: "error", text: say(reply, "That didn't work.") },
+    );
+    await load();
+  }
   async function setArchived(person: Staff, archived: boolean) {
     const reply = await sendJson(`/api/v1/staff/${person.id}/${archived ? "archive" : "restore"}`, "POST");
     const who = `${person.firstName} ${person.lastName}`;
@@ -298,10 +317,18 @@ export function StaffPanel({
             onChange={(e) => setFilter("standing", e.target.value as StaffFilters["standing"])}
             options={FILTER_OPTIONS.standing}
           />
+          <SelectField
+            label="Drafts"
+            value={filters.draft}
+            onChange={(e) => setFilter("draft", e.target.value as StaffFilters["draft"])}
+            options={FILTER_OPTIONS.draft}
+          />
         </ListToolbar>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-fg-muted" aria-live="polite">
-            {list === null ? " " : `${list.length} staff ${list.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
+            {list === null
+              ? " "
+              : `${list.length} staff ${list.length === 1 ? "record" : "records"}${filtered ? " match" : ""}${countDrafts(list) > 0 ? `, ${countDrafts(list)} ${countDrafts(list) === 1 ? "draft" : "drafts"}` : ""}`}
           </p>
           {canInvite && invitableShown.length > 0 && selected.size === 0 && (
             <Button variant="ghost" onClick={() => setSelected(new Set(invitableShown.map((p) => p.id)))}>
@@ -378,7 +405,19 @@ export function StaffPanel({
                         },
                       ]
                     : []),
-                  ...(!p.archived && p.standing === "ACTIVE" && otherBranches.length > 0
+                  ...(!p.archived
+                    ? [
+                        p.isDraft
+                          ? { id: "complete", label: "Complete", ariaLabel: `Complete ${who}`, onSelect: () => void setDraft(p, false) }
+                          : {
+                              id: "draft",
+                              label: "Mark as draft",
+                              ariaLabel: `Mark ${who} as a draft`,
+                              onSelect: () => void setDraft(p, true),
+                            },
+                      ]
+                    : []),
+                  ...(!p.archived && !p.isDraft && p.standing === "ACTIVE" && otherBranches.length > 0
                     ? [
                         {
                           id: "transfer",
@@ -465,9 +504,13 @@ export function StaffPanel({
                             {!p.role && p.qualification && (
                               <span className="text-[12px] font-medium text-fg-muted">• {p.qualification}</span>
                             )}
+                            {p.isDraft && draftPill()}
                             {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
                             <span className="sr-only">{roleLine(p)}</span>
                           </div>
+                          {p.isDraft && p.missing.length > 0 && (
+                            <p className="mt-2 text-[12px] text-fg-muted">Missing: {p.missing.join(", ")}</p>
+                          )}
                           {(p.classTeacherOf.length > 0 || p.alsoIn.length > 0) && (
                             <div className="mt-2 space-y-0.5 text-[12px] text-fg-muted">
                               {p.classTeacherOf.length > 0 && <p>Class teacher: {p.classTeacherOf.map((a) => a.label).join(", ")}</p>}
@@ -556,6 +599,7 @@ export function StaffPanel({
                 subtitle={
                   <>
                     <span className="block text-fg-2">{roleLine(p)}</span>
+                    {p.isDraft && p.missing.length > 0 && <span className="block">Missing: {p.missing.join(", ")}</span>}
                     {p.classTeacherOf.length > 0 && (
                       <span className="block">Class teacher: {p.classTeacherOf.map((a) => a.label).join(", ")}</span>
                     )}
@@ -571,6 +615,7 @@ export function StaffPanel({
                   <>
                     {kindPill(p.category)}
                     {p.corpsMember && corpsPill()}
+                    {p.isDraft && draftPill()}
                     {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
                   </>
                 }
@@ -709,10 +754,21 @@ export function StaffPanel({
           title="Add staff in bulk"
           description={`Into ${branch.name}. Nothing is saved until you press Save, and a record never creates a sign-in.`}
           endpoint="/api/v1/staff/import"
-          context={{ branchId }}
+          context={{ branchId, asDraft }}
+          contextControl={(locked) => (
+            <CheckboxField
+              label="Save these as drafts (kept unfinished: left out of invitations, assignments and counts until each is completed)"
+              checked={asDraft}
+              disabled={locked}
+              onChange={(e) => setAsDraft(e.target.checked)}
+            />
+          )}
           noun={{ one: "staff record", many: "staff records" }}
           onSaved={async (count) => {
-            setNotice({ variant: "success", text: `${count} staff ${count === 1 ? "record" : "records"} added.` });
+            setNotice({
+              variant: "success",
+              text: `${count} staff ${count === 1 ? "record" : "records"} added${asDraft ? " as drafts" : ""}.`,
+            });
             await load();
           }}
         />
@@ -752,8 +808,8 @@ function RecordDialog({
   const [pending, setPending] = useState(false);
   const set = (key: keyof typeof f, value: string) => setF((all) => ({ ...all, [key]: value }));
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  /// `asDraft` (task 0101 D1): keep the record unfinished. A plain save never changes a record's draft state (a new record is a normal one; a draft stays a draft until it is completed).
+  async function save(asDraft: boolean) {
     if (pending) return;
     setProblem(null);
     setFieldProblems({});
@@ -771,12 +827,13 @@ function RecordDialog({
       corpsMember,
       phone: f.phone.trim() || null,
       email: f.email.trim() || null,
+      ...(asDraft ? { isDraft: true } : {}),
     };
     const reply = item
       ? await sendJson(`/api/v1/staff/${item.id}`, "PATCH", body)
       : await sendJson("/api/v1/staff", "POST", { branchId, ...body });
     setPending(false);
-    if (reply.ok) return void (await onDone(`${f.firstName} ${f.lastName} ${item ? "saved" : "added"}.`));
+    if (reply.ok) return void (await onDone(`${f.firstName} ${f.lastName} ${item ? "saved" : "added"}${asDraft ? " as a draft" : ""}.`));
     const found: Record<string, string> = {};
     for (const key of ["title", "firstName", "lastName", "gender", "designation", "qualification", "role", "phone", "email"]) {
       const message = problemFor(reply, key);
@@ -789,7 +846,14 @@ function RecordDialog({
   return (
     <Dialog open={open} onClose={onClose} title={item ? `Edit ${item.firstName} ${item.lastName}` : "New staff record"}>
       {open && (
-        <form onSubmit={submit} noValidate className="space-y-4">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save(false);
+          }}
+          noValidate
+          className="space-y-4"
+        >
           <SelectField
             label="Kind of staff"
             value={f.category}
@@ -908,6 +972,9 @@ function RecordDialog({
             <Button variant="ghost" onClick={onClose} disabled={pending}>
               Cancel
             </Button>
+            <Button variant="secondary" onClick={() => void save(true)} disabled={pending}>
+              Save as draft
+            </Button>
             <Button type="submit" loading={pending}>
               {pending ? "Working…" : item ? "Save" : "Add staff record"}
             </Button>
@@ -1004,6 +1071,12 @@ function ManageDialog({
           <div aria-live="polite" className="empty:hidden">
             {info && <Alert variant="success">{info}</Alert>}
           </div>
+          {person.isDraft && (
+            <Alert variant="info">
+              This record is a draft{person.missing.length > 0 ? ` (missing: ${person.missing.join(", ")})` : ""}. Complete it from the
+              Actions menu on its card before linking a sign-in or assigning subjects.
+            </Alert>
+          )}
 
           <section aria-labelledby="account-heading" className="space-y-2">
             <h3 id="account-heading" className="text-sm font-semibold text-fg">
@@ -1030,6 +1103,7 @@ function ManageDialog({
               <>
                 <p className="text-sm text-fg-muted">No sign-in. This person is recorded but cannot log in.</p>
                 {canEdit &&
+                  !person?.isDraft &&
                   (linkable.length === 0 ? (
                     <div className="space-y-2">
                       <p className="text-sm text-fg-muted">
@@ -1106,7 +1180,7 @@ function ManageDialog({
                 ))}
               </ul>
             )}
-            {canEdit && (
+            {canEdit && !person.isDraft && (
               <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <SelectField
                   label="Class and arm"

@@ -14,15 +14,19 @@ import { say, type BranchChoice } from "@/components/academics/common";
 export type InvitePerson = { id: string; name: string; email: string };
 type Outcome = { staffId: string; name: string; result: "invited" | "linked" | "skipped"; email?: string; why?: string };
 
-/// Can this record be invited from the list? A live, active record with an e-mail address, no sign-in yet, and no link still waiting.
+/// Can this record be invited from the list? A live, active record that is not a draft, with an e-mail address, no sign-in yet, and no link still waiting.
 export function invitable(p: {
   archived: boolean;
   standing: string;
   email: string | null;
   account: { state: string };
   invited?: { expired: boolean } | null;
+  /// A draft is not invited (task 0101 D1): complete the record first.
+  isDraft?: boolean;
 }): boolean {
-  return !p.archived && p.standing === "ACTIVE" && !!p.email && p.account.state === "none" && (!p.invited || p.invited.expired);
+  return (
+    !p.archived && !p.isDraft && p.standing === "ACTIVE" && !!p.email && p.account.state === "none" && (!p.invited || p.invited.expired)
+  );
 }
 
 export function StaffInviteDialog({

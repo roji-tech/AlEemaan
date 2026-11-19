@@ -731,6 +731,7 @@ type StaffChoice = {
   lastName: string;
   category: "TEACHING" | "NON_TEACHING";
   archived: boolean;
+  isDraft: boolean;
   standing: string;
 };
 
@@ -756,7 +757,7 @@ function ClassTeacherDialog({
     void getJson(`/api/v1/staff?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
       if (!live) return;
       if (!reply.ok) return setError(say(reply, "Couldn't load the staff."));
-      const rows = (reply.data!.staff as StaffChoice[]).filter((p) => !p.archived && p.standing === "ACTIVE");
+      const rows = (reply.data!.staff as StaffChoice[]).filter((p) => !p.archived && !p.isDraft && p.standing === "ACTIVE");
       rows.sort((a, b) => (a.category === b.category ? 0 : a.category === "TEACHING" ? -1 : 1));
       setStaff(rows);
     });

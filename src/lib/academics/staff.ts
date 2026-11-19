@@ -14,6 +14,7 @@ import {
   staffRole,
   staffTitle,
 } from "@/lib/academics/staff-rules";
+import { staffMissing } from "@/lib/drafts/rules";
 
 // Staff records and teaching assignments (Slice P1c). A record is how the BRANCH knows a person (a security guard has one and never an account); a sign-in
 // account is a member of the same branch it may be linked to - once, by an administrator, and only to a member whose role fits the record's category. The
@@ -37,6 +38,8 @@ export const staffInput = z.strictObject({
   corpsMember: z.boolean().optional(),
   /// A short display role label (e.g. "Head of Science", "Form Tutor"). Optional for any category.
   role: staffRole.nullable().optional(),
+  /// Save as a draft (task 0101 D1): the record is kept unfinished and left out of everything that acts on staff until it is completed. Absent or false is a normal record.
+  isDraft: z.boolean().optional(),
 });
 export const staffPatch = z
   .strictObject({
@@ -51,6 +54,8 @@ export const staffPatch = z
     qualification: staffDetail.nullable().optional(),
     corpsMember: z.boolean().optional(),
     role: staffRole.nullable().optional(),
+    /// `true` marks the record as a draft. A PATCH never clears the flag: `POST /api/v1/staff/[id]/complete` does, after checking the record is complete.
+    isDraft: z.literal(true).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
 export const linkInput = z.strictObject({ userId: z.string().min(1) });
@@ -112,6 +117,9 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
     /// A short display role label (e.g. "Head of Science", "Form Tutor").
     role: row.role,
     archived: row.archivedAt !== null,
+    /// A draft (task 0101 D1): saved unfinished. `missing` is what a draft still needs to be complete (the server's rule, so no screen has its own); a record that is not a draft has none.
+    isDraft: row.isDraft,
+    missing: row.isDraft ? staffMissing(row) : [],
     /// Suspended (until a date, or until lifted) or terminated, as stored (task 0045); a lifted or reinstated person is ACTIVE.
     standing: row.standing,
     standingUntil: row.standingUntil ? row.standingUntil.toISOString().slice(0, 10) : null,
@@ -228,10 +236,15 @@ export async function createStaff(actorUserId: string, input: z.infer<typeof sta
         qualification: detailOrNull(input.qualification),
         corpsMember: input.corpsMember ?? false,
         role: detailOrNull(input.role),
+        isDraft: input.isDraft ?? false,
       },
       include: INCLUDE,
     });
-    await audit(actorUserId, "STAFF_CREATED", "StaffRecord", row.id, { category: row.category, branchId: row.branchId });
+    await audit(actorUserId, "STAFF_CREATED", "StaffRecord", row.id, {
+      category: row.category,
+      branchId: row.branchId,
+      ...(row.isDraft ? { isDraft: true } : {}),
+    });
     return toStaff(row);
   } catch (error) {
     return duplicate(error, EMAIL_TAKEN);
@@ -254,19 +267,47 @@ export async function updateStaff(actorUserId: string, id: string, patch: z.infe
     qualification: patch.qualification === undefined ? before.qualification : detailOrNull(patch.qualification),
     corpsMember: patch.corpsMember ?? before.corpsMember,
     role: patch.role === undefined ? before.role : detailOrNull(patch.role),
+    isDraft: patch.isDraft ?? before.isDraft,
   };
   const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => next[k] !== before[k]);
   if (changed.length === 0) return toStaff(before);
+  // A draft holds nothing (task 0101 D1): no sign-in, no subjects, no class-teacher role, no attendance grants. A record that has any of those is finished work, not a draft.
+  if (changed.includes("isDraft")) {
+    const grants = await prisma.attendanceGrant.count({ where: { staffRecordId: id } });
+    if (before.userId || before.invitations.length > 0 || before._count.assignments > 0 || before.teacherOfArms.length > 0 || grants > 0)
+      throw new ConflictError(
+        "This person has a sign-in (or an invitation waiting), subjects, a class or attendance access. Remove those first; a draft is a record that is not in use yet.",
+      );
+  }
   // A record with an account keeps its category: the account's role was matched to it, and the Users page is where roles change.
   if (changed.includes("category") && before.userId)
     throw new ConflictError("This person has a sign-in account; change their role on the Users page first.");
   try {
     const row = await prisma.staffRecord.update({ where: { id }, data: next, include: INCLUDE });
     await audit(actorUserId, "STAFF_UPDATED", "StaffRecord", id, { changed });
+    if (changed.includes("isDraft")) await audit(actorUserId, "STAFF_DRAFT_SET", "StaffRecord", id, { isDraft: true }, { isDraft: false });
     return toStaff(row);
   } catch (error) {
     return duplicate(error, EMAIL_TAKEN);
   }
+}
+
+/// Completes a draft (task 0101 D1): clears the flag when the record has everything `staffMissing` asks for, else says what is missing and changes nothing. A record that is not a draft
+/// is returned as it is (so a second click is safe). `null` for an unknown record.
+export async function completeStaff(
+  actorUserId: string,
+  id: string,
+): Promise<{ ok: true; staff: StaffView } | { ok: false; missing: string[] } | null> {
+  const before = await find(id);
+  if (!before) return null;
+  if (before.archivedAt) throw new ConflictError("Restore this record before completing it.");
+  if (!before.isDraft) return { ok: true, staff: await viewOf(before) };
+  const missing = staffMissing(before);
+  if (missing.length > 0) return { ok: false, missing };
+  // Conditional on still being a draft, so two administrators completing at once write one audit entry.
+  const done = await prisma.staffRecord.updateMany({ where: { id, isDraft: true }, data: { isDraft: false } });
+  if (done.count === 1) await audit(actorUserId, "STAFF_COMPLETED", "StaffRecord", id, { isDraft: false }, { isDraft: true });
+  return { ok: true, staff: await viewOf(await mustFind(id)) };
 }
 
 /// Archives (or restores) a record. Archiving is refused while subjects are still assigned to them: remove the assignments first.
@@ -291,6 +332,8 @@ export async function setStaffArchived(actorUserId: string, id: string, archived
 /// Members of the branch an administrator may link: ACTIVE, holding the role that fits the category, and not already linked to a record.
 export async function linkableAccounts(id: string) {
   const record = await mustFind(id);
+  // A draft is not offered an account: it is finished first (task 0101 D1).
+  if (record.isDraft) return [];
   const members = await prisma.membership.findMany({
     where: { branchId: record.branchId, deactivatedAt: null, role: roleForCategory(record.category), staffRecords: { none: {} } },
     select: { userId: true, user: { select: { name: true, email: true } } },
@@ -304,6 +347,7 @@ export async function linkAccount(actorUserId: string, id: string, input: z.infe
   const record = await find(id);
   if (!record) return null;
   if (record.archivedAt) throw new ConflictError("Restore this record before linking an account.");
+  if (record.isDraft) throw new ConflictError("Complete this draft before linking a sign-in account.");
   if (record.userId) throw new ConflictError("This record already has a sign-in account.");
   const member = await prisma.membership.findUnique({
     where: { userId_branchId: { userId: input.userId, branchId: record.branchId } },
@@ -340,6 +384,7 @@ export async function addAssignment(actorUserId: string, staffId: string, input:
   const record = await prisma.staffRecord.findUnique({ where: { id: staffId } });
   if (!record) return null;
   if (record.archivedAt) throw new ConflictError("Restore this record before assigning subjects.");
+  if (record.isDraft) throw new ConflictError("Complete this draft before assigning subjects.");
   const subject = await prisma.subject.findFirst({
     where: { id: input.subjectId, branchId: record.branchId, archivedAt: null },
     select: { id: true },
