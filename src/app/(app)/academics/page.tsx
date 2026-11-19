@@ -60,6 +60,7 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
           isSuperAdmin={isSuperAdmin}
           initialSection={isSectionId(section) ? section : "classes"}
           initialBranchId={one(query.branch)}
+          initialQuery={one(query.q)?.slice(0, 100)}
           openNew={one(query.new) === "1" && (section === "sessions" || section === "classes")}
         />
       )}

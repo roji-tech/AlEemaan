@@ -30,13 +30,23 @@ export interface InvoicesDashboardProps {
   periods: { id: string; label: string }[];
   classGroups: { id: string; name: string }[];
   canManage?: boolean;
+  /// The search a link opens with (the top-bar search, task 0113).
+  initialQuery?: string;
   onRefresh: () => void;
 }
 
-export function InvoicesDashboard({ branchId, invoices, periods, classGroups, canManage = true, onRefresh }: InvoicesDashboardProps) {
+export function InvoicesDashboard({
+  branchId,
+  invoices,
+  periods,
+  classGroups,
+  canManage = true,
+  initialQuery = "",
+  onRefresh,
+}: InvoicesDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [periodFilter, setPeriodFilter] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   // The batch dialog's `key`: a new instance for every opening (task 0059). Its fields are `useState(...)` and it is kept mounted, and since a save no longer remounts this screen (FinancePanel
   // refreshes quietly), a second opening would otherwise start from the first one's term, class, date and result.

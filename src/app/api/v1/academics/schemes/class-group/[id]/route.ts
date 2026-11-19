@@ -8,6 +8,7 @@ import { withBranch } from "@/lib/auth/with-branch";
 import { validateHierarchicalScheme } from "@/lib/settings/approvals";
 import { audit } from "@/lib/academics/structure";
 import { READ_ROLES, notFound, structureCall } from "@/lib/academics/structure-http";
+import { schemesForClassGroups } from "@/lib/academics/class-group-schemes";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -49,54 +50,9 @@ export const GET = withAuth<Context>(
     async (_req, _auth, ctx, _input, branch) =>
       structureCall("CLASS_GROUP_SCHEME_GET", async () => {
         const classGroupId = (await ctx.params).id;
-
-        // Check scope or direct classGroupId
-        const scope = await prisma.assessmentSchemeScope.findFirst({
-          where: {
-            level: SchemeScopeLevel.CLASS_GROUP,
-            branchId: branch.branchId,
-            classGroupId,
-            scheme: { archivedAt: null },
-          },
-          include: {
-            scheme: {
-              include: {
-                components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] },
-              },
-            },
-          },
-        });
-
-        const scheme =
-          scope?.scheme ??
-          (await prisma.assessmentScheme.findFirst({
-            where: { branchId: branch.branchId, classGroupId, archivedAt: null },
-            include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
-          }));
-
-        // A class with no assessment scheme yet is a normal state, not a missing page: answer 200 with `scheme: null` (it was a 404, which the screen treated as "none yet" but which showed
-        // as a red error in the network tab once for every such class).
-        if (!scheme) return ok({ scheme: null });
-
-        return ok({
-          scheme: {
-            id: scheme.id,
-            branchId: scheme.branchId,
-            classGroupId: scheme.classGroupId,
-            name: scheme.name,
-            totalMax: Number(scheme.totalMax),
-            examMax: Number(scheme.examMax),
-            version: scheme.version,
-            locked: scheme.lockedAt !== null,
-            archived: scheme.archivedAt !== null,
-            components: scheme.components.map((c) => ({
-              id: c.id,
-              name: c.name,
-              maxScore: Number(c.maxScore),
-              sortOrder: c.sortOrder,
-            })),
-          },
-        });
+        // A class with no assessment scheme yet is a normal state, not a missing page: 200 with `scheme: null` (task 0108). Read by the same helper as the whole-branch list (task 0112).
+        const schemes = await schemesForClassGroups(branch.branchId, [classGroupId]);
+        return ok({ scheme: schemes[classGroupId] ?? null });
       }),
   ),
   { roles: READ_ROLES },

@@ -15,8 +15,11 @@ export const dynamic = "force-dynamic";
 
 // The pupils of each branch (Slice UI1, over the students API). The page offers the branches the person holds a staff role in (a superadmin: all) and whether
 // they may change each (an administrator of that branch, or a superadmin). It is display: the students API behind every list and button decides, on every request.
-export default async function StudentsPage() {
+export default async function StudentsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { session, isAdmin } = await requirePageSession();
+  // A link from the top-bar search (task 0113): which branch, and what to search for. Only a branch of this person's is used (the panel checks).
+  const query = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const visible = await branchIdsFor(session.userId);
   const scope = await adminScope(session.userId);
   const branches = await prisma.branch.findMany({
@@ -81,6 +84,8 @@ export default async function StudentsPage() {
         <StudentsPanel
           standingCan={standingCan}
           programs={programs}
+          initialBranchId={one(query.branch)}
+          initialQuery={one(query.q)?.slice(0, 64)}
           branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id) }))}
         />
       )}

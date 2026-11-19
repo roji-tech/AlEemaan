@@ -9,6 +9,7 @@ import { Collection, Item, ItemInitials, type ItemAction } from "@/components/ui
 import { ActionsMenu, type MenuAction } from "@/components/ui/ActionsMenu";
 import { Dialog } from "@/components/ui/Dialog";
 import { ListToolbar } from "@/components/ui/ListToolbar";
+import { ExportButton } from "@/components/bulk/ExportButton";
 import { Pager, paginate } from "@/components/ui/Pager";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
@@ -36,6 +37,7 @@ import {
   type StaffFilters,
 } from "@/components/academics/staff-model";
 import { StaffDetailsDialog, corpsPill, kindPill } from "@/components/academics/StaffDetails";
+import { StaffInviteDialog, StaffTransferDialog, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
 // sign-in account is an existing member it can be linked to. Presentation only: the API decides who may read and change what.
@@ -62,7 +64,12 @@ type Staff = {
   standing: Exclude<StandingValue, "EXPELLED">;
   standingUntil: string | null;
   account: Account;
+  /// An invitation sent from this record is waiting, or ran out (task 0114).
+  invited: { until: string; expired: boolean } | null;
   assignmentCount: number;
+  /// The arms this person is class teacher of, and the other branches they have a record in (task 0114).
+  classTeacherOf: { armId: string; label: string }[];
+  alsoIn: { branchId: string; branchName: string }[];
 };
 type Assignment = { id: string; subjectId: string; subjectName: string; classArmId: string; armName: string; classGroupName: string };
 type Linkable = { userId: string; name: string | null; email: string | null };
@@ -94,15 +101,28 @@ function staffCardTheme(category: "TEACHING" | "NON_TEACHING") {
   };
 }
 
-export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+export function StaffPanel({
+  branches,
+  initialBranchId,
+  initialQuery = "",
+}: {
+  branches: BranchChoice[];
+  /// From a link (the top-bar search, task 0113): the branch to open and the search to start with. A branch the person does not have is ignored.
+  initialBranchId?: string;
+  initialQuery?: string;
+}) {
+  const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [status, setStatus] = useState<"live" | "archived">("live");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery.slice(0, 100));
   const [page, setPage] = useState(1);
+  // Task 0114: the records ticked for an invitation, the invitation dialog, and the record being moved or added to another branch.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [inviting, setInviting] = useState<InvitePerson[] | null>(null);
+  const [moving, setMoving] = useState<Staff | null>(null);
   // List or grid, and how many to a page: remembered for this list (task 0089). The branch's staff all come in one answer, so the pages are cut here.
   const layout = useCollectionView("academics-staff", { defaultView: "grid", page, onPage: setPage });
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +147,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
     if (bad) return setError(say(bad, "Couldn't load this branch."));
     setError(null);
     setStaff(s.data!.staff as Staff[]);
+    setSelected(new Set());
     setClasses(c.data!.classGroups as ClassOption[]);
     setSubjects(sub.data!.subjects as SubjectOption[]);
   }, [branchId, status, q]);
@@ -166,6 +187,17 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   };
   const list = staff === null ? null : filterStaff(staff, filters);
   const shown = paginate(list ?? [], page, layout.size);
+  const canInvite = branch.canEdit;
+  const invitableShown = (list ?? []).filter(invitable);
+  const toggle = (id: string, on: boolean) =>
+    setSelected((all) => {
+      const next = new Set(all);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const asInvitee = (p: Staff): InvitePerson => ({ id: p.id, name: `${p.firstName} ${p.lastName}`, email: p.email ?? "" });
+  const otherBranches = branches.filter((b) => b.canEdit && b.id !== branchId);
 
   return (
     <div className="space-y-6">
@@ -200,7 +232,8 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
             )}
           </div>
           <p className="mt-1 text-sm text-fg-muted">
-            Everyone the branch employs, whether or not they sign in. A record does not create a login.
+            Everyone the branch employs, whether or not they sign in. A record does not create a login: tick the people who should sign in
+            and invite them, at the address on their record.
           </p>
         </div>
         <ListToolbar
@@ -211,7 +244,20 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
           searchMaxLength={100}
           activeCount={filterCount}
           onClear={clearFilters}
-          trailing={<ViewToggle view={layout.view} onChange={layout.setView} />}
+          trailing={
+            <>
+              {branch.canEdit && (
+                <ExportButton
+                  kind="staff"
+                  branchId={branch.id}
+                  branchName={branch.name}
+                  shownCount={list === null ? null : list.length}
+                  shown={() => ({ ids: (list ?? []).map((p) => p.id) })}
+                />
+              )}
+              <ViewToggle view={layout.view} onChange={layout.setView} />
+            </>
+          }
         >
           <SelectField
             label="Show"
@@ -253,9 +299,35 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
             options={FILTER_OPTIONS.standing}
           />
         </ListToolbar>
-        <p className="text-sm text-fg-muted" aria-live="polite">
-          {list === null ? " " : `${list.length} staff ${list.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-fg-muted" aria-live="polite">
+            {list === null ? " " : `${list.length} staff ${list.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
+          </p>
+          {canInvite && invitableShown.length > 0 && selected.size === 0 && (
+            <Button variant="ghost" onClick={() => setSelected(new Set(invitableShown.map((p) => p.id)))}>
+              <MailIcon className="h-4 w-4" aria-hidden="true" />
+              Select everyone who can be invited ({invitableShown.length})
+            </Button>
+          )}
+        </div>
+        {canInvite && selected.size > 0 && (
+          <div
+            role="region"
+            aria-label="Selected staff"
+            className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand bg-surface px-4 py-2 shadow-menu"
+          >
+            <p className="text-sm font-semibold text-fg">{selected.size} selected</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+              <Button onClick={() => setInviting((staff ?? []).filter((p) => selected.has(p.id)).map(asInvitee))}>
+                <MailIcon className="h-4 w-4" aria-hidden="true" />
+                Invite to sign in
+              </Button>
+            </div>
+          </div>
+        )}
         <Collection
           label="Staff"
           view={layout.view}
@@ -296,6 +368,26 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                         canSchoolWide: can.remove && p.account.state === "linked",
                       }),
                   })),
+                  ...(invitable(p)
+                    ? [
+                        {
+                          id: "invite",
+                          label: "Invite to sign in",
+                          ariaLabel: `Invite ${who} to sign in`,
+                          onSelect: () => setInviting([asInvitee(p)]),
+                        },
+                      ]
+                    : []),
+                  ...(!p.archived && p.standing === "ACTIVE" && otherBranches.length > 0
+                    ? [
+                        {
+                          id: "transfer",
+                          label: "Transfer or add to another branch",
+                          ariaLabel: `Transfer ${who} or add them to another branch`,
+                          onSelect: () => setMoving(p),
+                        },
+                      ]
+                    : []),
                   {
                     id: "history",
                     label: "History",
@@ -366,24 +458,22 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${theme.pill}`}>
                               {p.category === "TEACHING" ? "TEACHING" : "NON-TEACHING"}
                             </span>
-                            {p.role && (
-                              <span className="text-[12px] font-medium text-fg-muted">
-                                • {p.role}
-                              </span>
-                            )}
+                            {p.role && <span className="text-[12px] font-medium text-fg-muted">• {p.role}</span>}
                             {!p.role && p.category === "NON_TEACHING" && p.designation && (
-                              <span className="text-[12px] font-medium text-fg-muted">
-                                • {p.designation}
-                              </span>
+                              <span className="text-[12px] font-medium text-fg-muted">• {p.designation}</span>
                             )}
                             {!p.role && p.qualification && (
-                              <span className="text-[12px] font-medium text-fg-muted">
-                                • {p.qualification}
-                              </span>
+                              <span className="text-[12px] font-medium text-fg-muted">• {p.qualification}</span>
                             )}
                             {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
                             <span className="sr-only">{roleLine(p)}</span>
                           </div>
+                          {(p.classTeacherOf.length > 0 || p.alsoIn.length > 0) && (
+                            <div className="mt-2 space-y-0.5 text-[12px] text-fg-muted">
+                              {p.classTeacherOf.length > 0 && <p>Class teacher: {p.classTeacherOf.map((a) => a.label).join(", ")}</p>}
+                              {p.alsoIn.length > 0 && <p>Also in: {p.alsoIn.map((b) => b.branchName).join(", ")}</p>}
+                            </div>
+                          )}
                           {(p.email || p.phone) && (
                             <div className="mt-3.5 flex items-center gap-2 text-fg-muted">
                               <MailIcon className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden="true" />
@@ -403,9 +493,28 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                   <div className="mt-2 border-t border-line pt-4">
                     <div className="flex w-full items-center justify-between text-[13px]">
                       <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${linked ? "bg-[#00a651]" : "bg-gray-400 dark:bg-gray-500"}`} />
+                        {canInvite && invitable(p) ? (
+                          <CheckboxField
+                            label={<span className="sr-only">Select {who} to invite</span>}
+                            checked={selected.has(p.id)}
+                            onChange={(e) => toggle(p.id, e.target.checked)}
+                            className="-my-2 -ml-1 gap-0"
+                          />
+                        ) : (
+                          <div
+                            className={`h-2 w-2 rounded-full ${linked ? "bg-[#00a651]" : p.invited && !p.invited.expired ? "bg-amber-500" : "bg-gray-400 dark:bg-gray-500"}`}
+                          />
+                        )}
                         <span className={linked ? "font-medium text-fg" : "text-fg-muted"}>
-                          {p.account.state === "linked" ? (p.account.deactivated ? "Deactivated" : "Active now") : "No sign-in"}
+                          {p.account.state === "linked"
+                            ? p.account.deactivated
+                              ? "Deactivated"
+                              : "Active now"
+                            : p.invited
+                              ? p.invited.expired
+                                ? "Invitation ran out"
+                                : "Invited, waiting"
+                              : "No sign-in"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-fg-muted">
@@ -447,6 +556,10 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                 subtitle={
                   <>
                     <span className="block text-fg-2">{roleLine(p)}</span>
+                    {p.classTeacherOf.length > 0 && (
+                      <span className="block">Class teacher: {p.classTeacherOf.map((a) => a.label).join(", ")}</span>
+                    )}
+                    {p.alsoIn.length > 0 && <span className="block">Also in: {p.alsoIn.map((b) => b.branchName).join(", ")}</span>}
                     {contact && (
                       <span className="block truncate" title={contact}>
                         {contact}
@@ -464,8 +577,8 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                 factsStyle="stats"
                 facts={[
                   {
-                    label: linked ? "Can sign in" : "No sign-in",
-                    value: linked ? "Yes" : "No",
+                    label: linked ? "Can sign in" : p.invited && !p.invited.expired ? "Invited" : "No sign-in",
+                    value: linked ? "Yes" : p.invited && !p.invited.expired ? "Waiting" : "No",
                     icon: <ShieldCheckIcon className="h-4 w-4" />,
                     tone: linked ? "ok" : undefined,
                   },
@@ -478,6 +591,16 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                 ]}
                 actions={buttons}
                 menu={{ name: who, actions: more }}
+                below={
+                  canInvite && invitable(p) ? (
+                    <CheckboxField
+                      label={`Select ${who} to invite`}
+                      checked={selected.has(p.id)}
+                      onChange={(e) => toggle(p.id, e.target.checked)}
+                      className="relative z-10"
+                    />
+                  ) : undefined
+                }
               />
             );
           })}
@@ -494,6 +617,32 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
         />
       </section>
 
+      <StaffInviteDialog
+        key={inviting ? inviting.map((p) => p.id).join(",") : "no-invite"}
+        branchId={branchId}
+        branchName={branch.name}
+        people={inviting}
+        onClose={() => setInviting(null)}
+        onDone={async (summary) => {
+          setInviting(null);
+          setNotice({ variant: "success", text: summary });
+          await load();
+        }}
+      />
+      <StaffTransferDialog
+        key={moving?.id ?? "no-move"}
+        person={
+          moving ? { id: moving.id, name: `${moving.firstName} ${moving.lastName}`, hasAccount: moving.account.state === "linked" } : null
+        }
+        fromBranchName={branch.name}
+        branches={otherBranches}
+        onClose={() => setMoving(null)}
+        onDone={async (text) => {
+          setMoving(null);
+          setNotice({ variant: "success", text });
+          await load();
+        }}
+      />
       <StandingDialog
         ask={standingAsk}
         onClose={() => setStandingAsk(null)}
@@ -532,6 +681,15 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
         subjects={subjects}
         onClose={() => setEditing(null)}
         onChanged={load}
+        onInvite={
+          editing?.kind === "manage" && branch.canEdit && invitable(editing.item)
+            ? () => {
+                const p = editing.item;
+                setEditing(null);
+                setInviting([asInvitee(p)]);
+              }
+            : undefined
+        }
       />
       {branch.canEdit && (
         <BulkImportDialog
@@ -768,6 +926,7 @@ function ManageDialog({
   subjects,
   onClose,
   onChanged,
+  onInvite,
 }: {
   open: boolean;
   person: Staff | null;
@@ -776,6 +935,8 @@ function ManageDialog({
   subjects: SubjectOption[];
   onClose: () => void;
   onChanged: () => Promise<void>;
+  /// Invite this person to sign in at the address on their record (task 0114); absent when they cannot be invited.
+  onInvite?: () => void;
 }) {
   const [account, setAccount] = useState<Account | null>(person?.account ?? null);
   const [assignments, setAssignments] = useState<Assignment[] | null>(null);
@@ -870,9 +1031,20 @@ function ManageDialog({
                 <p className="text-sm text-fg-muted">No sign-in. This person is recorded but cannot log in.</p>
                 {canEdit &&
                   (linkable.length === 0 ? (
-                    <p className="text-sm text-fg-muted">
-                      No member of this branch with a matching role is free to link. Invite them on the Users page first.
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-fg-muted">
+                        {person?.invited && !person.invited.expired
+                          ? "An invitation is waiting: their account is linked here as soon as they accept it."
+                          : person?.email
+                            ? "Invite them at the address on their record; accepting links their new account here."
+                            : "Add an e-mail address to their record (Edit), then invite them from here."}
+                      </p>
+                      {onInvite && (
+                        <Button variant="secondary" onClick={onInvite}>
+                          Invite to sign in
+                        </Button>
+                      )}
+                    </div>
                   ) : (
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="min-w-56 flex-1">
