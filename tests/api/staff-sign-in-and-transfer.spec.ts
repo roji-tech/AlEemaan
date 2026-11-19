@@ -24,7 +24,8 @@ const asRole = async (role: Role, branchIds: string[] = [home.id]) => {
   return { user, cookie: cookieHeader((await loginAs(user)).token!) };
 };
 const superAdmin = async () => {
-  const user = await createUser({ superAdmin: true });
+  // A superadmin holds at least one membership (a superadmin flag alone grants nothing); `role: ADMIN` gives both.
+  const user = await createUser({ role: Role.ADMIN });
   return { user, cookie: cookieHeader((await loginAs(user)).token!) };
 };
 let n = 0;
