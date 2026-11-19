@@ -75,7 +75,7 @@ type Editing = { kind: "record"; item: Staff | null } | { kind: "manage"; item: 
 const MENU_ROOM = "[&_li:has([aria-expanded=true])]:z-20 [&_li>div.border-t]:justify-end";
 
 const ShieldIcon = () => (
-  <svg className="w-[14px] h-[14px] text-[#00a651] inline-block ml-1 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <svg className="w-3.5 h-3.5 text-[#00a651] inline-block ml-1 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     <path d="M12 15a2 2 0 100-4 2 2 0 000 4z" fill="white" />
   </svg>
@@ -344,7 +344,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div className="flex min-w-0 flex-1 items-start gap-3.5">
                         <div
-                          className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${theme.avatar}`}
+                          className={`flex h-10.5 w-10.5 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${theme.avatar}`}
                         >
                           {initialsOf(who, p.email)}
                         </div>
@@ -411,7 +411,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                     <div className="flex items-center gap-2">
                       <div className={`h-2 w-2 rounded-full ${linked ? "bg-[#00a651]" : "bg-gray-300"}`} />
                       <span className={linked ? "font-medium text-fg" : "text-fg-muted"}>
-                        {linked ? (p.account.deactivated ? "Deactivated" : "Active now") : "No sign-in"}
+                        {p.account.state === "linked" ? (p.account.deactivated ? "Deactivated" : "Active now") : "No sign-in"}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-fg-muted">
