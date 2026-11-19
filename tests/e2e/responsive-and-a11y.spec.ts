@@ -455,6 +455,7 @@ test.describe("account self-service screens (profile, email, sessions)", () => {
     isMobile,
     browser,
   }) => {
+    test.setTimeout(90_000); // many screens, each checked with axe: it took about 40 s when timed alone, over the default 30 s
     const user = await createUser({ role: Role.ADMIN, name: "Amina Yusuf" });
     await signInThroughUi(page, user);
     await page.goto("/account");
@@ -590,7 +591,7 @@ test.describe("Users and invitation screens", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
     await expect(page.getByText(/^\d+ (person|people)/)).toBeVisible();
     await page.getByRole("tab", { name: /^Pending invitations/ }).click();
-    await expect(page.getByText("Send again")).toBeVisible(); // the invitations have loaded too
+    await expect(page.getByRole("button", { name: /^Actions for .+@/ }).first()).toBeVisible(); // the invitations have loaded too (their actions are in a three-dots menu since task 0100)
     await page.getByRole("tab", { name: "People" }).click();
     await checkScreen(page, "/users (list and invitations)", isMobile);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTabParam } from "@/components/ui/useTabParam";
+import { APPROVALS_TAB_IDS } from "@/lib/search/tab-ids";
 import type { BranchChoice } from "@/components/academics/common";
 import { RequestsPanel } from "@/components/approvals/RequestsPanel";
 import { LayoutPanel } from "@/components/approvals/LayoutPanel";
@@ -31,7 +32,7 @@ export function ApprovalsSections({
     ...(isSuperAdmin ? [{ id: "self" as const, label: "Self-approval" }] : []),
   ];
   const [active, setActive] = useTabParam(
-    sections.map((s) => s.id),
+    APPROVALS_TAB_IDS.filter((id) => id !== "self" || isSuperAdmin), // `self` is not a tab for anyone else: an address asking for it opens the first tab
     "requests",
   );
 
