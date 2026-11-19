@@ -14,6 +14,7 @@ import { verifyPaystackSignature, computePayloadHash } from "./crypto";
 import { getPaystackGateway } from "./paystack";
 import { checkPart } from "./part-payment";
 import { loadEffectivePolicy } from "./part-payment-service";
+import { NOT_DRAFT } from "@/lib/drafts/live";
 
 export class FinanceError extends Error {
   public code?: string;
@@ -168,6 +169,8 @@ export async function generateInvoices(
       branchId,
       sessionId: period.sessionId,
       status: "ACTIVE",
+      // A draft is not invoiced (task 0101 D1): complete the record first.
+      student: NOT_DRAFT,
     };
 
     if (options.classGroupId) {

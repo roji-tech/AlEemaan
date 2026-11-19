@@ -14,6 +14,7 @@ import type {
   QueryTemplatesInput,
   UpdateTemplateInput,
 } from "./validation";
+import { LIVE_PUPIL, LIVE_STAFF } from "@/lib/drafts/live";
 
 export interface TemplateListItem {
   id: string;
@@ -355,7 +356,7 @@ export async function broadcastMessage(
   if (targetAudience === "ALL_PARENTS" || targetAudience === "CLASS_GROUP_PARENTS" || targetAudience === "CLASS_ARM_PARENTS") {
     const studentWhere: Prisma.StudentRecordWhereInput = {
       branchId,
-      archivedAt: null,
+      ...LIVE_PUPIL,
       ...(classArmId
         ? { enrollments: { some: { classArmId } } }
         : classGroupId
@@ -408,7 +409,7 @@ export async function broadcastMessage(
     const phones = new Map<string, string>();
     if (toPhone) {
       const records = await prisma.staffRecord.findMany({
-        where: { branchId, archivedAt: null, userId: { in: staffMembers.map((m) => m.user.id) } },
+        where: { branchId, ...LIVE_STAFF, userId: { in: staffMembers.map((m) => m.user.id) } },
         select: { userId: true, phone: true },
       });
       for (const record of records) if (record.userId && record.phone?.trim()) phones.set(record.userId, record.phone.trim());

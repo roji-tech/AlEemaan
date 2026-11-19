@@ -1,7 +1,7 @@
 # 0101: Draft pupils and staff, a draft (unsent) invitation, staff with no branch yet, school details per branch, an NYSC corps member flag, inviting staff from the staff list, and departments with heads of department
 
 - **Period / Focus:** 2026-11-18 (the maintainer: "can we add draft student and draft staff, so we can add and still leave out some info, so we can add a draft user without sending an invite yet"; "I wanna be able to add staff without adding them to any branch yet"; "what if these infos are relative to branches?" (School Information: principal, phone, motto, address, e-mail, website); "we need to be able to indicate if a staff is a corper (corp member NYSC) or not"; "so what if we wanna invite a staff, what if we wanna invite multiple staff, a multi-select would be good, because I'm not sure if adding a staff creates a user account"; "can we assign staffs to department if we want to use departments, can we assign HODs"; "keep in mind, we can have a teacher teaching in two or more branches")
-- **Status:** Designed; nothing built; the five decisions marked (ask) need the maintainer's answer before the migrations are written
+- **Status:** D5 built (task 0111). D6 built (task 0112). **D1 (draft staff and pupils) built in batch 3a, 2026-11-19** (section 7; the (ask) in D1 is answered there, as defaults the maintainer may change). D2 (draft invitations), D3 (staff with no branch), D4 (school details per branch) and D7 (departments) are still only designed.
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** to be opened after task 0100 / PR into `dev`
@@ -52,3 +52,57 @@ Unit: what is missing from a draft, the completeness rule, `profileFor` (branch 
 ## 6. Build record and tests
 
 (filled in with the real counts when the suites have run)
+
+## 7. D1 as built: draft staff and draft pupils (batch 3a, 2026-11-19)
+
+**Why now.** The maintainer, looking at Users > Staff > "New staff record" and "Add many": "how do I mark a new staff record or multiple records as draft?" There was no way: D1 was designed and nothing was built. This section is the design that was written BEFORE the code, then what was built.
+
+**Decisions (the (ask) in D1 is answered here; the maintainer may change any of them):**
+1. **The flag.** `StaffRecord.isDraft` and `StudentRecord.isDraft`, boolean, default false, with an index on `(branchId, isDraft)` each. One additive migration, `20261119160000_staff_pupil_drafts`. `StaffRecord.branchId` stays required (D3 is later) and invitations are untouched (D2 is later). A draft keeps its place in the branch.
+2. **What a draft needs.** The same as a record today: a first and a last name, plus the kind for staff and the gender for pupils (the forms already require those). Everything else is optional.
+3. **What "complete" means (the answer to the (ask)).** Pure functions in `src/lib/drafts/rules.ts`, unit-tested:
+   - Staff: first name, last name, kind, **gender**, and **an e-mail or a phone**.
+   - Pupil: first name, last name, gender, **date of birth**, **a class** (an active enrolment) and **a guardian contact** (the guardian's name, and a phone or an e-mail).
+   - `staffMissing(record)` and `pupilMissing(record)` return the labels of what is missing ("gender", "e-mail or phone", "date of birth", "class", "guardian name", "guardian phone or e-mail"); `missingText(labels)` is "Missing: gender, e-mail or phone". The server computes them and sends them with each record, so the screen never has a rule of its own.
+4. **Marking.**
+   - The staff form and the pupil form each get **Save as draft** next to Save, on a new record and on an edit. Saving as a draft a record that is already complete is allowed: it is the administrator's choice to hold it back. Plain Save on a draft keeps it a draft; plain Save on a new record makes a normal record (as today).
+   - **Complete** is an action in the card's Actions menu and in the details view. It checks the rules above: an unfinished draft is refused with a 409 `INCOMPLETE` that lists what is missing; a complete one has its flag cleared.
+   - **Mark as draft** is the opposite action for a normal record.
+   - On the API: `isDraft: true` on create and on PATCH (a PATCH can set the flag but never clear it), and `POST /api/v1/staff/[id]/complete` and `POST /api/v1/students/[id]/complete` to clear it.
+5. **Add many.** Both bulk dialogs (staff, pupils) get a checkbox before anything is read, **Save these as drafts**. The import endpoints take `asDraft: boolean` (default false). The rows' normal rules still apply (names, kind, gender, a class that exists); the completeness rules do not. The bulk audit entry carries `asDraft`; each row's own audit entry carries `isDraft`.
+6. **Lists.** A "Draft" badge and a "Missing: ..." line on every card and row; a **Draft** filter (Any / Drafts only / Not drafts) in the staff Filters panel and in the pupil Filters panel; "N drafts" beside the count. Drafts are shown by default, with the badge, so nobody loses a record. The pupil filter is `draft=YES|NO` in `pupilFilterSchema`, read by `studentListWhere`, so the list and its export stay identical.
+7. **Drafts are left out of everything that counts people or acts on them.** One predicate per model, used everywhere (`src/lib/drafts/live.ts`): `LIVE_PUPIL = { archivedAt: null, isDraft: false }` and `LIVE_STAFF = { archivedAt: null, isDraft: false }`.
+   - **Pupils:** attendance roll and marking, result sheets, promotion preview, invoice generation, report-card ranking and class lists, communication recipients, the family sign-in (a draft pupil cannot be signed in as), the programs' pupil lists and places, the dashboard count and the class and arm counts. Drafts still appear in the Students list, its filters and its export when listed, and in the top-bar record search.
+   - **Staff:** the invitation tick boxes and "Select everyone who can be invited", the invite API (skipped with the reason "Draft"), teaching assignments (409), the class-teacher choices, linking a sign-in account (409; the list of linkable accounts is empty), transfer (409), broadcast recipients and the programs' staff lists. Drafts still appear in the Staff list, its filters and its export, and in the top-bar record search.
+8. **Audit.** `STAFF_DRAFT_SET` and `STAFF_COMPLETED`, `STUDENT_DRAFT_SET` and `STUDENT_COMPLETED`, each with the flag before and after. A record created as a draft says so in its `STAFF_CREATED` / `STUDENT_CREATED` entry.
+9. **Who.** Administrators of the record's branch, as for editing today. A teacher sees drafts read-only, exactly as they see records.
+
+**To do at the merge with the batch 1b branch (`claude/backlog-sweep`):** `ensureStaffRecord` (`lib/academics/staff-accounts.ts`), the accept rule (`lib/invitations/service.ts`) and `unlistedMembers` live there, not here. They must leave drafts alone: link or create only a record that is not a draft, and list a member as "not on the staff list" only when they have no record, draft or not. The invite skip for drafts is in `lib/academics/staff-invite.ts` here.
+
+**To do in the access-codes branch (`claude/one-door-access-codes`):** the class sheet of codes and the guardian lists must use `LIVE_PUPIL` too.
+
+**Migration (the maintainer's to run on production after the prod merge):** `20261119160000_staff_pupil_drafts`: two boolean columns with a default and two indexes. Additive, no data touched.
+
+**Built (files).**
+- Schema and migration: `prisma/schema/academics.prisma` (`StaffRecord.isDraft`, index), `prisma/schema/students.prisma` (`StudentRecord.isDraft`, index), `prisma/migrations/20261119160000_staff_pupil_drafts/`. Checked against the schema on a throwaway database: "No difference detected".
+- The rules: `src/lib/drafts/rules.ts` (`staffMissing`, `pupilMissing`, `missingText`), `src/lib/drafts/live.ts` (`LIVE_PUPIL`, `LIVE_STAFF`, `NOT_DRAFT`).
+- Staff: `src/lib/academics/staff.ts` (`isDraft` on create, `isDraft: true` on update, `completeStaff`, `isDraft` and `missing` on every record; a draft is offered no account and cannot be linked or given subjects; a record in use cannot become a draft), `staff-invite.ts` (skipped, "Draft: complete the record first."), `staff-transfer.ts` (409), `src/app/api/v1/staff/[id]/complete/route.ts`, `src/lib/attendance/access.ts` (class teacher and attendance grant refuse a draft), `src/lib/bulk/staff-server.ts` and `src/app/api/v1/staff/import/route.ts` (`asDraft`).
+- Pupils: `src/lib/students/service.ts` (`isDraft` on create, `isDraft: true` on update, `completeStudent`, `missing` and the draft count on the list, a class on an edit for a pupil who has none), `src/lib/students/list-filters.ts` (`draft`), `src/app/api/v1/students/[id]/complete/route.ts`, `src/lib/bulk/pupils-server.ts` and `src/app/api/v1/students/import/route.ts` (`asDraft`).
+- Left out of what counts or acts on people (all through `LIVE_PUPIL` / `LIVE_STAFF` / `NOT_DRAFT`): `lib/attendance/service.ts` (roll and marking), `lib/academics/results.ts` (result sheet roster), `lib/promotion/service.ts` (the preview, so the rollover), `lib/finance/service.ts` (invoice generation), `lib/academics/report-card.ts` (the ranking), `lib/academics/structure.ts` (arm and class counts), `lib/communication/service.ts` (parent and staff broadcasts), `lib/forms/paper-work-service.ts` (paper work handed to a class), `lib/portal/auth.ts`, `lib/portal/service.ts` and `lib/portal/guard.ts` (no family sign-in as a draft, a draft sibling is not shown, and a session ends at its next request), `lib/programs/people-service.ts` (the pickers, a class add, the arm counts), `app/(app)/dashboard/page.tsx` (the pupil count).
+- Screens: `components/academics/StaffPanel.tsx`, `StaffDetails.tsx` (`draftPill`, the banner), `StaffAccess.tsx` (`invitable`), `staff-model.ts` (the Drafts filter, `countDrafts`), `ClassesPanel.tsx` (class teacher choices), `components/attendance/AttendanceGrantModal.tsx` (grant choices), `components/students/StudentsPanel.tsx`, `components/ui/action-look.tsx` (`/complete/` is a tick, `/draft/` a page).
+
+**Decisions made while building (beyond the list above):**
+- **A draft holds nothing.** A record that has a sign-in, a waiting invitation, subjects, a class-teacher role or attendance access cannot be marked as a draft (409 with the reason), so none of those code paths ever meets a draft. A draft cannot be given any of them either.
+- **A pupil's class can be set from the Edit form** when they have none. Without this a draft saved without a class could never be completed. For a pupil already in a class the field is ignored by the server (moving a pupil is Promotion's job).
+- **Drafts are kept in the Staff and Students lists, their exports and the top-bar record search**, with the badge, so nobody loses one. They are out of everything that counts or acts.
+- **Existing records are untouched:** the columns default to false, so every record that exists today stays a normal record.
+
+**Not built here, on purpose:**
+- D2 (draft invitations), D3 (staff with no branch), D4 (school details per branch, built in task 0115) and D7 (departments).
+- The access-code class sheet and the guardian lists (they are in the access-codes branch): they must use `LIVE_PUPIL` too, listed above.
+
+**Tests written (section 5's list for D1):** `tests/unit/drafts.spec.ts` (the rules, the predicates, the two filters, `invitable`, the menu look), `tests/api/drafts.spec.ts` (staff and pupils: save as draft, complete refused with the list and then allowed, audit, mark as draft, a draft holds nothing, left out of invitations, subjects, class teacher, sign-in link, transfer, attendance grants, the class and arm count, the attendance roll, invoices and the family sign-in; the list, the Drafts filter and the export agree; Add many as drafts for staff and pupils; who may), `tests/e2e/drafts.spec.ts` (staff and pupils on desktop and phone: Save as draft, the badge and the missing line, the Drafts filter, Complete refused then allowed, Add many as drafts, axe).
+
+**Build record.** Filled from the real runs before merge (the unit spec was run on its own with no server and no database: 12 passed; tsc, lint, prettier and the migration check were clean). The API and browser specs were written but NOT run in this batch: the shared test database and the browser runs belong to the main session. They are listed in the hand-over.
+
+**Merge notes.** `lib/portal/*` and `lib/bulk/*` are also changed by the access-codes branch, and `lib/invitations/service.ts` and `lib/academics/staff-accounts.ts` by the staff-list branch. The changes here are a few lines in each; resolve the conflicts by keeping both.

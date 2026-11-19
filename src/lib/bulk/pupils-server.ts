@@ -7,7 +7,8 @@ import type { Problem } from "./types";
 // The server half of the pupil kind (task 0084): what only the database knows (a class and arm of this branch, an active session to place the pupil in, an admission number already
 // taken, a namesake) and the save. It replaces the old partial-save import: every row is saved, or none.
 
-export type PupilBulkCtx = { branchId: string; allowDuplicates: boolean };
+/// `asDraft` (task 0101 D1): save every row as a draft; the rows' own rules still apply, the completeness rules do not.
+export type PupilBulkCtx = { branchId: string; allowDuplicates: boolean; asDraft?: boolean };
 
 type ArmRef = { id: string; name: string; viaMain: boolean };
 type Placement = { ok: true; arm: ArmRef } | { ok: false; problem: Problem };
@@ -95,7 +96,7 @@ async function namesakes(db: Tx, branchId: string, rows: CheckedRow<PupilRow>[])
 export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
   entity: pupilEntity,
   auditAction: "STUDENTS_BULK_IMPORTED",
-  auditDetail: (ctx) => ({ branchId: ctx.branchId, duplicatesAllowed: ctx.allowDuplicates }),
+  auditDetail: (ctx) => ({ branchId: ctx.branchId, duplicatesAllowed: ctx.allowDuplicates, asDraft: ctx.asDraft === true }),
   // two people importing at once take the admission numbers in turn, and the namesake check sees the other's rows
   prepare: (tx) => lockStudents(tx),
   async check(db, rows, ctx) {
@@ -168,6 +169,7 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
           guardianName: row.guardianName ?? null,
           guardianPhone: row.guardianPhone ?? null,
           guardianEmail: row.guardianEmail ?? null,
+          isDraft: ctx.asDraft === true,
         },
         select: { id: true },
       });
@@ -199,6 +201,7 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
             id: student.id,
             admissionNo,
             branchId: ctx.branchId,
+            ...(ctx.asDraft ? { isDraft: true } : {}),
             ...(overridden ? { duplicateOverridden: true, existingAdmissionNo: overridden.admissionNo } : {}),
           },
         },

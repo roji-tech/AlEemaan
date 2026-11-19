@@ -15,6 +15,7 @@ import { getReportCard, reportCardVisibleTo, studentBranch } from "@/lib/academi
 import { accessFor, allowedTabs, type Access, type Actor } from "./access";
 import { capForStanding, dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { getPortalAccess, getPortalAccessByBranch } from "./access-service";
+import { LIVE_PUPIL } from "@/lib/drafts/live";
 
 export interface PortalAuthResult {
   success: boolean;
@@ -42,8 +43,13 @@ export const NO_ACCESS: Access = {
 export const hasAnyAccess = (access: Access): boolean => allowedTabs(access).length > 0;
 
 /// A pupil's record as the portal shows it: the standing that applies TODAY and the last day of a suspension (a day, "YYYY-MM-DD"), never the stored value or the reason (task 0045).
-export function withStandingShown<S extends { standing?: string; standingUntil?: Date | null }>(student: S): Omit<S, "standing" | "standingUntil"> & { standing: string; standingUntil: string | null } {
-  const now = studentStandingNow({ standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null }, dayOf(new Date()));
+export function withStandingShown<S extends { standing?: string; standingUntil?: Date | null }>(
+  student: S,
+): Omit<S, "standing" | "standingUntil"> & { standing: string; standingUntil: string | null } {
+  const now = studentStandingNow(
+    { standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null },
+    dayOf(new Date()),
+  );
   return { ...student, standing: now, standingUntil: now === "SUSPENDED" && student.standingUntil ? dayOf(student.standingUntil) : null };
 }
 
@@ -60,21 +66,31 @@ export async function portalAccessFor(
   return Object.fromEntries(
     students.map((student) => {
       const base = accessFor(byBranch.get(student.branchId)!, actor);
-      const capped = capForStanding(base, actor, studentStandingNow({ standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null }, todayDay));
+      const capped = capForStanding(
+        base,
+        actor,
+        studentStandingNow({ standing: student.standing ?? "ACTIVE", standingUntil: student.standingUntil ?? null }, todayDay),
+      );
       return [student.id, capped ?? NO_ACCESS];
     }),
   );
 }
 
 /// The pupils of a family that this sign-in can open anything for, today (task 0045): those whose standing leaves something to open for this actor.
-async function reachableStudents<S extends { id: string; branchId: string } & Standing>(students: readonly S[], actor: Actor): Promise<S[]> {
+async function reachableStudents<S extends { id: string; branchId: string } & Standing>(
+  students: readonly S[],
+  actor: Actor,
+): Promise<S[]> {
   const access = await portalAccessFor(students, actor);
   return students.filter((student) => hasAnyAccess(access[student.id]!));
 }
 
 /// The pupils this sign-in reaches: the pupil alone, or every pupil sharing the guardian's contact when the branch's setting for this actor allows siblings. (A later
 /// change of the setting is also applied on every request: lib/portal/guard.ts.)
-async function linkedStudentIds(student: { id: string; branchId: string; guardianPhone: string | null; guardianEmail: string | null }, actor: Actor): Promise<string[]> {
+async function linkedStudentIds(
+  student: { id: string; branchId: string; guardianPhone: string | null; guardianEmail: string | null },
+  actor: Actor,
+): Promise<string[]> {
   const access = accessFor(await getPortalAccess(student.branchId), actor);
   return access.siblings ? findSiblingStudentIds(student) : [student.id];
 }
@@ -108,7 +124,8 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
     },
   });
 
-  if (!linkToken || !linkToken.student) {
+  // A draft pupil (task 0101 D1) has no portal: complete the record first.
+  if (!linkToken || !linkToken.student || linkToken.student.isDraft) {
     return { success: false, error: "Invalid or expired access token" };
   }
 
@@ -127,7 +144,7 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
   const siblingStudents = await prisma.studentRecord.findMany({
     where: {
       id: { in: siblingIds },
-      archivedAt: null,
+      ...LIVE_PUPIL,
     },
     include: {
       branch: true,
@@ -140,7 +157,8 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
   });
 
   const reachable = await reachableStudents(siblingStudents, actor);
-  if (!reachable.some((candidate) => candidate.id === primaryStudent.id)) return { success: false, error: "Invalid or expired access token" };
+  if (!reachable.some((candidate) => candidate.id === primaryStudent.id))
+    return { success: false, error: "Invalid or expired access token" };
 
   const now = Math.floor(Date.now() / 1000);
   const payload: PortalSessionPayload = {
@@ -171,14 +189,15 @@ export async function authenticatePortalViaToken(token: string): Promise<PortalA
 /// The one answer to every failed admission-number sign-in: an unknown number, an archived pupil and a wrong secret all say this, so the wording (and, as far as one
 /// extra lookup allows, the timing) never reveals which admission numbers exist. Found by the bug hunt of 2026-10-19: "No active student found with this admission
 /// number" versus "Verification failed" confirmed every number to anyone who tried.
-export const PORTAL_SIGNIN_FAILED = "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
+export const PORTAL_SIGNIN_FAILED =
+  "Verification failed. Please check the admission number and the date of birth or guardian phone number.";
 
 /// Admission numbers compare case-insensitively and EXACTLY. Not Prisma's `{ equals, mode: "insensitive" }`: that is an ILIKE, so `%` and `_` were wildcards: the
 /// admission number "%" with one pupil's real guardian phone signed in as that pupil, without knowing any number, and "2026/00__" probed the numbering. A raw
 /// `lower() = lower()` has no pattern syntax. A case-sensitive unique index lets "abc/1" and "ABC/1" coexist, so every match is tried (at most 5), not an arbitrary first.
 async function activeStudentIdsByAdmissionNo(admissionNo: string): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "StudentRecord" WHERE lower("admissionNo") = lower(${admissionNo}) AND "archivedAt" IS NULL LIMIT 5`;
+    SELECT "id" FROM "StudentRecord" WHERE lower("admissionNo") = lower(${admissionNo}) AND "archivedAt" IS NULL AND "isDraft" = false LIMIT 5`;
   return rows.map((row) => row.id);
 }
 
@@ -220,7 +239,7 @@ export async function authenticatePortalViaAdmission(admissionNo: string, secret
   const siblingStudents = await prisma.studentRecord.findMany({
     where: {
       id: { in: siblingIds },
-      archivedAt: null,
+      ...LIVE_PUPIL,
     },
     include: {
       branch: true,
@@ -270,7 +289,7 @@ export async function resolvePortalSessionData(cookieToken: string | undefined |
   const students = await prisma.studentRecord.findMany({
     where: {
       id: { in: payload.allowedStudentIds },
-      archivedAt: null,
+      ...LIVE_PUPIL,
     },
     include: {
       branch: true,
@@ -321,7 +340,7 @@ export async function getStudentPortalOverview(studentId: string, allowedStudent
     },
   });
 
-  if (!student || student.archivedAt) {
+  if (!student || student.archivedAt || student.isDraft) {
     throw new Error("STUDENT_NOT_FOUND");
   }
 
@@ -649,8 +668,16 @@ export async function getStudentPortalLms(studentId: string, allowedStudentIds: 
       subjectName: q.subject.name,
       timeLimitMinutes: q.timeLimitMinutes,
       passingScore: q.passingScore,
-      questions: q.questions.map((x) => ({ id: x.id, prompt: x.prompt, questionType: x.questionType, options: x.options, points: x.points })),
-      lastAttempt: q.attempts[0] ? { score: q.attempts[0].score, isPassed: q.attempts[0].isPassed, completedAt: q.attempts[0].completedAt } : null,
+      questions: q.questions.map((x) => ({
+        id: x.id,
+        prompt: x.prompt,
+        questionType: x.questionType,
+        options: x.options,
+        points: x.points,
+      })),
+      lastAttempt: q.attempts[0]
+        ? { score: q.attempts[0].score, isPassed: q.attempts[0].isPassed, completedAt: q.attempts[0].completedAt }
+        : null,
     })),
     materials: materials.map((m) => ({
       id: m.id,
@@ -700,19 +727,31 @@ export async function submitPortalAssignment(
       branchId: scope.branchId,
       status: { in: PUPIL_VISIBLE_ASSIGNMENT_STATUSES },
       archivedAt: null,
-      OR: [{ classArmId: scope.classArmId }, { classArmId: null, classGroupId: scope.classGroupId }, { classArmId: null, classGroupId: null }],
+      OR: [
+        { classArmId: scope.classArmId },
+        { classArmId: null, classGroupId: scope.classGroupId },
+        { classArmId: null, classGroupId: null },
+      ],
     },
     select: { id: true },
   });
   if (!assignment) throw new PortalLmsError("That assignment is not available to this pupil", 404);
 
-  const earlier = await prisma.assignmentSubmission.findFirst({ where: { branchId: scope.branchId, assignmentId, studentId }, select: { status: true } });
+  const earlier = await prisma.assignmentSubmission.findFirst({
+    where: { branchId: scope.branchId, assignmentId, studentId },
+    select: { status: true },
+  });
   if (earlier?.status === "GRADED") throw new PortalLmsError("This work has already been marked, so it can no longer be changed", 400);
 
   return submitAssignment(scope.branchId, assignmentId, studentId, params);
 }
 
-export async function attemptPortalQuiz(studentId: string, allowedStudentIds: string[], quizId: string, answers: { questionId: string; answer: string }[]) {
+export async function attemptPortalQuiz(
+  studentId: string,
+  allowedStudentIds: string[],
+  quizId: string,
+  answers: { questionId: string; answer: string }[],
+) {
   const scope = await pupilScope(studentId, allowedStudentIds);
   const quiz = await prisma.quiz.findFirst({
     where: {
@@ -727,6 +766,7 @@ export async function attemptPortalQuiz(studentId: string, allowedStudentIds: st
   if (!quiz) throw new PortalLmsError("That quiz is not available to this pupil", 404);
 
   const attempt = await attemptQuiz(scope.branchId, quizId, studentId, answers);
-  const totalPoints = (await prisma.quizQuestion.aggregate({ where: { branchId: scope.branchId, quizId }, _sum: { points: true } }))._sum.points ?? 0;
+  const totalPoints =
+    (await prisma.quizQuestion.aggregate({ where: { branchId: scope.branchId, quizId }, _sum: { points: true } }))._sum.points ?? 0;
   return { score: attempt.score, isPassed: attempt.isPassed, totalPoints };
 }

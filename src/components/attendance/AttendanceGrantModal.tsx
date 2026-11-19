@@ -44,6 +44,7 @@ type StaffOption = {
   firstName: string;
   lastName: string;
   category: string;
+  isDraft?: boolean;
 };
 
 export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolean; onClose: () => void; branchId: string }) {
@@ -83,7 +84,7 @@ export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolea
       }
       if (staffRes.ok && staffRes.data) {
         const d = staffRes.data as { staff?: StaffOption[] };
-        setStaffList(d.staff ?? []);
+        setStaffList((d.staff ?? []).filter((x) => !x.isDraft));
       }
     } catch {
       setError("Unable to load grant configuration");
@@ -110,7 +111,7 @@ export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolea
         }
         if (staffRes.ok && staffRes.data) {
           const d = staffRes.data as { staff?: StaffOption[] };
-          setStaffList(d.staff ?? []);
+          setStaffList((d.staff ?? []).filter((x) => !x.isDraft));
         }
       })
       .catch(() => {

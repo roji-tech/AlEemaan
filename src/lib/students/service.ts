@@ -5,6 +5,7 @@ import { Gender, EnrollmentStatus, SessionStatus, StandingState, Prisma } from "
 import { dayOf, studentStandingNow } from "@/lib/standing/rules";
 import { birthDateRange, schoolDay, type PupilFilters } from "@/lib/students/list-filters";
 import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
+import { pupilMissing } from "@/lib/drafts/rules";
 
 export const studentInputSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
@@ -28,6 +29,8 @@ export const studentInputSchema = z.object({
   guardianEmail: z.string().trim().email("Invalid guardian email").nullable().optional().or(z.literal("")),
   className: z.string().trim().max(50).optional(),
   arm: z.string().trim().max(30).optional(),
+  // Save as a draft (task 0101 D1): the pupil is kept unfinished and left out of everything that counts or acts on pupils until it is completed. Absent or false is a normal record.
+  isDraft: z.boolean().optional().default(false),
 });
 
 export const studentUpdateSchema = z.object({
@@ -49,6 +52,12 @@ export const studentUpdateSchema = z.object({
   guardianName: z.string().trim().max(100).nullable().optional(),
   guardianPhone: z.string().trim().max(40).nullable().optional(),
   guardianEmail: z.string().trim().email().nullable().optional().or(z.literal("")),
+  // `true` marks the pupil as a draft. An update never clears the flag: `POST /api/v1/students/[id]/complete` does, after checking the record is complete.
+  isDraft: z.literal(true).optional(),
+  // Task 0101 D1: a class on an edit only PLACES a pupil who has no active class yet (a draft needs one to be completed); for a pupil already in a class it is ignored, because moving a
+  // pupil is Promotion's job.
+  className: z.string().trim().max(50).optional(),
+  arm: z.string().trim().max(30).optional(),
 });
 
 export type StudentInput = z.infer<typeof studentInputSchema>;
@@ -182,6 +191,7 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
         guardianName: input.guardianName || null,
         guardianPhone: input.guardianPhone || null,
         guardianEmail: input.guardianEmail || null,
+        isDraft: input.isDraft,
       },
     });
 
@@ -218,6 +228,7 @@ export async function createStudent(actorUserId: string, rawInput: StudentInput)
           id: student.id,
           admissionNo,
           branchId: input.branchId,
+          ...(input.isDraft ? { isDraft: true } : {}),
           ...(duplicate && input.allowDuplicate ? { duplicateOverridden: true, existingAdmissionNo: duplicate.admissionNo } : {}),
         },
       },
@@ -299,10 +310,23 @@ export async function updateStudent(
         ...(input.guardianName !== undefined ? { guardianName: input.guardianName } : {}),
         ...(input.guardianPhone !== undefined ? { guardianPhone: input.guardianPhone } : {}),
         ...(input.guardianEmail !== undefined ? { guardianEmail: input.guardianEmail || null } : {}),
+        ...(input.isDraft ? { isDraft: true } : {}),
       },
     });
 
     // Audit log
+    if (input.isDraft && !student.isDraft) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "STUDENT_DRAFT_SET",
+          targetType: "StudentRecord",
+          targetId: id,
+          beforeValue: { isDraft: false },
+          afterValue: { isDraft: true },
+        },
+      });
+    }
     await tx.auditLog.create({
       data: {
         actorUserId,
@@ -317,7 +341,75 @@ export async function updateStudent(
       },
     });
 
-    return { ok: true, data: { student: updated } };
+    // A class asked for on an edit places a pupil who has none (see the schema); `enrolled` says whether it did (false: no active session, or a past enrolment is in the way).
+    let enrolled: boolean | undefined;
+    if (input.className) {
+      const placed = await tx.studentEnrollment.count({ where: { studentId: id, status: EnrollmentStatus.ACTIVE } });
+      if (placed === 0) {
+        const activeSession = await tx.academicSession.findFirst({
+          where: { branchId: student.branchId, status: SessionStatus.ACTIVE, archivedAt: null },
+          select: { id: true },
+        });
+        const inTheWay = activeSession
+          ? await tx.studentEnrollment.findUnique({
+              where: { studentId_sessionId: { studentId: id, sessionId: activeSession.id } },
+              select: { id: true },
+            })
+          : null;
+        if (activeSession && !inTheWay) {
+          await tx.studentEnrollment.create({
+            data: {
+              studentId: id,
+              branchId: student.branchId,
+              sessionId: activeSession.id,
+              className: input.className,
+              arm: input.arm || null,
+              classArmId: await resolveArmId(tx, student.branchId, input.className, input.arm),
+              status: EnrollmentStatus.ACTIVE,
+            },
+          });
+          enrolled = true;
+        } else enrolled = false;
+      }
+    }
+
+    return { ok: true, data: { student: updated, enrolled } };
+  });
+}
+
+/**
+ * Completes a draft pupil (task 0101 D1): clears the flag when the record has everything `pupilMissing` asks for (the names, gender, date of birth, an active class and a guardian
+ * contact), else says what is missing and changes nothing. A pupil who is not a draft is returned as they are (a second click is safe).
+ */
+export async function completeStudent(
+  actorUserId: string,
+  id: string,
+): Promise<StudentResult<{ student: unknown }> | { ok: false; error: string; code: "INCOMPLETE"; missing: string[] }> {
+  return prisma.$transaction(async (tx) => {
+    const student = await tx.studentRecord.findUnique({
+      where: { id },
+      include: { enrollments: { where: { status: EnrollmentStatus.ACTIVE }, take: 1, select: { id: true } } },
+    });
+    if (!student) return { ok: false, error: "Student not found", code: "NOT_FOUND" };
+    if (student.archivedAt) return { ok: false, error: "Restore this student before completing the record.", code: "ARCHIVED" };
+    if (!student.isDraft) return { ok: true, data: { student } };
+    const missing = pupilMissing({ ...student, hasClass: student.enrollments.length > 0 });
+    if (missing.length > 0) return { ok: false, error: "This record is not complete yet.", code: "INCOMPLETE", missing };
+    // Conditional on still being a draft, so two administrators completing at once write one audit entry.
+    const done = await tx.studentRecord.updateMany({ where: { id, isDraft: true }, data: { isDraft: false } });
+    if (done.count === 1) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "STUDENT_COMPLETED",
+          targetType: "StudentRecord",
+          targetId: id,
+          beforeValue: { isDraft: true },
+          afterValue: { isDraft: false },
+        },
+      });
+    }
+    return { ok: true, data: { student: await tx.studentRecord.findUniqueOrThrow({ where: { id } }) } };
   });
 }
 
@@ -450,6 +542,8 @@ export async function studentListWhere(
       });
   }
   if (filters.gender) and.push({ gender: filters.gender });
+  // Drafts (task 0101 D1): the list shows them by default, with a badge; this narrows to drafts only or to none.
+  if (filters.draft) and.push({ isDraft: filters.draft === "YES" });
 
   const where: Prisma.StudentRecordWhereInput = {
     ...(branchId ? { branchId } : {}),
@@ -515,6 +609,8 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
     prisma.studentRecord.count({ where }),
   ]);
   const noDateOfBirth = withoutAge ? await prisma.studentRecord.count({ where: withoutAge }) : null;
+  // How many of the pupils matched (before paging) are drafts: "N drafts" beside the count. Narrowed to "not drafts", it is none.
+  const drafts = await prisma.studentRecord.count({ where: { AND: [where, { isDraft: true }] } });
 
   return {
     students: students.map((s) => ({
@@ -533,6 +629,9 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
       guardianName: s.guardianName,
       guardianPhone: s.guardianPhone,
       guardianEmail: s.guardianEmail,
+      /// A draft (task 0101 D1): saved unfinished. `missing` is what the record still needs, by the server's rule; shown only on a draft.
+      isDraft: s.isDraft,
+      missing: s.isDraft ? pupilMissing({ ...s, hasClass: s.enrollments[0]?.status === EnrollmentStatus.ACTIVE }) : [],
       currentClass: s.enrollments[0] ? `${s.enrollments[0].className}${s.enrollments[0].arm ? ` ${s.enrollments[0].arm}` : ""}` : null,
       sessionLabel: s.enrollments[0]?.session.label ?? null,
     })),
@@ -544,6 +643,7 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
     },
     /// When an age was asked for: how many pupils matched everything else but have no date of birth, so their age could not be checked (task 0103 D1).
     noDateOfBirth,
+    drafts,
   };
 }
 
@@ -569,6 +669,9 @@ export async function getStudent(id: string, visible: "all" | string[] = []) {
     ...student,
     dateOfBirth: dayText(student.dateOfBirth),
     archived: student.archivedAt !== null,
+    missing: student.isDraft
+      ? pupilMissing({ ...student, hasClass: student.enrollments.some((e) => e.status === EnrollmentStatus.ACTIVE) })
+      : [],
     // What applies today (an ended suspension reads as in good standing), not the stored value.
     standing: studentStandingNow(student, dayOf(new Date())),
     standingUntil: student.standingUntil ? dayOf(student.standingUntil) : null,

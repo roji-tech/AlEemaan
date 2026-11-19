@@ -15,6 +15,8 @@ export const pupilFilterSchema = z
     gender: z.enum(["MALE", "FEMALE"]).optional(),
     ageMin: age.optional(),
     ageMax: age.optional(),
+    /// Task 0101 D1: only drafts ("YES") or no drafts ("NO"); absent shows everything, drafts included.
+    draft: z.enum(["YES", "NO"]).optional(),
   })
   .refine((f) => !(f.noClass && (f.classGroupId || f.classArmId)), {
     message: "Choose a class or No class yet, not both.",
@@ -40,6 +42,7 @@ export function readPupilFilters(params: URLSearchParams): ReturnType<typeof pup
     gender: pick("gender"),
     ageMin: pick("ageMin"),
     ageMax: pick("ageMax"),
+    draft: pick("draft"),
   });
 }
 
@@ -50,7 +53,10 @@ export function pupilFilterQuery(f: PupilFilters): string {
 }
 
 export const activePupilFilters = (f: PupilFilters): number =>
-  (f.classGroupId || f.noClass ? 1 : 0) + (f.gender ? 1 : 0) + (f.ageMin !== undefined || f.ageMax !== undefined ? 1 : 0);
+  (f.classGroupId || f.noClass ? 1 : 0) +
+  (f.gender ? 1 : 0) +
+  (f.ageMin !== undefined || f.ageMax !== undefined ? 1 : 0) +
+  (f.draft ? 1 : 0);
 
 /// The school's day today (YYYY-MM-DD) in the school's time zone.
 export function schoolDay(now: Date, zone: string): string {

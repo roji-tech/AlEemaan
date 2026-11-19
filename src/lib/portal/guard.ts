@@ -15,8 +15,7 @@ export const PORTAL_REFUSED = "Your sign-in does not include this.";
 const NOT_YOURS = "You are not authorized to view this student";
 
 export type PortalGate =
-  | { ok: true; session: PortalSessionPayload; access: Access; branchId: string }
-  | { ok: false; response: NextResponse };
+  { ok: true; session: PortalSessionPayload; access: Access; branchId: string } | { ok: false; response: NextResponse };
 
 const refuse = (response: NextResponse): PortalGate => ({ ok: false, response: noStore(response) });
 
@@ -28,10 +27,11 @@ export async function portalGate(req: NextRequest, studentId: string | undefined
 
   const students = await prisma.studentRecord.findMany({
     where: { id: { in: [...new Set([studentId, session.primaryStudentId])] } },
-    select: { id: true, branchId: true, standing: true, standingUntil: true },
+    select: { id: true, branchId: true, standing: true, standingUntil: true, isDraft: true },
   });
   const asked = students.find((student) => student.id === studentId);
-  if (!asked) return refuse(fail(NOT_YOURS, 403));
+  // A draft pupil (task 0101 D1) has no portal; a session made before the record became a draft ends here.
+  if (!asked || asked.isDraft) return refuse(fail(NOT_YOURS, 403));
   const primary = students.find((student) => student.id === session.primaryStudentId) ?? asked;
 
   const byBranch = await getPortalAccessByBranch([asked.branchId, primary.branchId]);
@@ -39,7 +39,11 @@ export async function portalGate(req: NextRequest, studentId: string | undefined
     return refuse(fail(PORTAL_REFUSED, 403, "PORTAL_ACCESS"));
   }
   // The branch's setting, narrowed by the pupil's standing today (task 0045): read now on every request, like the setting, so a suspension or an expulsion takes effect at once.
-  const access = capForStanding(accessFor(byBranch.get(asked.branchId)!, session.actor), session.actor, studentStandingNow(asked, dayOf(new Date())));
+  const access = capForStanding(
+    accessFor(byBranch.get(asked.branchId)!, session.actor),
+    session.actor,
+    studentStandingNow(asked, dayOf(new Date())),
+  );
   if (!access || !access[capability]) return refuse(fail(PORTAL_REFUSED, 403, "PORTAL_ACCESS"));
   return { ok: true, session, access, branchId: asked.branchId };
 }

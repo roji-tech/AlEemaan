@@ -4,6 +4,7 @@ import { isFutureDate, canEditAttendance, calculateAttendanceSummary, Attendance
 import { resolveBranchRole } from "@/lib/auth/branch-access";
 import { dayOf, studentStandingNow } from "@/lib/standing/rules";
 import type { BulkMarkAttendanceInput, AttendanceFailure } from "./http";
+import { LIVE_PUPIL } from "@/lib/drafts/live";
 
 export type ServiceResult<T> = { ok: true; data: T } | { ok: false; failure: AttendanceFailure };
 
@@ -77,7 +78,7 @@ export async function getBranchRollCall({
       className,
       ...(arm ? { arm } : {}),
       status: "ACTIVE",
-      student: { archivedAt: null },
+      student: LIVE_PUPIL,
     },
     include: {
       student: {
@@ -202,7 +203,7 @@ export async function markBranchAttendance({
     return { ok: false, failure: "INVALID_STUDENTS" };
   }
   const enrolled = await prisma.studentEnrollment.findMany({
-    where: { branchId, sessionId: activeSession.id, status: "ACTIVE", studentId: { in: ids }, student: { archivedAt: null, branchId } },
+    where: { branchId, sessionId: activeSession.id, status: "ACTIVE", studentId: { in: ids }, student: { ...LIVE_PUPIL, branchId } },
     select: { studentId: true },
   });
   if (enrolled.length !== ids.length) {

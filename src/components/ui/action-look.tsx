@@ -7,6 +7,7 @@ import {
   CheckIcon,
   ClockIcon,
   EyeIcon,
+  FileTextIcon,
   LogOutIcon,
   MailIcon,
   PencilIcon,
@@ -38,6 +39,9 @@ const RULES: readonly { test: RegExp; look: () => Look }[] = [
   { test: /expel|terminate|withdraw/, look: () => ({ tone: "danger", icon: <LogOutIcon className={ICON} /> }) },
   { test: /remove|delete|revoke/, look: () => ({ tone: "danger", icon: <TrashIcon className={ICON} /> }) },
   { test: /subject/, look: () => ({ tone: "brand", icon: <BookOpenIcon className={ICON} /> }) },
+  // Task 0101 D1: finishing a draft is a tick; putting a record back to unfinished is a page.
+  { test: /complete/, look: () => ({ tone: "ok", icon: <CheckIcon className={ICON} /> }) },
+  { test: /draft/, look: () => ({ tone: "neutral", icon: <FileTextIcon className={ICON} /> }) },
   { test: /current|approve|accept|grant|lift|activate/, look: () => ({ tone: "ok", icon: <CheckIcon className={ICON} /> }) },
   // Task 0114: inviting someone to sign in is an e-mail; moving a person to another branch is a building.
   { test: /invite/, look: () => ({ tone: "ok", icon: <MailIcon className={ICON} /> }) },

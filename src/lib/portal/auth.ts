@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { portalSecret } from "./secret";
 import type { Actor } from "./access";
+import { LIVE_PUPIL } from "@/lib/drafts/live";
 
 export const PORTAL_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -226,7 +227,7 @@ export async function findSiblingStudentIds(student: {
 
   const siblings = await prisma.studentRecord.findMany({
     where: {
-      archivedAt: null,
+      ...LIVE_PUPIL,
       OR: orConditions,
     },
     select: { id: true },

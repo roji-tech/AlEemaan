@@ -5,6 +5,7 @@ import { ConflictError, audit } from "@/lib/academics/structure";
 import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
 import { getBranchReportCardLayout, getVerificationPageConfig } from "@/lib/settings/approvals";
+import { NOT_DRAFT } from "@/lib/drafts/live";
 
 // Results, Slice P2c: the REPORT CARD (computed, never stored), the teacher's and principal's remarks, and the public verification of one published result.
 // The caller's authority over the BRANCH was checked by `withBranch` in the route (ADR 0015). Outside staff only ever see PUBLISHED / LOCKED results; an
@@ -130,7 +131,7 @@ export async function getReportCard(branchId: string, studentId: string, periodI
   const avg = averageHundredths(subjects.map((s) => ({ total: s.total, max: s.max })));
   if (first && avg !== null) {
     const pool = await prisma.result.findMany({
-      where: { branchId, periodId, classArmId: first.classArmId, ...(statuses ? { status: statuses } : {}) },
+      where: { branchId, periodId, classArmId: first.classArmId, student: NOT_DRAFT, ...(statuses ? { status: statuses } : {}) },
       select: { studentId: true, total: true, maxScore: true },
     });
     const byStudent = new Map<string, { total: number; max: number }[]>();

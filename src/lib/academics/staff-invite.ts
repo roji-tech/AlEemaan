@@ -29,6 +29,7 @@ export type StaffInviteOutcome =
 const WHY = {
   NOT_FOUND: "Not a staff record of this branch.",
   ARCHIVED: "Archived: restore the record first.",
+  DRAFT: "Draft: complete the record first.",
   NOT_ACTIVE: "Suspended or terminated.",
   HAS_ACCOUNT: "Already has a sign-in.",
   NO_EMAIL: "No e-mail address on the record: add one with Edit.",
@@ -48,7 +49,17 @@ export async function inviteStaffRecords(
   const ids = [...new Set(staffIds)];
   const records = await prisma.staffRecord.findMany({
     where: { id: { in: ids }, branchId },
-    select: { id: true, firstName: true, lastName: true, email: true, category: true, userId: true, archivedAt: true, standing: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      category: true,
+      userId: true,
+      archivedAt: true,
+      standing: true,
+      isDraft: true,
+    },
   });
   const byId = new Map(records.map((r) => [r.id, r]));
   const seen = new Set<string>();
@@ -64,6 +75,7 @@ export async function inviteStaffRecords(
     const skip = (why: string) => outcomes.push({ staffId: id, name, result: "skipped", why });
     const email = record.email?.trim().toLowerCase() ?? "";
     if (record.archivedAt) skip(WHY.ARCHIVED);
+    else if (record.isDraft) skip(WHY.DRAFT);
     else if (record.standing !== "ACTIVE") skip(WHY.NOT_ACTIVE);
     else if (record.userId) skip(WHY.HAS_ACCOUNT);
     else if (!email) skip(WHY.NO_EMAIL);

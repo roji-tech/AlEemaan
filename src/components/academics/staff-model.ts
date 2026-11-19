@@ -15,6 +15,8 @@ export type StaffLike = {
   role: string | null;
   standing: "ACTIVE" | "SUSPENDED" | "TERMINATED";
   account: { state: "none" | "linked" };
+  /// A draft (task 0101 D1): saved unfinished. Absent counts as not a draft.
+  isDraft?: boolean;
 };
 
 export type StaffFilters = {
@@ -24,9 +26,11 @@ export type StaffFilters = {
   corps: "" | "yes" | "no";
   signIn: "" | "yes" | "no";
   standing: "" | "ACTIVE" | "SUSPENDED" | "TERMINATED";
+  /// Task 0101 D1: only drafts, or no drafts.
+  draft: "" | "YES" | "NO";
 };
 
-export const NO_STAFF_FILTERS: StaffFilters = { kind: "", gender: "", corps: "", signIn: "", standing: "" };
+export const NO_STAFF_FILTERS: StaffFilters = { kind: "", gender: "", corps: "", signIn: "", standing: "", draft: "" };
 
 export const CATEGORY_TEXT: Record<StaffCategory, string> = { TEACHING: "Teaching", NON_TEACHING: "Non-teaching" };
 export const GENDER_TEXT: Record<StaffGender, string> = { MALE: "Male", FEMALE: "Female" };
@@ -61,6 +65,11 @@ export const FILTER_OPTIONS = {
     { value: "SUSPENDED", label: "Suspended" },
     { value: "TERMINATED", label: "Terminated" },
   ],
+  draft: [
+    { value: "", label: "Any" },
+    { value: "YES", label: "Drafts only" },
+    { value: "NO", label: "Not drafts" },
+  ],
 } as const;
 
 /// How many filters are set (for the toolbar's count and its Clear button).
@@ -76,9 +85,13 @@ export function filterStaff<T extends StaffLike>(rows: readonly T[], filters: St
       (filters.gender === "" || (filters.gender === "NONE" ? row.gender === null : row.gender === filters.gender)) &&
       (filters.corps === "" || row.corpsMember === (filters.corps === "yes")) &&
       (filters.signIn === "" || (row.account.state === "linked") === (filters.signIn === "yes")) &&
-      (filters.standing === "" || row.standing === filters.standing),
+      (filters.standing === "" || row.standing === filters.standing) &&
+      (filters.draft === "" || (row.isDraft === true) === (filters.draft === "YES")),
   );
 }
+
+/// How many of these records are drafts ("3 drafts" beside the count).
+export const countDrafts = (rows: readonly { isDraft?: boolean }[]): number => rows.filter((r) => r.isDraft === true).length;
 
 /// The name as the list and the details show it: the title first when there is one ("Mrs Amina Yusuf").
 export function displayName(row: { title: string | null; firstName: string; lastName: string }): string {

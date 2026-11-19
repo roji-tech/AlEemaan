@@ -32,6 +32,8 @@ model StudentRecord {
   /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`, or until lifted when null) or EXPELLED. Separate from archiving, which hides the record.
   standing      StandingState @default(ACTIVE)
   standingUntil DateTime?     @db.Date
+  /// A draft (task 0101 D1, batch 3a): saved unfinished, shown with a "Draft" badge, and left out of everything that counts or acts on pupils (class lists and counts, attendance, results, promotion, invoices, report cards, broadcasts, the family sign-in, programs) until it is completed.
+  isDraft       Boolean       @default(false)
 
   guardianName  String?
   guardianPhone String?
@@ -62,6 +64,7 @@ model StudentRecord {
   @@unique([branchId, id])
   @@index([branchId])
   @@index([branchId, firstName, lastName])
+  @@index([branchId, isDraft])
 }
 
 /// Sequence counter for admission numbers per year (school-wide).
