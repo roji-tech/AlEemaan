@@ -157,6 +157,18 @@ The staff card's menu has **Transfer or add to another branch**, on Academics â€
 - `GET /api/v1/academics/schemes/class-group?branchId=` answers every live class with its scheme, or null.
 - It uses the same helper (`schemesForClassGroups`) as the one-class read, so the two always agree. Ten classes were ten requests; now they are one.
 
+### D9. Everyone who signs in with a staff role is on the staff list (follow-up, 2026-11-19)
+
+The maintainer: "if I invite a new user through Invite someone, and I add the person as admin for a branch, why am I not seeing the person as part of the staff of that branch?"
+
+A sign-in account (a membership: a role in a branch) and a staff record (how the branch knows a person) were only joined when someone linked them by hand, and an administrator's account could not be linked at all. Now (`lib/academics/staff-accounts.ts`):
+- **Accepting an invitation** to a staff role (administrator, teaching, non-teaching) puts the person on that branch's staff list, in the same transaction:
+  - an unlinked live record of the branch with the same e-mail is linked;
+  - otherwise a record is made from the account's name and e-mail, linked: Teaching staff gets a Teaching record; Non-teaching staff and Administrator get a Non-teaching record, an administrator with the job title "Administrator".
+  - An invitation sent from a record that can no longer be linked (archived since, or of the other kind) falls through to the same rule. A parent's or pupil's invitation makes no record.
+- **An administrator's account fits a record of either kind** (an administrator who also teaches): Manage â€º Sign-in offers it, linking accepts it, and the staff invite treats it as a match.
+- **People who joined before this:** the Staff tab shows "Signs in here, not on the staff list yet" with each person and an **Add to staff** button, for an administrator of the branch. `GET /api/v1/staff/unlisted?branchId=` and `POST /api/v1/staff/from-member` (`{ branchId, userId }`; 409 when they already have a record or another record holds their address; 404 for someone who is not an active member).
+
 ## 3. Migration (the maintainer's to run on production after the prod merge)
 
 `20261119130000_staff_invite_and_person`: `Invitation.staffRecordId` (nullable, set null on delete) and `StaffRecord.personId` (nullable), with their indexes. Additive.
@@ -167,7 +179,8 @@ The staff card's menu has **Transfer or add to another branch**, on Academics â€
 - [x] D5, D6: `lib/students/list-filters.ts` (+ `-server.ts`), `studentListWhere`, `lib/bulk/list-export.ts`, `api/v1/exports`, `components/bulk/ExportButton.tsx`, the four panels.
 - [x] D7: `lib/search/records.ts`, `api/v1/search`, `GlobalSearch` records, the deep links (students, academics, finance, users).
 - [x] D1 to D4: the migration; `lib/academics/staff-invite.ts`, `api/v1/staff/invite`, the accept link; `lib/academics/staff-transfer.ts`, `api/v1/staff/[id]/transfer`; `components/academics/StaffAccess.tsx`; `StaffPanel`, `UsersPanel`, `InviteDialog`, `ClassesPanel`, `listClassGroups`; menu icons; the search index.
-- [ ] Tests (section 5) and the record (section 6).
+- [x] Tests (section 5); the first record went out with #308 to #312.
+- [x] D9 (follow-up, no migration): `lib/academics/staff-accounts.ts`, the accept rule in `lib/invitations/service.ts`, the link rule in `lib/academics/staff.ts` and `staff-invite.ts`, `api/v1/staff/unlisted`, `api/v1/staff/from-member`, `UnlistedMembers` in `StaffAccess.tsx` on `StaffPanel`.
 
 ## 5. Tests
 
@@ -186,6 +199,7 @@ The staff card's menu has **Transfer or add to another branch**, on Academics â€
 - Transfer: also, move, the account follows, who may.
 - Search scoping: another branch, invoices, accounts.
 - The class teacher on the class list.
+- D9: Invite someone as an administrator makes a linked Non-teaching "Administrator" record; a same-address record is linked instead; a parent gets none; the unlisted list and Add to staff (created, linked, 409, 404, who may); an administrator's account offered and linked to a Teaching record.
 
 **Browser:** Users â€º Staff tab, select and invite; transfer from the menu; class teacher on Classes; the export dialog; the pupil filters; a record in the top-bar search.
 

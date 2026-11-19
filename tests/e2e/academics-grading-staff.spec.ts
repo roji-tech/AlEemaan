@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi, clickAction } from "./helpers";
+import { signInThroughUi, clickAction, openTab } from "./helpers";
 
 // The Assessment and grading and Staff sections of the Academics page in a real browser (Slice P1d). A branch administrator builds an assessment scheme (and
 // meets the server's sentence when the marks do not add up), applies the WAEC-style template to a grade scale and makes it the default, records a staff member,
@@ -50,7 +50,7 @@ async function openSection(page: Page, tab: string, role: Role = Role.ADMIN) {
   await signInThroughUi(page, user);
   await page.goto("/academics");
   await expect(page.getByRole("heading", { level: 1, name: "Academics" })).toBeVisible();
-  await page.getByRole("tab", { name: tab }).click();
+  await openTab(page, tab);
   return user;
 }
 
@@ -150,10 +150,10 @@ for (const theme of ["dark", "light"] as const) {
       .getByRole("listitem")
       .filter({ hasText: `${tag}Amina Bello` })
       .first();
-    // The kit draws the three facts as label and value (task 0089): the kind, the account, and how many assignments.
+    // The card says the kind, the account and how many assignments: a label and a value in the list view (task 0089), "0 Assignments" in the card the maintainer redesigned (564aa5a).
     await expect(row).toContainText("Teaching");
     await expect(row).toContainText("No sign-in");
-    await expect(row).toContainText(/Assignments\s*0/);
+    await expect(row).toContainText(/Assignments\s*0|0\s*Assignments/);
 
     await clickAction(row, `Manage ${tag}Amina Bello`);
     await expectAccessible(page, `manage dialog (${theme})`);
@@ -190,7 +190,8 @@ test("a teacher sees the grading and staff lists but none of the controls; the t
   await openSection(page, "Staff", Role.TEACHING_STAFF);
   await expect(page.getByText(`${tag}Look Only`)).toBeVisible();
   await expect(page.getByRole("button", { name: /^(New|Edit|Archive|Restore)/ })).toHaveCount(0);
-  await page.getByRole("button", { name: `View ${tag}Look Only` }).click();
+  // In the card (the staff list's first view since 564aa5a) View is in the Actions list; in the list view it is a button.
+  await clickAction(page, `View ${tag}Look Only`);
   await expect(dialog(page).getByRole("button", { name: /Unlink|Link sign-in|Assign|Remove/ })).toHaveCount(0);
   await dialog(page).getByRole("button", { name: "Close" }).last().click(); // the dialog also has its own X, named Close
 
