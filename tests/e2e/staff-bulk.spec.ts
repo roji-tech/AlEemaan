@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test";
 import writeXlsxFile from "write-excel-file/universal";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, seedInstance } from "../support/db";
-import { signInThroughUi } from "./helpers";
+import { openTab, signInThroughUi } from "./helpers";
 
 // Adding staff in bulk, in a real browser (task 0084): a CSV or Excel file read and reviewed row by row, problem rows downloaded, corrected and uploaded back, the good rows saved
 // on their own when the administrator chooses, a grid of at most 50 rows with paste, and a warning before unsaved rows are thrown away. Desktop and phone (the two projects), and
@@ -43,7 +43,7 @@ async function openBulk(page: Page, role: Role = Role.ADMIN) {
   const user = await createUser({ role, superAdmin: false, name: `${tag} Admin` });
   await signInThroughUi(page, user);
   await page.goto("/academics");
-  await page.getByRole("tab", { name: "Staff" }).click();
+  await openTab(page, "Staff");
   await page.getByRole("button", { name: "Add many" }).click();
   await expect(dialog(page).getByRole("heading", { name: "Add staff in bulk" })).toBeVisible();
 }
@@ -227,7 +227,7 @@ test("a teacher does not get the button", async ({ page }) => {
   const user = await createUser({ role: Role.TEACHING_STAFF, superAdmin: false, name: `${tag} Teacher` });
   await signInThroughUi(page, user);
   await page.goto("/academics");
-  await page.getByRole("tab", { name: "Staff" }).click();
+  await openTab(page, "Staff");
   await expect(page.getByRole("heading", { name: "Staff", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add many" })).toHaveCount(0);
 });
