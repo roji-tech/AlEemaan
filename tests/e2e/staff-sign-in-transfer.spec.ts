@@ -122,7 +122,7 @@ test("Export: the subjects as CSV, with the template's header", async ({ page })
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^subjects-.+-filtered-\d{4}-\d{2}-\d{2}\.csv$/);
   const text = await readFile((await file.path())!, "utf8");
-  expect(text.replace(/^﻿/, "").split("\r\n")[0]).toBe("Subject,Code");
+  expect(text.replace(/^\ufeff/, "").split("\r\n")[0]).toBe("Subject,Code");
   expect(text).toContain("'=SUM(A1)");
   await expect(dialog).toContainText("2 rows saved");
 });

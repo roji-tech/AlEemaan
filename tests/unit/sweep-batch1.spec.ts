@@ -111,7 +111,7 @@ test.describe("export", () => {
       corpsMember: true,
     });
     expect(exportTable("staff", [staff]).rows[0]).toEqual([
-      "Non-teaching",
+      "Non-teaching staff",
       "Musa",
       "Bello",
       "",
