@@ -7,7 +7,8 @@ import type { DecimalLike } from "./format";
 export function kobo(naira: DecimalLike | null | undefined): number {
   if (naira === null || naira === undefined) return 0;
   const n = typeof naira === "number" ? naira : Number(naira.toString());
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+  // `toPrecision(15)` drops the float noise first: 1.005 * 100 is 100.49999999999999, which would round to 100 instead of 101.
+  return Number.isFinite(n) ? Math.round(Number((n * 100).toPrecision(15))) : 0;
 }
 
 /// Collected over invoiced as a percentage with one decimal: 0 when nothing is invoiced, never above 100 (an overpayment is not a rate above one).
@@ -138,4 +139,15 @@ export function monthSeries(
     invoicedKobo: invoiced.get(month) ?? 0,
     collectedKobo: collected.get(month) ?? 0,
   }));
+}
+
+/// Kobo as a short naira amount for a chart label: ₦950, ₦12.5K, ₦1.2M, ₦3.4B. Whole naira under ₦1,000 and one decimal above, trailing ".0" dropped.
+export function compactNaira(amountKobo: number): string {
+  const naira = amountKobo / 100;
+  const abs = Math.abs(naira);
+  const trim = (n: number) => String(Math.round(n * 10) / 10).replace(/\.0$/, "");
+  if (abs >= 1e9) return `₦${trim(naira / 1e9)}B`;
+  if (abs >= 1e6) return `₦${trim(naira / 1e6)}M`;
+  if (abs >= 1e3) return `₦${trim(naira / 1e3)}K`;
+  return `₦${Math.round(naira).toLocaleString("en-NG")}`;
 }

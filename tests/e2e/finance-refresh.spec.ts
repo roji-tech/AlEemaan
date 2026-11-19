@@ -70,7 +70,7 @@ const figure = (dialog: Locator, label: string) => dialog.getByText(label, { exa
 
 async function openFinance(page: Page, admin: Awaited<ReturnType<typeof seeded>>["admin"]) {
   await signInThroughUi(page, admin);
-  await page.goto("/finance");
+  await page.goto("/finance?tab=invoices");
   await expect(page.getByRole("heading", { name: "Finance & Fee Invoicing" })).toBeVisible();
 }
 

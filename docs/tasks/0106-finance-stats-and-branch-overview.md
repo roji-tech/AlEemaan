@@ -39,9 +39,9 @@ The Invoices tab already shows four cards (Total Invoiced, Total Collected, Outs
 
 ## 3. Work
 
-- [ ] `lib/finance/stats.ts` (pure: kobo, rate, ageing buckets, month buckets, the overview total) and `lib/finance/stats-service.ts` (the aggregate queries)
-- [ ] `GET /api/v1/finance/stats` and `GET /api/v1/finance/overview` with the access rule of D6
-- [ ] `FinanceOverview.tsx` (cards, month chart, ageing, by class, how paid; the all-branches table) and the first tab in `FinancePanel.tsx` with `?tab=`
+- [x] `lib/finance/stats.ts` (pure: kobo, rate, ageing buckets, month buckets, the overview total) and `lib/finance/stats-service.ts` (the aggregate queries)
+- [x] `GET /api/v1/finance/stats` and `GET /api/v1/finance/overview` with the access rule of D6
+- [x] `FinanceOverview.tsx` (cards, month chart, ageing, by class, how paid; the all-branches table) and the first tab in `FinancePanel.tsx` with `?tab=`
 - [ ] Unit tests of the pure part; API tests (figures equal a hand count; access; overview total equals the sum of the branches); browser tests at 360 / 850 / 1280 in both themes with axe
 - [ ] Docs: `docs/components/school-app.md`, this file's build record
 

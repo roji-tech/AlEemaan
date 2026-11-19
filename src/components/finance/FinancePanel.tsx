@@ -6,6 +6,9 @@ import { InvoicesDashboard, type InvoiceItemSummary } from "./InvoicesDashboard"
 import { FeeStructuresPanel } from "./FeeStructuresPanel";
 import { type FeeStructureItem } from "./FeeStructureModal";
 import { PaymentRulesPanel } from "./PaymentRulesPanel";
+import { FinanceOverview } from "./FinanceOverview";
+import { useTabParam } from "@/components/ui/useTabParam";
+import { FINANCE_TAB_IDS } from "@/lib/finance/tabs";
 
 export interface FinancePanelProps {
   branches: { id: string; name: string }[];
@@ -16,11 +19,15 @@ export interface FinancePanelProps {
 
 export function FinancePanel({ branches, isSuperAdmin = false, canManage = true, userBranchId }: FinancePanelProps) {
   const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
-  const [activeTab, setActiveTab] = useState<"invoices" | "fee_structures" | "payment_rules">("invoices");
+  // The open tab is in the address (`?tab=`, task 0100). Overview is the first tab and opens by default (task 0106); the old tab names are kept as they were in the page's own state.
+  const [openTab, chooseTab] = useTabParam(FINANCE_TAB_IDS, "overview");
+  const activeTab = openTab === "fees" ? "fee_structures" : openTab === "rules" ? "payment_rules" : openTab;
+  const setActiveTab = (tab: "overview" | "invoices" | "fee_structures" | "payment_rules") =>
+    chooseTab(tab === "fee_structures" ? "fees" : tab === "payment_rules" ? "rules" : tab);
 
   const [invoices, setInvoices] = useState<InvoiceItemSummary[]>([]);
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
-  const [periods, setPeriods] = useState<{ id: string; label: string }[]>([]);
+  const [periods, setPeriods] = useState<{ id: string; label: string; current?: boolean }[]>([]);
   const [classGroups, setClassGroups] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,11 +65,11 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
         const d = await sessRes.json();
         const sessionList = d.data?.sessions || d.data || [];
         // Flatten all periods across sessions
-        const extractedPeriods: { id: string; label: string }[] = [];
+        const extractedPeriods: { id: string; label: string; current?: boolean }[] = [];
         for (const s of sessionList) {
           if (s.periods) {
             for (const p of s.periods) {
-              extractedPeriods.push({ id: p.id, label: `${p.label} (${s.label})` });
+              extractedPeriods.push({ id: p.id, label: `${p.label} (${s.label})`, current: Boolean(p.isCurrent) });
             }
           }
         }
@@ -91,7 +98,22 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
       {branches.length > 1 && <BranchPicker branches={pickable} value={selectedBranchId} onChange={setSelectedBranchId} />}
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Finance navigation" className="flex border-b border-line gap-4 text-xs font-semibold">
+      <div
+        role="tablist"
+        aria-label="Finance navigation"
+        className="flex gap-4 overflow-x-auto border-b border-line text-xs font-semibold whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "overview"}
+          onClick={() => setActiveTab("overview")}
+          className={`pb-3 px-1 border-b-2 transition ${
+            activeTab === "overview" ? "border-brand-strong text-fg font-bold" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Overview
+        </button>
         <button
           type="button"
           role="tab"
@@ -146,6 +168,8 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
             Retry
           </button>
         </div>
+      ) : activeTab === "overview" ? (
+        <FinanceOverview branchId={selectedBranchId} periods={periods} canSeeAll={branches.length > 1} />
       ) : activeTab === "invoices" ? (
         <InvoicesDashboard
           branchId={selectedBranchId}

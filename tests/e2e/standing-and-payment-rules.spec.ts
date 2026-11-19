@@ -383,7 +383,7 @@ test.describe("part payment: Finance", () => {
   }) => {
     const { branch } = await seedInvoice();
     await signInThroughUi(page, await createUser({ role: Role.ADMIN, name: "Amina Yusuf" }));
-    await page.goto("/finance");
+    await page.goto("/finance?tab=invoices");
     await page.getByRole("tab", { name: "Payment Rules" }).click();
     await expect(page.getByText("The school: Part payments are allowed, of any amount.")).toBeVisible();
 
@@ -418,7 +418,7 @@ test.describe("part payment: Finance", () => {
   test("an administrator marks one invoice pay in full and clears it again", async ({ page }) => {
     await seedInvoice();
     await signInThroughUi(page, await createUser({ role: Role.ADMIN, superAdmin: false, name: "Branch Admin" }));
-    await page.goto("/finance");
+    await page.goto("/finance?tab=invoices");
     await page.getByRole("button", { name: "View & Pay" }).click();
     await expect(dialog(page).getByText(/Part payments are allowed/)).toBeVisible();
     await dialog(page)
@@ -490,7 +490,7 @@ test.describe("accessible and fits the width, in both themes", () => {
       await expectAccessible(page, `${theme} discipline settings`);
       await expectFits(page, `${theme} discipline settings`);
 
-      await page.goto("/finance");
+      await page.goto("/finance?tab=invoices");
       await page.getByRole("tab", { name: "Payment Rules" }).click();
       await expect(page.getByText(/The school:/)).toBeVisible();
       await expectAccessible(page, `${theme} payment rules`);
