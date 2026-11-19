@@ -49,9 +49,35 @@ const verdicts: RowVerdict[] = [
 ];
 test("the problem rows table holds only the rows with problems, their original row numbers first and the problems last, in the template's columns", () => {
   const t = problemRowsTable(staffColumns, rows, verdicts);
-  expect(t.headers).toEqual(["Row", "Category", "First name", "Last name", "Phone", "Email", "Problem"]);
+  expect(t.headers).toEqual([
+    "Row",
+    "Category",
+    "First name",
+    "Last name",
+    "Phone",
+    "Email",
+    "Title",
+    "Gender",
+    "Job title",
+    "Qualification",
+    "Corps member",
+    "Problem",
+  ]);
   expect(t.rows).toEqual([
-    ["3", "Principal", "C", "D", "", "nope", "Category: Choose Teaching or Non-teaching. Email: That does not look like an email address."],
-    ["5", "T", "", "F", "", "", "First name: Give a name."],
+    [
+      "3",
+      "Principal",
+      "C",
+      "D",
+      "",
+      "nope",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Category: Choose Teaching or Non-teaching. Email: That does not look like an email address.",
+    ],
+    ["5", "T", "", "F", "", "", "", "", "", "", "", "First name: Give a name."],
   ]);
 });

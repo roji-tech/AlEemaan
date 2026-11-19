@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
-import { AlertTriangleIcon, ArchiveIcon, BookOpenIcon, CheckIcon, ClockIcon, PencilIcon, PlusIcon, TrashIcon, UndoIcon } from "./icons";
+import {
+  AlertTriangleIcon,
+  ArchiveIcon,
+  BookOpenIcon,
+  CheckIcon,
+  ClockIcon,
+  EyeIcon,
+  LogOutIcon,
+  PencilIcon,
+  PlusIcon,
+  SlidersIcon,
+  TrashIcon,
+  UndoIcon,
+} from "./icons";
 import type { Tone } from "./tone";
 
 // What an action looks like in a menu (task 0105): a tone and an icon, chosen from what it does, so Add, Edit, Archive and Remove are told apart by colour and shape as well as by their words.
@@ -19,11 +32,16 @@ const RULES: readonly { test: RegExp; look: () => Look }[] = [
   { test: /history/, look: () => ({ tone: "neutral", icon: <ClockIcon className={ICON} /> }) },
   { test: /archive|close/, look: () => ({ tone: "warn", icon: <ArchiveIcon className={ICON} /> }) },
   { test: /suspend|deactivate|deny/, look: () => ({ tone: "warn", icon: <AlertTriangleIcon className={ICON} /> }) },
-  { test: /remove|delete|revoke|expel|withdraw/, look: () => ({ tone: "danger", icon: <TrashIcon className={ICON} /> }) },
+  // Ending a person's place (expel a pupil, terminate a member of staff, withdraw from a program) is not deleting anything: a "leaves" icon, still red (task 0111: Terminate had none).
+  { test: /expel|terminate|withdraw/, look: () => ({ tone: "danger", icon: <LogOutIcon className={ICON} /> }) },
+  { test: /remove|delete|revoke/, look: () => ({ tone: "danger", icon: <TrashIcon className={ICON} /> }) },
   { test: /subject/, look: () => ({ tone: "brand", icon: <BookOpenIcon className={ICON} /> }) },
   { test: /current|approve|accept|grant|lift|activate/, look: () => ({ tone: "ok", icon: <CheckIcon className={ICON} /> }) },
   { test: /^(add|new|create|invite|arm|break)|add$|-add|-new/, look: () => ({ tone: "ok", icon: <PlusIcon className={ICON} /> }) },
-  { test: /edit|rename|change|dates|manage|update|profile/, look: () => ({ tone: "info", icon: <PencilIcon className={ICON} /> }) },
+  // Manage (open everything about it) is told apart from Edit (change its details) by shape (task 0111: both were a pencil); View only reads.
+  { test: /manage|settings/, look: () => ({ tone: "brand", icon: <SlidersIcon className={ICON} /> }) },
+  { test: /^view|details/, look: () => ({ tone: "neutral", icon: <EyeIcon className={ICON} /> }) },
+  { test: /edit|rename|change|dates|update|profile/, look: () => ({ tone: "info", icon: <PencilIcon className={ICON} /> }) },
 ];
 
 export function actionLook(action: { id: string; danger?: boolean; tone?: Tone; icon?: ReactNode }): Look {
