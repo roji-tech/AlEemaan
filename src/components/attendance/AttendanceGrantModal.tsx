@@ -239,7 +239,7 @@ export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolea
             </div>
             <div>
               <Button type="submit" variant="primary" disabled={ctSubmitting || !ctArmId} className="w-full">
-                {ctSubmitting ? "Saving…" : "Save Assignment"}
+                {ctSubmitting ? "Saving…" : "Assign Now"}
               </Button>
             </div>
           </form>

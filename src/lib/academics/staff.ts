@@ -11,6 +11,7 @@ import {
   staffEmail as email,
   staffGender,
   staffPhone as phone,
+  staffRole,
   staffTitle,
 } from "@/lib/academics/staff-rules";
 
@@ -34,6 +35,8 @@ export const staffInput = z.strictObject({
   designation: staffDetail.nullable().optional(),
   qualification: staffDetail.nullable().optional(),
   corpsMember: z.boolean().optional(),
+  /// A short display role label (e.g. "Head of Science", "Form Tutor"). Optional for any category.
+  role: staffRole.nullable().optional(),
 });
 export const staffPatch = z
   .strictObject({
@@ -47,6 +50,7 @@ export const staffPatch = z
     designation: staffDetail.nullable().optional(),
     qualification: staffDetail.nullable().optional(),
     corpsMember: z.boolean().optional(),
+    role: staffRole.nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
 export const linkInput = z.strictObject({ userId: z.string().min(1) });
@@ -95,6 +99,8 @@ function toStaff(row: Row) {
     designation: row.designation,
     qualification: row.qualification,
     corpsMember: row.corpsMember,
+    /// A short display role label (e.g. "Head of Science", "Form Tutor").
+    role: row.role,
     archived: row.archivedAt !== null,
     /// Suspended (until a date, or until lifted) or terminated, as stored (task 0045); a lifted or reinstated person is ACTIVE.
     standing: row.standing,
@@ -181,6 +187,7 @@ export async function createStaff(actorUserId: string, input: z.infer<typeof sta
         designation: detailOrNull(input.designation),
         qualification: detailOrNull(input.qualification),
         corpsMember: input.corpsMember ?? false,
+        role: detailOrNull(input.role),
       },
       include: INCLUDE,
     });
