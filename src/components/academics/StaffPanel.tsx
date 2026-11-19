@@ -31,11 +31,14 @@ import {
   FILTER_OPTIONS,
   NO_STAFF_FILTERS,
   activeStaffFilters,
+  departmentFilterOptions,
   displayName,
   filterStaff,
   roleLine,
+  type StaffDepartment,
   type StaffFilters,
 } from "@/components/academics/staff-model";
+import { DepartmentBadges, DepartmentChips } from "@/components/academics/DepartmentChips";
 import { StaffDetailsDialog, corpsPill, kindPill } from "@/components/academics/StaffDetails";
 import { StaffInviteDialog, StaffTransferDialog, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
 
@@ -70,6 +73,8 @@ type Staff = {
   /// The arms this person is class teacher of, and the other branches they have a record in (task 0114).
   classTeacherOf: { armId: string; label: string }[];
   alsoIn: { branchId: string; branchName: string }[];
+  /// The departments the person is in (task 0101 D7); shown while the branch uses departments.
+  departments: StaffDepartment[];
 };
 type Assignment = { id: string; subjectId: string; subjectName: string; classArmId: string; armName: string; classGroupName: string };
 type Linkable = { userId: string; name: string | null; email: string | null };
@@ -298,6 +303,14 @@ export function StaffPanel({
             onChange={(e) => setFilter("standing", e.target.value as StaffFilters["standing"])}
             options={FILTER_OPTIONS.standing}
           />
+          {branch.departments && (
+            <SelectField
+              label="Department"
+              value={filters.department}
+              onChange={(e) => setFilter("department", e.target.value)}
+              options={departmentFilterOptions(staff ?? [])}
+            />
+          )}
         </ListToolbar>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-fg-muted" aria-live="polite">
@@ -474,6 +487,7 @@ export function StaffPanel({
                               {p.alsoIn.length > 0 && <p>Also in: {p.alsoIn.map((b) => b.branchName).join(", ")}</p>}
                             </div>
                           )}
+                          <DepartmentChips departments={p.departments} on={branch.departments === true} />
                           {(p.email || p.phone) && (
                             <div className="mt-3.5 flex items-center gap-2 text-fg-muted">
                               <MailIcon className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden="true" />
@@ -572,6 +586,7 @@ export function StaffPanel({
                     {kindPill(p.category)}
                     {p.corpsMember && corpsPill()}
                     {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
+                    <DepartmentBadges departments={p.departments} on={branch.departments === true} />
                   </>
                 }
                 factsStyle="stats"

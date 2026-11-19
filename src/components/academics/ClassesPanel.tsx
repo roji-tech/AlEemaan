@@ -36,7 +36,14 @@ type Arm = {
   classTeacher: { id: string; name: string } | null;
 };
 type ClassGroup = { id: string; name: string; sortOrder: number; archivedAt: string | null; subjectIds: string[]; arms: Arm[] };
-type Subject = { id: string; name: string; code: string | null; archivedAt: string | null };
+/// `department`: where the subject belongs, when the branch uses departments (task 0101 D7); set from the Departments tab.
+type Subject = {
+  id: string;
+  name: string;
+  code: string | null;
+  archivedAt: string | null;
+  department?: { id: string; name: string } | null;
+};
 type Editing =
   | { kind: "class"; item: ClassGroup | null }
   | { kind: "arm"; classGroup: ClassGroup; item: Arm | null }
@@ -443,7 +450,16 @@ export function ClassesPanel({
                     </ItemTile>
                   }
                   title={s.name}
-                  subtitle={s.code ? <span className="font-mono text-xs">{s.code}</span> : undefined}
+                  subtitle={
+                    s.code || (branch.departments && s.department) ? (
+                      <>
+                        {s.code && <span className="font-mono text-xs">{s.code}</span>}
+                        {branch.departments && s.department && (
+                          <span className={s.code ? "ml-2" : undefined}>Department: {s.department.name}</span>
+                        )}
+                      </>
+                    ) : undefined
+                  }
                   facts={[
                     { label: "Studied by", value: classes === 0 ? "No class yet" : `${classes} ${classes === 1 ? "class" : "classes"}` },
                   ]}

@@ -15,7 +15,11 @@ export type StaffLike = {
   role: string | null;
   standing: "ACTIVE" | "SUSPENDED" | "TERMINATED";
   account: { state: "none" | "linked" };
+  /// The departments the person is in (task 0101 D7). Optional: a list that does not carry them is simply not filtered by department.
+  departments?: readonly StaffDepartment[];
 };
+
+export type StaffDepartment = { id: string; name: string; isHead: boolean };
 
 export type StaffFilters = {
   kind: "" | StaffCategory;
@@ -24,9 +28,11 @@ export type StaffFilters = {
   corps: "" | "yes" | "no";
   signIn: "" | "yes" | "no";
   standing: "" | "ACTIVE" | "SUSPENDED" | "TERMINATED";
+  /// A department's id, or NONE: in no department (task 0101 D7). Only offered while the branch uses departments.
+  department: string;
 };
 
-export const NO_STAFF_FILTERS: StaffFilters = { kind: "", gender: "", corps: "", signIn: "", standing: "" };
+export const NO_STAFF_FILTERS: StaffFilters = { kind: "", gender: "", corps: "", signIn: "", standing: "", department: "" };
 
 export const CATEGORY_TEXT: Record<StaffCategory, string> = { TEACHING: "Teaching", NON_TEACHING: "Non-teaching" };
 export const GENDER_TEXT: Record<StaffGender, string> = { MALE: "Male", FEMALE: "Female" };
@@ -76,8 +82,29 @@ export function filterStaff<T extends StaffLike>(rows: readonly T[], filters: St
       (filters.gender === "" || (filters.gender === "NONE" ? row.gender === null : row.gender === filters.gender)) &&
       (filters.corps === "" || row.corpsMember === (filters.corps === "yes")) &&
       (filters.signIn === "" || (row.account.state === "linked") === (filters.signIn === "yes")) &&
-      (filters.standing === "" || row.standing === filters.standing),
+      (filters.standing === "" || row.standing === filters.standing) &&
+      (filters.department === "" ||
+        (filters.department === "NONE"
+          ? (row.departments ?? []).length === 0
+          : (row.departments ?? []).some((d) => d.id === filters.department))),
   );
+}
+
+/// The options of the Department filter: every department that some record in the list is in (by name), then "No department". Built from the list itself, so there is no extra request and
+/// an option never names a department nobody is in.
+export function departmentFilterOptions(rows: readonly Pick<StaffLike, "departments">[]): { value: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const row of rows) for (const d of row.departments ?? []) seen.set(d.id, d.name);
+  const named = [...seen].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0])).map(([value, label]) => ({ value, label }));
+  return [{ value: "", label: "Every department" }, ...named, { value: "NONE", label: "No department" }];
+}
+
+/// "Sciences, Languages": the departments as text, the head's first and marked ("Sciences (head)").
+export function departmentsText(departments: readonly StaffDepartment[]): string {
+  return [...departments]
+    .sort((a, b) => Number(b.isHead) - Number(a.isHead) || a.name.localeCompare(b.name))
+    .map((d) => (d.isHead ? `${d.name} (head)` : d.name))
+    .join(", ");
 }
 
 /// The name as the list and the details show it: the title first when there is one ("Mrs Amina Yusuf").

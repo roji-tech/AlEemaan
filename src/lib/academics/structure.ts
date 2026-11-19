@@ -197,11 +197,26 @@ export async function updateArm(actorUserId: string, id: string, patch: z.infer<
 
 // ---- subjects and offerings ----
 export async function listSubjects(branchId: string, includeArchived = false) {
-  return prisma.subject.findMany({
-    where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
-    orderBy: { name: "asc" },
-    select: { id: true, branchId: true, name: true, code: true, archivedAt: true },
-  });
+  return prisma.subject
+    .findMany({
+      where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
+      orderBy: { name: "asc" },
+      // `department`: the department the subject is in (task 0101 D7); null when it is in none or the department is archived. The screen shows it only while the branch uses departments.
+      select: {
+        id: true,
+        branchId: true,
+        name: true,
+        code: true,
+        archivedAt: true,
+        department: { select: { id: true, name: true, archivedAt: true } },
+      },
+    })
+    .then((rows) =>
+      rows.map(({ department, ...row }) => ({
+        ...row,
+        department: department && department.archivedAt === null ? { id: department.id, name: department.name } : null,
+      })),
+    );
 }
 
 export async function createSubject(actorUserId: string, input: z.infer<typeof subjectInput>) {

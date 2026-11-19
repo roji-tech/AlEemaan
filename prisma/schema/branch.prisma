@@ -30,6 +30,8 @@ model Branch {
   resultApprovalScopes   ResultApprovalScope[]
   classArms              ClassArm[]
   subjects               Subject[]
+  departments            Department[]
+  departmentMembers      DepartmentMember[]
   subjectOfferings       SubjectOffering[]
   assessmentSchemes      AssessmentScheme[]
   staffRecords           StaffRecord[]
