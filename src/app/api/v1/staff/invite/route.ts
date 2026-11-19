@@ -1,7 +1,8 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { fail, ok, noStore } from "@/lib/api/envelope";
-import { validate } from "@/lib/api/validate";
+import { validate, type Parsed } from "@/lib/api/validate";
+import { withBranch } from "@/lib/auth/with-branch";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { reserveAttempt } from "@/lib/auth/rate-limit";
 import { scopeOrForbidden } from "@/lib/members/http";
@@ -20,43 +21,56 @@ const body = z.strictObject({
 });
 
 export const POST = withAuth(
-  validate({ body }, async (_req, auth: AuthContext, _ctx: unknown, { body: input }) => {
-    const scope = await scopeOrForbidden(auth.userId);
-    if (scope instanceof Response) return scope;
-    for (let i = 0; i < input.staffIds.length; i++) {
-      if (!(await reserveAttempt(`invite:staff:${auth.userId}`, STAFF_INVITE_MAX))) {
-        return noStore(fail("Too many invitations in a few minutes. Please wait and try again.", 429, "RATE_LIMITED"));
-      }
-    }
-    const done = await inviteStaffRecords(auth.userId, scope, input.branchId, input.staffIds);
-    if (!done.ok) return noStore(fail("You can only invite the staff of the branches you administer.", 403, "FORBIDDEN"));
-
-    const toMail = done.outcomes.flatMap((o) => (o.result === "invited" ? [o] : []));
-    if (toMail.length > 0) {
-      after(async () => {
-        for (const o of toMail) {
-          try {
-            await mailInvitation({ email: o.email, token: o.token, branchName: o.branchName, role: o.role, inviterName: auth.user.name });
-          } catch (error) {
-            console.error("[staff invite] mail failed:", error instanceof Error ? error.message : error);
+  validate(
+    { body },
+    // The branch named in the body must be one the caller administers (a 403 otherwise); the service asks again, record by record.
+    withBranch<Parsed<z.infer<typeof body>, undefined>, AuthContext, unknown>(
+      { of: ({ body }) => body.branchId, as: "administer", where: "body" },
+      async (_req, auth, _ctx, { body: input }) => {
+        const scope = await scopeOrForbidden(auth.userId);
+        if (scope instanceof Response) return scope;
+        for (let i = 0; i < input.staffIds.length; i++) {
+          if (!(await reserveAttempt(`invite:staff:${auth.userId}`, STAFF_INVITE_MAX))) {
+            return noStore(fail("Too many invitations in a few minutes. Please wait and try again.", 429, "RATE_LIMITED"));
           }
         }
-      });
-    }
-    return noStore(
-      ok({
-        outcomes: done.outcomes.map((o) =>
-          o.result === "invited"
-            ? { staffId: o.staffId, name: o.name, result: o.result, email: o.email }
-            : o.result === "linked"
-              ? { staffId: o.staffId, name: o.name, result: o.result, email: o.email }
-              : { staffId: o.staffId, name: o.name, result: o.result, why: o.why },
-        ),
-        invited: toMail.length,
-        linked: done.outcomes.filter((o) => o.result === "linked").length,
-        skipped: done.outcomes.filter((o) => o.result === "skipped").length,
-      }),
-    );
-  }),
+        const done = await inviteStaffRecords(auth.userId, scope, input.branchId, input.staffIds);
+        if (!done.ok) return noStore(fail("You can only invite the staff of the branches you administer.", 403, "FORBIDDEN"));
+
+        const toMail = done.outcomes.flatMap((o) => (o.result === "invited" ? [o] : []));
+        if (toMail.length > 0) {
+          after(async () => {
+            for (const o of toMail) {
+              try {
+                await mailInvitation({
+                  email: o.email,
+                  token: o.token,
+                  branchName: o.branchName,
+                  role: o.role,
+                  inviterName: auth.user.name,
+                });
+              } catch (error) {
+                console.error("[staff invite] mail failed:", error instanceof Error ? error.message : error);
+              }
+            }
+          });
+        }
+        return noStore(
+          ok({
+            outcomes: done.outcomes.map((o) =>
+              o.result === "invited"
+                ? { staffId: o.staffId, name: o.name, result: o.result, email: o.email }
+                : o.result === "linked"
+                  ? { staffId: o.staffId, name: o.name, result: o.result, email: o.email }
+                  : { staffId: o.staffId, name: o.name, result: o.result, why: o.why },
+            ),
+            invited: toMail.length,
+            linked: done.outcomes.filter((o) => o.result === "linked").length,
+            skipped: done.outcomes.filter((o) => o.result === "skipped").length,
+          }),
+        );
+      },
+    ),
+  ),
   { roles: ["ADMIN"] },
 );

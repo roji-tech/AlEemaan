@@ -16,7 +16,10 @@ export const pupilFilterSchema = z
     ageMin: age.optional(),
     ageMax: age.optional(),
   })
-  .refine((f) => !(f.noClass && (f.classGroupId || f.classArmId)), { message: "Choose a class or No class yet, not both.", path: ["noClass"] })
+  .refine((f) => !(f.noClass && (f.classGroupId || f.classArmId)), {
+    message: "Choose a class or No class yet, not both.",
+    path: ["noClass"],
+  })
   .refine((f) => !(f.classArmId && !f.classGroupId), { message: "Choose the class before its arm.", path: ["classArmId"] })
   .refine((f) => f.ageMin === undefined || f.ageMax === undefined || f.ageMin <= f.ageMax, {
     message: "The lowest age must not be above the highest.",

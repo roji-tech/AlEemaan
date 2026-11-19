@@ -432,7 +432,10 @@ export async function studentListWhere(
   const and: Prisma.StudentRecordWhereInput[] = [];
   if (filters.classGroupId || filters.noClass) {
     const active = branchId
-      ? await prisma.academicSession.findFirst({ where: { branchId, status: SessionStatus.ACTIVE, archivedAt: null }, select: { id: true } })
+      ? await prisma.academicSession.findFirst({
+          where: { branchId, status: SessionStatus.ACTIVE, archivedAt: null },
+          select: { id: true },
+        })
       : null;
     const session = active ? { sessionId: active.id } : {};
     if (filters.noClass) and.push({ enrollments: { none: session } });

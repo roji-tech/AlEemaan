@@ -116,10 +116,16 @@ async function classRows(body: ExportRequest) {
     select: {
       name: true,
       arms: { where: { archivedAt: null }, orderBy: { name: "asc" }, select: { name: true } },
-      offerings: { where: { subject: { archivedAt: null } }, orderBy: { subject: { name: "asc" } }, select: { subject: { select: { name: true } } } },
+      offerings: {
+        where: { subject: { archivedAt: null } },
+        orderBy: { subject: { name: "asc" } },
+        select: { subject: { select: { name: true } } },
+      },
     },
   });
-  return rows.map((r) => exportValues.classes({ name: r.name, arms: r.arms.map((a) => a.name), subjects: r.offerings.map((o) => o.subject.name) }));
+  return rows.map((r) =>
+    exportValues.classes({ name: r.name, arms: r.arms.map((a) => a.name), subjects: r.offerings.map((o) => o.subject.name) }),
+  );
 }
 
 async function subjectRows(body: ExportRequest) {
@@ -138,51 +144,57 @@ async function subjectRows(body: ExportRequest) {
 export const POST = withAuth(
   validate(
     { body: exportRequestSchema },
-    withBranch<Body, AuthContext, unknown>({ of: ({ body }) => body.branchId, as: "administer", where: "body" }, async (_req, auth, _ctx, { body }) => {
-      // Counted before any work, so a burst cannot run several exports past the limit.
-      const limitKey = `export:user:${auth.userId}`;
-      if (!(await reserveAttempt(limitKey, EXPORT_LIMIT))) {
-        return noStore(fail("You have made several exports in the last few minutes. Please wait a few minutes and try again.", 429, "RATE_LIMITED"));
-      }
-      try {
-        let values: Record<string, string>[];
-        if (body.kind === "pupils") {
-          const picked = await pupilRows(body);
-          if ("response" in picked) {
-            await refundAttempt(limitKey);
-            return noStore(picked.response);
-          }
-          values = picked.values;
-        } else {
-          values = body.kind === "staff" ? await staffRows(body) : body.kind === "classes" ? await classRows(body) : await subjectRows(body);
-          if (values.length > EXPORT_MAX_ROWS) {
-            await refundAttempt(limitKey);
-            return noStore(fail(TOO_MANY, 413, "TOO_MANY_ROWS"));
-          }
+    withBranch<Body, AuthContext, unknown>(
+      { of: ({ body }) => body.branchId, as: "administer", where: "body" },
+      async (_req, auth, _ctx, { body }) => {
+        // Counted before any work, so a burst cannot run several exports past the limit.
+        const limitKey = `export:user:${auth.userId}`;
+        if (!(await reserveAttempt(limitKey, EXPORT_LIMIT))) {
+          return noStore(
+            fail("You have made several exports in the last few minutes. Please wait a few minutes and try again.", 429, "RATE_LIMITED"),
+          );
         }
-        const branch = await prisma.branch.findUnique({ where: { id: body.branchId }, select: { name: true } });
-        const { headers, rows } = exportTable(body.kind, values);
-        // What was exported, never the data: the list, the choice, the filters (a search is noted as used, not its words) and how many rows.
-        await audit(auth.userId, "EXPORT_CREATED", "Branch", body.branchId, {
-          kind: body.kind,
-          scope: body.scope,
-          includeArchived: body.scope === "all" ? Boolean(body.includeArchived) : null,
-          filters:
-            body.kind === "pupils" && body.scope === "shown"
-              ? { show: body.pupils?.show ?? "live", search: Boolean(body.pupils?.q?.trim()), query: body.pupils?.query ?? "" }
-              : body.scope === "shown"
-                ? { ids: body.ids?.length ?? 0 }
-                : null,
-          rows: rows.length,
-        });
-        const stem = exportFileStem(body.kind, branch?.name ?? "branch", schoolDay(new Date(), resolveSchoolTimeZone()), body.scope);
-        return noStore(ok({ fileStem: stem, headers, rows, count: rows.length }));
-      } catch (error) {
-        await refundAttempt(limitKey);
-        console.error("[EXPORT_ERROR]", error);
-        return noStore(fail("The export could not be made. Please try again.", 500, "INTERNAL"));
-      }
-    }),
+        try {
+          let values: Record<string, string>[];
+          if (body.kind === "pupils") {
+            const picked = await pupilRows(body);
+            if ("response" in picked) {
+              await refundAttempt(limitKey);
+              return noStore(picked.response);
+            }
+            values = picked.values;
+          } else {
+            values =
+              body.kind === "staff" ? await staffRows(body) : body.kind === "classes" ? await classRows(body) : await subjectRows(body);
+            if (values.length > EXPORT_MAX_ROWS) {
+              await refundAttempt(limitKey);
+              return noStore(fail(TOO_MANY, 413, "TOO_MANY_ROWS"));
+            }
+          }
+          const branch = await prisma.branch.findUnique({ where: { id: body.branchId }, select: { name: true } });
+          const { headers, rows } = exportTable(body.kind, values);
+          // What was exported, never the data: the list, the choice, the filters (a search is noted as used, not its words) and how many rows.
+          await audit(auth.userId, "EXPORT_CREATED", "Branch", body.branchId, {
+            kind: body.kind,
+            scope: body.scope,
+            includeArchived: body.scope === "all" ? Boolean(body.includeArchived) : null,
+            filters:
+              body.kind === "pupils" && body.scope === "shown"
+                ? { show: body.pupils?.show ?? "live", search: Boolean(body.pupils?.q?.trim()), query: body.pupils?.query ?? "" }
+                : body.scope === "shown"
+                  ? { ids: body.ids?.length ?? 0 }
+                  : null,
+            rows: rows.length,
+          });
+          const stem = exportFileStem(body.kind, branch?.name ?? "branch", schoolDay(new Date(), resolveSchoolTimeZone()), body.scope);
+          return noStore(ok({ fileStem: stem, headers, rows, count: rows.length }));
+        } catch (error) {
+          await refundAttempt(limitKey);
+          console.error("[EXPORT_ERROR]", error);
+          return noStore(fail("The export could not be made. Please try again.", 500, "INTERNAL"));
+        }
+      },
+    ),
   ),
   { roles: [Role.ADMIN] },
 );
