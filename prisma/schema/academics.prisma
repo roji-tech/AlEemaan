@@ -335,6 +335,8 @@ model StaffRecord {
   qualification         String?
   /// An NYSC corps member serving at the school (task 0101 D5, built in task 0111). Shown as a badge on the staff list.
   corpsMember           Boolean       @default(false)
+  /// An optional free-text role label shown on the staff card (e.g. "Head of Science", "Form Tutor"). Different from `designation` (the job title of a non-teaching member stored for HR); this is a short display label for anyone.
+  role                  String?
   employmentDate        DateTime?     @db.Date
   nextOfKinName         String?
   nextOfKinRelationship String?

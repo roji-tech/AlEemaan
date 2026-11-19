@@ -10,7 +10,7 @@ import {
 import { actionLook } from "@/components/ui/action-look";
 import { mapTable } from "@/lib/bulk/table";
 import { staffColumns, staffRowSchema } from "@/lib/bulk/staff";
-import { staffDetail, staffGender, staffTitle } from "@/lib/academics/staff-rules";
+import { staffDetail, staffGender, staffRole, staffTitle } from "@/lib/academics/staff-rules";
 
 // Task 0111 (the maintainer, 2026-11-19): a staff record's title (Mr, Mrs…), gender, job title for non-teaching staff, qualification and NYSC corps member flag; the staff list's
 // filters (kind, gender, corps member, sign-in, standing); the line under a name; the bulk file's new columns; and a menu where Terminate has an icon and Manage is not a pencil.
@@ -21,6 +21,7 @@ const person = (over: Partial<StaffLike> = {}): StaffLike => ({
   corpsMember: false,
   designation: null,
   qualification: null,
+  role: null,
   standing: "ACTIVE",
   account: { state: "none" },
   ...over,
@@ -51,21 +52,30 @@ test.describe("the staff list's filters", () => {
   });
 });
 
-test("the name begins with the title; the line under it is the job title of a non-teaching member, else the kind, then the qualification", () => {
+test("the name begins with the title; the line under it is the job title of a non-teaching member, else the kind, then the qualification; role is appended after the base", () => {
   expect(displayName({ title: "Mrs", firstName: "Amina", lastName: "Yusuf" })).toBe("Mrs Amina Yusuf");
   expect(displayName({ title: null, firstName: "Amina", lastName: "Yusuf" })).toBe("Amina Yusuf");
-  expect(roleLine({ category: "NON_TEACHING", designation: "Bursar", qualification: null })).toBe("Bursar");
-  expect(roleLine({ category: "NON_TEACHING", designation: null, qualification: "OND" })).toBe("Non-teaching · OND");
-  expect(roleLine({ category: "TEACHING", designation: "ignored for a teacher", qualification: "B.Ed. Mathematics" })).toBe(
+  expect(roleLine({ category: "NON_TEACHING", designation: "Bursar", qualification: null, role: null })).toBe("Bursar");
+  expect(roleLine({ category: "NON_TEACHING", designation: null, qualification: "OND", role: null })).toBe("Non-teaching · OND");
+  expect(roleLine({ category: "TEACHING", designation: "ignored for a teacher", qualification: "B.Ed. Mathematics", role: null })).toBe(
     "Teaching · B.Ed. Mathematics",
+  );
+  // role label is shown between base and qualification
+  expect(roleLine({ category: "TEACHING", designation: null, qualification: null, role: "Head of Science" })).toBe(
+    "Teaching · Head of Science",
+  );
+  expect(roleLine({ category: "TEACHING", designation: null, qualification: "B.Ed.", role: "Form Tutor" })).toBe(
+    "Teaching · Form Tutor · B.Ed.",
   );
 });
 
-test("the field rules the form, the API and the bulk file share: a title is at most 30 characters, a job title or qualification at most 120, trimmed; gender is Male or Female", () => {
+test("the field rules the form, the API and the bulk file share: a title is at most 30 characters, a job title or qualification at most 120, trimmed; a role label at most 80; gender is Male or Female", () => {
   expect(staffTitle.parse(" Mallam ")).toBe("Mallam");
   expect(staffTitle.safeParse("x".repeat(31)).success).toBe(false);
   expect(staffDetail.parse("  B.Ed. Mathematics ")).toBe("B.Ed. Mathematics");
   expect(staffDetail.safeParse("x".repeat(121)).success).toBe(false);
+  expect(staffRole.parse(" Head of Science ")).toBe("Head of Science");
+  expect(staffRole.safeParse("x".repeat(81)).success).toBe(false);
   expect(staffGender.safeParse("MALE").success).toBe(true);
   expect(staffGender.safeParse("OTHER").success).toBe(false);
 });

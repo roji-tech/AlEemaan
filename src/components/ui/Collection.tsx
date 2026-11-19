@@ -24,6 +24,7 @@ export function Collection({
   emptyText = "Nothing here yet.",
   noMatchText = "Nothing matches.",
   loadingText = "Loading…",
+  className,
   onClear,
   children,
 }: {
@@ -34,6 +35,7 @@ export function Collection({
   emptyText?: ReactNode;
   noMatchText?: ReactNode;
   loadingText?: string;
+  className?: string;
   onClear?: () => void;
   children?: ReactNode;
 }) {
@@ -62,9 +64,10 @@ export function Collection({
         <ul
           aria-label={label}
           className={
-            view === "grid"
+            className ??
+            (view === "grid"
               ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3 @3xl:gap-4"
-              : "divide-y divide-line rounded-2xl border border-line bg-surface shadow-card"
+              : "divide-y divide-line rounded-2xl border border-line bg-surface shadow-card")
           }
         >
           {children}

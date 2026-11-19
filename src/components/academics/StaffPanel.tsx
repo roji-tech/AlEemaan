@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { BranchPicker } from "@/components/ui/BranchPicker";
 import { Collection, Item, ItemInitials, type ItemAction } from "@/components/ui/Collection";
+import { ActionsMenu, type MenuAction } from "@/components/ui/ActionsMenu";
 import { Dialog } from "@/components/ui/Dialog";
 import { ListToolbar } from "@/components/ui/ListToolbar";
 import { Pager, paginate } from "@/components/ui/Pager";
@@ -23,8 +24,8 @@ import { StandingDialog, type StandingAsk } from "@/components/standing/Standing
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
 import { KIND_TEXT, kindsFor, type StandingValue } from "@/components/standing/model";
 import { CheckboxField } from "@/components/ui/CheckboxField";
-import { BookOpenIcon, ShieldCheckIcon } from "@/components/ui/icons";
-import { STAFF_TITLE_SUGGESTIONS } from "@/lib/academics/staff-rules";
+import { BookOpenIcon, ShieldCheckIcon, MailIcon } from "@/components/ui/icons";
+import { STAFF_TITLE_SUGGESTIONS, STAFF_ROLE_MAX } from "@/lib/academics/staff-rules";
 import {
   FILTER_OPTIONS,
   NO_STAFF_FILTERS,
@@ -53,6 +54,8 @@ type Staff = {
   designation: string | null;
   qualification: string | null;
   corpsMember: boolean;
+  /// A short display role label (e.g. "Head of Science", "Form Tutor"). Optional for any category.
+  role: string | null;
   phone: string | null;
   email: string | null;
   archived: boolean;
@@ -71,6 +74,33 @@ type Editing = { kind: "record"; item: Staff | null } | { kind: "manage"; item: 
 // card's left edge (it opens leftwards from the button). Until Item handles it, the item that holds an open list is raised and a card's footer is right-aligned (reported to the kit's owner).
 const MENU_ROOM = "[&_li:has([aria-expanded=true])]:z-20 [&_li>div.border-t]:justify-end";
 
+const ShieldIcon = () => (
+  <svg className="w-[14px] h-[14px] text-[#00a651] inline-block ml-1 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="M12 15a2 2 0 100-4 2 2 0 000 4z" fill="white" />
+  </svg>
+);
+
+function staffCardTheme(category: "TEACHING" | "NON_TEACHING", id: string) {
+  if (category === "NON_TEACHING") {
+    return {
+      avatar: "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300",
+      pill: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/40",
+    };
+  }
+  const isAlt = (id.charCodeAt(id.length - 1) % 2) === 1;
+  if (isAlt) {
+    return {
+      avatar: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
+      pill: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40",
+    };
+  }
+  return {
+    avatar: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
+    pill: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40",
+  };
+}
+
 export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [branchId, setBranchId] = useState(branches[0].id);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
@@ -81,7 +111,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered for this list (task 0089). The branch's staff all come in one answer, so the pages are cut here.
-  const layout = useCollectionView("academics-staff", { defaultView: "list", page, onPage: setPage });
+  const layout = useCollectionView("academics-staff", { defaultView: "grid", page, onPage: setPage });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
@@ -236,6 +266,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
         <Collection
           label="Staff"
           view={layout.view}
+          className={layout.view === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : undefined}
           state={list === null ? "loading" : list.length === 0 ? (filtered ? "nomatch" : "empty") : "ready"}
           emptyText="No staff records yet."
           noMatchText="No staff match."
@@ -290,6 +321,108 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                     : []),
                 ]
               : [];
+
+            if (layout.view === "grid") {
+              const theme = staffCardTheme(p.category, p.id);
+              const allActions: MenuAction[] = [
+                ...buttons.map((b) => ({
+                  id: b.id,
+                  label: b.label,
+                  ariaLabel: b.ariaLabel,
+                  onSelect: b.onClick,
+                  disabled: b.disabled || b.loading,
+                  danger: b.variant === "danger",
+                })),
+                ...more,
+              ];
+              return (
+                <li
+                  key={p.id}
+                  className="relative flex flex-col justify-between rounded-[14px] border border-line bg-surface p-5 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md focus-within:shadow-md"
+                >
+                  <div>
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3.5">
+                        <div
+                          className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${theme.avatar}`}
+                        >
+                          {initialsOf(who, p.email)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setViewing(p)}
+                              aria-label={`Details of ${who}`}
+                              className="text-left text-[14px] font-semibold text-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            >
+                              {displayName(p)}
+                            </button>
+                            {p.corpsMember && (
+                              <span
+                                className="inline-flex items-center text-[#00a651]"
+                                title="NYSC corps member"
+                                aria-label="NYSC corps member"
+                              >
+                                <ShieldIcon />
+                                <span className="sr-only">NYSC corps member</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${theme.pill}`}>
+                              {p.category === "TEACHING" ? "TEACHING" : "NON-TEACHING"}
+                            </span>
+                            {p.role && (
+                              <span className="text-[12px] font-medium text-fg-muted">
+                                • {p.role}
+                              </span>
+                            )}
+                            {!p.role && p.category === "NON_TEACHING" && p.designation && (
+                              <span className="text-[12px] font-medium text-fg-muted">
+                                • {p.designation}
+                              </span>
+                            )}
+                            {!p.role && p.qualification && (
+                              <span className="text-[12px] font-medium text-fg-muted">
+                                • {p.qualification}
+                              </span>
+                            )}
+                            {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
+                            <span className="sr-only">{roleLine(p)}</span>
+                          </div>
+                          {(p.email || p.phone) && (
+                            <div className="mt-3.5 flex items-center gap-2 text-fg-muted">
+                              <MailIcon className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden="true" />
+                              <span className="truncate text-[13px]" title={[p.email, p.phone].filter(Boolean).join(" · ")}>
+                                {p.email ?? p.phone}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="-mr-1 -mt-1 shrink-0">
+                        <ActionsMenu name={who} actions={allActions} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between border-t border-line pt-4 text-[13px]">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${linked ? "bg-[#00a651]" : "bg-gray-300"}`} />
+                      <span className={linked ? "font-medium text-fg" : "text-fg-muted"}>
+                        {linked ? (p.account.deactivated ? "Deactivated" : "Active now") : "No sign-in"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-fg-muted">
+                      <BookOpenIcon className="h-3.5 w-3.5 text-fg-muted" aria-hidden="true" />
+                      <span>{p.assignmentCount} Assignments</span>
+                    </div>
+                  </div>
+                </li>
+              );
+            }
+
             return (
               <Item
                 key={p.id}
@@ -304,6 +437,16 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                     className="rounded text-left hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     {displayName(p)}
+                    {p.corpsMember && (
+                      <span
+                        aria-label="NYSC corps member"
+                        title="NYSC corps member"
+                        className="ml-1.5 inline-block align-middle text-[#00a651]"
+                      >
+                        <ShieldIcon />
+                        <span className="sr-only">NYSC corps member</span>
+                      </span>
+                    )}
                   </button>
                 }
                 subtitle={
@@ -446,6 +589,7 @@ function RecordDialog({
     gender: item?.gender ?? "",
     designation: item?.designation ?? "",
     qualification: item?.qualification ?? "",
+    role: item?.role ?? "",
     phone: item?.phone ?? "",
     email: item?.email ?? "",
   });
@@ -470,6 +614,7 @@ function RecordDialog({
       // The job title is asked for non-teaching staff only (the maintainer); a teacher's stays as it was.
       ...(f.category === "NON_TEACHING" ? { designation: f.designation.trim() || null } : {}),
       qualification: f.qualification.trim() || null,
+      role: f.role.trim() || null,
       corpsMember,
       phone: f.phone.trim() || null,
       email: f.email.trim() || null,
@@ -480,7 +625,7 @@ function RecordDialog({
     setPending(false);
     if (reply.ok) return void (await onDone(`${f.firstName} ${f.lastName} ${item ? "saved" : "added"}.`));
     const found: Record<string, string> = {};
-    for (const key of ["title", "firstName", "lastName", "gender", "designation", "qualification", "phone", "email"]) {
+    for (const key of ["title", "firstName", "lastName", "gender", "designation", "qualification", "role", "phone", "email"]) {
       const message = problemFor(reply, key);
       if (message) found[key] = message;
     }
@@ -568,6 +713,16 @@ function RecordDialog({
             error={fieldProblems.qualification}
             hint="For example B.Ed. Mathematics, NCE, OND."
             maxLength={120}
+            autoComplete="off"
+            disabled={pending}
+          />
+          <TextField
+            label="Role (optional)"
+            value={f.role}
+            onChange={(e) => set("role", e.target.value)}
+            error={fieldProblems.role}
+            hint="A short label shown on the staff card, e.g. Head of Science, Form Tutor."
+            maxLength={STAFF_ROLE_MAX}
             autoComplete="off"
             disabled={pending}
           />
