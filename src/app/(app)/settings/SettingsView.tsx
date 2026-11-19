@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Tabs, panelId, tabId } from "@/components/ui/Tabs";
 import { useTabParam } from "@/components/ui/useTabParam";
+import { SETTINGS_TAB_IDS } from "@/lib/search/tab-ids";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/TextField";
@@ -58,7 +59,7 @@ type Props = {
 };
 
 /// The sections of the Settings page, in the shared tab strip (task 0100): labels never wrap, the strip scrolls sideways when they do not fit, and the open one is `?tab=`.
-const SETTINGS_TABS = [
+const SETTINGS_TABS: readonly { id: (typeof SETTINGS_TAB_IDS)[number]; label: string }[] = [
   { id: "profile", label: "School Profile" },
   { id: "academics", label: "Academic Sessions & Terms" },
   { id: "portal", label: "Portal access" },
@@ -69,10 +70,7 @@ const SETTINGS_TABS = [
 ] as const;
 
 export function SettingsView({ initialSettings, branches, initialSessions, hasMfa, loginBranches }: Props) {
-  const [activeTab, setActiveTab] = useTabParam(
-    SETTINGS_TABS.map((t) => t.id),
-    "profile",
-  );
+  const [activeTab, setActiveTab] = useTabParam(SETTINGS_TAB_IDS, "profile");
 
   // Profile Form State
   const [settings, setSettings] = useState<SchoolSettingsState>(initialSettings);

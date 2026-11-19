@@ -303,7 +303,7 @@ test.describe("practising", () => {
     await dialog.getByLabel("What is wrong with it?").fill("The explanation does not match the question.");
     await dialog.getByRole("button", { name: "Send report" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(result).toContainText("Thank you. Your report was sent to the people who look after the questions.");
+    await expect(page.getByText("Thank you. Your report was sent to the people who look after the questions.")).toBeVisible(); // a toast since task 0096
     expect(await db.questionReport.count({ where: { reporterStudentId: s.pupil.id, status: "OPEN" } })).toBe(1);
 
     const download = page.waitForEvent("download");
@@ -505,7 +505,7 @@ test.describe("history", () => {
     await portalSignIn(page);
     await openPractice(page, "History");
     await sessions(page).filter({ hasText: "Not finished" }).getByRole("button", { name: "Continue" }).click();
-    await expect(panel(page).getByRole("alert")).toContainText("Practice is currently closed.");
+    await expect(page.getByRole("alert").filter({ hasText: "Practice is currently closed." })).toBeVisible(); // a toast since task 0096
     await expect(page.getByRole("region", { name: "Your practice" })).toHaveCount(0);
     expect((await db.practiceSession.findUniqueOrThrow({ where: { id: left.session.id } })).finishedAt).toBeNull();
   });
@@ -542,7 +542,7 @@ test.describe("reports", () => {
     await dialog.getByLabel("What is wrong with it?").fill("Nucleus should be right here.");
     await dialog.getByRole("button", { name: "Send report" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(panel(page)).toContainText("Thank you. Your report was sent to the people who look after the questions.");
+    await expect(page.getByText("Thank you. Your report was sent to the people who look after the questions.")).toBeVisible(); // a toast since task 0096
     expect(await db.questionReport.count({ where: { reporterStudentId: s.pupil.id, status: "OPEN" } })).toBe(1);
 
     await wrong.getByRole("button", { name: "Report a problem" }).click();
