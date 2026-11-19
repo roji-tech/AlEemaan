@@ -81,23 +81,16 @@ const ShieldIcon = () => (
   </svg>
 );
 
-function staffCardTheme(category: "TEACHING" | "NON_TEACHING", id: string) {
+function staffCardTheme(category: "TEACHING" | "NON_TEACHING") {
   if (category === "NON_TEACHING") {
     return {
-      avatar: "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300",
-      pill: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/40",
-    };
-  }
-  const isAlt = (id.charCodeAt(id.length - 1) % 2) === 1;
-  if (isAlt) {
-    return {
-      avatar: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
-      pill: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40",
+      avatar: "bg-badge-nonteaching-bg text-badge-nonteaching-fg border border-badge-nonteaching-line",
+      pill: "bg-badge-nonteaching-bg text-badge-nonteaching-fg border border-badge-nonteaching-line",
     };
   }
   return {
-    avatar: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
-    pill: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40",
+    avatar: "bg-badge-teaching-bg text-badge-teaching-fg border border-badge-teaching-line",
+    pill: "bg-badge-teaching-bg text-badge-teaching-fg border border-badge-teaching-line",
   };
 }
 
@@ -323,7 +316,7 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
               : [];
 
             if (layout.view === "grid") {
-              const theme = staffCardTheme(p.category, p.id);
+              const theme = staffCardTheme(p.category);
               const allActions: MenuAction[] = [
                 ...buttons.map((b) => ({
                   id: b.id,
@@ -407,16 +400,18 @@ export function StaffPanel({ branches }: { branches: BranchChoice[] }) {
                     </div>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between border-t border-line pt-4 text-[13px]">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${linked ? "bg-[#00a651]" : "bg-gray-300"}`} />
-                      <span className={linked ? "font-medium text-fg" : "text-fg-muted"}>
-                        {p.account.state === "linked" ? (p.account.deactivated ? "Deactivated" : "Active now") : "No sign-in"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-fg-muted">
-                      <BookOpenIcon className="h-3.5 w-3.5 text-fg-muted" aria-hidden="true" />
-                      <span>{p.assignmentCount} Assignments</span>
+                  <div className="mt-2 border-t border-line pt-4">
+                    <div className="flex w-full items-center justify-between text-[13px]">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${linked ? "bg-[#00a651]" : "bg-gray-400 dark:bg-gray-500"}`} />
+                        <span className={linked ? "font-medium text-fg" : "text-fg-muted"}>
+                          {p.account.state === "linked" ? (p.account.deactivated ? "Deactivated" : "Active now") : "No sign-in"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-fg-muted">
+                        <BookOpenIcon className="h-3.5 w-3.5 text-fg-muted" aria-hidden="true" />
+                        <span>{p.assignmentCount} Assignments</span>
+                      </div>
                     </div>
                   </div>
                 </li>

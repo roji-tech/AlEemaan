@@ -46,6 +46,14 @@
   --ok-bg: rgb(16 185 129 / 0.1);
   --ok-line: rgb(16 185 129 / 0.3);
 
+  --badge-teaching-bg: rgb(16 185 129 / 0.15);
+  --badge-teaching-fg: #6ee7b7;
+  --badge-teaching-line: rgb(52 211 153 / 0.4);
+
+  --badge-nonteaching-bg: rgb(168 85 247 / 0.15);
+  --badge-nonteaching-fg: #d8b4fe;
+  --badge-nonteaching-line: rgb(192 132 252 / 0.4);
+
   --shadow-card-v: 0 25px 50px -12px rgb(0 0 0 / 0.3);
   --shadow-menu-v: 0 16px 40px rgb(0 0 0 / 0.35);
 
@@ -85,6 +93,14 @@
   --ok-icon: #16a34a;
   --ok-bg: #f0fdf4;
   --ok-line: #bbf7d0;
+
+  --badge-teaching-bg: #dcfce7;
+  --badge-teaching-fg: #14532d;
+  --badge-teaching-line: #86efac;
+
+  --badge-nonteaching-bg: #f3e8ff;
+  --badge-nonteaching-fg: #581c87;
+  --badge-nonteaching-line: #d8b4fe;
 
   --shadow-card-v: 0 10px 30px -12px rgb(15 23 42 / 0.15);
   --shadow-menu-v: 0 16px 40px rgb(15 23 42 / 0.15);
@@ -134,6 +150,14 @@
   --color-ok-icon: var(--ok-icon);
   --color-ok-bg: var(--ok-bg);
   --color-ok-line: var(--ok-line);
+
+  --color-badge-teaching-bg: var(--badge-teaching-bg);
+  --color-badge-teaching-fg: var(--badge-teaching-fg);
+  --color-badge-teaching-line: var(--badge-teaching-line);
+
+  --color-badge-nonteaching-bg: var(--badge-nonteaching-bg);
+  --color-badge-nonteaching-fg: var(--badge-nonteaching-fg);
+  --color-badge-nonteaching-line: var(--badge-nonteaching-line);
 
   --shadow-card: var(--shadow-card-v);
   --shadow-menu: var(--shadow-menu-v);
