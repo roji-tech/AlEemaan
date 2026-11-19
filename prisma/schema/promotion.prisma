@@ -38,12 +38,12 @@ model PromotionBatch {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch           Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  sourceSession    AcademicSession @relation("SourceSessionBatches", fields: [sourceSessionId], references: [id], onDelete: Cascade)
-  targetSession    AcademicSession @relation("TargetSessionBatches", fields: [targetSessionId], references: [id], onDelete: Cascade)
-  sourceClassGroup ClassGroup      @relation("SourceClassBatches", fields: [branchId, sourceClassGroupId], references: [branchId, id], onDelete: Cascade)
-  targetClassGroup ClassGroup?     @relation("TargetClassBatches", fields: [branchId, targetClassGroupId], references: [branchId, id], onDelete: NoAction)
-  executedBy       User            @relation("PromotionExecutor", fields: [executedById], references: [id], onDelete: Cascade)
+  branch           Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sourceSession    AcademicSession   @relation("SourceSessionBatches", fields: [sourceSessionId], references: [id], onDelete: Cascade)
+  targetSession    AcademicSession   @relation("TargetSessionBatches", fields: [targetSessionId], references: [id], onDelete: Cascade)
+  sourceClassGroup ClassGroup        @relation("SourceClassBatches", fields: [branchId, sourceClassGroupId], references: [branchId, id], onDelete: Cascade)
+  targetClassGroup ClassGroup?       @relation("TargetClassBatches", fields: [branchId, targetClassGroupId], references: [branchId, id], onDelete: NoAction)
+  executedBy       User              @relation("PromotionExecutor", fields: [executedById], references: [id], onDelete: Cascade)
   records          PromotionRecord[]
 
   @@unique([branchId, id])

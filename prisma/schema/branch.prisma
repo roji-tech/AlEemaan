@@ -5,87 +5,87 @@
 /// on the `code` (unlike Octalve Edu's Tenant): it is the prefix of the branch's
 /// invoice and receipt numbers.
 model Branch {
-  id   String @id @default(cuid())
-  name String @unique
+  id                  String  @id @default(cuid())
+  name                String  @unique
   /// 2-6 capital letters and digits, unique across the school, so `INV-<code>-2026-0001` never repeats between branches (the first four letters of the name did:
   /// Secondary (English) and Secondary (Arabic) are both SECO). The default is not a value: an insert that leaves it empty gets one made from the name by the
   /// `Branch_assign_code` trigger (migration 20261020120000_branch_code), so every way of creating a branch is covered. It does not change when the branch is renamed.
-  code String @unique @default("")
+  code                String  @unique @default("")
   /// Student and parent sign-in for THIS branch (task 0091): two switches, OFF until an administrator of the branch (or a superadmin) turns them on. A person whose only active roles
   /// are STUDENT and/or PARENT signs in, and keeps a session, only through a membership in a branch whose matching switch is on (a STUDENT membership needs `studentLoginEnabled`,
   /// a PARENT membership `parentLoginEnabled`, of that very branch). Anyone with another active role, and any superadmin, is never affected.
   studentLoginEnabled Boolean @default(false)
   parentLoginEnabled  Boolean @default(false)
 
-  memberships       Membership[]
-  invitations       Invitation[]
-  sessions          AcademicSession[]
-  periods           AcademicPeriod[]
-  academicBreaks    AcademicBreak[]
-  students          StudentRecord[]
-  enrollments       StudentEnrollment[]
-  attendanceRecords AttendanceRecord[]
-  classGroups       ClassGroup[]
-  sections          Section[]
-  resultApprovalScopes ResultApprovalScope[]
-  classArms         ClassArm[]
-  subjects          Subject[]
-  subjectOfferings  SubjectOffering[]
-  assessmentSchemes AssessmentScheme[]
-  staffRecords      StaffRecord[]
-  staffAssignments  StaffSubjectAssignment[]
-  results           Result[]
-  resultAudits      ResultAudit[]
-  reportRemarks     ReportRemark[]
-  assessmentComps   AssessmentComponent[]
-  gradeScales       GradeScale[]
-  gradeBands        GradeBand[]
-  settingValues       SettingValue[]
-  settingApprovals    SettingApproval[]
-  settingAudits       SettingAudit[]
-  schemeScopes        AssessmentSchemeScope[]
-  schemeDrafts        AssessmentSchemeDraft[]
-  selfApprovalGrants  AdminSelfApprovalGrant[]
-  verificationConfig  VerificationPageConfig?
-  attendanceGrants    AttendanceGrant[]
-  timetableSlots      TimetableSlot[]
-  announcements       Announcement[]
-  feeStructures       FeeStructure[]
-  invoices            Invoice[]
-  payments            Payment[]
-  invoiceDiscounts    InvoiceDiscount[]
-  receiptCounters     ReceiptCounter[]
-  invoiceCounters     InvoiceCounter[]
-  assignments         Assignment[]
-  submissions         AssignmentSubmission[]
-  learningMaterials   LearningMaterial[]
-  quizzes             Quiz[]
-  quizQuestions       QuizQuestion[]
-  quizAttempts        QuizAttempt[]
-  notificationTemplates NotificationTemplate[]
+  memberships            Membership[]
+  invitations            Invitation[]
+  sessions               AcademicSession[]
+  periods                AcademicPeriod[]
+  academicBreaks         AcademicBreak[]
+  students               StudentRecord[]
+  enrollments            StudentEnrollment[]
+  attendanceRecords      AttendanceRecord[]
+  classGroups            ClassGroup[]
+  sections               Section[]
+  resultApprovalScopes   ResultApprovalScope[]
+  classArms              ClassArm[]
+  subjects               Subject[]
+  subjectOfferings       SubjectOffering[]
+  assessmentSchemes      AssessmentScheme[]
+  staffRecords           StaffRecord[]
+  staffAssignments       StaffSubjectAssignment[]
+  results                Result[]
+  resultAudits           ResultAudit[]
+  reportRemarks          ReportRemark[]
+  assessmentComps        AssessmentComponent[]
+  gradeScales            GradeScale[]
+  gradeBands             GradeBand[]
+  settingValues          SettingValue[]
+  settingApprovals       SettingApproval[]
+  settingAudits          SettingAudit[]
+  schemeScopes           AssessmentSchemeScope[]
+  schemeDrafts           AssessmentSchemeDraft[]
+  selfApprovalGrants     AdminSelfApprovalGrant[]
+  verificationConfig     VerificationPageConfig?
+  attendanceGrants       AttendanceGrant[]
+  timetableSlots         TimetableSlot[]
+  announcements          Announcement[]
+  feeStructures          FeeStructure[]
+  invoices               Invoice[]
+  payments               Payment[]
+  invoiceDiscounts       InvoiceDiscount[]
+  receiptCounters        ReceiptCounter[]
+  invoiceCounters        InvoiceCounter[]
+  assignments            Assignment[]
+  submissions            AssignmentSubmission[]
+  learningMaterials      LearningMaterial[]
+  quizzes                Quiz[]
+  quizQuestions          QuizQuestion[]
+  quizAttempts           QuizAttempt[]
+  notificationTemplates  NotificationTemplate[]
   notificationDispatches NotificationDispatch[]
-  guardianLinkTokens    GuardianLinkToken[]
-  notificationAuditLogs NotificationAuditLog[]
-  promotionBatches      PromotionBatch[]
-  bankItems             QuestionBankItem[]
-  bankReviewers         QuestionBankReviewer[]
-  bankAudits            QuestionBankAudit[]
-  practiceSessions      PracticeSession[]
-  practiceAttempts      PracticeAttempt[]
-  questionReports       QuestionReport[]
-  forms                 Form[]
-  formAudiences         FormAudience[]
-  formQuestions         FormQuestion[]
-  formResponses         FormResponse[]
-  formAnswers           FormAnswer[]
-  formParticipations    FormParticipation[]
+  guardianLinkTokens     GuardianLinkToken[]
+  notificationAuditLogs  NotificationAuditLog[]
+  promotionBatches       PromotionBatch[]
+  bankItems              QuestionBankItem[]
+  bankReviewers          QuestionBankReviewer[]
+  bankAudits             QuestionBankAudit[]
+  practiceSessions       PracticeSession[]
+  practiceAttempts       PracticeAttempt[]
+  questionReports        QuestionReport[]
+  forms                  Form[]
+  formAudiences          FormAudience[]
+  formQuestions          FormQuestion[]
+  formResponses          FormResponse[]
+  formAnswers            FormAnswer[]
+  formParticipations     FormParticipation[]
   /// The program this branch was made for, when it has one of its own (task 0043).
-  ownedProgram          Program?            @relation("ProgramOwnBranch")
-  programLinks          ProgramBranch[]     @relation("ProgramBranches")
-  formTurnIns           FormTurnIn[]
-  formTurnInAudits      FormTurnInAudit[]
-  formMarkingAudits     FormMarkingAudit[]
-  questionBankPrintLogs QuestionBankPrintLog[]
+  ownedProgram           Program?                 @relation("ProgramOwnBranch")
+  programLinks           ProgramBranch[]          @relation("ProgramBranches")
+  formTurnIns            FormTurnIn[]
+  formTurnInAudits       FormTurnInAudit[]
+  formMarkingAudits      FormMarkingAudit[]
+  questionBankPrintLogs  QuestionBankPrintLog[]
 
   createdAt DateTime @default(now())
 }
@@ -138,8 +138,8 @@ model Membership {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
-  staffRecords StaffRecord[]
-  programStaff ProgramStaff[]
+  staffRecords         StaffRecord[]
+  programStaff         ProgramStaff[]
   /// Where this person approves results in this branch (task 0039); empty = nowhere.
   resultApprovalScopes ResultApprovalScope[]
 

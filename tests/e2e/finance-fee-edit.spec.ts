@@ -55,7 +55,7 @@ async function seededFees() {
 
 async function openFeeSchedule(page: Page, admin: Awaited<ReturnType<typeof seededFees>>["admin"]) {
   await signInThroughUi(page, admin);
-  await page.goto("/finance");
+  await page.goto("/finance?tab=invoices");
   await expect(page.getByRole("heading", { name: "Finance & Fee Invoicing" })).toBeVisible();
   await page.getByRole("tab", { name: "Fee Schedules & Structures" }).click();
   await expect(page.getByRole("row").filter({ hasText: "Sports levy" })).toBeVisible();

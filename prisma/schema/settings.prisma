@@ -53,14 +53,14 @@ enum PupilNameFormat {
 
 /// Generic setting value stored per scope (GLOBAL or BRANCH).
 model SettingValue {
-  id        String       @id @default(cuid())
+  id        String        @id @default(cuid())
   scope     SettingScope
   branchId  String?
   key       String
   value     Json
   status    SettingStatus @default(APPROVED)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @default(now()) @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now()) @updatedAt
 
   branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
@@ -72,7 +72,7 @@ model SettingValue {
 model SettingApproval {
   id             String             @id @default(cuid())
   settingKey     String
-  targetType     String             // "SETTING", "ASSESSMENT_SCHEME", "VERIFICATION_CONFIG"
+  targetType     String // "SETTING", "ASSESSMENT_SCHEME", "VERIFICATION_CONFIG"
   targetId       String?
   scope          SettingScope
   branchId       String?
@@ -147,7 +147,7 @@ model AssessmentSchemeDraft {
   teacherUserId      String
   subjectId          String
   name               String
-  caParts            Json          // array of { name: string, maxScore: number, sortOrder: number }
+  caParts            Json // array of { name: string, maxScore: number, sortOrder: number }
   examMax            Decimal       @db.Decimal(6, 2)
   totalMax           Decimal       @default(100) @db.Decimal(6, 2)
   reason             String
@@ -194,7 +194,7 @@ model ReportCardLayout {
   name      String
   type      ReportCardLayoutType @default(DEFAULT)
   isLegacy  Boolean              @default(false)
-  options   Json                 // { logo: boolean, signatureLine: boolean, nextTermDate: boolean }
+  options   Json // { logo: boolean, signatureLine: boolean, nextTermDate: boolean }
   createdAt DateTime             @default(now())
   updatedAt DateTime             @default(now()) @updatedAt
 }

@@ -218,12 +218,12 @@ test.describe("adding a pupil or a member of staff (the school's record is linke
     expect(audit).toMatchObject({ targetType: "Participant", targetId: res.json.data.id });
   });
 
-  test("a pupil is in a program once; a pupil of a branch the program does not run in, an archived or an unknown one is 'not found'", async () => {
+  test("a pupil is in a program once; for a program admin a pupil of a branch the program does not run in is 'not found', and so is an archived or an unknown one", async () => {
     expect((await addPupil(sa, pupilA.id)).status).toBe(201);
     const again = await addPupil(sa, pupilA.id, group2);
     expect(again.status).toBe(409);
     expect(again.json.error.code).toBe("ALREADY_IN");
-    expect((await addPupil(sa, pupilC.id)).status).toBe(404); // branch C is not one of the program's
+    expect((await addPupil(progAdmin, pupilC.id)).status).toBe(404); // branch C is not one of the program's (a super admin may link it: task 0110, below)
     await db.studentRecord.update({ where: { id: pupilA2.id }, data: { archivedAt: new Date() } });
     expect((await addPupil(sa, pupilA2.id)).status).toBe(404);
     expect((await addPupil(sa, "cnotapupilid000000000000")).status).toBe(404);
@@ -660,8 +660,8 @@ test.describe("the guards around groups and branches", () => {
 });
 
 test.describe("adding a whole class, and finding records to add", () => {
-  test("the classes on offer are the ones of the branches the viewer manages", async () => {
-    const all = (await get(`${PROGRAMS}/${program}/people/classes`, sa)).json.data as {
+  test("the classes on offer are the ones of the branches the viewer manages (a super admin: every branch that takes part, task 0110)", async () => {
+    const all = (await get(`${PROGRAMS}/${program}/people/classes`, progAdmin)).json.data as {
       id: string;
       branchId: string;
       pupils: number;
@@ -669,6 +669,8 @@ test.describe("adding a whole class, and finding records to add", () => {
     }[];
     expect(all.map((c) => c.branchId).sort()).toEqual([A.id, B.id].sort());
     expect(all.find((c) => c.id === armA.id)).toMatchObject({ label: "JSS 1 Gold", pupils: 2 });
+    const everyBranch = (await get(`${PROGRAMS}/${program}/people/classes`, sa)).json.data as { branchId: string }[];
+    expect(everyBranch.map((c) => c.branchId).sort()).toEqual([A.id, B.id, C.id].sort());
     const mine = (await get(`${PROGRAMS}/${program}/people/classes`, adminA)).json.data as { branchId: string }[];
     expect(mine.every((c) => c.branchId === A.id)).toBe(true);
   });
@@ -713,22 +715,94 @@ test.describe("adding a whole class, and finding records to add", () => {
     const armC = await db.classArm.create({
       data: { branchId: C.id, classGroupId: (await db.classGroup.create({ data: { branchId: C.id, name: "JSS 3" } })).id, name: "Red" },
     });
-    expect((await post(`${PROGRAMS}/${program}/people/class`, sa, { classArmId: armC.id, groupId: group1, confirm: true })).status).toBe(
-      404,
-    );
+    expect(
+      (await post(`${PROGRAMS}/${program}/people/class`, progAdmin, { classArmId: armC.id, groupId: group1, confirm: true })).status,
+    ).toBe(404);
   });
 
   test("a search finds records in branches the viewer manages, says who is already in, and answers nothing to a search that is too short", async () => {
     await addPupil(sa, pupilA.id);
     const find = (who: Person, q: string, kind = "STUDENT") =>
       get(`${PROGRAMS}/${program}/people/candidates?kind=${kind}&q=${encodeURIComponent(q)}`, who);
-    const found = (await find(sa, "pupil")).json.data as { name: string; note: string | null; branchId: string }[];
+    const found = (await find(progAdmin, "pupil")).json.data as { name: string; note: string | null; branchId: string }[];
     expect(found.map((c) => c.name).sort()).toEqual(["Amina Pupil", "Binta Pupil", "Cara Pupil"]); // not Dara, in branch C
     expect(found.find((c) => c.name === "Amina Pupil")?.note).toBe("Already in this program");
     expect((await find(adminA, "pupil")).json.data.map((c: { name: string }) => c.name).sort()).toEqual(["Amina Pupil", "Binta Pupil"]);
     expect((await find(sa, "a")).json.data).toEqual([]);
     expect((await find(sa, "2026/0003")).json.data.map((c: { name: string }) => c.name)).toEqual(["Cara Pupil"]);
     expect((await get(`${PROGRAMS}/${program}/people/candidates?kind=STAFF&q=zz`, sa)).json.data).toEqual([]);
+  });
+});
+
+// Task 0110 (the maintainer, 2026-11-19: "I should be able to directly link student from another branch to it especially based on the settings"): a super admin finds and adds the
+// people of every branch that takes part in programs (Settings > Programs), and adding one of a branch the program does not run in yet links that branch in the same step, audited.
+test.describe("a super admin adds people of a branch the program does not run in yet (task 0110)", () => {
+  const find = (who: Person, q: string, kind = "STUDENT") =>
+    get(`${PROGRAMS}/${program}/people/candidates?kind=${kind}&q=${encodeURIComponent(q)}`, who);
+  const linkedToC = () => db.programBranch.count({ where: { programId: program, branchId: C.id } });
+  const branchSwitch = (branchId: string, enabled: boolean | null) =>
+    api("/api/v1/settings/programs", { method: "PATCH", cookie: sa.cookie, body: { scope: "BRANCH", branchId, enabled } });
+
+  test("the search offers them with a note that adding links their branch; a program admin and a branch administrator are offered nothing of it", async () => {
+    const dara = ((await find(sa, "Dara")).json.data as { name: string; note: string | null; branchId: string }[])[0];
+    expect(dara).toMatchObject({ name: "Dara Pupil", branchId: C.id, note: `Adding them also adds ${C.name} to this program` });
+    expect((await find(sa, "Cara")).json.data[0].note).toBeNull(); // branch B is linked already
+    expect((await find(progAdmin, "Dara")).json.data).toEqual([]);
+    expect((await find(adminA, "Dara")).json.data).toEqual([]);
+  });
+
+  test("adding one links the branch in the same step, once, with an audit entry; the place is through the pupil's own branch", async () => {
+    expect(await linkedToC()).toBe(0);
+    const added = await addPupil(sa, pupilC.id);
+    expect(added.status, added.text).toBe(201);
+    expect(await linkedToC()).toBe(1);
+    const row = await db.programParticipant.findUniqueOrThrow({ where: { id: added.json.data.id } });
+    expect(row.branchId).toBe(C.id);
+    const linkAudit = await db.programAudit.findMany({ where: { programId: program, action: "BRANCH_LINKED", targetId: C.id } });
+    expect(linkAudit).toHaveLength(1);
+    expect(linkAudit[0]).toMatchObject({ actorUserId: sa.id, reason: "Linked when one of its people was added to the program" });
+    // a second pupil of the same branch: no second link, no second entry
+    const another = await makePupil(
+      C.id,
+      "2026/0010",
+      "Efe",
+      (await db.academicSession.findFirstOrThrow({ where: { branchId: C.id } })).id,
+    );
+    expect((await addPupil(sa, another.student.id)).status).toBe(201);
+    expect(await db.programAudit.count({ where: { programId: program, action: "BRANCH_LINKED", targetId: C.id } })).toBe(1);
+    // the branch is now one the program runs in, so the program admin reaches it as they reach any other
+    expect((await find(progAdmin, "Dara")).json.data[0].note).toBe("Already in this program");
+  });
+
+  test("a whole class: the preview links nothing; confirming links the branch and adds them", async () => {
+    const armC = await db.classArm.findFirstOrThrow({ where: { branchId: C.id } });
+    const preview = await post(`${PROGRAMS}/${program}/people/class`, sa, { classArmId: armC.id, groupId: group1 });
+    expect(preview.status, preview.text).toBe(200);
+    expect(preview.json.data.willAdd.map((p: { name: string }) => p.name)).toEqual(["Dara Pupil"]);
+    expect(await linkedToC()).toBe(0);
+    const done = await post(`${PROGRAMS}/${program}/people/class`, sa, { classArmId: armC.id, groupId: group1, confirm: true });
+    expect(done.status, done.text).toBe(200);
+    expect(done.json.data.added).toBe(1);
+    expect(await linkedToC()).toBe(1);
+  });
+
+  test("a branch that switched programs off is not offered and takes no one; nothing is linked", async () => {
+    expect((await branchSwitch(C.id, false)).status).toBe(200);
+    expect((await find(sa, "Dara")).json.data).toEqual([]);
+    const refused = await addPupil(sa, pupilC.id);
+    expect(refused.status).toBe(409);
+    expect(refused.json.error.code).toBe("BRANCH_PROGRAMS_OFF");
+    expect(await linkedToC()).toBe(0);
+    expect((await get(`${PROGRAMS}/${program}/people/classes`, sa)).json.data.map((c: { branchId: string }) => c.branchId)).not.toContain(
+      C.id,
+    );
+    expect((await branchSwitch(C.id, null)).status).toBe(200);
+  });
+
+  test("a person typed in still goes through a branch the program runs in, even for a super admin; a program admin cannot link by adding", async () => {
+    expect((await add(sa, adult({ firstName: "Yusuf", phone: "08088880000", branchId: C.id }))).status).toBe(404);
+    expect((await addPupil(progAdmin, pupilC.id)).status).toBe(404);
+    expect(await linkedToC()).toBe(0);
   });
 });
 

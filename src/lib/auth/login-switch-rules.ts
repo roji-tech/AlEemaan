@@ -53,6 +53,12 @@ export function portalLoginClosed(portal: Portal | null, open: OpenAnywhere): bo
   return false;
 }
 
+/// The buttons of the website's sign-in page (`/select-role`), in the school's order: a parent's and a student's only while SOME branch has that switch on, because with every branch closed
+/// the button would lead to a form that turns everyone away (task 0109). Staff always: the switches are never about staff. Like the notice, it is decided without knowing anyone's branch.
+export function signInChoices(open: OpenAnywhere): ("parent" | "student" | "staff")[] {
+  return [...(open.parent ? ["parent" as const] : []), ...(open.student ? ["student" as const] : []), "staff"];
+}
+
 /// What a closed portal's sign-in page says (before anyone has typed anything). It names the portal (which is the host's, not the person's) and nothing about any account.
 export const PORTAL_CLOSED_NOTICE: Record<"student" | "parent", string> = {
   student:

@@ -14,8 +14,9 @@ import { signInThroughUi, clickAction } from "./helpers";
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 async function expectAccessible(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  // Each violation names its elements, so a failure says where to look (the batch run of 2026-11-19 reported only "target-size" here).
   expect(
-    results.violations.map((v) => `${v.id} [${v.impact}] ${v.help}`),
+    results.violations.map((v) => `${v.id} [${v.impact}] ${v.help}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`),
     `accessibility violations on ${what}`,
   ).toEqual([]);
 }
@@ -113,6 +114,9 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByText(`${tag} Simple is now the default.`)).toBeVisible();
     await expect(simple).toContainText("Default");
     await expect(scale).not.toContainText("Default");
+    // Back to the top before axe: after the clicks above the page has scrolled, and the info button by "Assessment schemes" sat half under the sticky top bar, where axe measures only
+    // the part it can see (under 24 px) and reports target-size. Nobody can tap a control under the bar; the check is about the page's targets, not about where the test left it.
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expectAccessible(page, `grading section filled (${theme})`);
     await page.screenshot({ path: `${SHOTS}/aleemaan-grading-${theme}.png`, fullPage: true });
 

@@ -3,7 +3,16 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
 import { ConflictError, audit } from "@/lib/academics/structure";
-import { personName, staffCategory as category, staffEmail as email, staffPhone as phone } from "@/lib/academics/staff-rules";
+import {
+  detailOrNull,
+  personName,
+  staffCategory as category,
+  staffDetail,
+  staffEmail as email,
+  staffGender,
+  staffPhone as phone,
+  staffTitle,
+} from "@/lib/academics/staff-rules";
 
 // Staff records and teaching assignments (Slice P1c). A record is how the BRANCH knows a person (a security guard has one and never an account); a sign-in
 // account is a member of the same branch it may be linked to - once, by an administrator, and only to a member whose role fits the record's category. The
@@ -19,6 +28,12 @@ export const staffInput = z.strictObject({
   lastName: personName,
   phone: phone.nullable().optional(),
   email: email.nullable().optional(),
+  /// Task 0111: a title (Mr, Mrs…), gender, a job title (`designation`), a qualification, and whether they are an NYSC corps member.
+  title: staffTitle.nullable().optional(),
+  gender: staffGender.nullable().optional(),
+  designation: staffDetail.nullable().optional(),
+  qualification: staffDetail.nullable().optional(),
+  corpsMember: z.boolean().optional(),
 });
 export const staffPatch = z
   .strictObject({
@@ -27,6 +42,11 @@ export const staffPatch = z
     lastName: personName.optional(),
     phone: phone.nullable().optional(),
     email: email.nullable().optional(),
+    title: staffTitle.nullable().optional(),
+    gender: staffGender.nullable().optional(),
+    designation: staffDetail.nullable().optional(),
+    qualification: staffDetail.nullable().optional(),
+    corpsMember: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
 export const linkInput = z.strictObject({ userId: z.string().min(1) });
@@ -69,6 +89,12 @@ function toStaff(row: Row) {
     lastName: row.lastName,
     phone: row.phone,
     email: row.email,
+    /// Task 0111: the title (Mr, Mrs…), gender, the job title, the qualification and the NYSC corps member flag.
+    title: row.title,
+    gender: row.gender,
+    designation: row.designation,
+    qualification: row.qualification,
+    corpsMember: row.corpsMember,
     archived: row.archivedAt !== null,
     /// Suspended (until a date, or until lifted) or terminated, as stored (task 0045); a lifted or reinstated person is ACTIVE.
     standing: row.standing,
@@ -150,6 +176,11 @@ export async function createStaff(actorUserId: string, input: z.infer<typeof sta
         lastName: input.lastName,
         phone: input.phone ?? null,
         email: input.email ?? null,
+        title: detailOrNull(input.title),
+        gender: input.gender ?? null,
+        designation: detailOrNull(input.designation),
+        qualification: detailOrNull(input.qualification),
+        corpsMember: input.corpsMember ?? false,
       },
       include: INCLUDE,
     });
@@ -170,6 +201,11 @@ export async function updateStaff(actorUserId: string, id: string, patch: z.infe
     lastName: patch.lastName ?? before.lastName,
     phone: patch.phone === undefined ? before.phone : patch.phone,
     email: patch.email === undefined ? before.email : patch.email,
+    title: patch.title === undefined ? before.title : detailOrNull(patch.title),
+    gender: patch.gender === undefined ? before.gender : patch.gender,
+    designation: patch.designation === undefined ? before.designation : detailOrNull(patch.designation),
+    qualification: patch.qualification === undefined ? before.qualification : detailOrNull(patch.qualification),
+    corpsMember: patch.corpsMember ?? before.corpsMember,
   };
   const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => next[k] !== before[k]);
   if (changed.length === 0) return toStaff(before);

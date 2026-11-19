@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -74,6 +75,8 @@ const STATE_OPTIONS = [
 
 export function ProgramPeopleTab({ program, run }: { program: ProgramDetail; run: RunChange }) {
   const open = program.can.people;
+  // `?add=1` (the Students page of a program's own branch links here, task 0110) opens "Add people" on arrival, for someone who may add.
+  const arriving = useSearchParams().get("add") === "1";
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [groupId, setGroupId] = useState("");
@@ -84,7 +87,7 @@ export function ProgramPeopleTab({ program, run }: { program: ProgramDetail; run
   const [loaded, setLoaded] = useState<Page | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
-  const [dialog, setDialog] = useState<Dialog_ | null>(null);
+  const [dialog, setDialog] = useState<Dialog_ | null>(() => (open && arriving ? { kind: "add" } : null));
   const [ask, setAsk] = useState<StandingAsk | null>(null);
   const base = `/api/v1/programs/${encodeURIComponent(program.id)}/people`;
 

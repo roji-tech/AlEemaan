@@ -48,7 +48,7 @@ async function openBulk(page: Page) {
   await db.classGroup.create({ data: { branchId: branch.id, name: "JSS 1" } });
   const admin = await createUser({ role: Role.ADMIN, name: "Finance Admin", superAdmin: false });
   await signInThroughUi(page, admin);
-  await page.goto("/finance");
+  await page.goto("/finance?tab=invoices");
   await page.getByRole("tab", { name: "Fee Schedules & Structures" }).click();
   await page.getByRole("button", { name: "Add many" }).click();
   await expect(dialog(page).getByRole("heading", { name: "Add fee items in bulk" })).toBeVisible();

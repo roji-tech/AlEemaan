@@ -349,8 +349,27 @@ async function historyOf(personId: string, programId: string): Promise<HistoryRo
 
 export type Candidate = { id: string; name: string; detail: string; branchId: string; branchName: string; note: string | null };
 
-/// Pupils or members of staff the viewer may add: live records in a branch the program runs in that the viewer may manage, found by name or admission number, who are not in the
-/// program already. At most 25 at a time.
+/// Where the viewer may take people from: the branches the program runs in that they may manage, and, for a SUPER ADMIN only, every other branch that takes part in programs (the
+/// school's and the branch's switch, Settings > Programs). A pupil or a member of staff of such a branch is added by linking that branch to the program in the same step (task 0110),
+/// which is the super admin's act on the Overview tab as well. `linked` says which of them the program runs in already.
+async function reachFor(viewer: ProgramViewer, programId: string): Promise<{ reach: { id: string; name: string }[]; linked: Set<string> }> {
+  const links = await prisma.programBranch.findMany({ where: { programId }, select: { branch: { select: { id: true, name: true } } } });
+  const linked = new Set(links.map((link) => link.branch.id));
+  const reach = links.map((link) => link.branch).filter((branch) => mayManagePerson(viewer, branch.id));
+  if (viewer.level !== "SUPER") return { reach, linked };
+  const others = await prisma.branch.findMany({
+    where: { id: { notIn: [...linked] } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  const takingPart = await branchesTakingPart(others.map((branch) => branch.id));
+  return { reach: [...reach, ...others.filter((branch) => takingPart.get(branch.id) !== false)], linked };
+}
+
+/// What a candidate of a branch the program does not run in yet is told: adding them links it.
+export const LINKS_BRANCH_NOTE = (branchName: string) => `Adding them also adds ${branchName} to this program`;
+
+/// Pupils or members of staff the viewer may add: live records in a branch of `reachFor`, found by name or admission number, who are not in the program already. At most 25 at a time.
 export async function candidates(
   actorUserId: string,
   programId: string,
@@ -358,10 +377,10 @@ export async function candidates(
 ): Promise<Result<Candidate[]>> {
   const viewer = await viewerOf(actorUserId, programId);
   if (!viewer) return refuse(404, "NOT_FOUND", NOT_FOUND);
-  const links = await prisma.programBranch.findMany({ where: { programId }, select: { branch: { select: { id: true, name: true } } } });
-  const reach = links.map((link) => link.branch).filter((branch) => mayManagePerson(viewer, branch.id));
+  const { reach, linked } = await reachFor(viewer, programId);
   const ids = reach.map((branch) => branch.id);
   const names = new Map(reach.map((branch) => [branch.id, branch.name]));
+  const linkNote = (branchId: string) => (linked.has(branchId) ? null : LINKS_BRANCH_NOTE(names.get(branchId) ?? "their branch"));
   const q = query.q.trim();
   if (ids.length === 0 || q.length < 2) return done([]);
   const present = await prisma.programParticipant.findMany({
@@ -397,7 +416,7 @@ export async function candidates(
             : "Has left this program: re-enrol them"
           : s.standing === "EXPELLED"
             ? "Expelled"
-            : null,
+            : linkNote(s.branchId),
       })),
     );
   }
@@ -422,19 +441,18 @@ export async function candidates(
         ? taken.get(s.id) === ProgramPlaceStatus.ACTIVE
           ? "Already in this program"
           : "Has left this program: re-enrol them"
-        : null,
+        : linkNote(s.branchId),
     })),
   );
 }
 
 export type ClassOption = { id: string; label: string; branchId: string; branchName: string; pupils: number };
 
-/// The school's classes the caller may add from: the live class arms of the branches the program runs in that the caller may manage, with how many pupils are in each now.
+/// The school's classes the caller may add from: the live class arms of the branches of `reachFor`, with how many pupils are in each now.
 export async function classOptions(actorUserId: string, programId: string): Promise<Result<ClassOption[]>> {
   const viewer = await viewerOf(actorUserId, programId);
   if (!viewer) return refuse(404, "NOT_FOUND", NOT_FOUND);
-  const links = await prisma.programBranch.findMany({ where: { programId }, select: { branch: { select: { id: true, name: true } } } });
-  const reach = links.map((link) => link.branch).filter((branch) => mayManagePerson(viewer, branch.id));
+  const { reach } = await reachFor(viewer, programId);
   const names = new Map(reach.map((branch) => [branch.id, branch.name]));
   if (reach.length === 0) return done([]);
   const arms = await prisma.classArm.findMany({
@@ -485,13 +503,46 @@ async function checkRoom(tx: Tx, programId: string, adding: number): Promise<boo
   return (await tx.programParticipant.count({ where: { programId } })) + adding <= MAX_PARTICIPANTS;
 }
 
-async function branchAllowed(tx: Tx, programId: string, branchId: string, viewer: ProgramViewer): Promise<Result<true>> {
+/// A branch the program does not run in yet, that a super admin's add will link (task 0110), or null.
+type ToLink = { id: string; name: string } | null;
+
+/// May people come in through this branch? A branch the program runs in that the viewer manages, and it takes part in programs. With `mayLink` (a pupil's or a staff member's own
+/// branch), a SUPER ADMIN may also name a branch the program does not run in yet, if it takes part: the answer then carries it, and `linkNow` links it once every other check has
+/// passed. A person typed in goes through a branch the program runs in (`mayLink` false). Nothing is written here, so a refusal after it leaves nothing behind.
+async function branchAllowed(
+  tx: Tx,
+  programId: string,
+  branchId: string,
+  viewer: ProgramViewer,
+  mayLink: boolean,
+): Promise<Result<ToLink>> {
   const link = await tx.programBranch.findUnique({ where: { programId_branchId: { programId, branchId } }, select: { branchId: true } });
-  // A branch the program does not run in, and a branch the viewer does not manage, are the same answer.
-  if (!link || !mayManagePerson(viewer, branchId)) return refuse(404, "NOT_FOUND", "That branch was not found.");
+  const branch =
+    !link && mayLink && viewer.level === "SUPER"
+      ? await tx.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } })
+      : null;
+  // A branch the program does not run in (and the viewer may not add), and a branch the viewer does not manage, are the same answer.
+  if ((!link && !branch) || !mayManagePerson(viewer, branchId)) return refuse(404, "NOT_FOUND", "That branch was not found.");
   if ((await branchesTakingPart([branchId])).get(branchId) === false)
     return refuse(409, "BRANCH_PROGRAMS_OFF", "That branch has switched programs off.");
-  return done(true);
+  return done(branch);
+}
+
+/// Links the branch `branchAllowed` handed back, in the caller's transaction, with the same audit entry as linking it on the Overview tab. Called right before the people are written.
+async function linkNow(tx: Tx, programId: string, actorUserId: string, branch: ToLink): Promise<void> {
+  if (!branch) return;
+  // Two people of the same branch added at once: the second finds the link made and writes nothing.
+  const made = await tx.programBranch.createMany({ data: [{ programId, branchId: branch.id }], skipDuplicates: true });
+  if (made.count === 1)
+    await writeAudit(tx, {
+      programId,
+      actorUserId,
+      action: "BRANCH_LINKED",
+      targetType: "Branch",
+      targetId: branch.id,
+      after: { name: branch.name },
+      reason: "Linked when one of its people was added to the program",
+    });
 }
 
 /// Adds one person: a pupil or a member of staff by LINKING their record (their branch is the record's), or a person typed in (adult, guardian, child) through a branch the program
@@ -506,6 +557,7 @@ export async function addPerson(actorUserId: string, programId: string, input: A
     let data: Prisma.ProgramParticipantUncheckedCreateInput;
     let label: string;
     let namesakeConfirmed = false;
+    let toLink: ToLink = null;
 
     if (input.kind === "STUDENT") {
       const student = await tx.studentRecord.findUnique({
@@ -513,8 +565,9 @@ export async function addPerson(actorUserId: string, programId: string, input: A
         select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true },
       });
       if (!student || student.archivedAt) return refuse(404, "NOT_FOUND", "That student was not found.");
-      const allowed = await branchAllowed(tx, program.id, student.branchId, viewer);
+      const allowed = await branchAllowed(tx, program.id, student.branchId, viewer, true);
       if (!allowed.ok) return allowed;
+      toLink = allowed.data;
       const existing = await tx.programParticipant.findUnique({
         where: { programId_studentId: { programId: program.id, studentId: student.id } },
         select: { status: true },
@@ -533,8 +586,9 @@ export async function addPerson(actorUserId: string, programId: string, input: A
         select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true },
       });
       if (!record || record.archivedAt) return refuse(404, "NOT_FOUND", "That member of staff was not found.");
-      const allowed = await branchAllowed(tx, program.id, record.branchId, viewer);
+      const allowed = await branchAllowed(tx, program.id, record.branchId, viewer, true);
       if (!allowed.ok) return allowed;
+      toLink = allowed.data;
       const existing = await tx.programParticipant.findUnique({
         where: { programId_staffRecordId: { programId: program.id, staffRecordId: record.id } },
         select: { status: true },
@@ -548,7 +602,7 @@ export async function addPerson(actorUserId: string, programId: string, input: A
       data = { ...base, kind: ParticipantKind.STAFF, staffRecordId: record.id, branchId: record.branchId };
       label = `${record.firstName} ${record.lastName}`;
     } else {
-      const allowed = await branchAllowed(tx, program.id, input.branchId, viewer);
+      const allowed = await branchAllowed(tx, program.id, input.branchId, viewer, false);
       if (!allowed.ok) return allowed;
       const others = await tx.programParticipant.findMany({
         where: { programId: program.id, studentId: null, staffRecordId: null, status: { not: ProgramPlaceStatus.WITHDRAWN } },
@@ -592,6 +646,7 @@ export async function addPerson(actorUserId: string, programId: string, input: A
       };
       label = `${input.firstName} ${input.lastName}`;
     }
+    await linkNow(tx, program.id, actorUserId, toLink);
     const created = await tx.programParticipant.create({ data, select: { id: true } });
     await writeAudit(tx, {
       programId: program.id,
@@ -625,7 +680,7 @@ export async function addClass(
       select: { id: true, name: true, branchId: true, archivedAt: true, classGroup: { select: { name: true } } },
     });
     if (!arm || arm.archivedAt) return refuse(404, "NOT_FOUND", "That class was not found.");
-    const allowed = await branchAllowed(tx, program.id, arm.branchId, viewer);
+    const allowed = await branchAllowed(tx, program.id, arm.branchId, viewer, true);
     if (!allowed.ok) return allowed;
     const enrolments = await tx.studentEnrollment.findMany({
       where: { classArmId: arm.id, status: "ACTIVE" },
@@ -658,6 +713,8 @@ export async function addClass(
     if (!(await checkRoom(tx, program.id, plan.willAdd.length)))
       return refuse(409, "TOO_MANY", `A program can have at most ${MAX_PARTICIPANTS} people.`);
     if (plan.willAdd.length > 0) {
+      // The class's branch is linked only when someone is actually added (never by the preview, nor by a class with nobody left to add).
+      await linkNow(tx, program.id, actorUserId, allowed.data);
       await tx.programParticipant.createMany({
         data: plan.willAdd.map((entry) => ({
           programId: program.id,

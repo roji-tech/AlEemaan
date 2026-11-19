@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { BRANCH_NAMES, Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { HTTP_URL } from "../support/env";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, switchBranch } from "./helpers";
 
 // Programs, slice P1 (task 0043): the screens, driven for real on a desktop and a phone, in both themes. What the API allows is tested in tests/api/programs.spec.ts; here is
 // what a person can see and do, that a branch admin is shown nothing they cannot use, and that every state is accessible and fits the width.
@@ -230,6 +230,50 @@ test.describe("a super admin", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Remove branch" }).click();
     await expect(page.getByText("The branch was removed.")).toBeVisible();
     expect(await db.programBranch.count({ where: { programId: program.id, branchId: branch.id } })).toBe(1);
+  });
+});
+
+test.describe("a branch made for a program (task 0110)", () => {
+  test("its Students page says how the other branches' pupils join, and leads straight to Add people on the program's People tab", async ({
+    page,
+  }) => {
+    const admin = await createUser({ role: Role.ADMIN });
+    const { program } = await seedProgram(admin.id, "Taaju Waqoor");
+    const own = await db.branch.create({ data: { name: "Taaju Waqoor" } });
+    await db.program.update({ where: { id: program.id }, data: { ownBranchId: own.id, branches: { create: [{ branchId: own.id }] } } });
+    await signInThroughUi(page, admin);
+    await page.goto("/students");
+    // Another branch: no card there.
+    await switchBranch(page, FIRST);
+    await expect(page.getByRole("heading", { name: /is the branch of the program/ })).toHaveCount(0);
+    await switchBranch(page, "Taaju Waqoor");
+    const card = page.getByRole("region", { name: "Taaju Waqoor is the branch of the program Taaju Waqoor" });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("are not registered here again");
+    await expect(card).toContainText("0 people from other branches are in the program now.");
+    await expectAccessible(page, "the Students page of a program's own branch");
+    await expectFits(page, "the Students page of a program's own branch");
+
+    await card.getByRole("link", { name: "Add people from other branches" }).click();
+    await expect(page).toHaveURL(new RegExp(`/programs/${program.id}\\?tab=people&add=1$`));
+    await expect(page.getByRole("tab", { name: "People", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("dialog", { name: "Add people" })).toBeVisible();
+  });
+
+  test("a branch administrator of that branch is told the same, with no button to add (a super admin's act)", async ({ page }) => {
+    const sa = await createUser({ role: Role.ADMIN });
+    const { program } = await seedProgram(sa.id, "Taaju Waqoor");
+    const own = await db.branch.create({ data: { name: "Taaju Waqoor" } });
+    await db.program.update({ where: { id: program.id }, data: { ownBranchId: own.id, branches: { create: [{ branchId: own.id }] } } });
+    const ownAdmin = await createUser({ role: Role.ADMIN, superAdmin: false });
+    await db.membership.updateMany({ where: { userId: ownAdmin.id }, data: { branchId: own.id } });
+    await signInThroughUi(page, ownAdmin);
+    await page.goto("/students");
+    const card = page.getByRole("region", { name: "Taaju Waqoor is the branch of the program Taaju Waqoor" });
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("link", { name: "Add people from other branches" })).toHaveCount(0);
+    await expect(card).not.toContainText("from other branches are in the program now");
+    await expect(card.getByRole("link", { name: "See the program's people" })).toBeVisible();
   });
 });
 

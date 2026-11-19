@@ -577,6 +577,30 @@ test.describe("the sign-in portals", () => {
     for (const portal of ["admin", "staff"]) expect(await page(portal), portal).not.toContain("is closed at the moment");
   });
 
+  test("the website's sign-in page shows a parent's or a student's button only while some branch has that switch on; staff always (task 0109)", async () => {
+    // The buttons of /select-role, by their title, on the school's own host with the portals on and on the plain server (portals off).
+    const buttons = async (opts: Parameters<typeof api>[1]) => {
+      const res = await api("/select-role", opts);
+      expect(res.status).toBe(200);
+      return [...res.text.matchAll(/<a\s[^>]*href="[^"]*"[^>]*>([\s\S]*?)<\/a>/g)].flatMap(
+        (m) => /(Parent|Student|Staff) sign-in/.exec(m[1])?.[1] ?? [],
+      );
+    };
+    const apex = {
+      baseUrl: PORTALS_URL,
+      origin: `http://localhost:${PORTALS_PORT}`,
+      headers: { "x-forwarded-host": `localhost:${PORTALS_PORT}` },
+    };
+    for (const opts of [apex, {}]) {
+      expect(await buttons(opts)).toEqual(["Staff"]); // every branch closed (beforeEach)
+      await openStudents(C); // one branch is enough, whichever it is
+      expect(await buttons(opts)).toEqual(["Student", "Staff"]);
+      await openParents(D);
+      expect(await buttons(opts)).toEqual(["Parent", "Student", "Staff"]);
+      await closeAll();
+    }
+  });
+
   test("on its own portal a closed student with the right password is told so, a wrong password is the generic answer, and a student on the parent portal is the wrong-portal answer", async () => {
     const student = await inBranch(A, Role.STUDENT);
     const closed = await api(LOGIN, { method: "POST", body: { email: student.email, password: DEFAULT_PASSWORD }, ...at("student") });

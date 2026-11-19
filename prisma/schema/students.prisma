@@ -19,16 +19,16 @@ enum EnrollmentStatus {
 
 /// A pupil/student. admissionNo is human-facing, generated as YYYY/NNNN or assigned by the school.
 model StudentRecord {
-  id          String    @id @default(cuid())
-  branchId    String
-  firstName   String
-  middleName  String?
-  lastName    String
-  gender      Gender
+  id            String        @id @default(cuid())
+  branchId      String
+  firstName     String
+  middleName    String?
+  lastName      String
+  gender        Gender
   /// Not required (the maintainer, 2026-11-18: only the first name, the last name and the gender are).
-  dateOfBirth DateTime? @db.Date
-  admissionNo String    @unique
-  archivedAt  DateTime?
+  dateOfBirth   DateTime?     @db.Date
+  admissionNo   String        @unique
+  archivedAt    DateTime?
   /// Standing (task 0045): ACTIVE, SUSPENDED (until `standingUntil`, or until lifted when null) or EXPELLED. Separate from archiving, which hides the record.
   standing      StandingState @default(ACTIVE)
   standingUntil DateTime?     @db.Date
@@ -40,21 +40,21 @@ model StudentRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch            Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  enrollments       StudentEnrollment[]
-  attendanceRecords AttendanceRecord[]
-  results           Result[]
-  remarks           ReportRemark[]
-  invoices          Invoice[]
+  branch                Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  enrollments           StudentEnrollment[]
+  attendanceRecords     AttendanceRecord[]
+  results               Result[]
+  remarks               ReportRemark[]
+  invoices              Invoice[]
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
   guardianLinkTokens    GuardianLinkToken[]
   promotionRecords      PromotionRecord[]
   practiceSessions      PracticeSession[]
   practiceAttempts      PracticeAttempt[]
-  questionReports       QuestionReport[]    @relation("ReportPupil")
-  formResponses         FormResponse[]      @relation("StudentFormResponses")
-  formTurnIns           FormTurnIn[]        @relation("StudentTurnIns")
+  questionReports       QuestionReport[]       @relation("ReportPupil")
+  formResponses         FormResponse[]         @relation("StudentFormResponses")
+  formTurnIns           FormTurnIn[]           @relation("StudentTurnIns")
   printLogs             QuestionBankPrintLog[] @relation("PrintLogStudent")
   programPlaces         ProgramParticipant[]
   receivedPrintLogs     QuestionBankPrintLog[] @relation("PrintLogRecipient")
@@ -84,9 +84,9 @@ model StudentEnrollment {
   enrolledAt DateTime         @default(now())
   updatedAt  DateTime         @default(now()) @updatedAt
 
-  student  StudentRecord   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  branch   Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  session  AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student                StudentRecord     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  branch                 Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session                AcademicSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   classArm               ClassArm?         @relation(fields: [branchId, classArmId], references: [branchId, id], onDelete: NoAction)
   sourcePromotionRecords PromotionRecord[] @relation("SourceEnrollmentRecords")
   targetPromotionRecords PromotionRecord[] @relation("TargetEnrollmentRecords")
