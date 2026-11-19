@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTabParam } from "@/components/ui/useTabParam";
 import { ClassesPanel } from "@/components/academics/ClassesPanel";
+import { DepartmentsPanel } from "@/components/academics/DepartmentsPanel";
 import { GradingPanel } from "@/components/academics/GradingPanel";
 import { SchemeLevelsPanel } from "@/components/academics/SchemeLevelsPanel";
 import { SessionsPanel } from "@/components/academics/SessionsPanel";
@@ -32,9 +33,17 @@ export function AcademicsSections({
   /// Open the "new" form of the first tab at once (a shortcut from the Overview): New session or New class. Used once.
   openNew?: boolean;
 }) {
+  // Whether each branch uses departments (task 0101 D7). Turned on or off on the Departments tab, and the staff list (another tab) follows without a reload.
+  const [departmentsOn, setDepartmentsOn] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(branches.map((b) => [b.id, b.departments === true])),
+  );
+  const branchesNow = useMemo(() => branches.map((b) => ({ ...b, departments: departmentsOn[b.id] === true })), [branches, departmentsOn]);
+  // The Departments tab: for an administrator of some branch (who can turn them on), and for anyone in a branch that uses them.
+  const showDepartments = branchesNow.some((b) => b.canEdit || b.departments);
+  const tabs = SECTIONS.filter((s) => s.id !== "departments" || showDepartments);
   const [active, setActive] = useTabParam(
-    SECTIONS.map((s) => s.id),
-    initialSection,
+    tabs.map((s) => s.id),
+    tabs.some((s) => s.id === initialSection) ? initialSection : "classes",
   );
   // The branch of the Classes, Subjects and Sessions tabs is one choice: switching between them keeps it.
   const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
@@ -44,7 +53,7 @@ export function AcademicsSections({
 
   return (
     <div className="space-y-6">
-      <Tabs label="Academics sections" prefix="academics" tabs={SECTIONS} active={active} onChange={setActive} />
+      <Tabs label="Academics sections" prefix="academics" tabs={tabs} active={active} onChange={setActive} />
       <div role="tabpanel" id={panelId("academics", active)} aria-labelledby={tabId("academics", active)}>
         {(active === "classes" || active === "subjects") && (
           <ClassesPanel
@@ -74,9 +83,18 @@ export function AcademicsSections({
             <SchemeLevelsPanel branches={branches} isSuperAdmin={isSuperAdmin} />
           </div>
         )}
+        {active === "departments" && (
+          <DepartmentsPanel
+            key={active}
+            branches={branchesNow}
+            branchId={branchId}
+            onBranchChange={setBranchId}
+            onSwitched={(id, on) => setDepartmentsOn((all) => ({ ...all, [id]: on }))}
+          />
+        )}
         {active === "staff" && (
           <StaffPanel
-            branches={branches}
+            branches={branchesNow}
             initialBranchId={initialBranchId}
             initialQuery={initialSection === "staff" ? initialQuery : undefined}
           />

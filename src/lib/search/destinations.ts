@@ -124,6 +124,12 @@ const ACADEMICS = tabs("/academics", "Academics", "page", [
     keywords: ["teacher", "staff", "assign", "employee"],
   },
   {
+    id: "departments",
+    title: "Departments",
+    summary: "Group a branch's staff into departments, name a head of department, and say which subjects belong to each.",
+    keywords: ["department", "hod", "head of department", "sciences", "languages", "group staff"],
+  },
+  {
     id: "promotion",
     title: "Promotion & rollover",
     summary: "Move pupils up to the next class and start the next year.",

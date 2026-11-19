@@ -81,6 +81,12 @@ const INCLUDE = {
     orderBy: [{ classGroup: { sortOrder: "asc" } }, { name: "asc" }],
     select: { id: true, name: true, classGroup: { select: { name: true } } },
   },
+  /// The live departments this person is in, head or member (task 0101 D7): fetched with the list in the same request, so the card needs no call per person.
+  departments: {
+    where: { department: { archivedAt: null } },
+    orderBy: { department: { name: "asc" } },
+    select: { isHead: true, department: { select: { id: true, name: true } } },
+  },
 } satisfies Prisma.StaffRecordInclude;
 type Row = Prisma.StaffRecordGetPayload<{ include: typeof INCLUDE }>;
 
@@ -131,6 +137,8 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
     classTeacherOf: row.teacherOfArms.map((a) => ({ armId: a.id, label: `${a.classGroup.name} ${a.name}` })),
     personId: row.personId,
     alsoIn,
+    /// The departments the person is in, with whether they are its head (task 0101 D7). Always sent; the screen shows them only while the branch uses departments.
+    departments: row.departments.map((d) => ({ id: d.department.id, name: d.department.name, isHead: d.isHead })),
   };
 }
 
