@@ -1,7 +1,7 @@
 # 0106: Finance statistics: one branch in depth, and every branch side by side
 
 - **Period / Focus:** 2026-11-18 (the maintainer, with a screenshot of Finance > Student Invoices & Payments: "i think we should have stats under finance, both for single branch and multiple branch overview")
-- **Status:** Designed; building
+- **Status:** Built; the record is section 5
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/finance-stats` / PR into `dev`
@@ -42,8 +42,8 @@ The Invoices tab already shows four cards (Total Invoiced, Total Collected, Outs
 - [x] `lib/finance/stats.ts` (pure: kobo, rate, ageing buckets, month buckets, the overview total) and `lib/finance/stats-service.ts` (the aggregate queries)
 - [x] `GET /api/v1/finance/stats` and `GET /api/v1/finance/overview` with the access rule of D6
 - [x] `FinanceOverview.tsx` (cards, month chart, ageing, by class, how paid; the all-branches table) and the first tab in `FinancePanel.tsx` with `?tab=`
-- [ ] Unit tests of the pure part; API tests (figures equal a hand count; access; overview total equals the sum of the branches); browser tests at 360 / 850 / 1280 in both themes with axe
-- [ ] Docs: `docs/components/school-app.md`, this file's build record
+- [x] Unit tests of the pure part (17); API tests (17: figures equal a hand count; access; overview total equals the sum of the branches); browser tests (11: at 360 / 850 / 1280 in both themes with axe)
+- [x] Docs: `docs/components/school-app.md`, this file's build record
 
 ## 4. Not in this task
 
@@ -51,4 +51,23 @@ A statement per pupil, refunds, forecasts, and the CSV export (D9).
 
 ## 5. Build record and tests
 
-(filled in with the real counts when the suites have run)
+**Batch run, 2026-11-19.**
+- **Setup:** one local checkout merging #294 (17d147b), #295 (99c1656) and #296 (51d31f4) as f5e8be1, one production build, one worker on the shared test database.
+- **Projects:** setup; unit (all); integration (session-lifecycle); api (scheme-none-yet, finance-stats, student-parent-login-switch, school-site, portals, login); browser on desktop and phone (info-tips, academics-grading-staff, scheme-levels, finance-overview, finance-a11y, finance-contrast, fees-bulk, finance-fee-edit, finance-refresh, standing-and-payment-rules, browser-security, school-site, portals, global-search, sign-in).
+- **Result:** **1834 passed, 9 failed, 23 skipped** in 45.2 min.
+
+The 9 failures:
+- `portals.spec.ts:81` and `:99`, desktop and phone (4): known before this batch and recorded in earlier runs. The local portals server's `localhost` school address sends a website page back to itself. Not caused by these changes.
+- `school-site.spec.ts:33`, desktop and phone (2): the test counted three Sign in buttons on a database an earlier spec had emptied. Fixed in the test (#296).
+- `academics-grading-staff.spec.ts:57`, desktop, both themes (2): see the reruns.
+- `academics-grading-staff.spec.ts:124`, phone, dark (1): the tap on the Staff tab did not register under load (load average about 13). It passed alone.
+
+**Reruns on the same build:**
+- **Rerun 1:** `school-site:33` passed on desktop and phone; `:124` passed. The grading spec, now naming the element in its axe report, failed target-size on `button[data-info-tip="academics.schemes"]`, which sat half under the sticky top bar after the page had scrolled. The test now scrolls to the top before that check.
+- **Rerun 2:** academics-grading-staff + info-tips on desktop and phone: **45 passed, 0 failed**.
+
+**For this task:**
+- `tests/unit/finance-stats.spec.ts`, `tests/api/finance-stats.spec.ts` and `tests/e2e/finance-overview.spec.ts` on desktop and phone all passed in the batch: 31 finance result lines, 0 failed.
+- So did the existing finance specs that now open `/finance?tab=invoices` (fees-bulk, finance-a11y, finance-contrast, finance-fee-edit, finance-refresh, standing-and-payment-rules) and `browser-security`.
+- The 6 failures of the earlier full run (30 s timeouts while outside Gradle builds held the load average near 20) did not recur.
+- The kobo rounding case (1.005 -> 101) is a unit test.
