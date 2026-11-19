@@ -68,11 +68,20 @@ const duplicate = (error: unknown, message: string): never => {
 const INCLUDE = {
   membership: { select: { role: true, deactivatedAt: true, user: { select: { name: true, email: true } } } },
   _count: { select: { assignments: true } },
+  /// The newest invitation sent from this record that is neither accepted nor revoked (task 0114): "Invited" on the card until it is accepted or runs out.
+  invitations: { where: { acceptedAt: null, revokedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { expiresAt: true } },
+  /// The arms this person is class teacher of (task 0114: shown on the card and in Manage).
+  teacherOfArms: {
+    where: { archivedAt: null },
+    orderBy: [{ classGroup: { sortOrder: "asc" } }, { name: "asc" }],
+    select: { id: true, name: true, classGroup: { select: { name: true } } },
+  },
 } satisfies Prisma.StaffRecordInclude;
 type Row = Prisma.StaffRecordGetPayload<{ include: typeof INCLUDE }>;
 
 export type StaffView = ReturnType<typeof toStaff>;
-function toStaff(row: Row) {
+/// `alsoIn`: the other branches this person has a live record in (task 0114, the records that share `personId`).
+function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = []) {
   const account = row.userId
     ? {
         state: "linked" as const,
@@ -85,6 +94,7 @@ function toStaff(row: Row) {
         roleDiffers: row.membership ? row.membership.role !== roleForCategory(row.category) : false,
       }
     : { state: "none" as const };
+  const invitation = row.invitations[0];
   return {
     id: row.id,
     branchId: row.branchId,
@@ -106,9 +116,38 @@ function toStaff(row: Row) {
     standing: row.standing,
     standingUntil: row.standingUntil ? row.standingUntil.toISOString().slice(0, 10) : null,
     account,
+    /// An invitation sent from this record is waiting (task 0114): until when; `expired` once the link has run out without being accepted.
+    invited: !row.userId && invitation ? { until: invitation.expiresAt.toISOString(), expired: invitation.expiresAt <= new Date() } : null,
     assignmentCount: row._count.assignments,
+    /// "JSS 1 A": the arms this person is class teacher of.
+    classTeacherOf: row.teacherOfArms.map((a) => ({ armId: a.id, label: `${a.classGroup.name} ${a.name}` })),
+    personId: row.personId,
+    alsoIn,
   };
 }
+
+/// The other branches each person has a live record in, for a set of rows (one query).
+async function alsoInFor(rows: Row[]): Promise<Map<string, { branchId: string; branchName: string }[]>> {
+  const people = [...new Set(rows.flatMap((r) => (r.personId ? [r.personId] : [])))];
+  const answer = new Map<string, { branchId: string; branchName: string }[]>();
+  if (people.length === 0) return answer;
+  const others = await prisma.staffRecord.findMany({
+    where: { personId: { in: people }, archivedAt: null },
+    select: { id: true, personId: true, branchId: true, branch: { select: { name: true } } },
+    orderBy: { branch: { name: "asc" } },
+  });
+  for (const row of rows) {
+    if (!row.personId) continue;
+    answer.set(
+      row.id,
+      others
+        .filter((o) => o.personId === row.personId && o.id !== row.id && o.branchId !== row.branchId)
+        .map((o) => ({ branchId: o.branchId, branchName: o.branch.name })),
+    );
+  }
+  return answer;
+}
+const viewOf = async (row: Row) => toStaff(row, (await alsoInFor([row])).get(row.id) ?? []);
 
 const find = (id: string) => prisma.staffRecord.findUnique({ where: { id }, include: INCLUDE });
 const mustFind = async (id: string) => {
@@ -138,7 +177,8 @@ export async function listStaff(branchId: string, opts: { status?: "live" | "arc
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     take: 500,
   });
-  return rows.map(toStaff);
+  const also = await alsoInFor(rows);
+  return rows.map((row) => toStaff(row, also.get(row.id) ?? []));
 }
 
 const ASSIGNMENT_INCLUDE = {
@@ -169,7 +209,7 @@ export async function getStaff(id: string) {
       { id: "asc" },
     ],
   });
-  return { staff: toStaff(row), assignments: assignments.map(toAssignment) };
+  return { staff: await viewOf(row), assignments: assignments.map(toAssignment) };
 }
 
 export async function createStaff(actorUserId: string, input: z.infer<typeof staffInput>) {
@@ -279,7 +319,7 @@ export async function linkAccount(actorUserId: string, id: string, input: z.infe
     return duplicate(error, "That person is already linked to another staff record.");
   }
   await audit(actorUserId, "STAFF_ACCOUNT_LINKED", "StaffRecord", id, { userId: input.userId });
-  return toStaff(await mustFind(id));
+  return viewOf(await mustFind(id));
 }
 
 /// Clears the link; the account and its membership are untouched.
@@ -291,7 +331,7 @@ export async function unlinkAccount(actorUserId: string, id: string) {
   const done = await prisma.staffRecord.updateMany({ where: { id, userId: was }, data: { userId: null } });
   if (done.count !== 1) throw new ConflictError("This record has no sign-in account.");
   await audit(actorUserId, "STAFF_ACCOUNT_UNLINKED", "StaffRecord", id, { userId: null }, { userId: was });
-  return toStaff(await mustFind(id));
+  return viewOf(await mustFind(id));
 }
 
 // ---- assignments ----

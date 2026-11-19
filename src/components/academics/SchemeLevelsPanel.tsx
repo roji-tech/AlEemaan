@@ -30,18 +30,15 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
   const [editing, setEditing] = useState<Editing>(null);
 
   const load = useCallback(async () => {
+    // Every class of the branch with its scheme in ONE request (task 0112; it was one request per class).
     const [g, c] = await Promise.all([
       isSuperAdmin ? getJson("/api/v1/academics/schemes/global") : Promise.resolve(null),
-      getJson(`/api/v1/academics/class-groups?branchId=${encodeURIComponent(branchId)}`),
+      getJson(`/api/v1/academics/schemes/class-group?branchId=${encodeURIComponent(branchId)}`),
     ]);
     if (g?.ok) setGlobals((g.data!.schemes as GlobalRow[]).filter((x) => !x.scheme.archived));
     if (!c.ok) return setError(say(c, "Couldn't load the classes."));
     setError(null);
-    const list = c.data!.classGroups as Group[];
-    const schemes = await Promise.all(list.map((x) => getJson(`/api/v1/academics/schemes/class-group/${x.id}`)));
-    setGroups(
-      list.map((x, i) => ({ id: x.id, name: x.name, scheme: schemes[i].ok ? ((schemes[i].data!.scheme as Scheme | null) ?? null) : null })),
-    );
+    setGroups(c.data!.classGroups as (Group & { scheme: Scheme | null })[]);
   }, [branchId, isSuperAdmin]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading on a branch change is exactly what this effect is for

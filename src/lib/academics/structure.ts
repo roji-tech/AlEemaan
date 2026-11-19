@@ -75,7 +75,11 @@ export async function listClassGroups(branchId: string, includeArchived = false)
       arms: {
         where: includeArchived ? {} : { archivedAt: null },
         orderBy: { name: "asc" },
-        include: { _count: { select: { enrollments: true } } },
+        include: {
+          _count: { select: { enrollments: true } },
+          // The arm's class teacher (task 0114: shown and chosen on the Classes tab; it was only in Attendance > Manage Permissions).
+          classTeacher: { select: { id: true, title: true, firstName: true, lastName: true } },
+        },
       },
       offerings: { select: { subjectId: true } },
     },
@@ -87,7 +91,19 @@ export async function listClassGroups(branchId: string, includeArchived = false)
     sortOrder: g.sortOrder,
     archivedAt: g.archivedAt,
     subjectIds: g.offerings.map((o) => o.subjectId),
-    arms: g.arms.map((a) => ({ id: a.id, name: a.name, capacity: a.capacity, archivedAt: a.archivedAt, enrolments: a._count.enrollments })),
+    arms: g.arms.map((a) => ({
+      id: a.id,
+      name: a.name,
+      capacity: a.capacity,
+      archivedAt: a.archivedAt,
+      enrolments: a._count.enrollments,
+      classTeacher: a.classTeacher
+        ? {
+            id: a.classTeacher.id,
+            name: `${a.classTeacher.title ? `${a.classTeacher.title} ` : ""}${a.classTeacher.firstName} ${a.classTeacher.lastName}`,
+          }
+        : null,
+    })),
   }));
 }
 

@@ -8,4 +8,4 @@ export const ACADEMICS_TAB_IDS = ["classes", "subjects", "sessions", "grading", 
 /// Approvals: `self` is shown to superadmins only.
 export const APPROVALS_TAB_IDS = ["requests", "email", "layout", "verification", "self"] as const;
 /// Users.
-export const USERS_TAB_IDS = ["people", "invitations"] as const;
+export const USERS_TAB_IDS = ["people", "invitations", "staff"] as const;

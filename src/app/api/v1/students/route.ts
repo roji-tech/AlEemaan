@@ -5,6 +5,7 @@ import { withAuth } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { branchIdsFor } from "@/lib/auth/branch-access";
 import { listStudents, createStudent, studentInputSchema } from "@/lib/students/service";
+import { readListFilters } from "@/lib/students/list-filters-server";
 import { readJsonBody } from "@/lib/api/validate";
 
 const STAFF_ROLES = [Role.ADMIN, Role.TEACHING_STAFF, Role.NON_TEACHING_STAFF] as const;
@@ -29,7 +30,11 @@ export const GET = withAuth(
       // A branch the caller does not belong to answers like an unknown one.
       if (branchId && visible !== "all" && !visible.includes(branchId)) return fail("No such branch.", 404, "NOT_FOUND");
 
-      const result = await listStudents({ visible, branchId, status, standing, q, page, limit });
+      // Class, arm, gender and age (task 0103 D1): validated, and a class or arm of another branch answers like an unknown one.
+      const read = await readListFilters(searchParams, branchId);
+      if (!read.ok) return read.response;
+
+      const result = await listStudents({ visible, branchId, status, standing, q, filters: read.filters, page, limit });
       return ok(result);
     } catch (error) {
       console.error("[STUDENTS_GET_ERROR]", error);

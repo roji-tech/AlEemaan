@@ -37,6 +37,7 @@ export function InviteDialog({
   invitations = NO_INVITATIONS,
   person = null,
   onInvited,
+  onFromStaff,
 }: {
   open: boolean;
   onClose: () => void;
@@ -47,6 +48,8 @@ export function InviteDialog({
   invitations?: Invitation[];
   person?: InvitePerson | null;
   onInvited: (invitations: Invitation[]) => void;
+  /// Task 0114: go to the Staff tab, where staff are ticked and invited at the addresses on their records (no typing). Absent when adding a member to another branch.
+  onFromStaff?: () => void;
 }) {
   const personName = person?.name?.trim() || person?.email || "this person";
   const personEmail = person?.email?.trim().toLowerCase() ?? "";
@@ -178,6 +181,14 @@ export function InviteDialog({
       }
     >
       <form onSubmit={submit} noValidate className="space-y-4">
+        {onFromStaff && !person && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg-2">
+            <span>Inviting your staff? Tick them on their records instead: no typing.</span>
+            <Button type="button" variant="secondary" onClick={onFromStaff}>
+              Choose from staff records
+            </Button>
+          </div>
+        )}
         <TextField
           label="Email address"
           type="email"
