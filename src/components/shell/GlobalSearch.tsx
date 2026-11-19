@@ -9,7 +9,7 @@ import { highlight, search } from "@/lib/search/match";
 import { visibleDestinations, type Viewer } from "@/lib/search/visible";
 import { FOCUS_RING } from "./nav";
 
-// Search the whole app from the top bar (task 0107). A field from `lg` up, a magnifier button on a phone that opens a full-screen sheet; the same box in both. It finds pages, tabs, settings
+// Search the whole app from the top bar (task 0107). The controls are named "Find a page or setting", not "Search…": every list on a page has its own field labelled "Search", and a screen reader (or a test that looks a field up by that word) must not meet two of them; the placeholder still says "Search". A field from `lg` up, a magnifier button on a phone that opens a full-screen sheet; the same box in both. It finds pages, tabs, settings
 // and the questions people ask, each with where it lives (its trail), a line about what is there and, for the one you are on, the steps to get exactly there. Choosing one goes to its page
 // AND its tab. Everything is on the device: the index is a list in the code, filtered to what this person can open, so there is no request per keystroke and nothing typed leaves the browser.
 // An ARIA combobox: the field keeps the focus, Up and Down move through the options (`aria-activedescendant`), Enter chooses, Escape closes.
@@ -161,8 +161,8 @@ function SearchBox({
           aria-expanded={listOpen}
           aria-controls={listOpen ? listId : undefined}
           aria-autocomplete="list"
-          aria-activedescendant={current ? optionId(current) : undefined}
-          aria-label="Search the app"
+          aria-activedescendant={listOpen && current ? optionId(current) : undefined}
+          aria-label="Find a page or setting"
           autoFocus={autoFocus}
           autoComplete="off"
           autoCapitalize="off"
@@ -334,7 +334,7 @@ export function GlobalSearchButton({ viewer }: { viewer: Viewer }) {
     <>
       <button
         type="button"
-        aria-label="Search the app"
+        aria-label="Find a page or setting"
         onClick={() => {
           dialog.current?.showModal();
           setOpen(true);
@@ -345,7 +345,7 @@ export function GlobalSearchButton({ viewer }: { viewer: Viewer }) {
       </button>
       <dialog
         ref={dialog}
-        aria-label="Search the app"
+        aria-label="Find a page or setting"
         onClose={() => setOpen(false)}
         className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-canvas p-0 text-fg open:flex open:flex-col lg:hidden"
       >
@@ -359,7 +359,7 @@ export function GlobalSearchButton({ viewer }: { viewer: Viewer }) {
                 className={`flex h-11 w-11 items-center justify-center rounded-xl text-fg-2 hover:bg-surface-2 hover:text-fg ${FOCUS_RING}`}
               >
                 <XIcon className="h-5 w-5" />
-                <span className="sr-only">Close search</span>
+                <span className="sr-only">Close</span>
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">

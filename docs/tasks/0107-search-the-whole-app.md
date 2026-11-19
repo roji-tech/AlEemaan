@@ -1,7 +1,7 @@
 # 0107: Search the whole app from the top bar: any page, tab or setting, with the way to get there
 
 - **Period / Focus:** 2026-11-18 (the maintainer, with a screenshot of the top bar: "we want to have a general search bar on the navbar to search for anything on the app, and the result is clickable and takes you to the page, even to the tab, or even add some description on how to get exactly there, especially if it is not straightforward")
-- **Status:** Designed; building phase 1
+- **Status:** Phase 1 built; the record is section 5
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/global-search` / PR into `dev`
@@ -41,4 +41,19 @@ Records (D8), searching the text inside a page, and AI answers. The index is a m
 
 ## 5. Build record and tests
 
-(filled in with the real counts when the suites have run)
+Gates in this order: `tsc --noEmit` clean; `eslint` on the changed files clean; `next build` clean; `prettier --check` on every changed file clean.
+
+Unit: the WHOLE project in the first run, 1503 passed and 3 failed (all in `search.spec.ts`: the index had no entry for the Users and Approvals pages themselves, only their tabs; fixed). `tests/unit/search.spec.ts` covers matching (case and accents, every word must be found, a title beats a trail beats a keyword beats the description, one slip forgiven in a word of five letters or more and never in a short one, ranking and ties, highlighting that gives back exactly the text), what people type (login finds Sign-in access, "add a pupil" finds the task, "fees" and "invoice" find Finance), who sees what (superadmin, branch administrator, teacher, other staff, a person's page overrides, an override can never offer an administrators' page), and that the index cannot drift from the app (every id unique, every destination on a page the sidebar knows, every tab named is a real tab and every real tab can be found, every task has steps in whole sentences).
+
+Browser (Chromium, one worker, the shared test database, read from the logs):
+
+| Run | What | Result |
+| --- | --- | --- |
+| s1 | the whole unit project, the new `global-search.spec.ts` and the shell specs | 1503 passed, 28 failed. 3 were the unit failures above. **23 were one real bug**: when the panel was closed the field still pointed `aria-activedescendant` at a result that is not drawn, which axe flags as a critical ARIA error on every screen of the app (fixed: set only while the list is open). 1 was my test: it counted Next's own link prefetches as "requests made while typing" (now it asserts that no request carries the typed words and none goes to the API). 1 was **a stale spec already on `dev`**: `responsive-and-a11y` expected "Send again" visible on the invitations list, which task 0100 folded into a three-dots menu (the spec was not in the 0100 run list). |
+| s2 | the search specs, the shell specs, `responsive-and-a11y` and `theme`, and six specs that the 0100 batch did not run (results-approval-settings, program-people, announcements-draft, finance-fee-edit, portal-practice, question-bank-questions) | 156 passed, 4 failed. 3 were **stale specs already on `dev`** (portal-practice expected the practice screens' messages inside the panel; since task 0096 they are toasts: fixed). 1 was **a collision my change caused**: 47 existing spec lines find a list's field with `getByLabel("Search")`, a substring match, and my field was named "Search the app", so it matched too. Renamed the controls' accessible name to "Find a page or setting" (the placeholder still says "Search"); this also keeps a screen reader from meeting two controls called Search on one page. |
+| s3 | the search specs, `portal-practice`, `responsive-and-a11y`, `report-tool`, and every spec that finds a field by "Search" (branch-manage, lists-filters, responsive-and-a11y, users) after a rebuild | 112 passed, 1 failed: the long `/account` accessibility test timed out at the default 30 s |
+| s4, s5 | that test alone | s4 failed again at 30 s; s5 with a 120 s limit passed (about 40 s): a long test that visits many screens and checks each with axe, borderline against the default limit. It now declares its own 90 s timeout. |
+
+What the browser tests prove, on a wide screen: `/` focuses the field from anywhere that is not a text field; a result shows its title, its trail ("Settings › Sign-in access"), its kind, and for the active one the numbered steps; Enter lands on the page AND the tab (`/settings?tab=signin`, and "Start a new academic session" ends on Academics, Sessions); a slip in a word is forgiven and a made-up word says nothing was found; a teacher searching for fees finds no Finance and no invoices, and finds Students; Up, Down, Escape (clears, then closes) with the focus staying in the field; the last choices are remembered on the device (only ids, never the words typed); nothing typed leaves the browser; axe at WCAG 2.2 AA in both themes with results and with the empty box. On a 360 px phone: the magnifier is a 44 px button that opens a full-screen sheet with the box focused, choosing a result goes there and closes it, nothing scrolls sideways, axe clean, and Close gives the focus back.
+
+Not run: the `e2e-mobile` project; the walkthrough (deferred). Records (pupils, staff, invoices by name) are NOT searched: that is phase 2 (D8), with its own security review.
