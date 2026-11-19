@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { isValidElement, type ReactElement } from "react";
 import {
   NO_STAFF_FILTERS,
   activeStaffFilters,
@@ -107,23 +106,22 @@ test.describe("the bulk staff file", () => {
     });
     const bala = staffRowSchema.safeParse(t.rows[1].values);
     expect(bala.success).toBe(true);
-    expect(bala.data).toMatchObject({ corpsMember: false }); // an empty cell is No
+    expect(bala.data?.corpsMember).toBeUndefined(); // an empty cell is absent, as in every optional column; the save stores it as No
     expect(bala.data?.title).toBeUndefined();
   });
 
   test("Corps member takes Yes/No, Y/N, True/False, 1/0 in any capitals; anything else is refused", () => {
     const row = (corpsMember: unknown) => staffRowSchema.safeParse({ category: "Teaching", firstName: "A", lastName: "B", corpsMember });
     for (const yes of ["Yes", "y", "TRUE", "1", true, 1]) expect(row(yes).data?.corpsMember, String(yes)).toBe(true);
-    for (const no of ["No", "n", "false", "0", false, 0, ""]) expect(row(no).data?.corpsMember, String(no)).toBe(false);
+    for (const no of ["No", "n", "false", "0", false, 0]) expect(row(no).data?.corpsMember, String(no)).toBe(false);
+    expect(row("").data?.corpsMember).toBeUndefined();
     expect(row("maybe").success).toBe(false);
   });
 });
 
 test.describe("the row menu's icons", () => {
-  const iconName = (id: string) => {
-    const icon = actionLook({ id }).icon;
-    return isValidElement(icon) ? ((icon as ReactElement).type as { name?: string }).name : null;
-  };
+  // The icon's component name, read off `type` directly: in this runner the element objects come from Playwright's own JSX runtime, so React's isValidElement says no.
+  const iconName = (id: string) => (actionLook({ id }).icon as { type?: { name?: string } } | null)?.type?.name ?? null;
 
   test("Terminate has an icon and is red; Expel and Withdraw share it (a person leaves, nothing is deleted); Remove keeps the bin", () => {
     expect(actionLook({ id: "terminate" }).tone).toBe("danger");

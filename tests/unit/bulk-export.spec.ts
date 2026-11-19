@@ -64,7 +64,20 @@ test("the problem rows table holds only the rows with problems, their original r
     "Problem",
   ]);
   expect(t.rows).toEqual([
-    ["3", "Principal", "C", "D", "", "nope", "Category: Choose Teaching or Non-teaching. Email: That does not look like an email address."],
-    ["5", "T", "", "F", "", "", "First name: Give a name."],
+    [
+      "3",
+      "Principal",
+      "",
+      "C",
+      "D",
+      "",
+      "",
+      "nope",
+      "",
+      "",
+      "",
+      "Category: Choose Teaching or Non-teaching. Email: That does not look like an email address.",
+    ],
+    ["5", "T", "", "", "F", "", "", "", "", "", "", "First name: Give a name."],
   ]);
 });

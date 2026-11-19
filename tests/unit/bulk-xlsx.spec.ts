@@ -50,7 +50,7 @@ test("the phone typed as text keeps its leading zero, and a number cell comes ou
   expect(await readXlsx(await blob.arrayBuffer())).toEqual([["Phone"], ["8031234567"], ["08031234567"]]);
 });
 
-test("the fixed-value columns are dropdowns in the workbook: the category's list is its labels, and nothing else is a list", async () => {
+test("the fixed-value columns are dropdowns in the workbook: the category's and the gender's lists are their labels (task 0111 added Gender), and nothing else is a list", async () => {
   const blob = await buildWorkbook(
     staffColumns,
     staffColumns.map((c) => c.label),
@@ -58,10 +58,12 @@ test("the fixed-value columns are dropdowns in the workbook: the category's list
   );
   const xml = unzipText(await bufferOf(blob), "xl/worksheets/sheet1.xml");
   const lists = xml.match(/<dataValidation [^>]*type="list"[^>]*>/g) ?? [];
-  expect(lists).toHaveLength(1);
+  expect(lists).toHaveLength(2);
   expect(xml).toContain("Teaching staff");
   expect(xml).toContain("Non-teaching staff");
-  expect(xml).toMatch(/sqref="A2:A1001"/);
+  expect(xml).toMatch(/sqref="A2:A1001"/); // Category, column A
+  expect(xml).toContain("Male");
+  expect(xml).toMatch(/sqref="E2:E1001"/); // Gender, column E (after Category, Title, First name, Last name)
 });
 
 test("something that is not an .xlsx file is refused, not read as garbage", async () => {

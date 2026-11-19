@@ -28,6 +28,12 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
   lastName: { pass: ["Yusuf"], fail: ["", "x".repeat(81)] },
   phone: { pass: ["", "08031234567", "+234 803 123 4567", "(0803) 123-4567"], fail: ["123", "abcdefghij", "0".repeat(21)] },
   email: { pass: ["", "a@x.com", "A.B@School.Org"], fail: ["nope", "a@b", "a b@x.com", `${"x".repeat(250)}@x.com`] },
+  // Task 0111: the five optional columns.
+  title: { pass: ["", "Mr", "Mallam"], fail: ["x".repeat(31)] },
+  gender: { pass: ["", "M", "female", "Male", "F"], fail: ["X", "unknown"] },
+  designation: { pass: ["", "Bursar", "Security guard"], fail: ["x".repeat(121)] },
+  qualification: { pass: ["", "B.Ed. Mathematics", "NCE"], fail: ["x".repeat(121)] },
+  corpsMember: { pass: ["", "Yes", "no", "Y", "0"], fail: ["maybe", "2"] },
 };
 test("every column has samples, and each passing value passes while each failing value is a problem on that column", () => {
   expect(Object.keys(SAMPLES).sort()).toEqual(staffColumns.map((c) => c.key).sort());

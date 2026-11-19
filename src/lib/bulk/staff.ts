@@ -27,13 +27,13 @@ function toCategory(v: unknown): unknown {
 }
 const CATEGORY_MESSAGE = "Choose Teaching or Non-teaching.";
 
-/// Yes / Y / True / 1 and No / N / False / 0, in any capitals; an empty cell is No. Anything else is left as it is, so the rule below refuses it (task 0111).
+/// Yes / Y / True / 1 and No / N / False / 0, in any capitals; an empty cell is absent (the save stores No). Anything else is left as it is, so the rule below refuses it (task 0111).
 function toYesNo(v: unknown): unknown {
   if (typeof v === "boolean") return v;
   if (typeof v === "number") return v === 1 ? true : v === 0 ? false : v;
   if (typeof v !== "string") return v;
   const w = v.trim().toLowerCase();
-  if (w === "") return false;
+  if (w === "") return undefined;
   if (["yes", "y", "true", "1"].includes(w)) return true;
   if (["no", "n", "false", "0"].includes(w)) return false;
   return v;
@@ -49,7 +49,7 @@ export type StaffRow = {
   gender?: "MALE" | "FEMALE";
   designation?: string;
   qualification?: string;
-  corpsMember: boolean;
+  corpsMember?: boolean;
 };
 
 export const staffColumns: BulkColumn[] = [
@@ -131,7 +131,7 @@ export const staffRowSchema: z.ZodType<StaffRow> = z.object({
   gender: z.preprocess(toGender, staffGender.optional()),
   designation: z.preprocess(blankToUndefined, staffDetail.optional()),
   qualification: z.preprocess(blankToUndefined, staffDetail.optional()),
-  corpsMember: z.preprocess(toYesNo, z.boolean({ error: "Write Yes or No." })),
+  corpsMember: z.preprocess(toYesNo, z.boolean({ error: "Write Yes or No." }).optional()),
 });
 
 export const staffEntity: BulkEntity<StaffRow> = {
