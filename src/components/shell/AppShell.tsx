@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { brand } from "@/lib/brand";
 import { BrandMark } from "./BrandMark";
 import { Breadcrumb } from "./Breadcrumb";
+import { GlobalSearchButton, GlobalSearchField } from "./GlobalSearch";
 import { MobileNav } from "./MobileNav";
 import { ProfileMenu } from "./ProfileMenu";
 import { SidebarFrame, SidebarProvider } from "./SidebarFrame";
@@ -46,6 +47,13 @@ export function AppShell({
   children: ReactNode;
 }) {
   const section = user.isAdmin ? "Admin" : user.roleLabel;
+  const viewer = {
+    isAdmin: user.isAdmin,
+    isSuperAdmin: user.isSuperAdmin,
+    isTeacher: user.isTeacher,
+    isStaff: user.isStaff,
+    pages: user.pages,
+  };
 
   return (
     <SidebarProvider initialCollapsed={sidebarCollapsed} initialFolded={foldedSections}>
@@ -76,8 +84,13 @@ export function AppShell({
           <div className="hidden lg:block">
             <Breadcrumb section={section} />
           </div>
+          {/* Search the whole app (task 0107): a field in the middle of the bar from `lg` up; on a phone the magnifier button beside the theme toggle opens it as a sheet. */}
+          <div className="hidden min-w-0 flex-1 justify-center lg:flex">
+            <GlobalSearchField viewer={viewer} />
+          </div>
 
           <div className="flex items-center gap-2">
+            <GlobalSearchButton viewer={viewer} />
             <ThemeToggle />
             <ProfileMenu name={user.name} email={user.email} roleLabel={user.roleLabel} isSuperAdmin={user.isSuperAdmin} />
           </div>
