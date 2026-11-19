@@ -77,32 +77,64 @@ export function ExportButton({
         <DownloadIcon className="h-4 w-4" />
         Export
       </Button>
-      <Dialog open={open} onClose={() => setOpen(false)} title={`Export ${noun}`} description={`From ${branchName}, with the same columns as the import template.`}>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={`Export ${noun}`}
+        description={`From ${branchName}, with the same columns as the import template.`}
+      >
         <div className="mt-4 space-y-5">
           <fieldset className="space-y-2">
             <legend className="mb-1.5 text-xs font-semibold tracking-wide text-fg-2 uppercase">What</legend>
             <label className={radio}>
-              <input type="radio" name={`${name}-scope`} checked={scope === "shown"} onChange={() => setScope("shown")} className="h-4 w-4 accent-brand" />
-              <span>
-                {shownCount === null ? "The ones shown now" : `The ${shownCount} shown now`}, with the search and filters on
-              </span>
+              <input
+                type="radio"
+                name={`${name}-scope`}
+                checked={scope === "shown"}
+                onChange={() => setScope("shown")}
+                className="h-4 w-4 accent-brand"
+              />
+              <span>{shownCount === null ? "The ones shown now" : `The ${shownCount} shown now`}, with the search and filters on</span>
             </label>
             <label className={radio}>
-              <input type="radio" name={`${name}-scope`} checked={scope === "all"} onChange={() => setScope("all")} className="h-4 w-4 accent-brand" />
+              <input
+                type="radio"
+                name={`${name}-scope`}
+                checked={scope === "all"}
+                onChange={() => setScope("all")}
+                className="h-4 w-4 accent-brand"
+              />
               <span>Everything in {branchName}</span>
             </label>
             {scope === "all" && (
-              <CheckboxField label="Include the archived" checked={archived} onChange={(e) => setArchived(e.target.checked)} className="pl-1" />
+              <CheckboxField
+                label="Include the archived"
+                checked={archived}
+                onChange={(e) => setArchived(e.target.checked)}
+                className="pl-1"
+              />
             )}
           </fieldset>
           <fieldset className="space-y-2">
             <legend className="mb-1.5 text-xs font-semibold tracking-wide text-fg-2 uppercase">Format</legend>
             <label className={radio}>
-              <input type="radio" name={`${name}-format`} checked={format === "xlsx"} onChange={() => setFormat("xlsx")} className="h-4 w-4 accent-brand" />
+              <input
+                type="radio"
+                name={`${name}-format`}
+                checked={format === "xlsx"}
+                onChange={() => setFormat("xlsx")}
+                className="h-4 w-4 accent-brand"
+              />
               <span>Excel (.xlsx)</span>
             </label>
             <label className={radio}>
-              <input type="radio" name={`${name}-format`} checked={format === "csv"} onChange={() => setFormat("csv")} className="h-4 w-4 accent-brand" />
+              <input
+                type="radio"
+                name={`${name}-format`}
+                checked={format === "csv"}
+                onChange={() => setFormat("csv")}
+                className="h-4 w-4 accent-brand"
+              />
               <span>CSV</span>
             </label>
           </fieldset>

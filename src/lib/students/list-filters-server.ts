@@ -9,14 +9,18 @@ export async function readListFilters(
   branchId: string | undefined,
 ): Promise<{ ok: true; filters: PupilFilters } | { ok: false; response: ReturnType<typeof fail> }> {
   const parsed = readPupilFilters(params);
-  if (!parsed.success) return { ok: false, response: fail(parsed.error.issues[0]?.message ?? "Those filters cannot be used.", 400, "VALIDATION") };
+  if (!parsed.success)
+    return { ok: false, response: fail(parsed.error.issues[0]?.message ?? "Those filters cannot be used.", 400, "VALIDATION") };
   const filters = parsed.data;
   if (filters.classGroupId) {
     if (!branchId) return { ok: false, response: fail("Choose the branch before its class.", 400, "VALIDATION") };
     const group = await prisma.classGroup.findFirst({ where: { id: filters.classGroupId, branchId }, select: { id: true } });
     if (!group) return { ok: false, response: fail("No such class.", 404, "NOT_FOUND") };
     if (filters.classArmId) {
-      const arm = await prisma.classArm.findFirst({ where: { id: filters.classArmId, branchId, classGroupId: group.id }, select: { id: true } });
+      const arm = await prisma.classArm.findFirst({
+        where: { id: filters.classArmId, branchId, classGroupId: group.id },
+        select: { id: true },
+      });
       if (!arm) return { ok: false, response: fail("No such arm.", 404, "NOT_FOUND") };
     }
   }
