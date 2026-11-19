@@ -63,7 +63,7 @@ test("the fixed-value columns are dropdowns in the workbook: the category's and 
   expect(xml).toContain("Non-teaching staff");
   expect(xml).toMatch(/sqref="A2:A1001"/); // Category, column A
   expect(xml).toContain("Male");
-  expect(xml).toMatch(/sqref="E2:E1001"/); // Gender, column E (after Category, Title, First name, Last name)
+  expect(xml).toMatch(/sqref="G2:G1001"/); // Gender, column G (after Category, First name, Last name, Phone, Email, Title)
 });
 
 test("something that is not an .xlsx file is refused, not read as garbage", async () => {

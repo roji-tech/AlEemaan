@@ -65,7 +65,7 @@ test("the card says what a person does and whether they are a corps member; the 
     await expect(details).toContainText(text);
   await expect(details.getByText("NYSC corps member").first()).toBeVisible();
   await expectAccessible(page, "a staff member's details");
-  await details.getByRole("button", { name: "Close" }).click();
+  await details.getByRole("button", { name: "Done" }).click();
   await expect(details).toBeHidden();
 });
 
@@ -96,7 +96,7 @@ test("the form: title, gender, job title only for non-teaching staff, qualificat
   const form = page.getByRole("dialog", { name: "New staff record" });
   await expect(form.getByLabel("Job title (optional)")).toHaveCount(0); // a teacher: not asked
   await form.getByLabel("Kind of staff").selectOption("NON_TEACHING");
-  await form.getByLabel("Title (optional)").fill("Mallam");
+  await form.getByLabel("Title (optional)", { exact: true }).fill("Mallam");
   await form.getByLabel("First name").fill("Dauda");
   await form.getByLabel("Last name").fill("Sule");
   await form.getByLabel("Gender (optional)").selectOption("MALE");

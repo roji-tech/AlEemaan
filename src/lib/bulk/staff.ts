@@ -64,26 +64,8 @@ export const staffColumns: BulkColumn[] = [
       label: STAFF_CATEGORY_LABELS[value],
     })),
   },
-  {
-    key: "title",
-    label: "Title",
-    aliases: ["honorific", "salutation", "prefix"],
-    required: false,
-    help: "Mr, Mrs, Miss, Dr, Mallam…; may be left empty",
-  },
   { key: "firstName", label: "First name", aliases: ["givenname", "forename"], required: true, help: "Up to 80 characters" },
   { key: "lastName", label: "Last name", aliases: ["surname", "familyname"], required: true, help: "Up to 80 characters" },
-  {
-    key: "gender",
-    label: "Gender",
-    aliases: ["sex"],
-    required: false,
-    help: "Male or Female; may be left empty",
-    options: [
-      { value: "MALE", label: "Male" },
-      { value: "FEMALE", label: "Female" },
-    ],
-  },
   {
     key: "phone",
     label: "Phone",
@@ -97,6 +79,25 @@ export const staffColumns: BulkColumn[] = [
     aliases: ["emailaddress", "mail"],
     required: false,
     help: "Must be unused by another live staff record in the branch; may be left empty",
+  },
+  // Task 0111: the new optional columns come after the old ones, so a template filled or a block pasted the old way still lands in the right cells.
+  {
+    key: "title",
+    label: "Title",
+    aliases: ["honorific", "salutation", "prefix"],
+    required: false,
+    help: "Mr, Mrs, Miss, Dr, Mallam…; may be left empty",
+  },
+  {
+    key: "gender",
+    label: "Gender",
+    aliases: ["sex"],
+    required: false,
+    help: "Male or Female; may be left empty",
+    options: [
+      { value: "MALE", label: "Male" },
+      { value: "FEMALE", label: "Female" },
+    ],
   },
   {
     key: "designation",

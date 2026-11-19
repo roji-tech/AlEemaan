@@ -69,6 +69,8 @@ async function expectComfortableTapTargets(page: Page, what: string, isMobile: b
       const style = getComputedStyle(el);
       return r.width > 0 && r.height > 0 && style.visibility !== "hidden" && !el.closest(".sr-only");
     };
+    // An info tip (the small (i) beside a heading) is held to 24 x 24, the WCAG 2.2 AA size the maintainer accepted for it (2026-11-12, "24 px OK"; built in task 0108); every other control
+    // keeps the comfortable 44 x 44.
     return Array.from(document.querySelectorAll("button, a[href], input:not([type=hidden]), select, textarea"))
       .filter(visible)
       .map((el) => {
@@ -77,9 +79,11 @@ async function expectComfortableTapTargets(page: Page, what: string, isMobile: b
           el: `${el.tagName.toLowerCase()}[${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.textContent?.trim().slice(0, 20)}]`,
           w: Math.round(r.width),
           h: Math.round(r.height),
+          min: el.hasAttribute("data-info-tip") ? 24 : 44,
         };
       })
-      .filter((t) => t.w < 44 || t.h < 44);
+      .filter((t) => t.w < t.min || t.h < t.min)
+      .map(({ el, w, h }) => ({ el, w, h }));
   });
   expect(tooSmall, `controls smaller than 44x44 CSS px on ${what}`).toEqual([]);
 }

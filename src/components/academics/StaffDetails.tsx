@@ -117,7 +117,7 @@ export function StaffDetailsDialog({
           </dl>
           <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
             <Button variant="ghost" onClick={onClose}>
-              Close
+              Done
             </Button>
             {onEdit && (
               <Button variant="secondary" onClick={onEdit}>

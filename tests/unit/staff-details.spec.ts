@@ -71,15 +71,15 @@ test("the field rules the form, the API and the bulk file share: a title is at m
 });
 
 test.describe("the bulk staff file", () => {
-  test("new optional columns: Title, Gender, Job title, Qualification, Corps member; Role and Position are other names for Job title", () => {
+  test("new optional columns, after the old ones: Title, Gender, Job title, Qualification, Corps member; Role and Position are other names for Job title", () => {
     expect(staffColumns.map((c) => c.label)).toEqual([
       "Category",
-      "Title",
       "First name",
       "Last name",
-      "Gender",
       "Phone",
       "Email",
+      "Title",
+      "Gender",
       "Job title",
       "Qualification",
       "Corps member",
