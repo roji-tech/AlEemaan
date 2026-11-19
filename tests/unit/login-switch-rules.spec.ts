@@ -8,6 +8,7 @@ import {
   loginClosedFor,
   membershipOpen,
   portalLoginClosed,
+  signInChoices,
   targetBranchIds,
   toLoginMembership,
   type BranchChange,
@@ -110,6 +111,13 @@ test("only the student and the parent portals can be closed, and only when NO br
   expect(portalLoginClosed("parent", { student: false, parent: true })).toBe(false);
   for (const portal of ["admin", "staff", null] as const)
     expect(portalLoginClosed(portal, { student: false, parent: false }), String(portal)).toBe(false);
+});
+
+test("the website's sign-in page offers a parent's or a student's button only while some branch has that switch on, staff always, in the school's order (task 0109)", () => {
+  expect(signInChoices({ student: false, parent: false })).toEqual(["staff"]);
+  expect(signInChoices({ student: true, parent: false })).toEqual(["student", "staff"]);
+  expect(signInChoices({ student: false, parent: true })).toEqual(["parent", "staff"]);
+  expect(signInChoices({ student: true, parent: true })).toEqual(["parent", "student", "staff"]);
 });
 
 test("the portal notice names the portal and nothing about any account", () => {

@@ -125,7 +125,7 @@ for (const theme of ["light", "dark"] as const) {
 
     await context.addCookies([{ name: "theme", value: theme, url: HTTP_URL }]);
     await signInThroughUi(page, admin);
-    await page.goto("/finance");
+    await page.goto("/finance?tab=invoices");
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.getByText("INV-2026-0001")).toBeVisible();
 

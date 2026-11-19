@@ -576,6 +576,8 @@ const NOT_WRAPPED: Record<string, string> = {
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
   "GET v1/settings/part-payment/route.ts":
     "the match is the PATCH comment below it: this GET names no branch. The service lists only the branches the caller administers (a super admin: all), and says nothing about any other",
+  "GET v1/finance/overview/route.ts":
+    "acts on no one branch: it answers for every branch the caller administers (adminScope narrows the list; a branch the caller does not administer is left out and never named)",
 };
 
 function routeFiles(dir: string): string[] {

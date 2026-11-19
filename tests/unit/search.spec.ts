@@ -94,8 +94,11 @@ test.describe("what people type finds what they mean", () => {
     expect(top("login")).toBe("/settings#signin");
     expect(top("sign in access")).toBe("/settings#signin");
     expect(top("new session")).toBe("task:new-session");
-    expect(top("invoice", "page")).toBe("/finance");
-    expect(top("fees", "page")).toBe("/finance");
+    expect(top("invoice", "page")).toMatch(/^\/finance/); // the page or its Invoices tab
+    expect(top("fees", "page")).toMatch(/^\/finance/);
+    expect(top("collected")).toBe("task:finance-stats");
+    expect(top("overdue", "page")).toBe("/finance#overview");
+    expect(top("part payment", "page")).toBe("/finance#rules");
     expect(top("pupil", "page")).toBe("/students");
     expect(top("add a pupil")).toBe("task:new-pupil");
     expect(top("holiday")).toBe("task:term-break");
@@ -114,6 +117,7 @@ test.describe("who sees what", () => {
     for (const id of ["/settings", "/branches", "/finance", "/academics", "/users", "/video-guide", "/account"])
       expect(seen, id).toContain(id);
     for (const tab of PAGE_TAB_IDS["/settings"]) expect(seen).toContain(`/settings#${tab}`);
+    for (const tab of PAGE_TAB_IDS["/finance"]) expect(seen).toContain(`/finance#${tab}`);
     expect(seen).toContain("/approvals#self");
   });
 
@@ -126,6 +130,9 @@ test.describe("who sees what", () => {
       "/approvals",
       "/academics#sessions",
       "/approvals#requests",
+      "/finance#overview",
+      "/finance#invoices",
+      "task:finance-stats",
       "task:new-session",
       "task:invoices",
     ])
@@ -138,6 +145,10 @@ test.describe("who sees what", () => {
     for (const id of ["/students", "/attendance", "/results", "/account", "task:new-pupil"]) expect(seen, id).toContain(id);
     for (const id of [
       "/finance",
+      "/finance#overview",
+      "/finance#rules",
+      "task:finance-stats",
+      "task:record-payment",
       "/academics",
       "/academics#sessions",
       "/users",

@@ -148,22 +148,22 @@ for (const place of PLACES) {
     // (to the centre of the window: on a phone "if needed" can leave it under the fixed bottom bar)
     await icon.evaluate((el) => el.scrollIntoView({ block: "center" }));
 
-    // 16 px, with the invisible 24 px touch target around it (a pseudo-element: no box of its own to measure, so what is measured is the row it sits in)
+    // The button is 24 px (the touch target, WCAG 2.2 2.5.8, which a checker measures on the element itself) with the 16 px icon in the middle of it, and a -4 px margin on every side keeps the
+    // room it takes in the row at 16 px: nothing around it moves.
     const size = await box(icon);
-    expect(Math.round(size.width)).toBe(16);
-    expect(Math.round(size.height)).toBe(16);
+    expect(Math.round(size.width), "the button is 24 px wide").toBe(24);
+    expect(Math.round(size.height), "the button is 24 px high").toBe(24);
+    const glyph = await icon.locator("svg").boundingBox();
+    expect(Math.round(glyph!.width)).toBe(16);
+    expect(Math.round(glyph!.height)).toBe(16);
+    expect(await icon.evaluate((el) => getComputedStyle(el).margin), "the margin gives the room back").toBe("-4px");
 
     const before = await box(place.neighbour(page));
-    // The invisible touch area around the icon must not overlap the control beside it. The area is the icon's box grown by the pseudo-element's inset (read from the computed style, so this
-    // follows the CSS), compared with the neighbour's box: an overlap is a part of the neighbour where a tap would reach the icon instead.
+    // The touch area (the button's own box) must not overlap the control beside it: an overlap is a part of the neighbour where a tap would reach the icon instead.
     const grown = await icon.evaluate((el) => {
-      const after = getComputedStyle(el, "::after");
       const rect = el.getBoundingClientRect();
-      const [top, right, bottom, left] = [after.top, after.right, after.bottom, after.left].map((value) => -parseFloat(value));
-      return { x: rect.x - left, y: rect.y - top, width: rect.width + left + right, height: rect.height + top + bottom };
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
     });
-    expect(Math.round(grown.width), "the touch area is 24 px wide").toBe(24);
-    expect(Math.round(grown.height), "the touch area is 24 px high").toBe(24);
     const overlapX = Math.min(grown.x + grown.width, before.x + before.width) - Math.max(grown.x, before.x);
     const overlapY = Math.min(grown.y + grown.height, before.y + before.height) - Math.max(grown.y, before.y);
     expect(
