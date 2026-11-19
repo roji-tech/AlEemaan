@@ -74,7 +74,9 @@ export const GET = withAuth<Context>(
             include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
           }));
 
-        if (!scheme) return notFound("Scheme");
+        // A class with no assessment scheme yet is a normal state, not a missing page: answer 200 with `scheme: null` (it was a 404, which the screen treated as "none yet" but which showed
+        // as a red error in the network tab once for every such class).
+        if (!scheme) return ok({ scheme: null });
 
         return ok({
           scheme: {

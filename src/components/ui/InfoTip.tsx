@@ -141,7 +141,10 @@ export function InfoTip({ tip, className = "" }: { tip: InfoTipKey; className?: 
           else show();
           lastPointer.current = "";
         }}
-        className="relative inline-flex h-4 w-4 items-center justify-center rounded-full text-fg-muted transition-colors after:absolute after:-inset-1 after:content-[''] hover:text-fg focus-visible:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        // The button IS 24 px (WCAG 2.2 target size, 2.5.8): the 16 px icon sits in the middle of it and `-m-1` gives the 4 px back on every side, so nothing around it moves. It used to be a
+        // 16 px button with a pseudo-element that reached 24 px: a finger got the larger target, but a checker measures the element and could only pass it by the room around it, which
+        // failed the moment one scrolled under the sticky top bar (the search field, task 0107).
+        className="relative -m-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-fg-muted transition-colors hover:text-fg focus-visible:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <InfoIcon width={16} height={16} />
       </button>
