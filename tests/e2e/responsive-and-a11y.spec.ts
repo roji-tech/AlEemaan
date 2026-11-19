@@ -74,7 +74,10 @@ async function expectComfortableTapTargets(page: Page, what: string, isMobile: b
     return Array.from(document.querySelectorAll("button, a[href], input:not([type=hidden]), select, textarea"))
       .filter(visible)
       .map((el) => {
-        const r = el.getBoundingClientRect();
+        // A stretched link (a list item's title whose ::after covers the whole card, task 0100) is tapped anywhere on the card: its target is the card it covers, not its line of text.
+        const after = getComputedStyle(el, "::after");
+        const stretched = after.content !== "none" && after.position === "absolute" && el instanceof HTMLElement && el.offsetParent;
+        const r = stretched ? (el.offsetParent as Element).getBoundingClientRect() : el.getBoundingClientRect();
         return {
           el: `${el.tagName.toLowerCase()}[${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.textContent?.trim().slice(0, 20)}]`,
           w: Math.round(r.width),
