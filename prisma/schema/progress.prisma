@@ -122,12 +122,12 @@ model ProgressLock {
 
 /// Slice R3: a pupil or a guardian pressed "seen" for a week of a person's record. A record of that, required for nothing.
 model ProgressSeen {
-  id            String   @id @default(cuid())
-  programId     String
-  recordId      String
-  actor         String
-  weekStart     DateTime @db.Date
-  seenAt        DateTime @default(now())
+  id        String   @id @default(cuid())
+  programId String
+  recordId  String
+  actor     String
+  weekStart DateTime @db.Date
+  seenAt    DateTime @default(now())
 
   record ProgressRecord @relation(fields: [programId, recordId], references: [programId, id], onDelete: Cascade)
 

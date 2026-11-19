@@ -1,6 +1,6 @@
 import "@/lib/zod-csp";
 import { z } from "zod";
-import { blankToUndefined, letters, optionalEmail, optionalPhone, optionalText } from "./fields";
+import { blankToUndefined, optionalEmail, optionalPhone, optionalText, toGender } from "./fields";
 import type { BulkColumn, BulkEntity } from "./types";
 
 // The pupil kind of the bulk entry (task 0084), client-safe: the columns and the rules of a row. The server half (what the database knows, and the save) is `pupils-server.ts`.
@@ -45,13 +45,6 @@ const dateOfBirth = z.preprocess(
     .optional(),
 );
 
-const toGender = (v: unknown): unknown => {
-  if (typeof v !== "string") return v;
-  const g = letters(v);
-  if (["m", "male", "boy"].includes(g)) return "MALE";
-  if (["f", "female", "girl"].includes(g)) return "FEMALE";
-  return v.trim() === "" ? undefined : v;
-};
 const name = z
   .string({ error: "Give a name." })
   .trim()

@@ -29,35 +29,35 @@ enum ProgramStaffStatus {
 }
 
 model Program {
-  id              String        @id @default(cuid())
-  name            String
-  description     String?
-  kind            ProgramKind
-  status          ProgramStatus @default(DRAFT)
+  id                          String                 @id @default(cuid())
+  name                        String
+  description                 String?
+  kind                        ProgramKind
+  status                      ProgramStatus          @default(DRAFT)
   /// A fixed-term program has both dates (end is the LAST day, start + duration - 1 day); an ongoing one may have a start and never an end.
-  startsOn        DateTime?     @db.Date
-  endsOn          DateTime?     @db.Date
+  startsOn                    DateTime?              @db.Date
+  endsOn                      DateTime?              @db.Date
   /// Set when the program was created with a branch of its own. At most one program per branch.
-  ownBranchId     String?       @unique
+  ownBranchId                 String?                @unique
   /// Plain id of the super admin who created it (like AuditLog.actorUserId: the history must outlive the account).
-  createdByUserId String
-  archivedAt      DateTime?
+  createdByUserId             String
+  archivedAt                  DateTime?
   /// Slice P3: the program's own switch for attendance (the school's and the branch's are the ceiling: effective = all three) and the percentage below which a person is flagged.
-  attendanceEnabled    Boolean @default(true)
-  lowAttendancePercent Int     @default(75)
+  attendanceEnabled           Boolean                @default(true)
+  lowAttendancePercent        Int                    @default(75)
   /// Slice P3b: the program's own switch for assessments (default OFF: a program that does not use them shows no tab) and its optional grade bands, [{ name, from }] with `from` a percentage.
-  assessmentsEnabled   Boolean @default(false)
-  gradeBands           Json?
+  assessmentsEnabled          Boolean                @default(false)
+  gradeBands                  Json?
   /// Slice P4: the program's own switch for fees (default OFF: a program with no fees shows no tab).
-  feesEnabled          Boolean @default(false)
+  feesEnabled                 Boolean                @default(false)
   /// Slice P5: the wording of the program's certificates (plain text; placeholders {name} {program} {from} {to} {school}), up to two signatories [{ name, title }], and the completion rule.
-  certTitle               String  @default("Certificate of Completion")
-  certBody                String  @default("This is to certify that {name} has completed {program} at {school}, from {from} to {to}.")
-  certSignatories         Json?
-  completionMinAverage    Decimal? @db.Decimal(5, 2)
-  completionRequirePassed Boolean @default(false)
+  certTitle                   String                 @default("Certificate of Completion")
+  certBody                    String                 @default("This is to certify that {name} has completed {program} at {school}, from {from} to {to}.")
+  certSignatories             Json?
+  completionMinAverage        Decimal?               @db.Decimal(5, 2)
+  completionRequirePassed     Boolean                @default(false)
   /// Do not issue a certificate to someone who still owes fees (default off: owing only warns).
-  noCertWhileOwing        Boolean @default(false)
+  noCertWhileOwing            Boolean                @default(false)
   /// Slices R1 to R3 (progress records, task 0044): the program's own switch (default OFF), the preset it uses, who writes, verification, the locks and what families see.
   progressEnabled             Boolean                @default(false)
   progressTemplate            String?
@@ -71,19 +71,19 @@ model Program {
   progressGuardianDetail      ProgressGuardianDetail @default(SUMMARY)
   /// Slice R4: days the calculated Hijri date is moved (-2 to 2; a database check holds the range).
   progressHijriAdjust         Int                    @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @default(now()) @updatedAt
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @default(now()) @updatedAt
 
-  ownBranch   Branch?             @relation("ProgramOwnBranch", fields: [ownBranchId], references: [id], onDelete: NoAction)
-  branches    ProgramBranch[]
-  levelLabels ProgramLevelLabel[]
-  groups      ProgramGroup[]
-  staff       ProgramStaff[]
-  audits      ProgramAudit[]
-  participants ProgramParticipant[]
+  ownBranch         Branch?              @relation("ProgramOwnBranch", fields: [ownBranchId], references: [id], onDelete: NoAction)
+  branches          ProgramBranch[]
+  levelLabels       ProgramLevelLabel[]
+  groups            ProgramGroup[]
+  staff             ProgramStaff[]
+  audits            ProgramAudit[]
+  participants      ProgramParticipant[]
   progressTemplates ProgressTemplate[]
-  assessments  ProgramAssessment[]
-  feeItems     ProgramFeeItem[]
+  assessments       ProgramAssessment[]
+  feeItems          ProgramFeeItem[]
 
   @@index([status])
 }
@@ -94,8 +94,8 @@ model ProgramBranch {
   branchId  String
   createdAt DateTime @default(now())
 
-  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
-  branch  Branch  @relation("ProgramBranches", fields: [branchId], references: [id], onDelete: Cascade)
+  program      Program              @relation(fields: [programId], references: [id], onDelete: Cascade)
+  branch       Branch               @relation("ProgramBranches", fields: [branchId], references: [id], onDelete: Cascade)
   /// People in the program through this branch: the branch cannot be unlinked while there are any (the foreign key refuses it).
   participants ProgramParticipant[]
   invoices     ProgramInvoice[]
@@ -129,9 +129,9 @@ model ProgramGroup {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
 
-  program  Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
-  parent   ProgramGroup?  @relation("ProgramGroupTree", fields: [parentId], references: [id], onDelete: NoAction)
-  children ProgramGroup[] @relation("ProgramGroupTree")
+  program      Program                  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  parent       ProgramGroup?            @relation("ProgramGroupTree", fields: [parentId], references: [id], onDelete: NoAction)
+  children     ProgramGroup[]           @relation("ProgramGroupTree")
   participants ProgramParticipant[]
   staffGroups  ProgramStaffGroup[]
   sessions     ProgramSession[]
@@ -155,11 +155,11 @@ model ProgramStaff {
   createdAt       DateTime           @default(now())
   endedAt         DateTime?
 
-  program    Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  program    Program             @relation(fields: [programId], references: [id], onDelete: Cascade)
   /// The groups a TEACHER or a RECORDER is assigned to (slice P3); an assignment covers the groups inside it.
   groups     ProgramStaffGroup[]
   /// The person must be a member of that branch (composite key, like StaffRecord): the database refuses a program admin who holds no membership there.
-  membership Membership @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: Cascade)
+  membership Membership          @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: Cascade)
 
   @@unique([programId, userId, role])
   /// Lets a table name a staff place of its own program with a composite key.
@@ -209,46 +209,46 @@ enum ProgramPlaceStatus {
 /// progress records keep one continuous history). A pupil or a member of staff is LINKED to the school's record and keeps no details here; anyone else is typed in. The state of the
 /// place (suspended, expelled, ended by the school...) is READ from the school's own records and never stored. Never hard-deleted: withdrawing ends the place.
 model ProgramParticipant {
-  id            String             @id @default(cuid())
-  programId     String
-  kind          ParticipantKind
-  studentId     String?
-  staffRecordId String?
+  id              String             @id @default(cuid())
+  programId       String
+  kind            ParticipantKind
+  studentId       String?
+  staffRecordId   String?
   /// The details below are for a person typed in (GUARDIAN, ADULT, CHILD) and are null for a linked one (a check constraint in the migration).
-  firstName     String?
-  lastName      String?
-  gender        Gender?
-  dateOfBirth   DateTime?          @db.Date
-  phone         String?
-  email         String?
-  guardianName  String?
-  guardianPhone String?
-  groupId       String
+  firstName       String?
+  lastName        String?
+  gender          Gender?
+  dateOfBirth     DateTime?          @db.Date
+  phone           String?
+  email           String?
+  guardianName    String?
+  guardianPhone   String?
+  groupId         String
   /// The branch the person is in the program THROUGH: the record's own branch for a linked person (the composite keys make the database refuse any other), chosen for the rest.
-  branchId      String
-  status        ProgramPlaceStatus @default(ACTIVE)
-  joinedOn      DateTime           @db.Date
-  endedOn       DateTime?          @db.Date
-  endedReason   String?
+  branchId        String
+  status          ProgramPlaceStatus @default(ACTIVE)
+  joinedOn        DateTime           @db.Date
+  endedOn         DateTime?          @db.Date
+  endedReason     String?
   /// Counts only for a person typed in: a linked person's standing lives on the school's record. Same enum and rules as a pupil (ACTIVE, SUSPENDED, EXPELLED).
-  standing      StandingState      @default(ACTIVE)
-  standingUntil DateTime?          @db.Date
+  standing        StandingState      @default(ACTIVE)
+  standingUntil   DateTime?          @db.Date
   createdByUserId String
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @default(now()) @updatedAt
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @default(now()) @updatedAt
 
-  program     Program       @relation(fields: [programId], references: [id], onDelete: Cascade)
-  group       ProgramGroup  @relation(fields: [programId, groupId], references: [programId, id], onDelete: Restrict)
-  link        ProgramBranch @relation(fields: [programId, branchId], references: [programId, branchId], onDelete: Restrict)
+  program     Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  group       ProgramGroup   @relation(fields: [programId, groupId], references: [programId, id], onDelete: Restrict)
+  link        ProgramBranch  @relation(fields: [programId, branchId], references: [programId, branchId], onDelete: Restrict)
   student     StudentRecord? @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Restrict)
   staffRecord StaffRecord?   @relation(fields: [branchId, staffRecordId], references: [branchId, id], onDelete: Restrict)
 
-  attendance  ProgramAttendance[]
-  scores      ProgramScore[]
-  invoices    ProgramInvoice[]
-  feeExemptions ProgramFeeExemption[]
-  certificates ProgramCertificate[]
-  progressRecord ProgressRecord?
+  attendance               ProgramAttendance[]
+  scores                   ProgramScore[]
+  invoices                 ProgramInvoice[]
+  feeExemptions            ProgramFeeExemption[]
+  certificates             ProgramCertificate[]
+  progressRecord           ProgressRecord?
   /// Why the place was completed although the person did not meet the program's completion rule.
   completionOverrideReason String?
 
@@ -397,19 +397,19 @@ model ProgramAssessmentGroup {
 
 /// One person's result for one assessment: a number or a code. A stale `version` on a save is refused.
 model ProgramScore {
-  id             String             @id @default(cuid())
+  id             String            @id @default(cuid())
   assessmentId   String
   programId      String
   participantId  String
   /// The branch of the place when the score was entered (a branch administrator reads only their own people's scores).
   branchId       String
-  score          Decimal?           @db.Decimal(7, 2)
+  score          Decimal?          @db.Decimal(7, 2)
   code           ProgramScoreCode?
   comment        String?
   markedByUserId String
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @default(now()) @updatedAt
-  version        Int                @default(1)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+  version        Int               @default(1)
 
   assessment  ProgramAssessment  @relation(fields: [programId, assessmentId], references: [programId, id], onDelete: Restrict)
   participant ProgramParticipant @relation(fields: [programId, participantId], references: [programId, id], onDelete: Restrict)
@@ -514,8 +514,8 @@ model ProgramInvoice {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
 
-  participant ProgramParticipant        @relation(fields: [programId, participantId], references: [programId, id], onDelete: Restrict)
-  branch      ProgramBranch             @relation(fields: [programId, branchId], references: [programId, branchId], onDelete: Restrict)
+  participant ProgramParticipant       @relation(fields: [programId, participantId], references: [programId, id], onDelete: Restrict)
+  branch      ProgramBranch            @relation(fields: [programId, branchId], references: [programId, branchId], onDelete: Restrict)
   payments    ProgramPayment[]
   discounts   ProgramInvoiceDiscount[]
 

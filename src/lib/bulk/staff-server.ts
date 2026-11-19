@@ -35,6 +35,11 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
           lastName: row.lastName,
           phone: row.phone ?? null,
           email: row.email ?? null,
+          title: row.title ?? null,
+          gender: row.gender ?? null,
+          designation: row.designation ?? null,
+          qualification: row.qualification ?? null,
+          corpsMember: row.corpsMember,
         },
         select: { id: true },
       });
