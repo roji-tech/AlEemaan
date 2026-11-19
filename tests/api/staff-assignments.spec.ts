@@ -137,7 +137,8 @@ test.describe("the sign-in account", () => {
     const offered = (await api(`${STAFF}/${rec.id}/account`, { cookie: admin.cookie })).json.data.accounts.map(
       (a: { userId: string }) => a.userId,
     );
-    expect(offered).toEqual([teacher.user.id]); // not the clerk (role), not the other branch, not the deactivated member
+    // The kind's own role, and an administrator (task 0112 D9: an administrator who also teaches); not the clerk (role), not the other branch, not the deactivated member.
+    expect([...offered].sort()).toEqual([admin.user.id, teacher.user.id].sort());
     for (const wrong of [clerk.user.id, away.user.id, gone.user.id, "nobody"]) {
       const refused = await link(wrong);
       expect([refused.status, refused.json.error.code]).toEqual([409, "CONFLICT"]);

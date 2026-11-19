@@ -72,9 +72,9 @@ test("the card says what a person does and whether they are a corps member; the 
 test("the Filters panel narrows by corps member, kind and gender, and Clear brings everyone back", async ({ page }) => {
   await openStaff(page);
   await page.getByRole("button", { name: /Filters/ }).click();
-  await page.getByLabel("NYSC corps member").selectOption("yes");
+  await page.getByRole("combobox", { name: "NYSC corps member" }).selectOption("yes");
   await expect(page.getByText("1 staff record match")).toBeVisible();
-  await page.getByLabel("NYSC corps member").selectOption("");
+  await page.getByRole("combobox", { name: "NYSC corps member" }).selectOption("");
   await page.getByLabel("Kind of staff").selectOption("NON_TEACHING");
   await expect(page.getByRole("list", { name: "Staff" }).getByRole("listitem")).toHaveCount(1);
   await page.getByLabel("Kind of staff").selectOption("");

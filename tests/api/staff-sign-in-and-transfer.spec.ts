@@ -1,4 +1,5 @@
 import "../support/env";
+import { randomBytes } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
@@ -109,6 +110,111 @@ test.describe("invite staff from their records", () => {
   });
 });
 
+test.describe("everyone who signs in with a staff role is on the staff list (the maintainer, 2026-11-19)", () => {
+  const acceptAs = async (invitationId: string, name: string) => {
+    const token = randomBytes(32).toString("base64url"); // the route takes exactly 43 characters of base64url
+    await db.invitation.update({ where: { id: invitationId }, data: { tokenHash: hashInvitationToken(token) } });
+    return api("/api/v1/invitations/accept", { body: { token, name, password: FRESH } });
+  };
+  const inviteSomeone = async (cookie: string, email: string, role: Role) => {
+    const sent = await api("/api/v1/invitations", { method: "POST", cookie, body: { email, role, branchId: home.id } });
+    expect(sent.status, JSON.stringify(sent.json)).toBe(201);
+    return db.invitation.findFirstOrThrow({ where: { email, acceptedAt: null }, orderBy: { createdAt: "desc" } });
+  };
+
+  test("Invite someone as an administrator: accepting puts them on the branch's staff list, a Non-teaching record titled Administrator, linked", async () => {
+    const boss = await superAdmin();
+    const email = `khalid-${Date.now()}@school.example`;
+    const invitation = await inviteSomeone(boss.cookie, email, Role.ADMIN);
+    expect((await acceptAs(invitation.id, "Akinniyi Khalid")).status).toBe(200);
+    const user = await db.user.findUniqueOrThrow({ where: { email } });
+    const made = await db.staffRecord.findFirstOrThrow({ where: { branchId: home.id, userId: user.id } });
+    expect(made).toMatchObject({
+      category: "NON_TEACHING",
+      designation: "Administrator",
+      firstName: "Akinniyi",
+      lastName: "Khalid",
+      email,
+    });
+    expect(await db.auditLog.count({ where: { action: "STAFF_CREATED", targetId: made.id } })).toBe(1);
+    // It is on the list the Staff tab reads.
+    const list = await api(`/api/v1/staff?branchId=${home.id}&status=live&q=`, { cookie: boss.cookie });
+    expect(list.json.data.staff.map((s: { id: string }) => s.id)).toContain(made.id);
+  });
+
+  test("an unlinked record with the same address is linked instead of a second one being made; an administrator may be the account of a Teaching record", async () => {
+    const boss = await superAdmin();
+    const email = `tola-${Date.now()}@school.example`;
+    const theirs = await record(home.id, { email });
+    const invitation = await inviteSomeone(boss.cookie, email, Role.ADMIN);
+    expect((await acceptAs(invitation.id, "Tola Ade")).status).toBe(200);
+    const user = await db.user.findUniqueOrThrow({ where: { email } });
+    expect((await db.staffRecord.findUniqueOrThrow({ where: { id: theirs.id } })).userId).toBe(user.id);
+    expect(await db.staffRecord.count({ where: { branchId: home.id, email } })).toBe(1);
+  });
+
+  test("a parent's invitation makes no staff record", async () => {
+    const boss = await superAdmin();
+    const email = `parent-${Date.now()}@family.example`;
+    const invitation = await inviteSomeone(boss.cookie, email, Role.PARENT);
+    expect((await acceptAs(invitation.id, "Bisi Parent")).status).toBe(200);
+    expect(await db.staffRecord.count({ where: { email } })).toBe(0);
+  });
+
+  test("members who joined before: listed as not on the staff list, Add to staff makes or links their record; who may", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const joinedBefore = await createUser({ name: "Musa Bello" });
+    await db.membership.create({ data: { userId: joinedBefore.id, branchId: home.id, role: Role.ADMIN } });
+    const teacher = await createUser({ name: "Ngozi Eze" });
+    await db.membership.create({ data: { userId: teacher.id, branchId: home.id, role: Role.TEACHING_STAFF } });
+    const theirRecord = await record(home.id, { email: teacher.email });
+    const parent = await createUser();
+    await db.membership.create({ data: { userId: parent.id, branchId: home.id, role: Role.PARENT } });
+
+    const unlisted = await api(`/api/v1/staff/unlisted?branchId=${home.id}`, { cookie: admin.cookie });
+    expect(unlisted.status).toBe(200);
+    const ids = unlisted.json.data.members.map((m: { userId: string }) => m.userId);
+    expect(ids).toEqual(expect.arrayContaining([joinedBefore.id, teacher.id, admin.user.id]));
+    expect(ids).not.toContain(parent.id);
+
+    const add = (userId: string, cookie = admin.cookie, branchId = home.id) =>
+      api("/api/v1/staff/from-member", { method: "POST", cookie, body: { branchId, userId } });
+    expect((await add(joinedBefore.id)).json.data).toEqual({ done: "created" });
+    expect(await db.staffRecord.findFirstOrThrow({ where: { branchId: home.id, userId: joinedBefore.id } })).toMatchObject({
+      firstName: "Musa",
+      lastName: "Bello",
+      designation: "Administrator",
+    });
+    expect((await add(teacher.id)).json.data).toEqual({ done: "linked" });
+    expect((await db.staffRecord.findUniqueOrThrow({ where: { id: theirRecord.id } })).userId).toBe(teacher.id);
+    expect((await add(joinedBefore.id)).status).toBe(409);
+    expect((await add(parent.id)).status).toBe(409);
+    expect((await add("no-such-user")).status).toBe(404);
+    const after = await api(`/api/v1/staff/unlisted?branchId=${home.id}`, { cookie: admin.cookie });
+    expect(after.json.data.members.map((m: { userId: string }) => m.userId)).toEqual([admin.user.id]);
+
+    // Another branch's administrator, and a teacher of this one, cannot.
+    const elsewhere = await asRole(Role.ADMIN, [other.id]);
+    expect((await api(`/api/v1/staff/unlisted?branchId=${home.id}`, { cookie: elsewhere.cookie })).status).toBe(404);
+    expect((await add(admin.user.id, elsewhere.cookie)).status).toBe(403);
+    const reader = await asRole(Role.TEACHING_STAFF);
+    expect((await api(`/api/v1/staff/unlisted?branchId=${home.id}`, { cookie: reader.cookie })).status).toBe(403);
+    expect((await add(admin.user.id, reader.cookie)).status).toBe(403);
+  });
+
+  test("Manage > Sign-in offers an administrator's account for either kind of record, and links it", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const head = await createUser({ name: "Head Teacher" });
+    await db.membership.create({ data: { userId: head.id, branchId: home.id, role: Role.ADMIN } });
+    const teaching = await record(home.id);
+    const offered = await api(`/api/v1/staff/${teaching.id}/account`, { cookie: admin.cookie });
+    expect(offered.json.data.accounts.map((a: { userId: string }) => a.userId)).toContain(head.id);
+    const linked = await api(`/api/v1/staff/${teaching.id}/account`, { method: "PUT", cookie: admin.cookie, body: { userId: head.id } });
+    expect(linked.status, JSON.stringify(linked.json)).toBe(200);
+    expect((await db.staffRecord.findUniqueOrThrow({ where: { id: teaching.id } })).userId).toBe(head.id);
+  });
+});
+
 test.describe("transfer or add to another branch", () => {
   test("also: a linked record there with the person's details, nothing of the branch; both cards say Also in; the sign-in follows", async () => {
     const admin = await superAdmin();
@@ -199,7 +305,9 @@ test.describe("transfer or add to another branch", () => {
     const unknown = await go(otherAdmin.cookie, "no-such-record");
     expect([notFound.status, notFound.json]).toEqual([404, unknown.json]);
     expect((await go((await asRole(Role.TEACHING_STAFF, [home.id, other.id])).cookie)).status).toBe(403);
-    expect((await go(homeAdmin.cookie, person.id, home.id)).status).toBe(403);
+    // Its own branch is not "another branch".
+    const same = await asRole(Role.ADMIN, [home.id, other.id]);
+    expect((await go(same.cookie, person.id, home.id)).status).toBe(409);
     expect(await db.staffRecord.count({ where: { branchId: other.id } })).toBe(0);
   });
 });

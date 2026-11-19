@@ -1,6 +1,7 @@
 import { Prisma, Role, type StaffCategory } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { accountFitsRecord } from "@/lib/academics/staff-accounts";
 import { DomainError } from "@/lib/academics/sessions";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import {
@@ -91,7 +92,7 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
         role: row.membership?.role ?? null,
         deactivated: row.membership?.deactivatedAt != null,
         /// The member's role no longer matches the record's category (changed on the Users page) - shown, not forbidden.
-        roleDiffers: row.membership ? row.membership.role !== roleForCategory(row.category) : false,
+        roleDiffers: row.membership ? !accountFitsRecord(row.membership.role, row.category) : false,
       }
     : { state: "none" as const };
   const invitation = row.invitations[0];
@@ -292,7 +293,13 @@ export async function setStaffArchived(actorUserId: string, id: string, archived
 export async function linkableAccounts(id: string) {
   const record = await mustFind(id);
   const members = await prisma.membership.findMany({
-    where: { branchId: record.branchId, deactivatedAt: null, role: roleForCategory(record.category), staffRecords: { none: {} } },
+    // The kind's own role, or an administrator (task 0112: an administrator who also teaches is on the staff list too).
+    where: {
+      branchId: record.branchId,
+      deactivatedAt: null,
+      role: { in: [roleForCategory(record.category), Role.ADMIN] },
+      staffRecords: { none: {} },
+    },
     select: { userId: true, user: { select: { name: true, email: true } } },
     orderBy: [{ user: { name: "asc" } }, { userId: "asc" }],
     take: 200,
@@ -309,7 +316,7 @@ export async function linkAccount(actorUserId: string, id: string, input: z.infe
     where: { userId_branchId: { userId: input.userId, branchId: record.branchId } },
     select: { role: true, deactivatedAt: true },
   });
-  if (!member || member.deactivatedAt || member.role !== roleForCategory(record.category))
+  if (!member || member.deactivatedAt || !accountFitsRecord(member.role, record.category))
     throw new ConflictError("That person is not an active member of this branch with the matching role.");
   try {
     // Conditional on userId IS NULL, so two administrators linking at once make one link.

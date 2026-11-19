@@ -5,6 +5,7 @@ import { maskEmail } from "@/lib/auth/mask-email";
 import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 import { INVITATION_TTL_MS, hashInvitationToken, newInvitationToken } from "./token";
 import { invitationStatus, isLiveInvitation, type InvitationStatus } from "./status";
+import { accountFitsRecord, ensureStaffRecord } from "@/lib/academics/staff-accounts";
 
 // Invitations (domain-implementation-plan.md "Build design — Users pages and invitations", a port of Octalve Edu's 0.5.4).
 //
@@ -433,16 +434,18 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
       // An invitation sent from a staff record (task 0114) links the new account to that record, in the same transaction: only a live record of THIS branch that has no account yet, whose
       // kind matches the role, and only when this account is not already the account of another record of the branch. Otherwise the membership stands and the record stays as it was (an
       // administrator can still link it from Manage).
+      let linkedFromRecord = false;
       if (found.staffRecordId) {
         const record = await tx.staffRecord.findFirst({
           where: { id: found.staffRecordId, branchId: found.branchId, userId: null, archivedAt: null },
           select: { id: true, category: true },
         });
-        const matches = record && (record.category === "TEACHING" ? "TEACHING_STAFF" : "NON_TEACHING_STAFF") === found.role;
+        const matches = record && accountFitsRecord(found.role, record.category);
         const taken = await tx.staffRecord.count({ where: { branchId: found.branchId, userId } });
         if (record && matches && taken === 0) {
           const linked = await tx.staffRecord.updateMany({ where: { id: record.id, userId: null }, data: { userId } });
           if (linked.count === 1) {
+            linkedFromRecord = true;
             await tx.auditLog.create({
               data: {
                 actorUserId: userId,
@@ -454,6 +457,17 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
             });
           }
         }
+      }
+      // Any other invitation to a staff role, or one whose record could not be linked (archived since, or of the other kind), puts the person on the branch's staff list (task 0112):
+      // their record with the same e-mail is linked, or one is made from their account.
+      if (!linkedFromRecord) {
+        await ensureStaffRecord(tx, {
+          userId,
+          branchId: found.branchId,
+          role: found.role,
+          actorUserId: userId,
+          why: `invitation ${found.id}`,
+        });
       }
       await tx.auditLog.create({
         data: {

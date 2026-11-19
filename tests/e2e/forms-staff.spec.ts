@@ -64,9 +64,17 @@ async function people() {
 }
 
 async function openForms(page: Page, isMobile: boolean) {
-  if (isMobile) {
+  const direct = mainNav(page).getByRole("link", { name: "Forms" });
+  // On a phone the bottom bar holds a few entries and the rest are under "More"; a member with few pages (a clerk) has Forms in the bar itself (2026-11-19: the helper assumed "More").
+  await direct
+    .or(mainNav(page).getByRole("button", { name: "More" }))
+    .first()
+    .waitFor();
+  if (isMobile && (await direct.count()) === 0) {
     await mainNav(page).getByRole("button", { name: "More" }).click();
     await dialog(page).getByRole("link", { name: "Forms" }).click();
+  } else if (isMobile) {
+    await direct.click();
   } else {
     await mainNav(page).getByRole("link", { name: "Forms" }).click();
   }

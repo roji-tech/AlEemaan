@@ -110,6 +110,16 @@ export async function hasRowAction(page: Page, label: string): Promise<boolean> 
   return (await page.getByRole("button", { name: label, exact: true }).count()) > 0;
 }
 
+/// Opens a tab and waits until it is the selected one. A tap that lands before the page's scripts are running is lost (2026-11-19: on the phone, the first tap on the off-screen Staff
+/// tab right after Academics loads changed nothing, no error, and a second tap worked); tapping again until it holds is what a person does too.
+export async function openTab(scope: Page | Locator, name: string | RegExp): Promise<void> {
+  const tab = scope.getByRole("tab", { name, exact: typeof name === "string" });
+  await expect(async () => {
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+}
+
 /// The Users page keeps the pending invitations on their own tab ("Pending invitations (2)"): opens it.
 export async function openInvitationsTab(page: Page): Promise<void> {
   await page.getByRole("tab", { name: /^Pending invitations/ }).click();

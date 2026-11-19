@@ -16,7 +16,7 @@ const MIB = 1024 * 1024;
 const API_ROOT = path.join(process.cwd(), "src", "app", "api", "v1");
 const FAKE_ID = "cmfakeid0000000000000000";
 
-type OwnBodyRoute = { rel: string; url: string; method: string; hasId: boolean; limited: boolean };
+type OwnBodyRoute = { rel: string; url: string; method: string; hasId: boolean; limited: boolean; reads: boolean };
 
 function ownBodyRoutes(dir = API_ROOT): OwnBodyRoute[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -27,15 +27,23 @@ function ownBodyRoutes(dir = API_ROOT): OwnBodyRoute[] {
     if (!/readJson(?:Body|Object)\(/.test(source)) return [];
     const rel = path.relative(API_ROOT, dir).split(path.sep).join("/");
     if (rel === "setup") return [];
-    return [...new Set([...source.matchAll(/^export (?:const|async function) (POST|PUT|PATCH|DELETE)\b/gm)].map((m) => m[1]))].map(
-      (method) => ({
-        rel,
-        url: `/api/v1/${rel.replace(/\[[^\]]+\]/g, FAKE_ID)}`,
-        method,
-        hasId: rel.includes("["),
-        limited: /\breserveAttempt\(/.test(source),
-      }),
+    // `reads`: this method's own handler reads a body. One file can hold a POST that reads one and a DELETE that does not (auth/email-change/request, task 0088), and a DELETE that
+    // ignores its body cannot answer 413 or 400 for it; it is still sent junk below, to prove it is never a server error. A body read by a helper written above the first export
+    // counts for every method of the file.
+    const exported = [...source.matchAll(/^export (?:const|async function) (POST|PUT|PATCH|DELETE)\b/gm)];
+    const readsBody = (text: string) => /readJson(?:Body|Object)\(/.test(text);
+    const sharedHelper = exported.length > 0 && readsBody(source.slice(0, exported[0].index));
+    const reads = new Map(
+      exported.map((m, i) => [m[1], sharedHelper || readsBody(source.slice(m.index, exported[i + 1]?.index ?? source.length))]),
     );
+    return [...new Set(exported.map((m) => m[1]))].map((method) => ({
+      rel,
+      url: `/api/v1/${rel.replace(/\[[^\]]+\]/g, FAKE_ID)}`,
+      method,
+      hasId: rel.includes("["),
+      limited: /\breserveAttempt\(/.test(source),
+      reads: reads.get(method) === true,
+    }));
   });
 }
 const routes = ownBodyRoutes();
@@ -82,7 +90,7 @@ test.describe("every route that reads its own body", () => {
   }
 
   // The exact answers, for the routes that have no id in the path (a made-up id may be refused before the body is looked at).
-  for (const route of routes.filter((r) => !r.hasId && !r.rel.startsWith("portal/"))) {
+  for (const route of routes.filter((r) => !r.hasId && !r.rel.startsWith("portal/") && r.reads)) {
     test.describe(`${route.method} ${route.rel}`, () => {
       test("a body over the cap is 413 PAYLOAD_TOO_LARGE, before anything is looked at", async () => {
         const res = await send(route, { rawBody: JSON.stringify({ pad: "x".repeat(MIB + 10) }) }, true);
