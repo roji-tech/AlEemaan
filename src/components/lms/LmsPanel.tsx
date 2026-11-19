@@ -1,6 +1,7 @@
 "use client";
 
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useState, useEffect, useCallback, useRef, type KeyboardEvent } from "react";
 import { AssignmentsList } from "./AssignmentsList";
 import { MaterialsList } from "./MaterialsList";
@@ -16,7 +17,7 @@ export interface LmsPanelProps {
 type TabType = "assignments" | "materials" | "quizzes";
 
 export function LmsPanel({ branches, rolesByBranch, userBranchId }: LmsPanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
+  const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches, { fallback: userBranchId || branches[0]?.id || "" });
   const [activeTab, setActiveTab] = useState<TabType>("assignments");
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
   const [classGroups, setClassGroups] = useState<{ id: string; name: string }[]>([]);

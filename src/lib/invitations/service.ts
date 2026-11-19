@@ -113,7 +113,7 @@ async function writeInvitation(
 ): Promise<{ invitation: PublicInvitation; token: string }> {
   const earlier = await tx.invitation.findMany({
     where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null }, // (a different branch's open invitation stays)
-    select: { id: true },
+    select: { id: true, role: true },
   });
   for (const old of earlier) {
     await tx.invitation.update({ where: { id: old.id }, data: { revokedAt: now } });
@@ -123,7 +123,7 @@ async function writeInvitation(
         action: "INVITATION_REVOKED",
         targetType: "Invitation",
         targetId: old.id,
-        afterValue: { email: input.email },
+        afterValue: { email: input.email, role: old.role, branchId: input.branchId },
         reason: "replaced by a new invitation",
       },
     });
@@ -279,7 +279,7 @@ export async function resendInvitation(
 /// Ends an open invitation. The conditional update is the gate: it changes exactly one row or the answer is "no such open invitation".
 export async function revokeInvitation(actorUserId: string, invitationId: string, scope: AdminScope): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const target = await tx.invitation.findUnique({ where: { id: invitationId }, select: { email: true } });
+    const target = await tx.invitation.findUnique({ where: { id: invitationId }, select: { email: true, role: true, branchId: true } });
     const claimed = await tx.invitation.updateMany({
       where: { id: invitationId, acceptedAt: null, revokedAt: null, ...visibleTo(scope) },
       data: { revokedAt: new Date() },
@@ -291,11 +291,77 @@ export async function revokeInvitation(actorUserId: string, invitationId: string
         action: "INVITATION_REVOKED",
         targetType: "Invitation",
         targetId: invitationId,
-        afterValue: { email: target?.email ?? null },
+        // Who it was for, and what it was for: the history of invitations (task 0117) is read from these rows.
+        afterValue: { email: target?.email ?? null, role: target?.role ?? null, branchId: target?.branchId ?? null },
+        reason: "revoked by an administrator",
       },
     });
     return true;
   });
+}
+
+/// One invitation that is no longer open (task 0117): accepted, revoked, or run out. `revokedByName` and `revokedAt` come from the audit row of the revoke.
+export type HistoricInvitation = PublicInvitation & {
+  acceptedAt: Date | null;
+  revokedAt: Date | null;
+  revokedByName: string | null;
+  /// "revoked by an administrator" or "replaced by a new invitation".
+  revokedWhy: string | null;
+};
+
+/// The history of invitations that are not open (accepted, revoked, expired without being accepted), newest first, with who revoked and why (read from the `INVITATION_REVOKED` audit
+/// rows). Scoped like the open list: a branch administrator sees their own branches' and never an administrator's.
+export async function listInvitationHistory(
+  page: { skip: number; take: number },
+  scope: AdminScope,
+): Promise<{ invitations: HistoricInvitation[]; total: number }> {
+  const now = new Date();
+  const where: Prisma.InvitationWhereInput = {
+    OR: [{ acceptedAt: { not: null } }, { revokedAt: { not: null } }, { acceptedAt: null, revokedAt: null, expiresAt: { lte: now } }],
+    ...visibleTo(scope),
+  };
+  const [total, rows] = await Promise.all([
+    prisma.invitation.count({ where }),
+    prisma.invitation.findMany({
+      where,
+      select: PUBLIC_SELECT,
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      skip: page.skip,
+      take: page.take,
+    }),
+  ]);
+  const revokedIds = rows.filter((r) => r.revokedAt).map((r) => r.id);
+  const audits =
+    revokedIds.length === 0
+      ? []
+      : await prisma.auditLog.findMany({
+          where: { action: "INVITATION_REVOKED", targetType: "Invitation", targetId: { in: revokedIds } },
+          select: { targetId: true, actorUserId: true, reason: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        });
+  const actors =
+    audits.length === 0
+      ? []
+      : await prisma.user.findMany({
+          where: { id: { in: [...new Set(audits.map((a) => a.actorUserId))] } },
+          select: { id: true, name: true, email: true },
+        });
+  const nameOf = new Map(actors.map((u) => [u.id, u.name || u.email]));
+  const auditOf = new Map<string, (typeof audits)[number]>();
+  for (const a of audits) if (!auditOf.has(a.targetId)) auditOf.set(a.targetId, a); // newest first: the latest revoke of an invitation
+  return {
+    invitations: rows.map((row) => {
+      const audit = auditOf.get(row.id);
+      return {
+        ...toPublic(row, now),
+        acceptedAt: row.acceptedAt,
+        revokedAt: row.revokedAt,
+        revokedByName: audit ? (nameOf.get(audit.actorUserId) ?? null) : null,
+        revokedWhy: audit?.reason ?? null,
+      };
+    }),
+    total,
+  };
 }
 
 /// The open invitations (pending, and expired ones that can still be resent), newest first.

@@ -7,7 +7,19 @@ import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { XIcon } from "@/components/ui/icons";
 import { ROLE_LABELS } from "@/lib/roles";
+import {
+  NOTHING_HIDDEN,
+  close,
+  dontList,
+  listAgain,
+  parseHidden,
+  reopen,
+  shown,
+  snooze,
+  type Hidden,
+} from "@/components/academics/unlisted-hidden";
 
 // Task 0114: inviting staff to sign in from their records (one or many, nobody copies an address), and moving a member of staff to another branch or adding them there as well.
 // Presentation only: the staff invite and transfer APIs decide who may do what and check every record again.
@@ -258,9 +270,29 @@ export function StaffTransferDialog({
 
 type Unlisted = { userId: string; role: "ADMIN" | "TEACHING_STAFF" | "NON_TEACHING_STAFF"; name: string | null; email: string | null };
 
+// What the person did with the panel, per branch, kept in the browser (there is no per-user preference table; every read and write is in try/catch, and a browser that refuses just shows
+// the panel every time).
+const hiddenKey = (branchId: string) => `aleemaan:unlisted:${branchId}`;
+function readHidden(branchId: string): Hidden {
+  try {
+    return parseHidden(window.localStorage.getItem(hiddenKey(branchId)));
+  } catch {
+    return NOTHING_HIDDEN;
+  }
+}
+function writeHidden(branchId: string, value: Hidden) {
+  try {
+    window.localStorage.setItem(hiddenKey(branchId), JSON.stringify(value));
+  } catch {
+    // nothing to keep it in; the choice holds until the page is left
+  }
+}
+
 /// Task 0112 (the maintainer, 2026-11-19: "if I invite a new user ... as admin for a branch, why am I not seeing the person as part of the staff of that branch?"): the people who sign
 /// in to this branch with a staff role and are on none of its records, each with "Add to staff". Accepting an invitation now does this by itself; this catches up the people who joined
 /// before. Nothing is shown when there is nobody to add. `version` changes when the list changes, so a record linked elsewhere drops out of here.
+/// Task 0117 (the maintainer, 2026-11-20): it can be closed (until somebody new appears), snoozed for seven days ("Remind me later"), and a person who should not be on the list (an
+/// administrator, a superadmin) can be left out for good ("Don't list", brought back from "Show hidden"). While it is closed a chip, "N not on the list", opens it again.
 export function UnlistedMembers({
   branchId,
   version,
@@ -273,8 +305,16 @@ export function UnlistedMembers({
   const [members, setMembers] = useState<Unlisted[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<Hidden>(NOTHING_HIDDEN);
+  const [showHidden, setShowHidden] = useState(false);
+  const [now] = useState(() => Date.now());
   const headingId = useId();
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser's memory for this branch is what this effect is for
+    setState(readHidden(branchId));
+    setShowHidden(false);
+  }, [branchId]);
   useEffect(() => {
     let live = true;
     void getJson(`/api/v1/staff/unlisted?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
@@ -285,6 +325,11 @@ export function UnlistedMembers({
     };
   }, [branchId, version]);
 
+  const change = (next: Hidden) => {
+    setState(next);
+    writeHidden(branchId, next);
+  };
+  const view = shown(members, state, now);
   if (members.length === 0) return null;
   async function add(m: Unlisted) {
     setBusy(m.userId);
@@ -300,38 +345,110 @@ export function UnlistedMembers({
         : `${who} added to the staff list. Open their card to fill in the rest.`,
     );
   }
+  // Everyone is marked "Don't list": only the way back is shown.
+  if (view.candidates.length === 0 && !showHidden) {
+    return (
+      <Button variant="ghost" onClick={() => setShowHidden(true)}>
+        Show hidden ({view.hidden.length})
+      </Button>
+    );
+  }
+  if (view.collapsed && !showHidden) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" onClick={() => change(reopen(state))}>
+          {view.candidates.length} not on the list
+        </Button>
+        {view.hidden.length > 0 && (
+          <Button variant="ghost" onClick={() => setShowHidden(true)}>
+            Show hidden ({view.hidden.length})
+          </Button>
+        )}
+      </div>
+    );
+  }
+  const person = (m: Unlisted) => (
+    <span className="min-w-0 text-sm">
+      <span className="block font-medium text-fg">{m.name || m.email}</span>
+      <span className="block truncate text-xs text-fg-muted">
+        {ROLE_LABELS[m.role]}
+        {m.name && m.email ? ` · ${m.email}` : ""}
+      </span>
+    </span>
+  );
   return (
     <section aria-labelledby={headingId} className="space-y-2 rounded-2xl border border-line bg-brand-tint px-4 py-3">
-      <h3 id={headingId} className="text-sm font-semibold text-fg">
-        Signs in here, not on the staff list yet ({members.length})
-      </h3>
+      <div className="flex items-start justify-between gap-3">
+        <h3 id={headingId} className="text-sm font-semibold text-fg">
+          Signs in here, not on the staff list yet ({view.candidates.length})
+        </h3>
+        <button
+          type="button"
+          onClick={() => change(close(state, view.candidates))}
+          aria-label="Close. It comes back when someone new signs in here without a staff record"
+          className="-mt-1 -mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <XIcon className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
       <p className="text-xs text-fg-muted">
         These people can sign in to this branch but have no staff record here. Add them so they appear on the list, in exports and in
-        assignments.
+        assignments. Someone who should not be on the list can be left out with Don&apos;t list.
       </p>
       {error && <Alert variant="error">{error}</Alert>}
-      <ul className="divide-y divide-line" aria-label="Members without a record">
-        {members.map((m) => (
-          <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2 py-2">
-            <span className="min-w-0 text-sm">
-              <span className="block font-medium text-fg">{m.name || m.email}</span>
-              <span className="block truncate text-xs text-fg-muted">
-                {ROLE_LABELS[m.role]}
-                {m.name && m.email ? ` · ${m.email}` : ""}
+      {view.candidates.length > 0 && (
+        <ul className="divide-y divide-line" aria-label="Members without a record">
+          {view.candidates.map((m) => (
+            <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              {person(m)}
+              <span className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  disabled={busy !== null}
+                  onClick={() => change(dontList(state, m.userId))}
+                  aria-label={`Don't list ${m.name || m.email}`}
+                >
+                  Don&apos;t list
+                </Button>
+                <Button
+                  variant="secondary"
+                  loading={busy === m.userId}
+                  disabled={busy !== null}
+                  onClick={() => void add(m)}
+                  aria-label={`Add ${m.name || m.email} to staff`}
+                >
+                  Add to staff
+                </Button>
               </span>
-            </span>
-            <Button
-              variant="secondary"
-              loading={busy === m.userId}
-              disabled={busy !== null}
-              onClick={() => void add(m)}
-              aria-label={`Add ${m.name || m.email} to staff`}
-            >
-              Add to staff
-            </Button>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+      {showHidden && view.hidden.length > 0 && (
+        <div className="space-y-1 border-t border-line pt-2">
+          <p className="text-xs font-semibold tracking-wide text-fg-2 uppercase">Left out of this list</p>
+          <ul className="divide-y divide-line" aria-label="Left out of the list">
+            {view.hidden.map((m) => (
+              <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                {person(m)}
+                <Button variant="ghost" onClick={() => change(listAgain(state, m.userId))} aria-label={`List ${m.name || m.email} again`}>
+                  List again
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button variant="ghost" onClick={() => change(snooze(state, Date.now()))}>
+          Remind me later
+        </Button>
+        {view.hidden.length > 0 && (
+          <Button variant="ghost" onClick={() => setShowHidden((v) => !v)}>
+            {showHidden ? "Hide the left-out list" : `Show hidden (${view.hidden.length})`}
+          </Button>
+        )}
+      </div>
     </section>
   );
 }

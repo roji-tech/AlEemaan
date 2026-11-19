@@ -1,6 +1,7 @@
 "use client";
 
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useState, useEffect, useCallback } from "react";
 import { InvoicesDashboard, type InvoiceItemSummary } from "./InvoicesDashboard";
 import { FeeStructuresPanel } from "./FeeStructuresPanel";
@@ -20,7 +21,13 @@ export interface FinancePanelProps {
 }
 
 export function FinancePanel({ branches, isSuperAdmin = false, canManage = true, userBranchId, initialQuery }: FinancePanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
+  // The branch is kept in the address and remembered (task 0117); a person tied to one branch (not a superadmin) can only ever have that one.
+  const [selectedBranchId, setSelectedBranchId] = useBranchSelection(
+    isSuperAdmin || !userBranchId ? branches : branches.filter((b) => b.id === userBranchId),
+    {
+      fallback: userBranchId || branches[0]?.id || "",
+    },
+  );
   // The open tab is in the address (`?tab=`, task 0100). Overview is the first tab and opens by default (task 0106); the old tab names are kept as they were in the page's own state.
   const [openTab, chooseTab] = useTabParam(FINANCE_TAB_IDS, "overview");
   const activeTab = openTab === "fees" ? "fee_structures" : openTab === "rules" ? "payment_rules" : openTab;

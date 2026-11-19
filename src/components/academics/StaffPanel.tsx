@@ -5,6 +5,8 @@ import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { ALL_BRANCHES } from "@/components/ui/branch-selection";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { Collection, Item, ItemInitials, type ItemAction } from "@/components/ui/Collection";
 import { ActionsMenu, type MenuAction } from "@/components/ui/ActionsMenu";
 import { Dialog } from "@/components/ui/Dialog";
@@ -37,6 +39,7 @@ import {
   type StaffFilters,
 } from "@/components/academics/staff-model";
 import { StaffDetailsDialog, corpsPill, kindPill } from "@/components/academics/StaffDetails";
+import { StaffDeleteDialog } from "@/components/academics/StaffDelete";
 import { StaffInviteDialog, StaffTransferDialog, UnlistedMembers, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
@@ -47,6 +50,9 @@ type Account =
   | { state: "linked"; userId: string; name: string | null; email: string | null; deactivated: boolean; roleDiffers: boolean };
 type Staff = {
   id: string;
+  /// The branch of the record and its name (task 0117: the list across branches says where each person is).
+  branchId: string;
+  branchName: string;
   category: "TEACHING" | "NON_TEACHING";
   /// Task 0111: Mr, Mrs, Dr…; gender; the job title (`designation`); the qualification; the NYSC corps member flag.
   title: string | null;
@@ -105,14 +111,26 @@ export function StaffPanel({
   branches,
   initialBranchId,
   initialQuery = "",
+  isSuperAdmin = false,
 }: {
   branches: BranchChoice[];
+  /// A superadmin may delete a record that has no history (task 0117); nobody else is offered it.
+  isSuperAdmin?: boolean;
   /// From a link (the top-bar search, task 0113): the branch to open and the search to start with. A branch the person does not have is ignored.
   initialBranchId?: string;
   initialQuery?: string;
 }) {
-  const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
-  const branch = branches.find((b) => b.id === branchId) ?? branches[0];
+  // The branch (or "all", task 0117) is kept in the address and remembered, so coming back to this page does not start on the first branch again.
+  const [branchId, setBranchId] = useBranchSelection(branches, { initial: initialBranchId, allowAll: branches.length > 1 });
+  // "All branches" (task 0117): the staff of every branch the person may read. It has no classes, subjects or standing powers of its own, and nothing can be added to it: each record is
+  // acted on through its own branch (`rowBranch`), and what needs the branch itself opens that branch.
+  const viewAll = branchId === ALL_BRANCHES;
+  const branch: BranchChoice = viewAll
+    ? { id: ALL_BRANCHES, name: "All branches", canEdit: false }
+    : (branches.find((b) => b.id === branchId) ?? branches[0]);
+  const rowBranch = (p: Staff): BranchChoice => (viewAll ? (branches.find((b) => b.id === p.branchId) ?? branch) : branch);
+  const [truncated, setTruncated] = useState(false);
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
@@ -136,10 +154,21 @@ export function StaffPanel({
   const [viewing, setViewing] = useState<Staff | null>(null);
   // Bumped on every load, so "Signs in here, not on the staff list yet" reads again after a link or a new record.
   const [loads, setLoads] = useState(0);
-  const can = branch.standing ?? { suspend: false, remove: false };
 
   const load = useCallback(async () => {
     const base = `branchId=${encodeURIComponent(branchId)}`;
+    if (branchId === ALL_BRANCHES) {
+      const all = await getJson(`/api/v1/staff?${base}&status=${status}&q=${encodeURIComponent(q)}`);
+      if (!all.ok) return setError(say(all, "Couldn't load the staff."));
+      setError(null);
+      setStaff(all.data!.staff as Staff[]);
+      setTruncated(all.data!.truncated === true);
+      setLoads((n) => n + 1);
+      setSelected(new Set());
+      setClasses([]);
+      setSubjects([]);
+      return;
+    }
     const [s, c, sub] = await Promise.all([
       getJson(`/api/v1/staff?${base}&status=${status}&q=${encodeURIComponent(q)}`),
       getJson(`/api/v1/academics/class-groups?${base}`),
@@ -149,6 +178,7 @@ export function StaffPanel({
     if (bad) return setError(say(bad, "Couldn't load this branch."));
     setError(null);
     setStaff(s.data!.staff as Staff[]);
+    setTruncated(false);
     setLoads((n) => n + 1);
     setSelected(new Set());
     setClasses(c.data!.classGroups as ClassOption[]);
@@ -201,11 +231,20 @@ export function StaffPanel({
     });
   const asInvitee = (p: Staff): InvitePerson => ({ id: p.id, name: `${p.firstName} ${p.lastName}`, email: p.email ?? "" });
   const otherBranches = branches.filter((b) => b.canEdit && b.id !== branchId);
+  /// From the list across branches: open the person's own branch with their name in the search box, where Manage, Edit, Invite and Transfer work.
+  const openIn = (p: Staff) => {
+    setNotice(null);
+    setStaff(null);
+    setPage(1);
+    setQ(`${p.firstName} ${p.lastName}`);
+    setBranchId(p.branchId);
+  };
 
   return (
     <div className="space-y-6">
       <BranchPicker
         branches={branches}
+        allOption
         value={branchId}
         onChange={(id) => {
           setNotice(null);
@@ -234,6 +273,12 @@ export function StaffPanel({
               </div>
             )}
           </div>
+          {viewAll && (
+            <p className="mt-1 text-sm font-medium text-fg-2">
+              Every branch you may read, in one list. Choose a branch to add staff there; each card opens its own branch for Manage, Edit,
+              Invite and Transfer.
+            </p>
+          )}
           <p className="mt-1 text-sm text-fg-muted">
             Everyone the branch employs, whether or not they sign in. A record does not create a login: tick the people who should sign in
             and invite them, at the address on their record.
@@ -315,6 +360,7 @@ export function StaffPanel({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-fg-muted" aria-live="polite">
             {list === null ? " " : `${list.length} staff ${list.length === 1 ? "record" : "records"}${filtered ? " match" : ""}`}
+            {truncated && " Showing the first 1000: search, or choose a branch, to narrow it."}
           </p>
           {canInvite && invitableShown.length > 0 && selected.size === 0 && (
             <Button variant="ghost" onClick={() => setSelected(new Set(invitableShown.map((p) => p.id)))}>
@@ -355,20 +401,26 @@ export function StaffPanel({
             const contact = [p.email, p.phone].filter(Boolean).join(" · ");
             const linked = p.account.state === "linked";
             // Manage (or View) and Edit stay as buttons; the rest of what can be done to a record is one Actions list, so a row never runs six buttons wide (the kit's rule for many actions).
-            const buttons: ItemAction[] = [
-              {
-                id: branch.canEdit ? "manage" : "view",
-                label: branch.canEdit ? "Manage" : "View",
-                ariaLabel: `${branch.canEdit ? "Manage" : "View"} ${who}`,
-                onClick: () => setEditing({ kind: "manage", item: p }),
-              },
-            ];
-            if (branch.canEdit && !p.archived) {
+            // In the list across branches (task 0117) each record is acted on through ITS branch: standing, History, Archive and Delete need only the record, so they are here; what needs the
+            // branch's classes or the branch itself (Manage, Edit, Invite, Transfer) is one button that opens that branch.
+            const rb = rowBranch(p);
+            const rbCan = rb.standing ?? { suspend: false, remove: false };
+            const buttons: ItemAction[] = viewAll
+              ? [{ id: "open", label: "Open in branch", ariaLabel: `Open ${who} in ${p.branchName}`, onClick: () => openIn(p) }]
+              : [
+                  {
+                    id: branch.canEdit ? "manage" : "view",
+                    label: branch.canEdit ? "Manage" : "View",
+                    ariaLabel: `${branch.canEdit ? "Manage" : "View"} ${who}`,
+                    onClick: () => setEditing({ kind: "manage", item: p }),
+                  },
+                ];
+            if (!viewAll && branch.canEdit && !p.archived) {
               buttons.push({ id: "edit", label: "Edit", ariaLabel: `Edit ${who}`, onClick: () => setEditing({ kind: "record", item: p }) });
             }
-            const more = branch.canEdit
+            const more = rb.canEdit
               ? [
-                  ...kindsFor("staff", p.standing, can).map((kind) => ({
+                  ...kindsFor("staff", p.standing, rbCan).map((kind) => ({
                     id: kind,
                     label: KIND_TEXT[kind],
                     ariaLabel: `${KIND_TEXT[kind]} ${who}`,
@@ -378,10 +430,10 @@ export function StaffPanel({
                         subject: "staff",
                         endpoint: `/api/v1/staff/${p.id}/standing`,
                         name: who,
-                        canSchoolWide: can.remove && p.account.state === "linked",
+                        canSchoolWide: rbCan.remove && p.account.state === "linked",
                       }),
                   })),
-                  ...(invitable(p)
+                  ...(!viewAll && invitable(p)
                     ? [
                         {
                           id: "invite",
@@ -391,7 +443,7 @@ export function StaffPanel({
                         },
                       ]
                     : []),
-                  ...(!p.archived && p.standing === "ACTIVE" && otherBranches.length > 0
+                  ...(!viewAll && !p.archived && p.standing === "ACTIVE" && otherBranches.length > 0
                     ? [
                         {
                           id: "transfer",
@@ -414,6 +466,18 @@ export function StaffPanel({
                           label: p.archived ? "Restore" : "Archive",
                           ariaLabel: `${p.archived ? "Restore" : "Archive"} ${who}`,
                           onSelect: () => setArchived(p, !p.archived),
+                        },
+                      ]
+                    : []),
+                  // Only a superadmin, only a record with no history (the server decides and says why not).
+                  ...(isSuperAdmin
+                    ? [
+                        {
+                          id: "delete",
+                          label: "Delete record",
+                          ariaLabel: `Delete the record of ${who}`,
+                          danger: true,
+                          onSelect: () => setDeleting({ id: p.id, name: who }),
                         },
                       ]
                     : []),
@@ -481,6 +545,7 @@ export function StaffPanel({
                             {p.standing !== "ACTIVE" && <StandingBadge standing={p.standing} until={p.standingUntil} />}
                             <span className="sr-only">{roleLine(p)}</span>
                           </div>
+                          {viewAll && <p className="mt-2 text-[12px] font-medium text-fg-2">{p.branchName}</p>}
                           {(p.classTeacherOf.length > 0 || p.alsoIn.length > 0) && (
                             <div className="mt-2 space-y-0.5 text-[12px] text-fg-muted">
                               {p.classTeacherOf.length > 0 && <p>Class teacher: {p.classTeacherOf.map((a) => a.label).join(", ")}</p>}
@@ -569,6 +634,7 @@ export function StaffPanel({
                 subtitle={
                   <>
                     <span className="block text-fg-2">{roleLine(p)}</span>
+                    {viewAll && <span className="block font-medium">{p.branchName}</span>}
                     {p.classTeacherOf.length > 0 && (
                       <span className="block">Class teacher: {p.classTeacherOf.map((a) => a.label).join(", ")}</span>
                     )}
@@ -630,6 +696,17 @@ export function StaffPanel({
         />
       </section>
 
+      <StaffDeleteDialog
+        key={deleting?.id ?? "no-delete"}
+        person={deleting}
+        onClose={() => setDeleting(null)}
+        onDone={async (text) => {
+          setDeleting(null);
+          setViewing(null);
+          setNotice({ variant: "success", text });
+          await load();
+        }}
+      />
       <StaffInviteDialog
         key={inviting ? inviting.map((p) => p.id).join(",") : "no-invite"}
         branchId={branchId}
@@ -674,8 +751,8 @@ export function StaffPanel({
             ? () => (setEditing({ kind: "record", item: viewing }), setViewing(null))
             : undefined
         }
-        onManage={() => viewing && (setEditing({ kind: "manage", item: viewing }), setViewing(null))}
-        manageLabel={branch.canEdit ? "Manage" : "View"}
+        onManage={() => viewing && (viewAll ? openIn(viewing) : setEditing({ kind: "manage", item: viewing }), setViewing(null))}
+        manageLabel={viewAll ? "Open in branch" : branch.canEdit ? "Manage" : "View"}
       />
       <RecordDialog
         key={editing?.kind === "record" ? (editing.item?.id ?? "new") : "none"}
