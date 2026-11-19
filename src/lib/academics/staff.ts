@@ -213,6 +213,7 @@ export async function updateStaff(actorUserId: string, id: string, patch: z.infe
     designation: patch.designation === undefined ? before.designation : detailOrNull(patch.designation),
     qualification: patch.qualification === undefined ? before.qualification : detailOrNull(patch.qualification),
     corpsMember: patch.corpsMember ?? before.corpsMember,
+    role: patch.role === undefined ? before.role : detailOrNull(patch.role),
   };
   const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => next[k] !== before[k]);
   if (changed.length === 0) return toStaff(before);
