@@ -54,9 +54,9 @@ Gates on the branch: typecheck, lint, build, and Prettier on the changed files. 
 **Batch 3, 2026-11-19.** This branch and #298 rebuilt on the current `dev` (9e62c32). Run total: **1653 passed, 1 failed, 1 skipped**. The one failure was a false alarm in the phone tap check on the Branches page; 0111's record explains it, and it passed after the test fix.
 
 For this task in batch 3:
-- `tests/api/program-people.spec.ts` and `tests/e2e/program-people.spec.ts`: 106 passed, 0 failed. This includes the new describe block: the search note; adding links the branch once, with its audit; a class preview links nothing and confirming links; a branch with programs off is neither offered nor linked; a typed-in person and a program admin cannot link.
-- `tests/e2e/programs.spec.ts`: 24 passed, 0 failed. This includes the own-branch card for a super admin (accessible, fits, opens the dialog) and for that branch's administrator (no add button, no count).
-- `tests/e2e/students-screen.spec.ts`: passed.
+- `tests/api/program-people.spec.ts` and `tests/e2e/program-people.spec.ts`: 60 passed, 0 failed. This includes the new describe block: the search note; adding links the branch once, with its audit; a class preview links nothing and confirming links; a branch with programs off is neither offered nor linked; a typed-in person and a program admin cannot link.
+- `tests/e2e/programs.spec.ts`: 26 passed, 0 failed. This includes the own-branch card for a super admin (accessible, fits, opens the dialog) and for that branch's administrator (no add button, no count).
+- `tests/e2e/students-screen.spec.ts`: 8 passed, 0 failed (the same counts as in batch 2).
 
 **Not run:** the full browser suite; the walkthrough (deferred).
 
