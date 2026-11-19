@@ -10,6 +10,7 @@ import { ArrowLeftIcon } from "@/components/ui/icons";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
 import { SectionTabs } from "@/components/forms/SectionTabs";
+import { useTabParam } from "@/components/ui/useTabParam";
 import { ProgramAssessmentsTab } from "@/components/programs/ProgramAssessmentsTab";
 import { ProgramProgressTab } from "@/components/programs/ProgramProgressTab";
 import { ProgramAttendanceTab } from "@/components/programs/ProgramAttendanceTab";
@@ -27,8 +28,20 @@ import { headlineText, type ProgramDetail } from "@/components/programs/model";
 // attendance switch, for a super admin and a program admin). A tab that would say "soon" is a dead end, so a tab appears only when it does something.
 // Presentation only: the API decides who sees the program and what each button may do (`can`), and checks again on every request.
 
-type SectionId =
-  "overview" | "structure" | "people" | "staff" | "attendance" | "assessments" | "progress" | "fees" | "completion" | "settings";
+/// Every tab, and so every value `?tab=` may name (task 0110: the Students page of a program's own branch links to `?tab=people`).
+const SECTION_IDS = [
+  "overview",
+  "structure",
+  "people",
+  "staff",
+  "attendance",
+  "assessments",
+  "progress",
+  "fees",
+  "completion",
+  "settings",
+] as const;
+type SectionId = (typeof SECTION_IDS)[number];
 
 function sectionsFor(program: ProgramDetail): { id: SectionId; label: string }[] {
   const sections: { id: SectionId; label: string }[] = [
@@ -54,7 +67,7 @@ export function ProgramPage({ id, allBranches }: { id: string; allBranches: Bran
   const [program, setProgram] = useState<ProgramDetail | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
-  const [section, setSection] = useState<SectionId>("overview");
+  const [section, setSection] = useTabParam(SECTION_IDS, "overview");
   const [archiving, setArchiving] = useState(false);
   const [busy, setBusy] = useState(false);
 

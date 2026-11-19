@@ -23,6 +23,7 @@ import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
 import { KIND_TEXT, kindsFor, prettyDay, type StandingCan, type StandingValue } from "@/components/standing/model";
+import { OwnProgramCard, type OwnProgram } from "@/components/students/OwnProgramCard";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
 // decides who may read and change what, refuses a namesake unless an administrator confirms it (ADR 0011), and audits that confirmation.
@@ -59,7 +60,16 @@ type Show = "live" | "suspended" | "expelled" | "archived";
 const initialsOf = (first: string, last: string) => `${Array.from(first.trim())[0] ?? ""}${Array.from(last.trim())[0] ?? ""}`.toUpperCase();
 
 /// `standingCan`: what the person may do about a pupil's standing in each branch (display only: the API decides).
-export function StudentsPanel({ branches, standingCan = {} }: { branches: BranchChoice[]; standingCan?: Record<string, StandingCan> }) {
+export function StudentsPanel({
+  branches,
+  standingCan = {},
+  programs = {},
+}: {
+  branches: BranchChoice[];
+  standingCan?: Record<string, StandingCan>;
+  /// The program each branch was made for, if any, as this person may see it (task 0110).
+  programs?: Record<string, OwnProgram>;
+}) {
   const [branchId, setBranchId] = useState(branches[0].id);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [students, setStudents] = useState<Student[] | null>(null);
@@ -150,6 +160,7 @@ export function StudentsPanel({ branches, standingCan = {} }: { branches: Branch
           setBranchId(id);
         }}
       />
+      {programs[branchId] && <OwnProgramCard branchName={branch.name} program={programs[branchId]} />}
       <div aria-live="polite" className="empty:hidden">
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
