@@ -195,7 +195,8 @@ test.describe("a pupil's scholarships", () => {
     // End one: room again.
     const firstId = (await db.studentScholarship.findFirstOrThrow({ where: { studentId: p.id, percent: 50, typeId: half.id } })).id;
     await api(`${grantsOf(p.id)}/${firstId}`, { method: "PATCH", cookie: admin.cookie, body: { end: true } });
-    expect((await grant(sixty.id, { percent: 50 })).status).toBe(409); // 50 + 50 still live from the second
+    expect((await grant(sixty.id, { percent: 50 })).status).toBe(201); // only the second (50) is live now, so another 50 is exactly 100
+    expect((await grant(sixty.id, { percent: 1 })).status).toBe(409); // and now there is no room
     // Days that do not overlap.
     const q = await pupil(home.id);
     const later = (body: object) => api(grantsOf(q.id), { method: "POST", cookie: admin.cookie, body: { typeId: sixty.id, ...body } });

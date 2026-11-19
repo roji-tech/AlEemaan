@@ -329,18 +329,17 @@ test.describe("draft pupils", () => {
     expect(arms.find((a) => a.id === cls.arm.id)?.enrolments).toBe(1);
 
     // Attendance roll.
-    const roll = await api(`/api/v1/academics/attendance?branchId=${home.id}&classArmId=${cls.arm.id}`, { cookie: admin.cookie });
+    const today = new Date().toISOString().slice(0, 10);
+    const roll = await api(
+      `/api/v1/attendance?branchId=${home.id}&className=${encodeURIComponent(cls.group.name)}&arm=${encodeURIComponent(cls.arm.name)}&date=${today}`,
+      { cookie: admin.cookie },
+    );
     expect(roll.status).toBe(200);
     expect((roll.json.data.students as { firstName: string }[]).map((s) => s.firstName)).toEqual(["Aisha"]);
-    const marked = await api("/api/v1/academics/attendance", {
+    const marked = await api("/api/v1/attendance", {
       method: "POST",
       cookie: admin.cookie,
-      body: {
-        branchId: home.id,
-        classArmId: cls.arm.id,
-        date: new Date().toISOString().slice(0, 10),
-        records: [{ studentId: draft.id, status: "PRESENT" }],
-      },
+      body: { branchId: home.id, date: today, records: [{ studentId: draft.id, status: "PRESENT" }] },
     });
     expect(marked.status).toBeGreaterThanOrEqual(400);
     expect(await db.attendanceRecord.count({ where: { studentId: draft.id } })).toBe(0);
@@ -519,7 +518,10 @@ test.describe("Add many as drafts", () => {
     const bulk = await db.auditLog.findMany({ where: { action: "STUDENTS_BULK_IMPORTED" }, orderBy: { createdAt: "asc" } });
     expect(bulk.map((a) => (a.afterValue as { asDraft?: boolean }).asDraft)).toEqual([true, false]);
     // The drafts are not on the class's roll or in its count.
-    const roll = await api(`/api/v1/academics/attendance?branchId=${home.id}&classArmId=${cls.arm.id}`, { cookie: admin.cookie });
+    const roll = await api(
+      `/api/v1/attendance?branchId=${home.id}&className=${encodeURIComponent(cls.group.name)}&arm=${encodeURIComponent(cls.arm.name)}&date=${new Date().toISOString().slice(0, 10)}`,
+      { cookie: admin.cookie },
+    );
     expect(roll.json.data.students.map((s: { firstName: string }) => s.firstName)).toEqual(["NoAmina"]);
   });
 

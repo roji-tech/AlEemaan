@@ -162,7 +162,7 @@ test.describe("departments", () => {
     expect((await create(elsewhere.cookie, "Mine")).status).toBe(403); // a branch named in the body that is not theirs
     const teacher = await asRole(Role.TEACHING_STAFF);
     expect((await create(teacher.cookie, "Mine")).status).toBe(403);
-    expect((await api(`${DEPTS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { name: "Mine" } })).status).toBe(404);
+    expect((await api(`${DEPTS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { name: "Mine" } })).status).toBe(403); // the role gate answers before the branch is looked up
     expect((await api(`${DEPTS}/no-such-department`, { method: "PATCH", cookie: admin.cookie, body: { name: "Mine" } })).status).toBe(404);
     const parent = await asRole(Role.PARENT);
     expect((await list(parent.cookie)).status).toBe(403);
@@ -293,9 +293,9 @@ test.describe("a head of department", () => {
       await api(`${DEPTS}/${languages}/members/${mine.id}`, { method: "DELETE", cookie: teacher.cookie }),
     ])
       expect(res.status).toBe(403);
-    expect((await api(`${DEPTS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { name: "Mine now" } })).status).toBe(404); // administrators only
-    expect((await api(`${DEPTS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { archived: true } })).status).toBe(404);
-    expect((await setHead(teacher.cookie, id, colleague.id, mine.id)).status).toBe(404);
+    expect((await api(`${DEPTS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { name: "Mine now" } })).status).toBe(403); // administrators only (the role gate)
+    expect((await api(`${DEPTS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { archived: true } })).status).toBe(403);
+    expect((await setHead(teacher.cookie, id, colleague.id, mine.id)).status).toBe(403);
     expect((await create(teacher.cookie, "Mine")).status).toBe(403);
     expect((await turnOn(teacher.cookie, home.id, false)).status).toBe(403);
 

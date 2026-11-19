@@ -742,15 +742,16 @@ test.describe("day or boarding", () => {
     });
     expect(exported.status, exported.text).toBe(200);
     const headers = dto(exported).headers as string[];
-    expect(headers.at(-1)).toBe("Day or boarding");
+    const at = headers.indexOf("Day or boarding"); // found by name: the scholarship columns come after it
+    expect(at).toBeGreaterThan(-1);
     const rows = dto(exported).rows as string[][];
-    expect(rows.map((r) => [r[0], r.at(-1)])).toEqual([["Boarda", "Boarding"]]);
+    expect(rows.map((r) => [r[0], r[at]])).toEqual([["Boarda", "Boarding"]]);
     const all = await api("/api/v1/exports", {
       method: "POST",
       cookie: admin.cookie,
       body: { kind: "pupils", branchId: home.id, scope: "all" },
     });
-    expect((dto(all).rows as string[][]).map((r) => r.at(-1)).sort()).toEqual(["", "Boarding", "Day", "Day"]);
+    expect((dto(all).rows as string[][]).map((r) => r[at]).sort()).toEqual(["", "Boarding", "Day", "Day"]);
   });
 
   test("the bulk import reads a Day or boarding column; blank is not set; anything else is a problem on that row and nothing is saved", async () => {
