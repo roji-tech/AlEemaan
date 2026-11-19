@@ -271,7 +271,7 @@ export function Item({
           {facts.map((f) => (
             <div key={f.label} className="min-w-0">
               <dt className="text-[11px] font-semibold tracking-wide text-fg-muted uppercase">{f.label}</dt>
-              <dd className="break-words text-fg-2">{f.value}</dd>
+              <dd className="wrap-break-word text-fg-2">{f.value}</dd>
             </div>
           ))}
         </dl>
@@ -293,7 +293,7 @@ export function Item({
   // The three dots. In a card, and in a list row too narrow for one line, they sit at the top right corner of the item; in a list row with room for one line they are its last cell.
   // While the menu is open the corner is raised above the corners of the items after it (`z-30`), or their buttons would be drawn over the list.
   const dots = folded ? (
-    <div className={`absolute top-2 right-2 z-10 has-[[aria-expanded=true]]:z-30 ${grid ? "" : line.dots}`}>
+    <div className={`absolute top-2 right-2 z-10 has-aria-expanded:z-30 ${grid ? "" : line.dots}`}>
       <ActionsMenu name={menuName} actions={every} />
     </div>
   ) : null;
