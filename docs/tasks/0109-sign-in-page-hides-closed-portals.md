@@ -1,7 +1,7 @@
 # 0109: The website's sign-in page hides the parent and student buttons while they are off
 
 - **Period / Focus:** 2026-11-19 (maintainer request, sign-in)
-- **Status:** In Progress
+- **Status:** Built; the record is section 4
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/signin-hide-closed` / PR to `dev`
@@ -32,7 +32,22 @@ Existing specs that expect three cards (`school-site`, `portals`, `sign-in`) sti
 
 ## 4. Verification
 
-Filled from the run logs before merge.
+**Batch run, 2026-11-19.**
+- **Setup:** one local checkout merging #294 (17d147b), #295 (99c1656) and #296 (51d31f4) as f5e8be1, one production build, one worker on the shared test database.
+- **Projects:** setup; unit (all); integration (session-lifecycle); api (scheme-none-yet, finance-stats, student-parent-login-switch, school-site, portals, login); browser on desktop and phone (info-tips, academics-grading-staff, scheme-levels, finance-overview, finance-a11y, finance-contrast, fees-bulk, finance-fee-edit, finance-refresh, standing-and-payment-rules, browser-security, school-site, portals, global-search, sign-in).
+- **Result:** **1834 passed, 9 failed, 23 skipped** in 45.2 min.
+
+The 9 failures:
+- `portals.spec.ts:81` and `:99`, desktop and phone (4): known before this batch and recorded in earlier runs. The local portals server's `localhost` school address sends a website page back to itself. Not caused by these changes.
+- `school-site.spec.ts:33`, desktop and phone (2): the test counted three Sign in buttons on a database an earlier spec had emptied. Fixed in the test (#296).
+- `academics-grading-staff.spec.ts:57`, desktop, both themes (2): see the reruns.
+- `academics-grading-staff.spec.ts:124`, phone, dark (1): the tap on the Staff tab did not register under load (load average about 13). It passed alone.
+
+**Reruns on the same build:**
+- **Rerun 1:** `school-site:33` passed on desktop and phone; `:124` passed. The grading spec, now naming the element in its axe report, failed target-size on `button[data-info-tip="academics.schemes"]`, which sat half under the sticky top bar after the page had scrolled. The test now scrolls to the top before that check.
+- **Rerun 2:** academics-grading-staff + info-tips on desktop and phone: **45 passed, 0 failed**.
+
+**For this task:** the unit rule (`login-switch-rules`), the new API test in `student-parent-login-switch.spec.ts` (the real page on the school's host with the portals on and on the plain server), `tests/api/school-site.spec.ts` and the browser `portals.spec.ts` test that counts three buttons all passed. `tests/e2e/school-site.spec.ts:33` now seeds the instance first (the shared helper makes the branches with both switches on) and passed on desktop and phone in rerun 1.
 
 ## 5. Notes
 
