@@ -373,3 +373,64 @@ export async function setFeeAdmission(
   ]);
   return { admission };
 }
+
+const MANY_LIMIT = 5000;
+
+/// New or Returning for many pupils at once (task 0125): the pupils of a branch with an ACTIVE enrolment (in one class when asked), not archived and not drafts. `onlyUnset`
+/// leaves pupils whose setting was made by hand alone. Counts first (dry run), and the real run counts again inside the transaction; one audit entry holds each changed pupil's earlier setting.
+export async function setFeeAdmissionMany(
+  branchId: string,
+  options: { admission: "NEW" | "RETURNING" | null; classGroupId?: string | null; onlyUnset: boolean; dryRun: boolean },
+  actorUserId: string,
+): Promise<{ inScope: number; willChange: number; changed: number; dryRun: boolean }> {
+  if (options.classGroupId && !(await prisma.classGroup.findFirst({ where: { branchId, id: options.classGroupId }, select: { id: true } })))
+    throw new FinanceError("Class not found", "NOT_FOUND");
+  const find = (db: Pick<typeof prisma, "studentRecord">) =>
+    db.studentRecord.findMany({
+      where: {
+        branchId,
+        archivedAt: null,
+        isDraft: false,
+        enrollments: {
+          some: { status: "ACTIVE", ...(options.classGroupId ? { classArm: { classGroupId: options.classGroupId } } : {}) },
+        },
+        ...(options.onlyUnset ? { feeAdmission: null } : {}),
+      },
+      select: { id: true, feeAdmission: true },
+      take: MANY_LIMIT + 1,
+    });
+  const split = (rows: { id: string; feeAdmission: "NEW" | "RETURNING" | null }[]) => {
+    if (rows.length > MANY_LIMIT)
+      throw new FinanceError(`That is more than ${MANY_LIMIT} pupils; choose one class at a time.`, "VALIDATION");
+    return { inScope: rows.length, change: rows.filter((r) => r.feeAdmission !== options.admission) };
+  };
+  if (options.dryRun) {
+    const { inScope, change } = split(await find(prisma));
+    return { inScope, willChange: change.length, changed: 0, dryRun: true };
+  }
+  return prisma.$transaction(async (tx) => {
+    const { inScope, change } = split(await find(tx));
+    if (change.length > 0) {
+      await tx.studentRecord.updateMany({
+        where: { branchId, id: { in: change.map((c) => c.id) } },
+        data: { feeAdmission: options.admission },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "STUDENT_FEE_ADMISSION_SET_MANY",
+          targetType: "Branch",
+          targetId: branchId,
+          beforeValue: Object.fromEntries(change.map((c) => [c.id, c.feeAdmission])),
+          afterValue: {
+            admission: options.admission,
+            classGroupId: options.classGroupId ?? null,
+            onlyUnset: options.onlyUnset,
+            changed: change.length,
+          },
+        },
+      });
+    }
+    return { inScope, willChange: change.length, changed: change.length, dryRun: false };
+  });
+}
