@@ -20,79 +20,80 @@ model Branch {
   /// the branch's codes are out; an administrator turns it off on Settings > Sign-in access.
   legacyPortalSecrets Boolean @default(true)
 
-  profile                BranchProfile?
-  memberships            Membership[]
-  invitations            Invitation[]
-  sessions               AcademicSession[]
-  periods                AcademicPeriod[]
-  academicBreaks         AcademicBreak[]
-  students               StudentRecord[]
-  scholarshipTypes       ScholarshipType[]
-  enrollments            StudentEnrollment[]
-  attendanceRecords      AttendanceRecord[]
-  classGroups            ClassGroup[]
-  sections               Section[]
-  resultApprovalScopes   ResultApprovalScope[]
-  classArms              ClassArm[]
-  subjects               Subject[]
-  departments            Department[]
-  departmentMembers      DepartmentMember[]
-  subjectOfferings       SubjectOffering[]
-  assessmentSchemes      AssessmentScheme[]
-  staffRecords           StaffRecord[]
-  staffAssignments       StaffSubjectAssignment[]
-  results                Result[]
-  resultAudits           ResultAudit[]
-  reportRemarks          ReportRemark[]
-  assessmentComps        AssessmentComponent[]
-  gradeScales            GradeScale[]
-  gradeBands             GradeBand[]
-  settingValues          SettingValue[]
-  settingApprovals       SettingApproval[]
-  settingAudits          SettingAudit[]
-  schemeScopes           AssessmentSchemeScope[]
-  schemeDrafts           AssessmentSchemeDraft[]
-  selfApprovalGrants     AdminSelfApprovalGrant[]
-  verificationConfig     VerificationPageConfig?
-  attendanceGrants       AttendanceGrant[]
-  timetableSlots         TimetableSlot[]
-  announcements          Announcement[]
-  feeStructures          FeeStructure[]
-  invoices               Invoice[]
-  payments               Payment[]
-  invoiceDiscounts       InvoiceDiscount[]
-  receiptCounters        ReceiptCounter[]
-  invoiceCounters        InvoiceCounter[]
-  assignments            Assignment[]
-  submissions            AssignmentSubmission[]
-  learningMaterials      LearningMaterial[]
-  quizzes                Quiz[]
-  quizQuestions          QuizQuestion[]
-  quizAttempts           QuizAttempt[]
-  notificationTemplates  NotificationTemplate[]
-  notificationDispatches NotificationDispatch[]
-  guardianLinkTokens     GuardianLinkToken[]
-  notificationAuditLogs  NotificationAuditLog[]
-  promotionBatches       PromotionBatch[]
-  bankItems              QuestionBankItem[]
-  bankReviewers          QuestionBankReviewer[]
-  bankAudits             QuestionBankAudit[]
-  practiceSessions       PracticeSession[]
-  practiceAttempts       PracticeAttempt[]
-  questionReports        QuestionReport[]
-  forms                  Form[]
-  formAudiences          FormAudience[]
-  formQuestions          FormQuestion[]
-  formResponses          FormResponse[]
-  formAnswers            FormAnswer[]
-  formParticipations     FormParticipation[]
+  profile                 BranchProfile?
+  memberships             Membership[]
+  invitations             Invitation[]
+  sessions                AcademicSession[]
+  periods                 AcademicPeriod[]
+  academicBreaks          AcademicBreak[]
+  students                StudentRecord[]
+  scholarshipTypes        ScholarshipType[]
+  enrollments             StudentEnrollment[]
+  attendanceRecords       AttendanceRecord[]
+  classGroups             ClassGroup[]
+  sections                Section[]
+  resultApprovalScopes    ResultApprovalScope[]
+  classArms               ClassArm[]
+  subjects                Subject[]
+  departments             Department[]
+  departmentMembers       DepartmentMember[]
+  subjectOfferings        SubjectOffering[]
+  assessmentSchemes       AssessmentScheme[]
+  staffRecords            StaffRecord[]
+  staffAssignments        StaffSubjectAssignment[]
+  results                 Result[]
+  resultAudits            ResultAudit[]
+  resultDepartmentReviews ResultDepartmentReview[]
+  reportRemarks           ReportRemark[]
+  assessmentComps         AssessmentComponent[]
+  gradeScales             GradeScale[]
+  gradeBands              GradeBand[]
+  settingValues           SettingValue[]
+  settingApprovals        SettingApproval[]
+  settingAudits           SettingAudit[]
+  schemeScopes            AssessmentSchemeScope[]
+  schemeDrafts            AssessmentSchemeDraft[]
+  selfApprovalGrants      AdminSelfApprovalGrant[]
+  verificationConfig      VerificationPageConfig?
+  attendanceGrants        AttendanceGrant[]
+  timetableSlots          TimetableSlot[]
+  announcements           Announcement[]
+  feeStructures           FeeStructure[]
+  invoices                Invoice[]
+  payments                Payment[]
+  invoiceDiscounts        InvoiceDiscount[]
+  receiptCounters         ReceiptCounter[]
+  invoiceCounters         InvoiceCounter[]
+  assignments             Assignment[]
+  submissions             AssignmentSubmission[]
+  learningMaterials       LearningMaterial[]
+  quizzes                 Quiz[]
+  quizQuestions           QuizQuestion[]
+  quizAttempts            QuizAttempt[]
+  notificationTemplates   NotificationTemplate[]
+  notificationDispatches  NotificationDispatch[]
+  guardianLinkTokens      GuardianLinkToken[]
+  notificationAuditLogs   NotificationAuditLog[]
+  promotionBatches        PromotionBatch[]
+  bankItems               QuestionBankItem[]
+  bankReviewers           QuestionBankReviewer[]
+  bankAudits              QuestionBankAudit[]
+  practiceSessions        PracticeSession[]
+  practiceAttempts        PracticeAttempt[]
+  questionReports         QuestionReport[]
+  forms                   Form[]
+  formAudiences           FormAudience[]
+  formQuestions           FormQuestion[]
+  formResponses           FormResponse[]
+  formAnswers             FormAnswer[]
+  formParticipations      FormParticipation[]
   /// The program this branch was made for, when it has one of its own (task 0043).
-  ownedProgram           Program?                 @relation("ProgramOwnBranch")
-  programLinks           ProgramBranch[]          @relation("ProgramBranches")
-  formTurnIns            FormTurnIn[]
-  formTurnInAudits       FormTurnInAudit[]
-  formMarkingAudits      FormMarkingAudit[]
-  questionBankPrintLogs  QuestionBankPrintLog[]
+  ownedProgram            Program?                 @relation("ProgramOwnBranch")
+  programLinks            ProgramBranch[]          @relation("ProgramBranches")
+  formTurnIns             FormTurnIn[]
+  formTurnInAudits        FormTurnInAudit[]
+  formMarkingAudits       FormMarkingAudit[]
+  questionBankPrintLogs   QuestionBankPrintLog[]
 
   createdAt DateTime @default(now())
 }
@@ -166,14 +167,18 @@ model Invitation {
   role     Role
   branchId String
 
-  tokenHash String @unique
+  /// Null while the invitation is a DRAFT (task 0101 D2): saved, not sent. The token, its hash, the expiry and `sentAt` are made together when it is sent.
+  tokenHash String? @unique
 
   invitedById   String?
   acceptedById  String?
   /// The staff record this invitation was sent from (task 0114, task 0101 D6): accepting it links the new account to that record. Null for an invitation typed by hand.
   staffRecordId String?
   createdAt     DateTime  @default(now())
-  expiresAt     DateTime
+  /// When the link was sent (task 0101 D2). Null = a draft: nothing was e-mailed and there is no link yet. A link made before drafts existed has it set to when it was created.
+  sentAt        DateTime?
+  /// Null while a draft (no link, so nothing to run out).
+  expiresAt     DateTime?
   acceptedAt    DateTime?
   revokedAt     DateTime?
 

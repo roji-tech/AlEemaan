@@ -27,6 +27,7 @@ async function linkFor(email: string, role: Role = Role.TEACHING_STAFF, opts: { 
       email,
       role,
       branchId: branches[opts.branch ?? 0].id,
+      sentAt: new Date(),
       tokenHash: hashInvitationToken(token),
       expiresAt: new Date(Date.now() + (opts.expired ? -60_000 : 3_600_000)),
     },

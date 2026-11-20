@@ -19,6 +19,7 @@ test.describe("what the migration enforces whatever the application does", () =>
           email,
           role: R.PARENT,
           branchId,
+          sentAt: new Date(),
           tokenHash: hashInvitationToken(newInvitationToken()),
           expiresAt: new Date(Date.now() + 60_000),
           ...extra,

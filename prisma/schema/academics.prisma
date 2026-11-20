@@ -235,9 +235,10 @@ model Department {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now()) @updatedAt
 
-  branch   Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  members  DepartmentMember[]
-  subjects Subject[]
+  branch        Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  members       DepartmentMember[]
+  subjects      Subject[]
+  resultReviews ResultDepartmentReview[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -382,7 +383,8 @@ enum StaffCategory {
 /// the branch's live records (partial index). Creating a record never creates a login.
 model StaffRecord {
   id                    String        @id @default(cuid())
-  branchId              String
+  /// The branch the record belongs to; null = not placed in a branch yet (task 0101 D3): only a superadmin sees and edits such a record, and it is left out of every branch's list, count, export and search until it is placed.
+  branchId              String?
   userId                String?
   category              StaffCategory
   /// How the person is addressed: Mr, Mrs, Miss, Dr, Mallam, Ustadh… (task 0111). Optional, shown before the name.
@@ -418,7 +420,7 @@ model StaffRecord {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @default(now()) @updatedAt
 
-  branch             Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch             Branch?                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
   membership         Membership?              @relation(fields: [userId, branchId], references: [userId, branchId], onDelete: NoAction)
   assignments        StaffSubjectAssignment[]
   teacherOfArms      ClassArm[]               @relation("ClassTeacherArms")
@@ -513,6 +515,9 @@ model Result {
   submittedBy User?            @relation("ResultsSubmitted", fields: [submittedByUserId], references: [id], onDelete: NoAction)
   approvedBy  User?            @relation("ResultsApproved", fields: [approvedByUserId], references: [id], onDelete: NoAction)
 
+  /// The head of department's review (task 0101 F), when the branch asks for one.
+  departmentReview ResultDepartmentReview?
+
   @@unique([studentId, subjectId, periodId])
   @@unique([branchId, id])
   @@index([branchId, periodId, classArmId])
@@ -566,6 +571,26 @@ model ResultAudit {
 
   @@index([branchId, resultId])
   @@index([createdAt])
+}
+
+/// A head of department's review of one SUBMITTED result (task 0101 F, the maintainer: department heads approving results, built behind a switch). While a branch has
+/// `results.departmentHeadReview` on, a result whose subject belongs to a department needs one of these before it can be APPROVED; the head (or an administrator) makes it, never for results they
+/// entered or submitted themselves. It is not a status and moves no result: PUBLISHING is unchanged and stays with the administrator or approver. Returning a result to DRAFT deletes its review
+/// (the marks can change again). `reviewedByUserId` is a plain id, like the audit trail's: people are never deleted.
+model ResultDepartmentReview {
+  id               String   @id @default(cuid())
+  branchId         String
+  resultId         String
+  departmentId     String
+  reviewedByUserId String
+  reviewedAt       DateTime @default(now())
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  result     Result     @relation(fields: [branchId, resultId], references: [branchId, id], onDelete: Cascade)
+  department Department @relation(fields: [branchId, departmentId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, resultId])
+  @@index([branchId, departmentId])
 }
 
 /// The teacher's and the principal's remark on a student's report card for one term (Slice P2c). Editable until any of the student's results for that term is

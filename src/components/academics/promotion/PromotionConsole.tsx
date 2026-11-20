@@ -9,6 +9,7 @@ import { PromotionConfirmModal } from "./PromotionConfirmModal";
 import { PromotionHistoryView } from "./PromotionHistoryView";
 import type { PromotionPreviewResponse } from "@/lib/promotion/service";
 import { defaultPromotionSessions, sessionAfter } from "@/lib/promotion/rules";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 interface AcademicSessionItem {
   id: string;
@@ -24,7 +25,7 @@ interface ClassGroupItem {
 }
 
 export function PromotionConsole({ branches }: { branches: BranchChoice[] }) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(branches[0]?.id || "");
+  const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches);
   const branch = branches.find((b) => b.id === selectedBranchId) ?? branches[0];
   const canManage = branch?.canEdit ?? false;
 

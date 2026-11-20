@@ -3,27 +3,38 @@
 import { useId } from "react";
 import { CheckIcon, ChevronDownIcon } from "./icons";
 import { POPOVER_ITEM, POPOVER_LIST, popoverSide, usePopover } from "./usePopover";
+import { ALL_BRANCHES, UNPLACED } from "./branch-selection";
 
 /// Which branch a page is showing, as one slim bar (the maintainer, 2026-11-18: the full-width "Branch" field took too much of the screen, and then asked for exactly this):
 ///   BRANCH: Primary (English)                                      [ Switch branch v ]
 /// The name is bold on the left; the button is at the far end. The list the button opens is our own (task 0100), not the browser's: the browser's list ignored the dark theme (pale grey
 /// text on white), was narrower than its button, and opened over the page below. Ours is a popover in the page's colours under the button, as wide as its longest name, with a tick on the
 /// branch you are on; Up and Down move through it, Enter picks, Escape closes (`usePopover`). The branches are buttons, the current one marked `aria-current`. With one branch there is
-/// nothing to switch, so the bar is the name alone.
+/// nothing to switch, so the bar is the name alone. `allOption` (task 0117) adds "All branches" first (the value `all`), for a page that lists across branches.
 export function BranchPicker({
   branches,
   value,
   onChange,
   className = "",
+  allOption = false,
+  unplacedOption = false,
 }: {
   branches: readonly { id: string; name: string }[];
   value: string;
   onChange: (id: string) => void;
   className?: string;
+  allOption?: boolean;
+  /// Adds "Not placed in a branch" (task 0101 D3), for a superadmin's staff list.
+  unplacedOption?: boolean;
 }) {
   const listId = useId();
   const { open, setOpen, up, rootRef, buttonRef, listRef, focusButton, onListKeyDown } = usePopover();
-  const current = branches.find((b) => b.id === value) ?? branches[0];
+  const choices = [
+    ...(allOption && branches.length > 1 ? [{ id: ALL_BRANCHES, name: "All branches" }] : []),
+    ...branches,
+    ...(unplacedOption ? [{ id: UNPLACED, name: "Not placed in a branch" }] : []),
+  ];
+  const current = choices.find((b) => b.id === value) ?? choices[0];
   if (!current) return null;
   return (
     <div className={`flex min-h-11 items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-1.5 ${className}`}>
@@ -33,7 +44,7 @@ export function BranchPicker({
           {current.name}
         </strong>
       </p>
-      {branches.length > 1 && (
+      {choices.length > 1 && (
         <div ref={rootRef} className="relative shrink-0 has-[[aria-expanded=true]]:z-30">
           <button
             ref={buttonRef}
@@ -48,7 +59,7 @@ export function BranchPicker({
           </button>
           {open && (
             <ul ref={listRef} id={listId} aria-label="Branches" onKeyDown={onListKeyDown} className={`${POPOVER_LIST} ${popoverSide(up)}`}>
-              {branches.map((b) => {
+              {choices.map((b) => {
                 const here = b.id === current.id;
                 return (
                   <li key={b.id}>

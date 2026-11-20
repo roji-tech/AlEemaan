@@ -443,6 +443,7 @@ test.describe("POST /invitations/accept — an account that already exists is at
         email: member.email,
         role: Role.ADMIN,
         branchId: branches[0].id,
+        sentAt: new Date(),
         tokenHash: hashInvitationToken(token),
         expiresAt: new Date(Date.now() + 60_000),
       },

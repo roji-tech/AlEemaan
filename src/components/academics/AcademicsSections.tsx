@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useTabParam } from "@/components/ui/useTabParam";
 import { ClassesPanel } from "@/components/academics/ClassesPanel";
 import { DepartmentsPanel } from "@/components/academics/DepartmentsPanel";
@@ -47,7 +48,7 @@ export function AcademicsSections({
     tabs.some((s) => s.id === initialSection) ? initialSection : "classes",
   );
   // The branch of the Classes, Subjects and Sessions tabs is one choice: switching between them keeps it.
-  const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
+  const [branchId, setBranchId] = useBranchSelection(branches, { initial: initialBranchId });
   const [pendingNew, setPendingNew] = useState(openNew);
   const autoNew = pendingNew && active === initialSection;
   const autoNewDone = useCallback(() => setPendingNew(false), []);
@@ -97,6 +98,7 @@ export function AcademicsSections({
         {active === "staff" && (
           <StaffPanel
             branches={branchesNow}
+            isSuperAdmin={isSuperAdmin}
             initialBranchId={initialBranchId}
             initialQuery={initialSection === "staff" ? initialQuery : undefined}
           />

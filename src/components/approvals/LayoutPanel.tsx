@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // Which report-card layout a branch prints, and which of its optional parts it shows. A superadmin can also switch "an administrator's change needs my approval" on
 // (for every branch): then an administrator's save becomes a request with their reason, and the report cards keep the old layout until it is approved.
@@ -20,7 +21,7 @@ const OPTIONS: { key: keyof Options; label: string }[] = [
 ];
 
 export function LayoutPanel({ branches, isSuperAdmin }: { branches: BranchChoice[]; isSuperAdmin: boolean }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [layouts, setLayouts] = useState<Layout[] | null>(null);
   const [code, setCode] = useState("DEFAULT");

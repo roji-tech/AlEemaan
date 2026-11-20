@@ -1,6 +1,7 @@
 "use client";
 
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useState, useEffect, useCallback } from "react";
 import { TimetableCanvas } from "./TimetableCanvas";
 import type { SlotDto } from "./SlotEditModal";
@@ -11,7 +12,7 @@ export interface TimetablePanelProps {
 }
 
 export function TimetablePanel({ branches, isAdmin }: TimetablePanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(branches[0]?.id ?? "");
+  const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches);
   const [slots, setSlots] = useState<SlotDto[]>([]);
   const [classArms, setClassArms] = useState<{ id: string; name: string }[]>([]);
   const [subjects, setSubjects] = useState<{ id: string; name: string; code?: string | null }[]>([]);

@@ -1,6 +1,7 @@
 import { Prisma, Role, type StaffCategory } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { branchIdsFor } from "@/lib/auth/branch-access";
 import { accountFitsRecord } from "@/lib/academics/staff-accounts";
 import { DomainError } from "@/lib/academics/sessions";
 import { ConflictError, audit } from "@/lib/academics/structure";
@@ -66,12 +67,16 @@ export const staffBranchId = async (id: string) =>
   (await prisma.staffRecord.findUnique({ where: { id }, select: { branchId: true } }))?.branchId ?? null;
 
 export const EMAIL_TAKEN = "Another staff record in this branch already uses that email.";
+export const UNPLACED_EMAIL_TAKEN = "Another staff record that is not placed in a branch yet already uses that email.";
+/// The sentence for what an unplaced record (task 0101 D3) cannot have or do until a superadmin places it in a branch.
+export const PLACE_FIRST = "Place this record in a branch first.";
 const duplicate = (error: unknown, message: string): never => {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ConflictError(message);
   throw error;
 };
 
 const INCLUDE = {
+  branch: { select: { name: true } },
   membership: { select: { role: true, deactivatedAt: true, user: { select: { name: true, email: true } } } },
   _count: { select: { assignments: true } },
   /// The newest invitation sent from this record that is neither accepted nor revoked (task 0114): "Invited" on the card until it is accepted or runs out.
@@ -110,6 +115,8 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
   return {
     id: row.id,
     branchId: row.branchId,
+    /// The branch's name (task 0117: the list across branches says where each person is); null for a record not placed in a branch yet (task 0101 D3).
+    branchName: row.branch?.name ?? null,
     category: row.category,
     firstName: row.firstName,
     lastName: row.lastName,
@@ -132,7 +139,12 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
     standingUntil: row.standingUntil ? row.standingUntil.toISOString().slice(0, 10) : null,
     account,
     /// An invitation sent from this record is waiting (task 0114): until when; `expired` once the link has run out without being accepted.
-    invited: !row.userId && invitation ? { until: invitation.expiresAt.toISOString(), expired: invitation.expiresAt <= new Date() } : null,
+    invited:
+      !row.userId && invitation?.expiresAt
+        ? { until: invitation.expiresAt.toISOString(), expired: invitation.expiresAt <= new Date() }
+        : null,
+    /// An invitation for this person is saved as a DRAFT (task 0101 D2): not sent, so not "Invited"; it is sent from the Pending invitations tab.
+    inviteDraft: !row.userId && !!invitation && invitation.expiresAt === null,
     assignmentCount: row._count.assignments,
     /// "JSS 1 A": the arms this person is class teacher of.
     classTeacherOf: row.teacherOfArms.map((a) => ({ armId: a.id, label: `${a.classGroup.name} ${a.name}` })),
@@ -149,7 +161,7 @@ async function alsoInFor(rows: Row[]): Promise<Map<string, { branchId: string; b
   const answer = new Map<string, { branchId: string; branchName: string }[]>();
   if (people.length === 0) return answer;
   const others = await prisma.staffRecord.findMany({
-    where: { personId: { in: people }, archivedAt: null },
+    where: { personId: { in: people }, archivedAt: null, branchId: { not: null } },
     select: { id: true, personId: true, branchId: true, branch: { select: { name: true } } },
     orderBy: { branch: { name: "asc" } },
   });
@@ -159,7 +171,7 @@ async function alsoInFor(rows: Row[]): Promise<Map<string, { branchId: string; b
       row.id,
       others
         .filter((o) => o.personId === row.personId && o.id !== row.id && o.branchId !== row.branchId)
-        .map((o) => ({ branchId: o.branchId, branchName: o.branch.name })),
+        .flatMap((o) => (o.branchId && o.branch ? [{ branchId: o.branchId, branchName: o.branch.name }] : [])),
     );
   }
   return answer;
@@ -174,28 +186,95 @@ const mustFind = async (id: string) => {
 };
 
 // ---- the record ----
-export async function listStaff(branchId: string, opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
+/// The status and search part of a list's `where`, shared by one branch's list and the list across branches, so the two can never filter differently.
+function listFilter(opts: { status?: "live" | "archived" | "all"; q?: string }): Prisma.StaffRecordWhereInput {
   const status = opts.status ?? "live";
   const tokens = (opts.q ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
+  return {
+    ...(status === "live" ? { archivedAt: null } : status === "archived" ? { archivedAt: { not: null } } : {}),
+    AND: tokens.map((t) => ({
+      OR: [
+        { firstName: { contains: t, mode: "insensitive" as const } },
+        { lastName: { contains: t, mode: "insensitive" as const } },
+        { email: { contains: t, mode: "insensitive" as const } },
+        { phone: { contains: t } },
+      ],
+    })),
+  };
+}
+
+export async function listStaff(branchId: string, opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
   const rows = await prisma.staffRecord.findMany({
-    where: {
-      branchId,
-      ...(status === "live" ? { archivedAt: null } : status === "archived" ? { archivedAt: { not: null } } : {}),
-      AND: tokens.map((t) => ({
-        OR: [
-          { firstName: { contains: t, mode: "insensitive" as const } },
-          { lastName: { contains: t, mode: "insensitive" as const } },
-          { email: { contains: t, mode: "insensitive" as const } },
-          { phone: { contains: t } },
-        ],
-      })),
-    },
+    where: { branchId, ...listFilter(opts) },
     include: INCLUDE,
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     take: 500,
   });
   const also = await alsoInFor(rows);
   return rows.map((row) => toStaff(row, also.get(row.id) ?? []));
+}
+
+/// The most records the list across branches answers with (task 0117); more are reported as `truncated`, so the page can say "showing the first 1000".
+export const STAFF_ACROSS_CAP = 1000;
+
+/// "All branches" (task 0117): the staff of every branch the caller holds a STAFF role in (a superadmin: every branch), never more, in one query. The branch of each record is named in the
+/// view. The caller's authority is the `branchIdsFor` answer, so a record of a branch they cannot read is never in it.
+export async function listStaffAcross(userId: string, opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
+  const scope = await branchIdsFor(userId);
+  if (scope !== "all" && scope.length === 0) return { staff: [], truncated: false };
+  const rows = await prisma.staffRecord.findMany({
+    // A record not placed in a branch is nobody's branch list: even "every branch" never includes one (task 0101 D3; a superadmin finds them under "Not placed in a branch").
+    where: { branchId: scope === "all" ? { not: null } : { in: scope }, ...listFilter(opts) },
+    include: INCLUDE,
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { branch: { name: "asc" } }, { id: "asc" }],
+    take: STAFF_ACROSS_CAP + 1,
+  });
+  const truncated = rows.length > STAFF_ACROSS_CAP;
+  const kept = truncated ? rows.slice(0, STAFF_ACROSS_CAP) : rows;
+  const also = await alsoInFor(kept);
+  return { staff: kept.map((row) => toStaff(row, also.get(row.id) ?? [])), truncated };
+}
+
+/// The records not placed in a branch yet (task 0101 D3). A superadmin's view: the route checks who asks; no branch authority exists over these.
+export async function listUnplaced(opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
+  const rows = await prisma.staffRecord.findMany({
+    where: { branchId: null, ...listFilter(opts) },
+    include: INCLUDE,
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
+    take: 500,
+  });
+  return rows.map((row) => toStaff(row));
+}
+
+/// Is this record not placed in a branch? `null` for no such record.
+export async function isUnplaced(id: string): Promise<boolean | null> {
+  const row = await prisma.staffRecord.findUnique({ where: { id }, select: { branchId: true } });
+  return row ? row.branchId === null : null;
+}
+
+export const unplacedInput = staffInput.omit({ branchId: true });
+
+/// A record with no branch (task 0101 D3): the same details as any record, no branch to belong to yet. Creating one never creates a sign-in account.
+export async function createUnplacedStaff(actorUserId: string, input: z.infer<typeof unplacedInput>) {
+  return createStaff(actorUserId, { ...input, branchId: null });
+}
+
+/// Places an unplaced record in a branch (task 0101 D3): from then on that branch's administrators manage it. A live record of that branch with the same e-mail address is a 409; a
+/// record that is already placed is a 409 (a placed record moves between branches through Transfer). Audited `STAFF_PLACED`. `null` for no such record or branch.
+export async function placeStaff(actorUserId: string, id: string, branchId: string) {
+  const before = await find(id);
+  if (!before) return null;
+  const branch = await prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } });
+  if (!branch) return null;
+  if (before.branchId !== null) throw new ConflictError("This record is already in a branch. Use Transfer to move it.");
+  try {
+    const done = await prisma.staffRecord.updateMany({ where: { id, branchId: null }, data: { branchId } });
+    if (done.count !== 1) throw new ConflictError("This record is already in a branch. Use Transfer to move it.");
+  } catch (error) {
+    return duplicate(error, "A live record in that branch already uses this person's email.");
+  }
+  await audit(actorUserId, "STAFF_PLACED", "StaffRecord", id, { branchId }, { branchId: null });
+  return viewOf(await mustFind(id));
 }
 
 const ASSIGNMENT_INCLUDE = {
@@ -229,7 +308,7 @@ export async function getStaff(id: string) {
   return { staff: await viewOf(row), assignments: assignments.map(toAssignment) };
 }
 
-export async function createStaff(actorUserId: string, input: z.infer<typeof staffInput>) {
+export async function createStaff(actorUserId: string, input: Omit<z.infer<typeof staffInput>, "branchId"> & { branchId: string | null }) {
   try {
     const row = await prisma.staffRecord.create({
       data: {
@@ -256,7 +335,7 @@ export async function createStaff(actorUserId: string, input: z.infer<typeof sta
     });
     return toStaff(row);
   } catch (error) {
-    return duplicate(error, EMAIL_TAKEN);
+    return duplicate(error, input.branchId === null ? UNPLACED_EMAIL_TAKEN : EMAIL_TAKEN);
   }
 }
 
@@ -297,7 +376,7 @@ export async function updateStaff(actorUserId: string, id: string, patch: z.infe
     if (changed.includes("isDraft")) await audit(actorUserId, "STAFF_DRAFT_SET", "StaffRecord", id, { isDraft: true }, { isDraft: false });
     return toStaff(row);
   } catch (error) {
-    return duplicate(error, EMAIL_TAKEN);
+    return duplicate(error, before.branchId === null ? UNPLACED_EMAIL_TAKEN : EMAIL_TAKEN);
   }
 }
 
@@ -341,8 +420,8 @@ export async function setStaffArchived(actorUserId: string, id: string, archived
 /// Members of the branch an administrator may link: ACTIVE, holding the role that fits the category, and not already linked to a record.
 export async function linkableAccounts(id: string) {
   const record = await mustFind(id);
-  // A draft is not offered an account: it is finished first (task 0101 D1).
-  if (record.isDraft) return [];
+  // A draft is not offered an account: it is finished first (task 0101 D1); a record not placed in a branch has no branch whose members could be linked (task 0101 D3).
+  if (record.isDraft || record.branchId === null) return [];
   const members = await prisma.membership.findMany({
     // The kind's own role, or an administrator (task 0112: an administrator who also teaches is on the staff list too).
     where: {
@@ -363,6 +442,7 @@ export async function linkAccount(actorUserId: string, id: string, input: z.infe
   if (!record) return null;
   if (record.archivedAt) throw new ConflictError("Restore this record before linking an account.");
   if (record.isDraft) throw new ConflictError("Complete this draft before linking a sign-in account.");
+  if (record.branchId === null) throw new ConflictError(PLACE_FIRST);
   if (record.userId) throw new ConflictError("This record already has a sign-in account.");
   const member = await prisma.membership.findUnique({
     where: { userId_branchId: { userId: input.userId, branchId: record.branchId } },
@@ -400,6 +480,7 @@ export async function addAssignment(actorUserId: string, staffId: string, input:
   if (!record) return null;
   if (record.archivedAt) throw new ConflictError("Restore this record before assigning subjects.");
   if (record.isDraft) throw new ConflictError("Complete this draft before assigning subjects.");
+  if (record.branchId === null) throw new ConflictError(PLACE_FIRST);
   const subject = await prisma.subject.findFirst({
     where: { id: input.subjectId, branchId: record.branchId, archivedAt: null },
     select: { id: true },
