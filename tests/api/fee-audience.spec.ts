@@ -213,7 +213,7 @@ test.describe("new or returning, set by hand", () => {
     const loaded = await w.enrol("Loaded", { gender: Gender.MALE }); // enrolled only this session: worked out as NEW
     const url = `/api/v1/finance/students/${loaded.id}/admission-status?branchId=${home.id}`;
     expect((await api(url, { method: "PUT", cookie: teacher.cookie, body: { admission: "RETURNING" } })).status).toBe(403);
-    expect((await api(url, { method: "PUT", cookie: away.cookie, body: { admission: "RETURNING" } })).status).toBe(403);
+    expect((await api(url, { method: "PUT", cookie: away.cookie, body: { admission: "RETURNING" } })).status).toBe(404);
     expect((await api(url, { method: "PUT", cookie: admin.cookie, body: { admission: "SOMETIMES" } })).status).toBe(400);
     expect(dto(await api(ITEMS(loaded.id, w.period.id), { cookie: admin.cookie })).admission).toBe("NEW");
     const set = await api(url, { method: "PUT", cookie: admin.cookie, body: { admission: "RETURNING" } });
@@ -257,6 +257,45 @@ test.describe("the pupil import's Admission status column", () => {
     const of = async (first: string) =>
       (await db.studentRecord.findFirstOrThrow({ where: { branchId: home.id, firstName: first } })).feeAdmission;
     expect([await of("Fresh"), await of("Veteran"), await of("Plain")]).toEqual(["NEW", "RETURNING", null]);
+  });
+});
+
+test.describe("one flat fee for the whole branch", () => {
+  test("a single line with no class and no conditions is charged to every pupil of the branch, whatever their class, gender or residence", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const w = await world();
+    await db.feeStructure.deleteMany({ where: { periodId: w.period.id } });
+    await db.feeStructure.create({ data: { branchId: home.id, periodId: w.period.id, name: "School fees", amount: "85000.00" } });
+    const other2 = await db.classGroup.create({ data: { branchId: home.id, name: "JSS 1", sortOrder: 2 } });
+    const arm2 = await db.classArm.create({ data: { branchId: home.id, classGroupId: other2.id, name: "A" } });
+    const a = await w.enrol("Basic", { gender: Gender.MALE });
+    const b = await w.enrol("Boarder", { gender: Gender.FEMALE, residence: Residence.BOARDING, returning: true });
+    const c = await db.studentRecord.create({
+      data: {
+        branchId: home.id,
+        firstName: "Junior",
+        lastName: "Bill",
+        gender: Gender.FEMALE,
+        admissionNo: `FA/FLAT/${Date.now() % 100000}`,
+      },
+    });
+    await db.studentEnrollment.create({
+      data: {
+        studentId: c.id,
+        branchId: home.id,
+        sessionId: w.session.id,
+        className: other2.name,
+        arm: "A",
+        classArmId: arm2.id,
+        status: "ACTIVE",
+      },
+    });
+    const res = await generate(admin.cookie, w.period.id);
+    expect(dto(res)).toMatchObject({ created: 3, missingResidence: 0 });
+    for (const p of [a, b, c]) {
+      const inv = await invoiceOf(p.id);
+      expect([inv.totalAmount.toString(), (inv.lineItems as unknown[]).length]).toEqual(["85000", 1]);
+    }
   });
 });
 
@@ -405,7 +444,7 @@ test.describe("items handed over", () => {
     await db.invoice.updateMany({ where: { studentId: a.id }, data: { amountPaid: "73000.00", status: "PAID" } });
 
     expect((await api(HAND(a.id, w.uniformM.id), { method: "PUT", cookie: teacher.cookie, body: { received: true } })).status).toBe(403);
-    expect((await api(HAND(a.id, w.uniformM.id), { method: "PUT", cookie: away.cookie, body: { received: true } })).status).toBe(403);
+    expect((await api(HAND(a.id, w.uniformM.id), { method: "PUT", cookie: away.cookie, body: { received: true } })).status).toBe(404);
     expect((await api(HAND(a.id, w.fees.id), { method: "PUT", cookie: admin.cookie, body: { received: true } })).status).toBe(409); // not tracked
     expect(
       (await api(HAND(a.id, w.uniformM.id), { method: "PUT", cookie: admin.cookie, body: { received: true, receivedOn: day(3) } })).status,
@@ -446,7 +485,7 @@ test.describe("items handed over", () => {
     ).toBe(2);
   });
 
-  test("the reads are an administrator's: signed out 401, a teacher 403, an administrator of another branch 403", async () => {
+  test("the reads are an administrator's: signed out 401, a teacher 403, an administrator of another branch 404", async () => {
     const teacher = await asRole(Role.TEACHING_STAFF);
     const away = await asRole(Role.ADMIN, [other.id]);
     const w = await world();
@@ -455,7 +494,7 @@ test.describe("items handed over", () => {
     for (const url of urls) {
       expect((await api(url)).status).toBe(401);
       expect((await api(url, { cookie: teacher.cookie })).status).toBe(403);
-      expect((await api(url, { cookie: away.cookie })).status).toBe(403);
+      expect((await api(url, { cookie: away.cookie })).status).toBe(404);
     }
   });
 });

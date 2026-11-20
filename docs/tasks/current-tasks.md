@@ -770,3 +770,7 @@
 ## TASK-0121: Show or hide the class arm and "Verify these results" (requested 2026-11-20)
 
 [Task file](0121-card-arm-and-verify-options.md). Two layout options, `classArm` and `verifyLinks`, shown only when a template or the branch layout says true; existing cards are hidden too. No migration (the options are JSON on the layout and template).
+
+## TASK-0122: Who a fee line is for, optional items per pupil, items handed over (requested 2026-11-20)
+
+[Task file](0122-fee-audience-optional-items-handover.md). A fee line can be for new or returning pupils, one gender, day or boarders (nothing = everyone, as every existing line is); a line can be optional (a pupil opts out: the invoice follows while nothing is paid), a scholarship's share can skip it, and an item can be tracked as handed over (a record, never a block). One additive migration, `20261122090000_fee_audience`, the maintainer's to run in production after the prod merge.
