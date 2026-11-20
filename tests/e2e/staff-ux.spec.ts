@@ -206,6 +206,7 @@ test("Users > Pending invitations: the history shows a revoked invitation with w
       email: `gone-${Date.now()}@school.example`,
       role: Role.TEACHING_STAFF,
       branchId: home.id,
+      sentAt: new Date(),
       tokenHash: hashInvitationToken(randomBytes(32).toString("base64url")),
       expiresAt: new Date(Date.now() + 3 * 24 * 3600 * 1000),
       revokedAt: new Date(),

@@ -507,7 +507,14 @@ test.describe("accepting — losing a race AFTER the link was read", () => {
 async function plantInvitation(to: string, role: R, branchId = north.id) {
   const token = newInvitationToken();
   const row = await db.invitation.create({
-    data: { email: to, role, branchId, tokenHash: hashInvitationToken(token), expiresAt: new Date(Date.now() + 60_000) },
+    data: {
+      email: to,
+      role,
+      branchId,
+      sentAt: new Date(),
+      tokenHash: hashInvitationToken(token),
+      expiresAt: new Date(Date.now() + 60_000),
+    },
   });
   return { token, row };
 }

@@ -147,6 +147,7 @@ test.describe("the history of invitations", () => {
         email,
         role,
         branchId,
+        sentAt: new Date(),
         tokenHash: hashInvitationToken(randomBytes(32).toString("base64url")),
         expiresAt: new Date(Date.now() + 3 * 24 * 3600 * 1000),
         ...extra,
