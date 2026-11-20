@@ -77,10 +77,11 @@ export default defineConfig({
     },
     {
       // The same build with the four sign-in portals on (task 0086): admin., staff., student. and parent. of localhost.
-      // Bound to 127.0.0.1, not to `localhost`: Next.js writes a redirect whose target is the server's OWN address as a relative one, and the portals redirect a portal to the apex
-      // `localhost`, so with the server bound to `localhost` a browser on staff.localhost re-asked the same host and looped (ERR_TOO_MANY_REDIRECTS, 2026-11-20). On a real domain the two
-      // addresses differ and the redirect stays absolute.
-      command: `pnpm exec next start -H 127.0.0.1 -p ${PORTALS_PORT}`,
+      // Bound to 0.0.0.0 (every address), not to the default: Next.js writes a middleware redirect as a RELATIVE one when its target has the same host as the server's own request URL,
+      // and for a server bound to the default (`localhost`) or to 127.0.0.1 that was true of the portals' redirect to the apex `localhost`, so a browser on staff.localhost re-asked the
+      // same host and looped (ERR_TOO_MANY_REDIRECTS, found 2026-11-20 with curl: `location: /about`; with -H 0.0.0.0 it is `http://localhost:PORT/about`). On a real domain the
+      // two hosts differ and the redirect is absolute either way.
+      command: `pnpm exec next start -H 0.0.0.0 -p ${PORTALS_PORT}`,
       url: `http://127.0.0.1:${PORTALS_PORT}/favicon.ico`,
       env: portalsServerEnv(),
       reuseExistingServer: false,
