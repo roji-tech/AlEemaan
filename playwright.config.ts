@@ -77,8 +77,11 @@ export default defineConfig({
     },
     {
       // The same build with the four sign-in portals on (task 0086): admin., staff., student. and parent. of localhost.
-      command: `pnpm exec next start -p ${PORTALS_PORT}`,
-      url: `${PORTALS_URL}/favicon.ico`,
+      // Bound to 127.0.0.1, not to `localhost`: Next.js writes a redirect whose target is the server's OWN address as a relative one, and the portals redirect a portal to the apex
+      // `localhost`, so with the server bound to `localhost` a browser on staff.localhost re-asked the same host and looped (ERR_TOO_MANY_REDIRECTS, 2026-11-20). On a real domain the two
+      // addresses differ and the redirect stays absolute.
+      command: `pnpm exec next start -H 127.0.0.1 -p ${PORTALS_PORT}`,
+      url: `http://127.0.0.1:${PORTALS_PORT}/favicon.ico`,
       env: portalsServerEnv(),
       reuseExistingServer: false,
       timeout: 60_000,
