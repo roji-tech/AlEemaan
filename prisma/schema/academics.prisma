@@ -54,13 +54,15 @@ model AcademicPeriod {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  session       AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  results       Result[]
-  remarks       ReportRemark[]
-  feeStructures FeeStructure[]
-  invoices      Invoice[]
-  breaks        AcademicBreak[]
+  branch           Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session          AcademicSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results          Result[]
+  remarks          ReportRemark[]
+  feeStructures    FeeStructure[]
+  invoices         Invoice[]
+  breaks           AcademicBreak[]
+  traitRatings     TraitRating[]
+  reportAttendance ReportAttendance[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
@@ -590,10 +592,12 @@ model ResultTemplate {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
-  branch     Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  scheme     AssessmentScheme?     @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
-  gradeScale GradeScale?           @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
-  classes    ResultTemplateClass[]
+  branch      Branch                     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scheme      AssessmentScheme?          @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+  gradeScale  GradeScale?                @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
+  classes     ResultTemplateClass[]
+  traitGroups ResultTemplateTraitGroup[]
+  traits      ResultTemplateTrait[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -612,4 +616,90 @@ model ResultTemplateClass {
 
   @@unique([branchId, classGroupId])
   @@index([templateId])
+}
+
+/// A group of traits on a template's report card (task 0116): "Psychomotor skill", "Affective domain", "Character development", "Practical skills". `showSign` adds the SIGN column the
+/// secondary cards print beside the rating. Seeded per branch from the school's four cards (lib/results/seed-templates.ts) and editable.
+model ResultTemplateTraitGroup {
+  id         String   @id @default(cuid())
+  branchId   String
+  templateId String
+  title      String
+  sortOrder  Int      @default(0)
+  showSign   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  branch   Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template ResultTemplate        @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+  traits   ResultTemplateTrait[]
+
+  @@unique([branchId, id])
+  @@index([templateId])
+}
+
+/// One trait of a template (Punctuality, Games, ...), rated 1 to 5 for each pupil each term (TraitRating). A trait is archived, never deleted, so a past card still shows it.
+model ResultTemplateTrait {
+  id         String    @id @default(cuid())
+  branchId   String
+  templateId String
+  groupId    String
+  name       String
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  branch   Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template ResultTemplate           @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+  group    ResultTemplateTraitGroup @relation(fields: [branchId, groupId], references: [branchId, id], onDelete: Cascade)
+  ratings  TraitRating[]
+
+  @@unique([branchId, id])
+  @@index([templateId])
+  @@index([groupId])
+}
+
+/// A pupil's rating (1 to 5, a CHECK in the migration) of one trait for one term, entered by the class teacher or an administrator and editable until the pupil's results for the term are
+/// published, as the remarks are.
+model TraitRating {
+  id              String   @id @default(cuid())
+  branchId        String
+  studentId       String
+  periodId        String
+  traitId         String
+  rating          Int
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  branch    Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord       @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  period    AcademicPeriod      @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  trait     ResultTemplateTrait @relation(fields: [branchId, traitId], references: [branchId, id], onDelete: NoAction)
+  updatedBy User                @relation("TraitRatingsUpdated", fields: [updatedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, periodId, traitId])
+  @@index([branchId, periodId])
+}
+
+/// Attendance numbers a person ENTERED for a pupil's term, overriding what the register gives (task 0116): times the school opened, times present, times absent. A null number means
+/// "use the register's count"; nothing is invented when there is no register either (the card shows a dash).
+model ReportAttendance {
+  id              String   @id @default(cuid())
+  branchId        String
+  studentId       String
+  periodId        String
+  timesOpen       Int?
+  timesPresent    Int?
+  timesAbsent     Int?
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  branch    Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord  @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  period    AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  updatedBy User           @relation("ReportAttendanceUpdated", fields: [updatedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, periodId])
+  @@index([branchId, periodId])
 }
