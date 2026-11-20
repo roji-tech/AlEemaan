@@ -49,3 +49,11 @@ export function orderBySubjectAdded<T extends { subjectId: string; subject: { na
     return a.subject.name.localeCompare(b.subject.name, "en", { sensitivity: "base" });
   });
 }
+
+/// The class as the report card prints it (task 0123): the class, then its arm when the card shows arms, then the class's grade label in brackets when it has one: "SSS 1 A (Grade 10)",
+/// "SSS 1 (Grade 10)", "SSS 1".
+export function classText(cls: { group: string; arm: string; gradeLabel?: string | null }, withArm: boolean): string {
+  const base = withArm ? `${cls.group} ${cls.arm}` : cls.group;
+  const label = cls.gradeLabel?.trim();
+  return label ? `${base} (${label})` : base;
+}

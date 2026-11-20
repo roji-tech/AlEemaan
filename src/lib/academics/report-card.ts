@@ -93,7 +93,7 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     where: { branchId, studentId, periodId, ...(statuses ? { status: statuses } : {}) },
     include: {
       subject: { select: { name: true } },
-      classArm: { select: { name: true, classGroup: { select: { id: true, name: true } } } },
+      classArm: { select: { name: true, classGroup: { select: { id: true, name: true, gradeLabel: true } } } },
       scale: { include: { bands: { orderBy: { minScore: "asc" } } } },
     },
     orderBy: [{ subject: { name: "asc" } }, { id: "asc" }],
@@ -228,9 +228,9 @@ export async function getReportCard(branchId: string, studentId: string, periodI
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString().slice(0, 10) : null,
     },
     class: first
-      ? { group: first.classArm.classGroup.name, arm: first.classArm.name }
+      ? { group: first.classArm.classGroup.name, arm: first.classArm.name, gradeLabel: first.classArm.classGroup.gradeLabel }
       : enrolled
-        ? { group: enrolled.classGroup.name, arm: enrolled.name }
+        ? { group: enrolled.classGroup.name, arm: enrolled.name, gradeLabel: enrolled.classGroup.gradeLabel }
         : null,
     period: { id: period.id, label: period.label, session: period.session.label },
     subjects: detailed,

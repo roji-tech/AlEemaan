@@ -3,6 +3,7 @@ import { SiteImage } from "@/components/site/SiteImage";
 import { TRAIT_SCALE } from "@/lib/results/report-traits-rules";
 import { legendLine } from "@/lib/results/grade-legend";
 import type { Card } from "@/components/results/ReportCard";
+import { classText } from "@/lib/academics/report-card-rules";
 
 // The school's four printed report cards (task 0116): pre-school, basic, junior secondary and senior secondary. One component draws all four from the card's data, so the subjects, the trait
 // groups, the grade legend and the dates come from the class's template and the pupil's results, never from a list written here. It is drawn as PAPER (white, dark text) in both themes so
@@ -94,9 +95,7 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
         <Field label="Name">{card.student.name}</Field>
         <Field label="Date of birth">{longDate(card.student.dateOfBirth)}</Field>
         <Field label="Sex">{card.student.gender === "FEMALE" ? "Female" : "Male"}</Field>
-        <Field label="Class">
-          {card.class ? (card.layout?.options?.classArm ? `${card.class.group} ${card.class.arm}` : card.class.group) : "—"}
-        </Field>
+        <Field label="Class">{card.class ? classText(card.class, card.layout?.options?.classArm === true) : "—"}</Field>
         <Field label="No in class">{dash(s.classSize)}</Field>
         <Field label="Position in class">{s.position === null ? "—" : ordinal(s.position)}</Field>
         <Field label="No of times absent">{dash(att?.timesAbsent.value)}</Field>

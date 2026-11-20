@@ -32,7 +32,11 @@ export async function getUnsectionedClassApproval(branchId: string): Promise<Uns
 export type UnsectionedChange = { before: UnsectionedClassApproval; after: UnsectionedClassApproval; changed: boolean; widening: boolean };
 
 /// Stores the value and audits it. Nothing is written when nothing changes (a first save of the default creates the row but no audit line).
-export async function setUnsectionedClassApproval(branchId: string, value: UnsectionedClassApproval, actorUserId: string): Promise<UnsectionedChange> {
+export async function setUnsectionedClassApproval(
+  branchId: string,
+  value: UnsectionedClassApproval,
+  actorUserId: string,
+): Promise<UnsectionedChange> {
   return prisma.$transaction(async (tx) => {
     const where = { scope_branchId_key: { scope: SettingScope.BRANCH, branchId, key: UNSECTIONED_KEY } };
     const existing = await tx.settingValue.findUnique({ where, select: { value: true } });

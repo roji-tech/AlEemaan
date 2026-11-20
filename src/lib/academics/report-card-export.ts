@@ -1,4 +1,5 @@
 import type { Card } from "@/components/results/ReportCard";
+import { classText } from "@/lib/academics/report-card-rules";
 
 /**
  * Generates and triggers download of a self-contained, offline-compatible HTML report card.
@@ -206,7 +207,7 @@ export function generateReportCardHtml(card: Card, origin: string): string {
       </div>
       <div>
         <dt>Class &amp; Arm</dt>
-        <dd>${card.class ? escapeHtml(`${card.class.group} ${card.class.arm}`) : "—"}</dd>
+        <dd>${card.class ? escapeHtml(classText(card.class, true)) : "—"}</dd>
       </div>
       <div>
         <dt>Gender</dt>
