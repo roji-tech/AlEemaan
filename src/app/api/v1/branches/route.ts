@@ -1,3 +1,4 @@
+import { ensureReportTemplates } from "@/lib/results/seed-branch";
 import { z } from "zod";
 import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -49,6 +50,8 @@ export const POST = withAuth(
     try {
       const branch = await prisma.$transaction(async (tx) => {
         const created = await tx.branch.create({ data: { name: parsed.data.name } });
+        // The school's four report-card templates (task 0116), so a new branch has them as the existing ones do.
+        await ensureReportTemplates(created.id, tx);
 
         await tx.auditLog.create({
           data: {

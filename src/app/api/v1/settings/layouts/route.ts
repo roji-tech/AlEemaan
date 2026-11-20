@@ -1,3 +1,4 @@
+import { LAYOUT_CODES } from "@/lib/results/templates-rules";
 import { z } from "zod";
 import { Role, SettingScope } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -17,7 +18,7 @@ const getLayoutsQuery = z.object({
 
 const patchBranchLayoutInput = z.strictObject({
   branchId: z.string().min(1, "branchId is required"),
-  layoutCode: z.enum(["DEFAULT", "LEGACY"]),
+  layoutCode: z.enum(LAYOUT_CODES),
   /// Required when a superadmin has put this setting behind approval: why the change is needed.
   reason: z.string().trim().min(1).max(500).optional(),
   options: z

@@ -21,6 +21,8 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { ClassTemplateDialog } from "@/components/results/ClassTemplateDialog";
+import { useClassTemplates } from "@/components/results/useClassTemplates";
 import { classEntity } from "@/lib/bulk/classes";
 import { subjectEntity } from "@/lib/bulk/subjects";
 import { AddFromCatalogDialog, TagChips } from "@/components/academics/SubjectCatalogDialogs";
@@ -82,6 +84,9 @@ export function ClassesPanel({
   const [groups, setGroups] = useState<ClassGroup[] | null>(null);
   const [subjects, setSubjects] = useState<Subject[] | null>(null);
   const [unmatched, setUnmatched] = useState(0);
+  // Result templates (task 0116): which template each class uses, and the class whose template is being chosen.
+  const templates = useClassTemplates(branchId, view === "classes");
+  const [templateOf, setTemplateOf] = useState<ClassGroup | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
@@ -294,6 +299,12 @@ export function ClassesPanel({
                             onClick: () => setEditing({ kind: "offerings", classGroup: g }),
                           },
                           {
+                            id: "template",
+                            label: "Result template",
+                            ariaLabel: `Result template of ${g.name}`,
+                            onClick: () => setTemplateOf(g),
+                          },
+                          {
                             id: "edit",
                             label: "Edit",
                             ariaLabel: `Rename ${g.name}`,
@@ -369,6 +380,12 @@ export function ClassesPanel({
                       </>
                     )}
                   </p>
+                  {templates.byClass[g.id] && (
+                    <p className="mt-1 text-xs text-fg-muted">
+                      Result template: {templates.byClass[g.id].name}
+                      {templates.byClass[g.id].explicit ? "" : " (default)"}
+                    </p>
+                  )}
                 </Item>
               );
             })}
@@ -554,6 +571,19 @@ export function ClassesPanel({
             const noun = view === "classes" ? (count === 1 ? "class" : "classes") : count === 1 ? "subject" : "subjects";
             setNotice({ variant: "success", text: `${count} ${noun} added.` });
             await load();
+          }}
+        />
+      )}
+      {templateOf && (
+        <ClassTemplateDialog
+          key={templateOf.id}
+          branchId={branchId}
+          classGroup={templateOf}
+          onClose={() => setTemplateOf(null)}
+          onDone={async (text) => {
+            setTemplateOf(null);
+            setNotice({ variant: "success", text });
+            await templates.reload();
           }}
         />
       )}

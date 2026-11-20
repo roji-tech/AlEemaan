@@ -1,3 +1,4 @@
+import { ensureReportTemplates } from "@/lib/results/seed-branch";
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { z } from "zod";
@@ -154,6 +155,8 @@ export async function POST(req: NextRequest) {
         data: { email, name, passwordHash, isSuperAdmin: true },
       });
 
+      // The school's four report-card templates for each branch (task 0116).
+      for (const b of branches) await ensureReportTemplates(b.id, tx);
       await tx.membership.create({
         data: { userId: admin.id, branchId: branches[0].id, role: Role.ADMIN },
       });
