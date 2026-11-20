@@ -102,7 +102,7 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
         found.set(r.line, [
           {
             column: "name",
-            message: `This fee line already exists for that period (or how often) and class (${formatNaira(hit.amount.toString())}).`,
+            message: `This fee line already exists for ${hit.periodId === null ? "that how-often setting" : "that period"} and class (${formatNaira(hit.amount.toString())}).`,
           },
         ]);
     }

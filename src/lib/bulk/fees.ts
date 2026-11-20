@@ -52,9 +52,6 @@ export function parseAmount(raw: string): Amount {
   return { ok: true, kobo, text: `${Math.floor(kobo / 100)}.${String(kobo % 100).padStart(2, "0")}` };
 }
 
-const text = (message: string, max: number) =>
-  z.string({ error: message }).trim().min(1, message).max(max, `Use at most ${max} characters.`);
-
 /// One audience cell: blank (or "all") is no condition; known words are read; anything else is a problem on the cell, never read as "everyone".
 const audienceCell = <T extends string>(words: Record<string, T>, message: string) =>
   z

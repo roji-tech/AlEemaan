@@ -216,8 +216,8 @@ test.describe("the fees file", () => {
     const rows = [
       { line: 2, values: { period: "", howOften: "Every term", name: "School fees", amount: "85000" } },
       { line: 3, values: { period: "", howOften: "Once a year", name: "Annual levy", amount: "20000" } },
-      { line: 4, values: { period: "1st Term", name: "Exam levy", amount: "5000" } },
-      { line: 5, values: { period: "1st Term", howOften: "Every term", name: "Both", amount: "1" } },
+      { line: 4, values: { period: "1st Term (2026/2027)", name: "Exam levy", amount: "5000" } },
+      { line: 5, values: { period: "1st Term (2026/2027)", howOften: "Every term", name: "Both", amount: "1" } },
       { line: 6, values: { period: "", name: "Neither", amount: "1" } },
       { line: 7, values: { period: "", howOften: "Every term", name: "School fees", amount: "85000" } },
     ];
