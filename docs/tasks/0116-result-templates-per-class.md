@@ -1,7 +1,7 @@
 # 0116: Result templates, assigned class by class (look + marks structure + grades), per branch
 
 - **Period / Focus:** 2026-11-19 to 2026-11-20 (the maintainer: "in the results section, say I have 3 result templates used for different classes, or 4 ... template A for Prep A, Prep B and Nur 1; template B for Nur 2 and Basic 1 to 5; template C for Basic 6 and JSS 1 to 3; template D for SSS 1 and 2; template E for SSS 3 - or a more scattered, complicated assignment. I want to implement something that caters for my scenario and better." Then: "more templates can be added any time".)
-- **Status:** Built; the unit tests pass; the API and browser tests are written and not yet run (section 8)
+- **Status:** Built, including the four seeded report-card sets (D14 to D19); the unit tests pass; the API and browser tests are written and not yet run (section 8)
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/result-templates` / to be opened into `dev`
@@ -43,11 +43,62 @@
 - **D12. Who.** Administrators of the branch and superadmins manage templates and assign classes; every other staff role reads; nobody else. Another branch's template or class is a 404.
 - **D13. Marks structure for a template.** A template can pick any live scheme of its branch, or create one for itself. A template's own scheme is stored like the school-wide ones (`hosted = true`, no class): the one-live-scheme-per-class rule ignores it, and its name is unique among the branch's live schemes. Versioning a hosted scheme now keeps it hosted (a one-line fix in `newSchemeVersion`, which would otherwise have made the new version collide with the branch default).
 
+### D14. The school's four printed report cards as templates (the maintainer, 2026-11-20: photos of Al-Eeman's four cards)
+
+Seeded per branch, editable afterwards, class assignment left to the maintainer (Results > Templates or the Classes tab). The data is `lib/results/seed-templates.ts`; the migration's backfill is generated from it (`scripts/gen-report-template-sql.mjs`) and the application seeds a branch made later with the same ids (`lib/results/seed-branch.ts`: branch create, the setup wizard, and the first Templates read), so a branch is never seeded twice. A test reads the migration text and checks it carries exactly the seed data.
+
+| Template | Look (layout code) | Trait groups | Grade scale |
+|---|---|---|---|
+| Pre-school (Nursery and Primary School) | `PRESCHOOL` | Psychomotor skill (6), Affective domain (13) | marks only (a plain scale, letters not printed) |
+| Basic class (Grade 1-6) | `BASIC` | Psychomotor skill (6), Affective domain (13) | marks only |
+| Junior Secondary (Year 7-9) | `JUNIOR` | Character development (5), Practical skills (5), each with RATING and SIGN | A Excellent, B Good, C Average, E Fair (**cut-offs are a default, see D15**) |
+| Senior Secondary (Year 10-12) | `SENIOR` | Character development (5), Practical skills (5), each with RATING and SIGN | A1 75-100, B2 70-74, B3 65-69, C4 60-64, C5 55-59, C6 50-54, D7 45-49, E8 40-44, F9 0-39 |
+
+- **The subjects of a card are never listed here.** They are the pupil's own results, which come from the class's subject offerings (loaded from `out/aleemaan-subjects.csv`). A senior pupil who takes "Chemistry / Government" in one slot simply has the one subject listed.
+- **The marks structure** is one hosted scheme shared by the four, "Report card marks (CA 40 + exam 60)". The printed cards say "Mark obtainable"; the school's own maximums can differ, so it is a default to confirm and edit.
+- **Skipped, never an error:** a name already taken by a live row of the branch (the scheme, a scale, a template) is left alone; the template then simply has no scheme or no scale of its own (falls back to the branch's). No seeded scale is the branch's default scale. No class is placed.
+
+### D15. Grade cut-offs the maintainer must confirm
+
+The junior card prints A Excellent, B Good, C Average, E Fair and no D; no cut-offs were printed. The seeded default is A 70-100, B 60-69, C 50-59, E 0-49. **This is a default, not the school's rule: confirm or change it in Academics > Assessment and grading (the scale "Junior secondary report card scale").** The pre-school and basic cards print no letter at all; their scale exists only so marks can be entered and is never shown on the card.
+
+### D16. Trait ratings
+
+- A **trait group** (title, order, whether it has a SIGN column) and its **traits** (name, order, archived never deleted) belong to a template. A pupil's **rating** of a trait for a term is 1 to 5 (5 Excellent, 4 V. Good, 3 Good, 2 Fair, 1 Poor; the printed scale stops at 2, 1 = Poor is added). A database CHECK enforces 1 to 5; a repeated pupil + term + trait is one row.
+- **Who may enter:** an administrator of the branch, or the teacher who is the **class teacher of the arm the pupil is enrolled in for the term's session**. Any other teacher, non-teaching staff and other branches: refused (403, or 404 for a pupil of another branch). Staff may read.
+- **Locked like the remarks:** editable until any of the pupil's results for the term is PUBLISHED or LOCKED, then 409.
+- **No IDOR:** the traits must be live traits of the pupil's OWN template (the one their class uses); a trait of another template or branch, a repeated trait, or a rating outside 1 to 5 is refused and nothing is written (all or nothing). Composite keys keep the pupil, term and trait in one branch.
+- **Audited:** `TRAIT_RATINGS_SAVED` with what changed (from, to), per save; a no-op writes none.
+
+### D17. Attendance on the card
+
+Nothing is invented. Each of the three numbers comes from: a number someone ENTERED for that pupil and term (`ReportAttendance`, entered by an administrator or the class teacher, same lock), else the REGISTER, else a dash. The register's numbers: times the school opened = the distinct dates on which the branch took a register within the term (less the dates inside a break); times present = the pupil's PRESENT and LATE days; times absent = their ABSENT days; EXCUSED counts as neither. Entered numbers win field by field and the card data says which is which. Present and absent cannot exceed times open when both are known (409). The dates on the card come from the term: this term starts on = the term's start; school closed on = its end; next term starts on = the first term that begins after this one (this or the next session). Audited `REPORT_ATTENDANCE_SAVED`.
+
+### D18. The printed card
+
+- `TemplateReportCard` draws the four from the card's data; it is chosen when the look's code is one of the four layout codes. Header band in the logo's green (#1a6b5a, taken from `public/school-site/aleeman-logo.png`, the real colour logo drawn on a white tile on the band), light tinted table heads and trait bands, school name, address, motto "Second to none" as set in the school's profile, REPORT CARD, term and session. Sections: the pupil block (name, date of birth, sex, class, number in class, position in class, number of times absent), attendance, the marks table (mark obtainable, continuous assessment, exam, total with the term's name, the earlier terms, annual score, annual average %, position, teacher's remark, signature) with a TOTAL row and the total average in percentage, the trait groups, the scale, the grading legend (secondary), the comments with signature and date lines (and the parent's/guardian's on pre-school and basic) and, on the secondary cards, next term begins.
+- It is drawn as paper (white, dark text) in both themes so the colours are the printed ones. Print: `print-color-adjust: exact`, compact type and the existing A4 portrait page rule, so a card with a normal number of subjects fits one page; text on the band is white on dark green and every figure is black on white or a light tint, so a black-and-white print stays legible.
+- Subject columns for earlier terms come from the pupil's results in the same session (the same statuses as the card itself); a pupil's position in a subject is among the pupils of their arm.
+
+### D19. Known limits of this build
+
+- "Layout read at render time" is unchanged (D10): changing a class's template changes how its earlier terms print.
+- The downloadable HTML card (`Download report card`) still uses the standard card; printing from the screen prints the coloured card. The HTML export of the four designs is a later step.
+- Fitting one A4 page is by compact type, not measured; a card with many subjects and many earlier terms may need two pages.
+- Pre-school and basic show the term's dates and the secondary cards only "next term begins"; a "Head's comment" and "Parent's comment" are printed lines (the parent's is for handwriting).
+- The four layout codes can also be chosen as a branch's STANDARD layout in Approvals > Report cards (they render as a card with no trait sections for a class that has no traits).
+
 ## 3. Data (migration `20261119210000_result_templates`, additive)
 
 - `ResultTemplate`: `id`, `branchId` (cascade), `name` (unique among live per branch, ignoring case, partial index), `description`, `layoutCode` (nullable text; no foreign key, the layouts are created lazily), `layoutOptions` (nullable json), `schemeId` and `gradeScaleId` (nullable, composite foreign keys with the branch, `NO ACTION`), `isDefault` (exactly one live default per branch, partial unique index), `archivedAt`, timestamps.
 - `ResultTemplateClass`: `id`, `branchId`, `templateId`, `classGroupId`, `createdAt`; unique on (`branchId`, `classGroupId`); composite keys to the template and the class group.
 - Backfill: one "Default" template (`isDefault`, everything null) for every existing branch. No class assignments are created.
+
+### Report-card sets (D14 to D18): migration `20261119220000_report_card_templates`, additive
+
+- `ResultTemplateTraitGroup` (title, order, `showSign`), `ResultTemplateTrait` (name, order, archived), `TraitRating` (pupil, term, trait, rating 1 to 5 with a CHECK; one row per pupil + term + trait) and `ReportAttendance` (entered times open, present, absent; never negative). All keyed with the branch so a row cannot point across branches.
+- The backfill gives every existing branch the four templates, their scheme, scales, trait groups and traits (idempotent; ids `rts_` + md5 of branch and what).
+- Four new layout codes (`PRESCHOOL`, `BASIC`, `JUNIOR`, `SENIOR`), created like the first two the first time layouts are read.
 
 ## 4. API (`/api/v1/results/templates`, all strict zod, audited, 404 for other branches)
 
@@ -56,15 +107,26 @@
 - `PATCH [id]` rename / describe / layout / scheme / scale; `POST [id]/archive`, `POST [id]/restore`, `POST [id]/default`; `PUT [id]/classes { classGroupIds, confirmMoves? }` replaces the template's set (classes dropped go back to "uses the default"); `POST schemes` creates a template scheme (D13).
 - Audit: `RESULT_TEMPLATE_CREATED`, `_UPDATED`, `_ARCHIVED`, `_RESTORED`, `_DEFAULT_SET`, `_CLASSES_ASSIGNED` (before and after class ids), `ASSESSMENT_SCHEME_CREATED` for a template scheme.
 
+### Report-card sets API
+
+- `GET /api/v1/students/[id]/report-traits?periodId=`: the pupil's template, its trait groups with ratings, the attendance (entered, from the register, and the one the card prints), the term's dates, `locked` and `canEdit`. Any staff role of the pupil's branch.
+- `PUT /api/v1/students/[id]/report-traits { periodId, ratings: [{ traitId, rating | null }] }`: administrators and the pupil's class teacher (staff-write; another teacher 403); all or nothing; 409 once published or for a trait not on the pupil's template; 400 for a rating outside 1 to 5.
+- `PUT /api/v1/students/[id]/report-attendance { periodId, timesOpen?, timesPresent?, timesAbsent? }`: the same people and lock; a number sets, null clears back to the register, a field left out is unchanged.
+- `GET /api/v1/students/[id]/report-card` now also carries the date of birth, each subject's earlier-term scores, annual score and average and position, the trait groups with ratings, the attendance block and the dates.
+
 ## 5. Screens
 
 - **Results > Templates** (administrators): template cards (name, look, scheme, scale, the classes as chips, Default badge, Edit / Duplicate / Add classes / Archive in the Actions menu); a **coverage table** of every class in level order with its template, "Uses the default" in muted text and a count of classes nobody has placed; **Add classes** is a checklist with "select a range" (from, to, by class order) and "select all in a level"; moving shows who leaves where before confirming. **New template** takes a few seconds, so the maintainer's A to E is five short dialogs and five checklists.
 - **Academics > Classes:** a small "Result template" chip on each class that opens the same assignment in one step.
 - **Approvals > Report cards:** its text now says it is the standard layout, and links to Templates.
 
+- **Report cards > Traits and attendance** (administrators and the class teacher): the 1 to 5 ratings of each trait and the term's attendance numbers (a blank number uses the register's), read-only once published. The card itself is drawn in colour for the four layouts (D18).
+
 ## 6. Tests (written with the code)
 
 Unit: precedence (no class, unassigned, explicit, default), coverage, range and level selection, the move preview, name rules, the layout merge. API: create, duplicate, one class one template, moves need confirmation, archive refused while assigned, default switching, the backfilled default, who may (another branch's administrator 404, a teacher read-only), the report card uses the class's layout, results unchanged after a move, the scheme precedence at sheet time, the approval hold. Browser: the A to E scenario on a desktop and a phone, a move with its confirmation, axe.
+
+Report-card sets: unit (`tests/unit/report-traits.spec.ts`: the scale, rating and attendance checks, the register's numbers, annual figures, the four seeded cards against the printed ones, the migration text against the seed data); API (`tests/api/report-traits.spec.ts`: seeding, who may, bounds, no IDOR across templates and branches, the lock, entered against register attendance, the card's data, a branch made later); browser (`tests/e2e/report-card-traits.spec.ts`: entering ratings and attendance and seeing them on the coloured senior card, the pre-school card and its print colours, read-only after publication).
 
 ## 7. Work
 
@@ -74,6 +136,7 @@ Unit: precedence (no class, unassigned, explicit, default), coverage, range and 
 - [x] API routes
 - [x] Results > Templates, the Classes chip, the Report cards text
 - [x] Tests written; docs
+- [x] Report-card sets (D14 to D19): migration and seeding, trait and attendance services and routes, the four coloured cards, the entry dialog, tests, docs
 
 ## 8. Build record
 
@@ -84,6 +147,13 @@ Written from the real runs of 2026-11-20 (no API or browser spec has been run; t
 - **tsc, eslint, prettier, `prisma validate`:** clean.
 - **Written, not run:** `tests/api/result-templates.spec.ts` (22 tests: the default, create/copy/change, one class one template and the confirmation, the A to E scenario over 16 classes, archive/restore/default, who may, the report card's look, the marks sheet's precedence, results unchanged after a move, the acknowledgement, a superseded and an archived scheme, the approval hold) and `tests/e2e/result-templates.spec.ts` (desktop and phone: the A to E scenario with ranges and ticks, a confirmed move, the form with a scheme made inside it, the Classes tab, a teacher without the tab; axe on each screen).
 - **Existing specs that may need a touch-up when the suites run:** any spec that counts the Results tabs for an administrator (`tests/e2e/results-screens.spec.ts` asserts a teacher's tabs only, which are unchanged), the walkthrough chapter `c14-results.ts`, and any spec that creates a second `hosted: false` default scheme.
+
+### Report-card sets (2026-11-20)
+
+- **Migration** `20261119220000_report_card_templates`: migration-vs-schema "No difference detected" on a throwaway database. The backfill was tried on three sample branches (one with a name clash on a scheme and a template): each gets four templates with the right scheme, scale, trait groups and traits (6 + 13 + 6 + 13 + 5 + 5 + 5 + 5 = 58 traits), the clashing names are skipped without error, a second run adds nothing (223 rows before and after), no seeded scale is a default, and a rating of 6 is refused by the CHECK. The throwaway databases were dropped.
+- **Unit:** `tests/unit/report-traits.spec.ts` and `result-templates.spec.ts`: 33 passed together on a server-less configuration.
+- **Written, not run:** `tests/api/report-traits.spec.ts` (ratings, attendance, seeding and the card) and `tests/e2e/report-card-traits.spec.ts` (desktop and phone, axe). The result-templates specs were updated for the four extra seeded templates (a branch now lists five).
+- **Not verified:** how the four cards look on paper (no browser or printer was used), that a card with many subjects fits one A4 page, and the layout at phone width.
 
 ### Known limits (said here so they are not forgotten)
 

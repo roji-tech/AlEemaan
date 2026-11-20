@@ -83,12 +83,13 @@ test("five templates over sixteen scattered classes: made, filled with ranges an
   await setUp(page);
   await openTemplates(page);
   // A brand-new branch: only the default, every class uses it.
-  await expect(page.getByRole("list", { name: "Templates" }).getByRole("listitem")).toHaveCount(1);
+  // The default and the school's four report cards (task 0116).
+  await expect(page.getByRole("list", { name: "Templates" }).getByRole("listitem")).toHaveCount(5);
   await expect(page.getByText("16 of 16 classes use the default template because nobody has chosen one.")).toBeVisible();
   await expectAccessible(page, "the templates view, nothing placed yet");
 
   for (const name of ["Template A", "Template B", "Template C", "Template D", "Template E"]) await makeTemplate(page, name);
-  await expect(page.getByRole("list", { name: "Templates" }).getByRole("listitem")).toHaveCount(6);
+  await expect(page.getByRole("list", { name: "Templates" }).getByRole("listitem")).toHaveCount(10);
 
   // A: Prep A to Nur 1 (a range). The dialog says what it will do before saving.
   let box = await pickRange(page, "Template A", "Prep A", "Nur 1");

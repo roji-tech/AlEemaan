@@ -54,6 +54,9 @@ async function placement(branchId: string, studentId: string, sessionId: string)
     .then((e) => (e && e.branchId === branchId ? e.classArm : null));
 }
 
+/// The class and arm the pupil is enrolled in for the term's session (names and ids), or null: what the card falls back on before any result exists.
+export const enrolledPlace = (branchId: string, studentId: string, sessionId: string) => placement(branchId, studentId, sessionId);
+
 /// May this person enter trait ratings and attendance for this pupil: an administrator of the branch (checked by the route), or a teacher who is the class teacher of the pupil's arm.
 async function mayEnter(actor: Actor, branchId: string, classTeacherId: string | null): Promise<boolean> {
   if (actor.role === Role.ADMIN) return true;

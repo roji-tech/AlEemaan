@@ -46,7 +46,8 @@ test.describe("the default template", () => {
     const res = await list(admin.cookie);
     expect(res.status).toBe(200);
     const { templates, coverage, unplaced, choices } = res.json.data;
-    expect(templates).toHaveLength(1);
+    // The default and the school's four report cards (task 0116, seeded on first use).
+    expect(templates).toHaveLength(5);
     expect(templates[0]).toMatchObject({
       name: "Default",
       isDefault: true,
@@ -62,8 +63,8 @@ test.describe("the default template", () => {
     expect(unplaced).toBe(2);
     expect(choices.layouts.map((l: { code: string }) => l.code)).toEqual(expect.arrayContaining(["DEFAULT", "LEGACY"]));
     // Asking again does not make a second one.
-    expect((await list(admin.cookie)).json.data.templates).toHaveLength(1);
-    expect(await db.resultTemplate.count({ where: { branchId: home.id } })).toBe(1);
+    expect((await list(admin.cookie)).json.data.templates).toHaveLength(5);
+    expect(await db.resultTemplate.count({ where: { branchId: home.id } })).toBe(5);
   });
 
   test("a branch made later gets its own default the first time it is asked for", async () => {
@@ -71,7 +72,7 @@ test.describe("the default template", () => {
     const sup = await superAdmin();
     const res = await list(sup.cookie, branch.id);
     expect(res.status).toBe(200);
-    expect(res.json.data.templates).toHaveLength(1);
+    expect(res.json.data.templates).toHaveLength(5);
     expect(res.json.data.templates[0].isDefault).toBe(true);
   });
 });
@@ -82,7 +83,7 @@ test.describe("making, copying and changing templates", () => {
     const first = await make(admin.cookie, { name: "Nursery", layoutCode: "LEGACY", layoutOptions: { signatureLine: true } });
     expect(first.status).toBe(201);
     for (const name of ["Primary", "JSS", "SSS 1 and 2", "SSS 3"]) expect((await make(admin.cookie, { name })).status).toBe(201);
-    expect((await list(admin.cookie)).json.data.templates).toHaveLength(6); // five and the default
+    expect((await list(admin.cookie)).json.data.templates).toHaveLength(10); // five new ones, the default and the school's four report cards
     const clash = await make(admin.cookie, { name: "  nursery " });
     expect([clash.status, clash.json.error.code]).toEqual([409, "CONFLICT"]);
     expect((await make(admin.cookie, { name: "   " })).status).toBe(409);

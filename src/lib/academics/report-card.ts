@@ -7,7 +7,7 @@ import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
 import { getVerificationPageConfig } from "@/lib/settings/approvals";
 import { layoutForClass } from "@/lib/results/templates";
-import { cardExtras } from "@/lib/results/report-traits";
+import { cardExtras, enrolledPlace } from "@/lib/results/report-traits";
 import { annualFigures } from "@/lib/results/report-traits-rules";
 import { NOT_DRAFT } from "@/lib/drafts/live";
 
@@ -195,11 +195,13 @@ export async function getReportCard(branchId: string, studentId: string, periodI
 
   // The details printed in the header are THIS branch's (task 0115): its own principal, motto, address and phone where it has set them, the school's where it has not. The school's name
   // stays school-wide.
+  // Before any result exists the card still knows the pupil's class and look from their enrolment for the term's session.
+  const enrolled = first ? null : await enrolledPlace(branchId, studentId, period.sessionId);
   const [profile, remarks, layout] = await Promise.all([
     profileFor(branchId),
     prisma.reportRemark.findUnique({ where: { studentId_periodId: { studentId, periodId } } }),
     // The look comes from the class's result template (task 0116), else the branch's standard layout.
-    layoutForClass(branchId, first?.classArm.classGroup.id ?? null),
+    layoutForClass(branchId, first?.classArm.classGroup.id ?? enrolled?.classGroup.id ?? null),
   ]);
   return {
     school: {
@@ -217,7 +219,11 @@ export async function getReportCard(branchId: string, studentId: string, periodI
       gender: student.gender,
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString().slice(0, 10) : null,
     },
-    class: first ? { group: first.classArm.classGroup.name, arm: first.classArm.name } : null,
+    class: first
+      ? { group: first.classArm.classGroup.name, arm: first.classArm.name }
+      : enrolled
+        ? { group: enrolled.classGroup.name, arm: enrolled.name }
+        : null,
     period: { id: period.id, label: period.label, session: period.session.label },
     subjects: detailed,
     summary,
