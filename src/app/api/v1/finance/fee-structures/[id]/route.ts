@@ -72,6 +72,7 @@ export const DELETE = withAuth(
       await deleteFeeStructure(branchId, id);
       return ok({ deleted: true });
     } catch (error) {
+      if (error instanceof FinanceError) return fail(error.message, 409, error.code ?? "FINANCE_ERROR");
       console.error("[FEE_STRUCTURE_DELETE_ERROR]", error);
       return fail("Failed to delete fee structure", 500, "INTERNAL");
     }

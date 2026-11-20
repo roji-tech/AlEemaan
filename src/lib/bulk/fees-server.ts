@@ -4,7 +4,7 @@ import type { ServerKind, Tx } from "./server";
 import type { Problem } from "./types";
 
 // The server half of the fee kind (task 0084): the period and the class are found by NAME in this branch (a name that is not there, or that two periods share, is a problem on the
-// row), a fee line that already exists for that period, class and name is refused, and the save writes every line or none. Saving a fee line does not change an invoice already issued:
+// row), a fee line that already exists for that period, class, name and kind of pupil is refused, and the save writes every line or none. Saving a fee line does not change an invoice already issued:
 // an invoice keeps its own line-item snapshot.
 
 export type FeeBulkCtx = { branchId: string };
@@ -69,12 +69,29 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
     if (periodIds.length === 0) return found;
     const existing = await db.feeStructure.findMany({
       where: { branchId: ctx.branchId, periodId: { in: periodIds } },
-      select: { periodId: true, classGroupId: true, name: true, amount: true },
+      select: {
+        periodId: true,
+        classGroupId: true,
+        name: true,
+        amount: true,
+        audienceAdmission: true,
+        audienceGender: true,
+        audienceResidence: true,
+      },
     });
     for (const r of rows) {
       const here = at.get(r.line);
       if (!here) continue;
-      const hit = existing.find((e) => e.periodId === here.periodId && e.classGroupId === here.classGroupId && same(e.name, r.row.name));
+      // The same line for the same kind of pupil (task 0122): the boys' uniform and the girls' uniform are two lines of one name.
+      const hit = existing.find(
+        (e) =>
+          e.periodId === here.periodId &&
+          e.classGroupId === here.classGroupId &&
+          same(e.name, r.row.name) &&
+          e.audienceAdmission === (r.row.admission ?? null) &&
+          e.audienceGender === (r.row.gender ?? null) &&
+          e.audienceResidence === (r.row.residence ?? null),
+      );
       if (hit)
         found.set(r.line, [
           { column: "name", message: `This fee line already exists for that period and class (${formatNaira(hit.amount.toString())}).` },
@@ -94,6 +111,12 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
           classGroupId: res.at.classGroupId,
           name: row.name.trim(),
           amount: row.amount,
+          audienceAdmission: row.admission ?? null,
+          audienceGender: row.gender ?? null,
+          audienceResidence: row.residence ?? null,
+          optional: row.optional ?? false,
+          trackHandover: row.trackHandover ?? false,
+          scholarshipCovers: row.scholarshipCovers ?? true,
         },
       });
     }

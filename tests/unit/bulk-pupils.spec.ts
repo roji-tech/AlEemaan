@@ -55,6 +55,7 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
   guardianPhone: { pass: ["", "08030000000", "8030000000", "+234 803 000 0000"], fail: ["123", "abc", "0".repeat(21)] },
   guardianEmail: { pass: ["", "a@x.com", "A.B@School.Org"], fail: ["nope", "a@b"] },
   residence: { pass: ["", "Day", "boarding", "BOARDER"], fail: ["weekly", "both"] },
+  feeAdmission: { pass: ["", "New", "returning", "OLD STUDENT"], fail: ["sometimes", "newish"] },
   scholarship: { pass: ["", "Academic merit", "x".repeat(80)], fail: ["x".repeat(81)] },
   scholarshipPercent: { pass: ["", "50", "100", "50%", " 1 % "], fail: ["0", "101", "abc", "12.5"] },
 };
