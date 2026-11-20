@@ -68,7 +68,7 @@ test.describe("the default template", () => {
   });
 
   test("a branch made later gets its own default the first time it is asked for", async () => {
-    const branch = await db.branch.create({ data: { name: "Late Branch", code: `LATE${Date.now() % 100000}` } });
+    const branch = await db.branch.create({ data: { name: `Late Branch ${Date.now()}` } }); // the code is assigned by the database;
     const sup = await superAdmin();
     const res = await list(sup.cookie, branch.id);
     expect(res.status).toBe(200);

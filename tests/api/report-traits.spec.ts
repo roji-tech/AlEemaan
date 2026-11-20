@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { resultsWorld } from "../support/results-world";
+import { resultFootprint } from "../support/result-footprint";
 
 // Task 0116, report-card sets, over real HTTP: the four seeded templates, trait ratings (1 to 5) and attendance for a pupil's term, who may enter them (an administrator or the class teacher of the
 // pupil's arm), the lock at publication, the register's numbers against entered ones, and what the printed card carries.
@@ -70,16 +71,19 @@ const publish = async (w: World, periodId: string, total: number, studentId = w.
       classArmId: w.arm.id,
       schemeId: w.scheme.id,
       scaleId: w.scale.id,
-      componentScores: [{ name: "Test 1", max: 20, score: 10 }],
-      examScore: total - 10,
+      // The scores rule: total = CA + exam, the exam within its maximum, the total within maxScore; CA takes up to 40 of the total.
+      componentScores: [{ name: "Test 1", max: 40, score: Math.min(total, 40) }],
+      examScore: total - Math.min(total, 40),
       examMax: 60,
-      caTotal: 10,
+      caTotal: Math.min(total, 40),
       total,
       maxScore: 100,
       gradeLetter: "C",
       gradeRemark: "Credit",
-      status: "PUBLISHED",
-      enteredByUserId: (await db.user.findFirstOrThrow()).id,
+      ...(await (async () => {
+        const by = (await db.user.findFirstOrThrow()).id;
+        return { enteredByUserId: by, ...resultFootprint("PUBLISHED", by) };
+      })()),
     },
   });
 
@@ -415,6 +419,13 @@ test.describe("the card", () => {
         isCurrent: false,
       },
     });
+    // Ratings and attendance are entered BEFORE the term's results are published: once they are, the sheet is locked (409).
+    const [a] = t.traits;
+    expect((await put(t.admin.cookie, t.w.student.id, { periodId: second.id, ratings: [{ traitId: a.id, rating: 4 }] })).status).toBe(200);
+    expect(
+      (await putAtt(t.admin.cookie, t.w.student.id, { periodId: second.id, timesOpen: 60, timesPresent: 55, timesAbsent: 5 })).status,
+    ).toBe(200);
+
     await publish(t.w, t.w.period.id, 60);
     await publish(t.w, second.id, 80);
     const mate = await db.studentRecord.create({
@@ -438,11 +449,6 @@ test.describe("the card", () => {
       },
     });
     await publish(t.w, second.id, 90, mate.id);
-    const [a] = t.traits;
-    expect((await put(t.admin.cookie, t.w.student.id, { periodId: second.id, ratings: [{ traitId: a.id, rating: 4 }] })).status).toBe(200);
-    expect(
-      (await putAtt(t.admin.cookie, t.w.student.id, { periodId: second.id, timesOpen: 60, timesPresent: 55, timesAbsent: 5 })).status,
-    ).toBe(200);
 
     const res = await card(t.admin.cookie, t.w, second.id);
     expect(res.status, JSON.stringify(res.json)).toBe(200);

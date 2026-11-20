@@ -187,3 +187,18 @@ Written from the real runs of 2026-11-20 (no API or browser spec has been run; t
 - `GET /api/v1/results/templates` and the first marks sheet of a branch that has no default template make one (idempotent): a read that writes once per branch.
 - A per-arm override, a school-wide template shared across branches, and a preview of the card with a sample pupil are not built.
 - Changing the template of a class does not move its pupils' already-entered marks, by design (D8).
+
+## 9. Report-card print fixes (2026-11-20, found by rendering the four cards)
+
+The four cards were rendered in a headless browser from fixture data (not a real database) and printed to A4 (README and images in `out/report-card-preview/`). Seven defects, all fixed:
+
+1. **One page.** All four printed to two pages. The per-subject verification links are now one compact two-column block (same URLs, every subject's own link, at the bottom, never split), blocks and comment boxes do not break across the page, spacing and type are tighter in print, and the page's own padding is dropped. All four print on one A4 page in the dark and the light theme (13 to 14 subjects).
+2. **Tables.** The subjects table is never clipped in print and is wider on screen (the card is up to 250 mm): at 1280 px every column, Signature included, shows without scrolling; it still scrolls inside its region on a narrow screen.
+3. **Floating button.** On a page that shows a card, anything `fixed` (the quick-tools button, toasts) is hidden in print, and the quick-tools button is `print:hidden` itself.
+4. **White paper.** `html` and `body` are white with `color-scheme: light` in print (a dark colour scheme painted the sheet's margins dark even with a white background). The card keeps `print-color-adjust: exact`, so its colours also print when the browser's "Background graphics" is off.
+5. **Grading line.** `lib/results/grade-legend.ts`: highest first and whole-number ranges that do not overlap (`F9 (0-39)`, not the stored `0-40`) on the senior card; names only on the junior card, as the school's printed junior card has no marks (so the guessed junior cut-offs are never printed).
+6. **Subject order.** The subjects follow the order they were added to the class (`SubjectOffering.createdAt`, then the name; subjects no longer offered last): `orderBySubjectAdded`. A manual per-class order is a follow-up.
+7. **School name per branch.** `BranchProfile.schoolName` (nullable; migration `20261119250000_branch_profile_school_name`, additive, nothing backfilled) is the seventh profile field: set in the existing branch-profile editor (administrator of that branch or superadmin, 2 to 120 characters, blank = the school's again, audited), and `profileFor` returns the branch's name, else the school's.
+
+Not checked: a real printer, a pupil with more than 14 subjects, the downloadable HTML card (it still uses the standard design), and the real data path (the render used fixtures); the ordering and the school-name path are covered by unit tests and by an API test that has been written and not run.
+

@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { averageHundredths, percentHundredths, publicName, rankAverages } from "../../src/lib/academics/report-card-rules";
+import {
+  averageHundredths,
+  orderBySubjectAdded,
+  percentHundredths,
+  publicName,
+  rankAverages,
+} from "../../src/lib/academics/report-card-rules";
 
 // The arithmetic of a report card (Slice P2c): percentages, the average, positions with ties, and the one thing the public page says about a pupil.
 
@@ -78,5 +84,35 @@ test.describe("publicName", () => {
     expect(publicName("  Amina Bola ", " yusuf-Ade ")).toBe("Amina Y.");
     expect(publicName("Amina", "")).toBe("Amina");
     expect(publicName("Zoë", "Émile")).toBe("Zoë É.");
+  });
+});
+
+test.describe("orderBySubjectAdded", () => {
+  const row = (subjectId: string, name: string) => ({ subjectId, subject: { name } });
+
+  test("keeps the order the subjects were added to the class, not the alphabet", () => {
+    const rows = [row("a", "Arabic"), row("e", "English Language"), row("m", "Mathematics")];
+    const added = new Map([
+      ["e", 1],
+      ["m", 2],
+      ["a", 3],
+    ]);
+    expect(orderBySubjectAdded(rows, added).map((r) => r.subject.name)).toEqual(["English Language", "Mathematics", "Arabic"]);
+  });
+
+  test("subjects added together, and subjects no longer offered, fall back to the name (the latter last)", () => {
+    const rows = [row("z", "Zoology"), row("b", "Biology"), row("g", "Gone"), row("c", "Chemistry")];
+    const added = new Map([
+      ["z", 5],
+      ["b", 5],
+      ["c", 9],
+    ]);
+    expect(orderBySubjectAdded(rows, added).map((r) => r.subject.name)).toEqual(["Biology", "Zoology", "Chemistry", "Gone"]);
+  });
+
+  test("does not change its input", () => {
+    const rows = [row("b", "B"), row("a", "A")];
+    orderBySubjectAdded(rows, new Map());
+    expect(rows.map((r) => r.subjectId)).toEqual(["b", "a"]);
   });
 });

@@ -191,7 +191,11 @@ test("a template's look, marks structure and grade scale are chosen in its form,
   await form.getByRole("button", { name: "Make template" }).click();
   await expect(page.getByText("Nursery made.")).toBeVisible();
 
-  const card = page.getByRole("list", { name: "Templates" }).getByRole("listitem").filter({ hasText: "Nursery" });
+  // The seeded Pre-school template is called "Pre-school (Nursery and Primary School)", so match the name at the start of the card.
+  const card = page
+    .getByRole("list", { name: "Templates" })
+    .getByRole("listitem")
+    .filter({ hasText: /^Nursery/ });
   await expect(card).toContainText("Legacy Layout");
   await expect(card).toContainText("Nursery marks");
   await expect(card).toContainText("Nursery scale");
