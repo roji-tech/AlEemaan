@@ -40,6 +40,7 @@ test.describe("mergeProfile", () => {
     const merged = mergeProfile(SCHOOL, { ...NOTHING, principal: "Mr Branch", address: "5 Branch Lane" });
     expect(merged.values).toEqual({ ...SCHOOL, principal: "Mr Branch", address: "5 Branch Lane" });
     expect(merged.source).toEqual({
+      schoolName: "school",
       principal: "branch",
       phone: "school",
       motto: "school",
