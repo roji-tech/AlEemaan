@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { formatNaira } from "@/lib/finance/format";
+import { audienceText } from "@/lib/finance/fee-audience";
+import { HandoverListDialog } from "./HandoverListDialog";
 import { BulkFeesDialog } from "./BulkFeesDialog";
 import { FeeStructureModal, type FeeStructureItem } from "./FeeStructureModal";
 
@@ -32,6 +34,7 @@ export function FeeStructuresPanel({
   const [openings, setOpenings] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
+  const [handoverOf, setHandoverOf] = useState<FeeStructureItem | null>(null);
 
   const filteredItems = selectedPeriodId === "ALL" ? items : items.filter((item) => item.periodId === selectedPeriodId);
 
@@ -56,11 +59,14 @@ export function FeeStructuresPanel({
       const res = await fetch(`/api/v1/finance/fee-structures/${id}?branchId=${branchId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to delete fee structure");
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(json?.error?.message ?? "Failed to delete fee structure");
+      }
       onRefresh();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete fee item");
+      alert(err instanceof Error ? err.message : "Failed to delete fee item");
     } finally {
       setDeletingId(null);
     }
@@ -132,6 +138,7 @@ export function FeeStructuresPanel({
                   <th className="px-4 py-3">Fee Item</th>
                   <th className="px-4 py-3">Period / Term</th>
                   <th className="px-4 py-3">Target Scope</th>
+                  <th className="px-4 py-3">Charged to</th>
                   <th className="px-4 py-3 text-right">Amount (₦)</th>
                   {canManage && <th className="px-4 py-3 text-right">Actions</th>}
                 </tr>
@@ -152,9 +159,43 @@ export function FeeStructuresPanel({
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-fg-muted">
+                      <span className="block">
+                        {audienceText({
+                          admission: item.audienceAdmission ?? null,
+                          gender: item.audienceGender ?? null,
+                          residence: item.audienceResidence ?? null,
+                        })}
+                      </span>
+                      {(item.optional || item.trackHandover || item.scholarshipCovers === false) && (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {item.optional && (
+                            <span className="rounded-md border border-line bg-field px-1.5 py-0.5 text-[11px] text-fg">Optional</span>
+                          )}
+                          {item.trackHandover && (
+                            <span className="rounded-md border border-line bg-field px-1.5 py-0.5 text-[11px] text-fg">Handed over</span>
+                          )}
+                          {item.scholarshipCovers === false && (
+                            <span className="rounded-md border border-line bg-field px-1.5 py-0.5 text-[11px] text-fg">
+                              No scholarship share
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-fg">{formatNaira(item.amount)}</td>
                     {canManage && (
                       <td className="px-4 py-3 text-right space-x-2">
+                        {item.trackHandover && (
+                          <button
+                            type="button"
+                            onClick={() => setHandoverOf(item)}
+                            aria-label={`Handover list for ${item.name}`}
+                            className="rounded-lg px-2.5 py-1 text-xs font-medium border border-line hover:bg-surface-2 text-fg focus-visible:outline-2 focus-visible:outline-ring"
+                          >
+                            Handover
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleEdit(item)}
@@ -190,6 +231,7 @@ export function FeeStructuresPanel({
         classGroups={classGroups}
         initialItem={editingItem}
       />
+      <HandoverListDialog branchId={branchId} line={handoverOf} onClose={() => setHandoverOf(null)} />
       {canManage && (
         <BulkFeesDialog
           key={`bulk-${bulk.key}`}

@@ -59,6 +59,11 @@ model StudentRecord {
   results               Result[]
   remarks               ReportRemark[]
   invoices              Invoice[]
+  /// How the fee lines see this pupil (task 0122): null = worked out (new when there is no enrolment in an earlier session); NEW or RETURNING overrides it. Needed for the pupils who were loaded
+  /// into the app already at the school, who have no earlier enrolment to prove they are returning.
+  feeAdmission          FeeAdmission?
+  feeOptOuts            StudentFeeOptOut[]
+  feeHandovers          FeeItemHandover[]
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
   guardianLinkTokens    GuardianLinkToken[]

@@ -1,4 +1,6 @@
-# 0122 (design, written before any code): who a fee line is for, optional items per pupil, and items handed over
+# 0122: who a fee line is for, optional items per pupil, and items handed over
+
+- **Status:** In Progress. Built and tested (API 16 specs, browser 4 runs, unit): migration `20261122090000_fee_audience`, the rules, invoice generation, scholarship base, opt-out, handover, per-pupil New/Returning, routes, screens, the fees import columns and the pupil import's Admission status column. The design below was written before the code. One addition during the build: `StudentRecord.feeAdmission` (the pupils already at the school have no earlier enrolment, so they would all look new).
 
 Asked 2026-11-20 by the maintainer, from the school's real bills (Preparatory, Nursery 1-2, Basic 1-4 ...: a "New intake" column, split Male/Female from Basic 1 up, and a "Returning students" column), then: "review the scholarship implementation", "turn off optional stuff for particular students (school uniform for one new student)", "mark that a student has received their uniform and any other items".
 

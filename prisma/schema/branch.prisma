@@ -61,6 +61,8 @@ model Branch {
   timetableSlots          TimetableSlot[]
   announcements           Announcement[]
   feeStructures           FeeStructure[]
+  feeOptOuts              StudentFeeOptOut[]
+  feeHandovers            FeeItemHandover[]
   invoices                Invoice[]
   payments                Payment[]
   invoiceDiscounts        InvoiceDiscount[]

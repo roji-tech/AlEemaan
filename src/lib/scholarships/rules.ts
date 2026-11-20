@@ -60,6 +60,22 @@ export function discountFor(gross: Prisma.Decimal.Value, percent: number): Prism
   return new Prisma.Decimal(gross).mul(percent).div(100).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 }
 
+/// The part of an invoice a scholarship's percent is taken of (task 0122): the sum of its lines, leaving out lines the fee set "scholarship does not cover" (their snapshot says `covered: false`; a
+/// snapshot made before the setting existed has no `covered`, which counts as covered, so nothing that was already invoiced changes). Never negative; unreadable amounts count as nothing.
+export function coveredGross(lineItems: readonly { amount: Prisma.Decimal.Value; covered?: boolean }[]): Prisma.Decimal {
+  let sum = new Prisma.Decimal(0);
+  for (const item of lineItems) {
+    if (item.covered === false) continue;
+    try {
+      const a = new Prisma.Decimal(item.amount);
+      if (a.gt(0)) sum = sum.add(a);
+    } catch {
+      /* an unreadable amount adds nothing */
+    }
+  }
+  return sum;
+}
+
 /// The discounts to add for these scholarships on an invoice (task 0113 S1, finance): each one's share of the GROSS (the fees before any discount), rounded to the kobo, and never more than is
 /// left of `room` (what the invoice still owes, so discounts together can never pass what there is to take off; rounding up three shares must not create a kobo that is not there). Shares of
 /// zero are skipped. In the order given.

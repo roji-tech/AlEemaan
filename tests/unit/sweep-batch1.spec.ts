@@ -99,6 +99,7 @@ test.describe("export", () => {
       "", // Day or boarding: not set (task 0113 R1)
       "", // Scholarship: none (task 0113 S1)
       "", // Scholarship %
+      "", // Admission status: not exported (task 0122)
     ]);
     const csv = toCsv(table.headers, table.rows);
     expect(csv).toContain(`"'=HYPERLINK(""x"")"`);
