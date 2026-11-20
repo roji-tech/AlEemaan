@@ -63,7 +63,7 @@ test("All branches: one list of every branch, each card names its branch, nothin
   // Search works across branches.
   await page.getByRole("searchbox", { name: "Search staff" }).fill("Olu");
   await expect(page.getByText("1 staff record match")).toBeVisible();
-  await page.getByRole("button", { name: `Open Olu Other in ${other.name}` }).click();
+  await clickAction(page, `Open Olu Other in ${other.name}`); // inside the card's Actions menu
   await expect(page.getByTestId("current-branch")).toHaveText(other.name);
   await expect(page.getByRole("button", { name: "New staff record" })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`branch=${other.id}`));
@@ -98,8 +98,9 @@ test("the 'not on the staff list yet' panel: Close, Remind me later, Don't list;
     .first()
     .click();
   // Don't list: the person is left out, "Show hidden" brings them back.
+  // The signed-in administrator has no record either, so the panel stays up for them; it is Khalid who is gone from it.
   await panel.getByRole("button", { name: "Don't list Akinniyi Khalid" }).click();
-  await expect(panel).toBeHidden();
+  await expect(panel).not.toContainText("Akinniyi Khalid");
   await page.reload();
   await expect(page.getByRole("button", { name: /^Show hidden \(1\)/ })).toBeVisible();
   await page.getByRole("button", { name: /^Show hidden \(1\)/ }).click();
@@ -154,17 +155,20 @@ test("a branch administrator is not offered Delete", async ({ page }) => {
 });
 
 test("the chosen branch is kept: leave the page and come back, and the address carries it", async ({ page }) => {
-  const { other } = await setUp(page);
+  const { home, other } = await setUp(page);
   await page.goto("/students");
-  await switchBranch(page, other.name);
-  await expect(page.getByTestId("current-branch")).toHaveText(other.name);
-  await expect(page).toHaveURL(new RegExp(`branch=${other.id}`));
+  // Choose the branch that is NOT shown now: choosing the one already shown changes nothing, so the address would not gain it (the list is sorted by name, so which one is first is not ours to assume).
+  const shown = (await page.getByTestId("current-branch").innerText()).trim();
+  const target = shown === other.name ? home : other;
+  await switchBranch(page, target.name);
+  await expect(page.getByTestId("current-branch")).toHaveText(target.name);
+  await expect(page).toHaveURL(new RegExp(`branch=${target.id}`));
   await page.goto("/dashboard");
   await page.goto("/students");
-  await expect(page.getByTestId("current-branch")).toHaveText(other.name);
+  await expect(page.getByTestId("current-branch")).toHaveText(target.name);
   // Another page that lists by branch starts on it too.
   await page.goto("/academics?tab=classes");
-  await expect(page.getByTestId("current-branch")).toHaveText(other.name);
+  await expect(page.getByTestId("current-branch")).toHaveText(target.name);
 });
 
 test("a dropdown closes on a press outside it; a read-only dialog closes on its backdrop but a form does not", async ({ page }) => {
