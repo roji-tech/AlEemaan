@@ -4,6 +4,7 @@ import {
   cleanTemplateName,
   diffClasses,
   idsInSection,
+  LAYOUT_OPTION_KEYS,
   mergeLayoutOptions,
   movePreview,
   rangeSelection,
@@ -171,6 +172,19 @@ test.describe("names and looks", () => {
     });
     expect(mergeLayoutOptions({ logo: true }, { logo: "no", other: true, nextTermDate: true })).toEqual({ logo: true, nextTermDate: true });
     expect(mergeLayoutOptions(null, null)).toEqual({});
+  });
+
+  test("the class arm and the verify block are options a layout must say true to show (task 0121): silence hides them", () => {
+    expect(LAYOUT_OPTION_KEYS).toEqual(expect.arrayContaining(["classArm", "verifyLinks"]));
+    // A layout or template that says nothing leaves both undefined: the cards show them only on `=== true`, so every card made before the options existed prints without them.
+    const quiet = mergeLayoutOptions({ logo: true, signatureLine: true, nextTermDate: true }, null);
+    expect(quiet.classArm).toBeUndefined();
+    expect(quiet.verifyLinks).toBeUndefined();
+    expect(mergeLayoutOptions({ logo: true }, { classArm: true, verifyLinks: false })).toEqual({
+      logo: true,
+      classArm: true,
+      verifyLinks: false,
+    });
   });
 });
 

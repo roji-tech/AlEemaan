@@ -94,7 +94,9 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
         <Field label="Name">{card.student.name}</Field>
         <Field label="Date of birth">{longDate(card.student.dateOfBirth)}</Field>
         <Field label="Sex">{card.student.gender === "FEMALE" ? "Female" : "Male"}</Field>
-        <Field label="Class">{card.class ? `${card.class.group} ${card.class.arm}` : "—"}</Field>
+        <Field label="Class">
+          {card.class ? (card.layout?.options?.classArm ? `${card.class.group} ${card.class.arm}` : card.class.group) : "—"}
+        </Field>
         <Field label="No in class">{dash(s.classSize)}</Field>
         <Field label="Position in class">{s.position === null ? "—" : ordinal(s.position)}</Field>
         <Field label="No of times absent">{dash(att?.timesAbsent.value)}</Field>
@@ -331,7 +333,7 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
         </p>
       )}
 
-      {card.subjects.some((x) => x.verificationToken) && (
+      {card.layout?.options?.verifyLinks && card.subjects.some((x) => x.verificationToken) && (
         <section
           aria-label="Verification"
           className="mt-2 border-t border-black pt-1 text-[10px] print:mt-1 print:break-inside-avoid print:text-[6px] print:leading-[7px]"

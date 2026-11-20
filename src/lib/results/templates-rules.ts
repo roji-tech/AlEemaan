@@ -7,7 +7,9 @@ export const TEMPLATE_DESCRIPTION_MAX = 200;
 /// the card draws that card's sections (trait groups, the grade legend, the term's dates) from its template's data.
 export const LAYOUT_CODES = ["DEFAULT", "LEGACY", "PRESCHOOL", "BASIC", "JUNIOR", "SENIOR"] as const;
 export type LayoutCode = (typeof LAYOUT_CODES)[number];
-export const LAYOUT_OPTION_KEYS = ["logo", "signatureLine", "nextTermDate"] as const;
+/// `classArm` (the arm after the class, like the A of "SSS 1 A") and `verifyLinks` (the "Verify these results" block) are shown only when true: a layout or template that says nothing about them hides
+/// them, so every card made before they existed prints without them (task 0121).
+export const LAYOUT_OPTION_KEYS = ["logo", "signatureLine", "nextTermDate", "classArm", "verifyLinks"] as const;
 export type LayoutOptions = Partial<Record<(typeof LAYOUT_OPTION_KEYS)[number], boolean>>;
 
 /// A template name: whitespace collapsed and trimmed; null when empty or too long (the caller says why in words).

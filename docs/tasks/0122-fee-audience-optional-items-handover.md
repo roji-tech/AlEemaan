@@ -1,0 +1,26 @@
+# 0122 (design, written before any code): who a fee line is for, optional items per pupil, and items handed over
+
+Asked 2026-11-20 by the maintainer, from the school's real bills (Preparatory, Nursery 1-2, Basic 1-4 ...: a "New intake" column, split Male/Female from Basic 1 up, and a "Returning students" column), then: "review the scholarship implementation", "turn off optional stuff for particular students (school uniform for one new student)", "mark that a student has received their uniform and any other items".
+
+## What exists today (read from the code, 2026-11-20)
+- `FeeStructure`: branch, period, optional class group, name, amount. Nothing else. Import (`src/lib/bulk/fees.ts`): Period, Class, Fee item, Amount.
+- `generateInvoices` (`src/lib/finance/service.ts`): for each active enrolled pupil it takes every fee of the period that is school-wide or for the pupil's class, snapshots them into `Invoice.lineItems` (`{feeStructureId, name, amount}`), totals them, then lets each live scholarship take its percent off the WHOLE total (`planDiscounts(totalAmount, ...)`), as one `InvoiceDiscount` per scholarship (unique per invoice).
+- Scholarships: `ScholarshipType` (percent) and `StudentScholarship` (pupil, percent, from/to, note), live shares of one pupil at most 100 in total; applied at generation, by "Apply to open invoices", and topped up when the share is raised (`applyScholarshipToOpenInvoices`, `topUpScholarship`; they read the gross from the invoice's `lineItems`).
+- The pupil already has `gender` and `residence` (`BOARDING`/`DAY`, optional). There is NO "new or returning" on the pupil.
+
+## Decisions (mine, to be changed if the maintainer disagrees)
+1. **Audience on a fee line** (one additive migration, all columns nullable = "everyone", so every existing line behaves as before):
+   `FeeStructure.audienceAdmission` (`NEW` | `RETURNING` | null), `audienceGender` (`MALE` | `FEMALE` | null), `audienceResidence` (`BOARDING` | `DAY` | null).
+2. **New or returning is derived, not typed**: a pupil is NEW for a period when their earliest enrollment is in that period's session, else RETURNING. Nobody has to keep a flag in step. A pupil whose record lacks a value a line needs (a boarding-only line and no residence set) does not get that line, and the generation result says how many pupils were missing which value, so it is fixed and invoices can be generated again (existing invoices are never regenerated).
+3. **Optional lines**: `FeeStructure.optional` (default false). An optional line is billed unless the pupil opted out. `StudentFeeOptOut` (branch, student, feeStructure, who, when, note), unique per pupil and line. Opt-out before the invoice exists removes the line from it. After the invoice exists it is allowed only while the invoice has no payment; the total, the scholarship share and the status are recomputed in one transaction (same locks as a payment). With a payment on it, it is refused with the reason (use a manual discount or a credit instead).
+4. **Scholarships**: unchanged by default. One new line flag, `FeeStructure.scholarshipCovers` (default true = today's behaviour). A line set to false (uniforms, ID card) is left out of the base a scholarship's percent is taken from; the snapshot in `lineItems` carries `covered: true/false` so generation, "Apply to open invoices" and top-up all compute the same base from the invoice alone. Excluding an optional line or a line for another audience already shrinks the base, so a scholarship never takes a share of something the pupil is not billed.
+5. **Items handed over**: `FeeStructure.trackHandover` (default false) marks a line as a physical item (uniform, cardigan, sport wear, Afternoon Quran kit...). `FeeItemHandover` (branch, student, feeStructure, receivedAt, receivedByUserId, note), unique per pupil and line, can be undone with a reason. Shown on the pupil's finance view and as a class list ("who has paid for the uniform and not yet received it"); it never blocks a payment or an invoice, it only records. Financial data: administrators of the branch and superadmins; never teachers or the family portal.
+6. **Import**: the fees file gets optional columns `Admission` (New/Returning), `Gender`, `Residence`, `Optional`, `Track handover`, `Scholarship covers`. The "same line twice" check includes the audience, so Basic 1's Uniform for Male and for Female are two rows. The review's per-class totals (`feeTotals`) become per class AND audience, so the printed totals (128,000 / 136,000 / 47,000 for Basic 1) are the check on how the sheet was read.
+7. Out of scope here: a pupil who changes class or audience after invoicing (a new invoice is a separate decision), refunds, and the website's secondary-school bills (boarding/day) which use decision 1 as is.
+
+## Work order
+1. Migration + schema + pure rules (audience match, derived admission, base for scholarships) + unit specs.
+2. Generation, opt-out and handover services + routes + API specs (the scholarship interaction first: percent of the covered base, top-up, apply-to-open).
+3. Finance > Fees screen (audience, optional, track handover, scholarship covers), pupil finance view (opt-outs, handovers), class handover list + browser specs.
+4. Import columns + the file generated from the maintainer's bills.
+5. Docs, PR to dev, promotion; one migration for the maintainer.

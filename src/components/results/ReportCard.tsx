@@ -53,6 +53,8 @@ export type Card = {
       logo?: boolean;
       signatureLine?: boolean;
       nextTermDate?: boolean;
+      classArm?: boolean;
+      verifyLinks?: boolean;
     };
   };
 };
@@ -113,7 +115,9 @@ export function ReportCard({ card, origin }: { card: Card; origin: string }) {
         </div>
         <div>
           <dt className="text-fg-muted print:text-black">Class</dt>
-          <dd className="font-semibold">{card.class ? `${card.class.group} ${card.class.arm}` : "—"}</dd>
+          <dd className="font-semibold">
+            {card.class ? (card.layout?.options?.classArm ? `${card.class.group} ${card.class.arm}` : card.class.group) : "—"}
+          </dd>
         </div>
         <div>
           <dt className="text-fg-muted print:text-black">Gender</dt>
@@ -231,7 +235,7 @@ export function ReportCard({ card, origin }: { card: Card; origin: string }) {
         </p>
       )}
 
-      {card.subjects.some((x) => x.verificationToken) && (
+      {card.layout?.options?.verifyLinks && card.subjects.some((x) => x.verificationToken) && (
         <section
           aria-label="Verification"
           className="mt-4 border-t border-line pt-3 text-xs text-fg-muted print:border-black print:text-black"

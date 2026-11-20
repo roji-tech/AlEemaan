@@ -767,3 +767,6 @@
 - [x] Table, migration with backfill, rules, service, routes, screens, docs, specs written; the service run against a throwaway database (15 integration tests) and the migration checked
 - [ ] The run (section 5: the API and browser specs), merged to `dev`, promoted
 
+## TASK-0121: Show or hide the class arm and "Verify these results" (requested 2026-11-20)
+
+[Task file](0121-card-arm-and-verify-options.md). Two layout options, `classArm` and `verifyLinks`, shown only when a template or the branch layout says true; existing cards are hidden too. No migration (the options are JSON on the layout and template).
