@@ -50,7 +50,8 @@ export async function allocateReceiptNo(tx: Prisma.TransactionClient, branchId: 
 
 export async function listFeeStructures(branchId: string, filter?: { periodId?: string; classGroupId?: string }) {
   const where: Prisma.FeeStructureWhereInput = { branchId };
-  if (filter?.periodId) where.periodId = filter.periodId;
+  // A term's list also holds the lines that recur (task 0124): they are charged in every term.
+  if (filter?.periodId) where.OR = [{ periodId: filter.periodId }, { recurrence: { not: "THIS_TERM" } }];
   if (filter?.classGroupId !== undefined) {
     where.classGroupId = filter.classGroupId || null;
   }
@@ -67,12 +68,21 @@ export async function listFeeStructures(branchId: string, filter?: { periodId?: 
 
 export async function createFeeStructure(
   branchId: string,
-  data: { periodId: string; classGroupId?: string | null; name: string; amount: DecimalLike } & FeeBehaviour,
+  data: {
+    periodId?: string | null;
+    recurrence?: "THIS_TERM" | "EVERY_TERM" | "EVERY_SESSION";
+    classGroupId?: string | null;
+    name: string;
+    amount: DecimalLike;
+  } & FeeBehaviour,
 ) {
+  // How often (task 0124): a line for one term has that term; one that recurs (every term, once a year) has none.
+  const recurrence = data.recurrence ?? "THIS_TERM";
+  if (recurrence === "THIS_TERM" && !data.periodId)
+    throw new FinanceError("Choose the term this fee is for, or say it is charged every term or once a year.");
+  const periodId = recurrence === "THIS_TERM" ? data.periodId! : null;
   // Validate period belongs to this branch
-  await prisma.academicPeriod.findFirstOrThrow({
-    where: { branchId, id: data.periodId },
-  });
+  if (periodId) await prisma.academicPeriod.findFirstOrThrow({ where: { branchId, id: periodId } });
 
   if (data.classGroupId) {
     await prisma.classGroup.findFirstOrThrow({
@@ -88,7 +98,8 @@ export async function createFeeStructure(
   return prisma.feeStructure.create({
     data: {
       branchId,
-      periodId: data.periodId,
+      periodId,
+      recurrence,
       classGroupId: data.classGroupId ?? null,
       name: data.name.trim(),
       amount: amountDecimal,
@@ -186,8 +197,9 @@ export async function generateInvoices(
       },
     });
 
+    // This term's lines and the lines that recur (task 0124).
     const feeStructures = await tx.feeStructure.findMany({
-      where: { branchId, periodId: options.periodId },
+      where: { branchId, OR: [{ periodId: options.periodId }, { recurrence: { not: "THIS_TERM" } }] },
     });
 
     if (feeStructures.length === 0) {
@@ -240,10 +252,22 @@ export async function generateInvoices(
     );
     const optedOut = new Map<string, Set<string>>();
     for (const o of await tx.studentFeeOptOut.findMany({
-      where: { branchId, studentId: { in: pupilIds }, feeStructure: { periodId: options.periodId } },
+      where: { branchId, studentId: { in: pupilIds }, feeStructureId: { in: feeStructures.map((f) => f.id) } },
       select: { studentId: true, feeStructureId: true },
     }))
       optedOut.set(o.studentId, (optedOut.get(o.studentId) ?? new Set()).add(o.feeStructureId));
+    // Once-a-year lines (task 0124): a pupil who already has the line on another invoice of this session is not charged it again; one who joined in a later term has it on their first.
+    const carried = new Map<string, Set<string>>();
+    if (feeStructures.some((f) => f.recurrence === "EVERY_SESSION"))
+      for (const inv of await tx.invoice.findMany({
+        where: { branchId, studentId: { in: pupilIds }, periodId: { not: options.periodId }, period: { sessionId: period.sessionId } },
+        select: { studentId: true, lineItems: true },
+      })) {
+        const ids = carried.get(inv.studentId) ?? new Set<string>();
+        for (const l of Array.isArray(inv.lineItems) ? (inv.lineItems as { feeStructureId?: string }[]) : [])
+          if (l.feeStructureId) ids.add(l.feeStructureId);
+        carried.set(inv.studentId, ids);
+      }
     let missingResidence = 0;
 
     for (const enrollment of enrollments) {
@@ -265,7 +289,11 @@ export async function generateInvoices(
 
       // Filter applicable fee structures: general (null classGroupId) or matching student's class group
       const studentClassGroupId = enrollment.classArm?.classGroupId ?? null;
-      const ofClass = feeStructures.filter((f) => !f.classGroupId || f.classGroupId === studentClassGroupId);
+      const ofClass = feeStructures.filter(
+        (f) =>
+          (!f.classGroupId || f.classGroupId === studentClassGroupId) &&
+          !(f.recurrence === "EVERY_SESSION" && carried.get(enrollment.studentId)?.has(f.id)),
+      );
       // Task 0122: of the class's lines, the ones this pupil is billed (their gender, new or returning, day or boarding, and the optional lines they did not opt out of).
       const { billed: applicableFees, missingResidence: lacking } = billedFor(
         ofClass.map((f) => ({

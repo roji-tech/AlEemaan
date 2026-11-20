@@ -1,7 +1,15 @@
 import "@/lib/zod-csp";
 import { z } from "zod";
 import { optionalText } from "./fields";
-import { ADMISSION_WORDS, GENDER_WORDS, RESIDENCE_WORDS, parseAudienceCell, parseYesNo } from "@/lib/finance/fee-audience";
+import {
+  ADMISSION_WORDS,
+  GENDER_WORDS,
+  HOW_OFTEN_WORDS,
+  RECURRENCE_TEXT,
+  RESIDENCE_WORDS,
+  parseAudienceCell,
+  parseYesNo,
+} from "@/lib/finance/fee-audience";
 import type { BulkColumn, BulkEntity } from "./types";
 
 // The fee kind of the bulk entry (task 0084), client-safe. One row is one fee line: a name and an amount for one period, for one class or for the whole branch. Money gets the
@@ -10,7 +18,9 @@ import type { BulkColumn, BulkEntity } from "./types";
 /// `admission`, `gender` and `residence` are who the line is charged to (task 0122; absent = everyone); `optional`, `trackHandover` and `scholarshipCovers` are its settings (a file that says nothing: not optional, not
 /// handed over, a scholarship covers it).
 export type FeeRow = {
-  period: string;
+  /// The term, as the Finance screen shows it. Empty exactly when `howOften` is given (task 0124): a line charged every term or once a year has no term of its own.
+  period?: string;
+  howOften?: "EVERY_TERM" | "EVERY_SESSION";
   classGroup?: string;
   name: string;
   amount: string;
@@ -70,32 +80,45 @@ const yesNoCell = (fallback: boolean, message: string) =>
       return parsed;
     });
 
-export const feeRowSchema: z.ZodType<FeeRow> = z.object({
-  admission: audienceCell(ADMISSION_WORDS, "Use New or Returning, or leave it empty for every pupil."),
-  gender: audienceCell(GENDER_WORDS, "Use Male or Female, or leave it empty for every pupil."),
-  residence: audienceCell(RESIDENCE_WORDS, "Use Day or Boarding, or leave it empty for every pupil."),
-  optional: yesNoCell(false, "Use Yes or No."),
-  trackHandover: yesNoCell(false, "Use Yes or No."),
-  scholarshipCovers: yesNoCell(true, "Use Yes or No."),
-  period: text("Choose the period.", 100),
-  classGroup: optionalText(100),
-  name: z
-    .string({ error: "Give the fee a name." })
-    .trim()
-    .min(1, "Give the fee a name.")
-    .min(2, "Use at least 2 characters.")
-    .max(100, "Use at most 100 characters."),
-  amount: z
-    .string({ error: "Enter the amount." })
-    .superRefine((v, ctx) => {
-      const r = parseAmount(v);
-      if (!r.ok) ctx.addIssue({ code: "custom", message: r.message });
-    })
-    .transform((v) => {
-      const r = parseAmount(v);
-      return r.ok ? r.text : v;
-    }),
-});
+export const feeRowSchema: z.ZodType<FeeRow> = z
+  .object({
+    howOften: audienceCell(HOW_OFTEN_WORDS, "Use Every term or Once a year, or leave it empty and give the period."),
+    admission: audienceCell(ADMISSION_WORDS, "Use New or Returning, or leave it empty for every pupil."),
+    gender: audienceCell(GENDER_WORDS, "Use Male or Female, or leave it empty for every pupil."),
+    residence: audienceCell(RESIDENCE_WORDS, "Use Day or Boarding, or leave it empty for every pupil."),
+    optional: yesNoCell(false, "Use Yes or No."),
+    trackHandover: yesNoCell(false, "Use Yes or No."),
+    scholarshipCovers: yesNoCell(true, "Use Yes or No."),
+    period: optionalText(100),
+    classGroup: optionalText(100),
+    name: z
+      .string({ error: "Give the fee a name." })
+      .trim()
+      .min(1, "Give the fee a name.")
+      .min(2, "Use at least 2 characters.")
+      .max(100, "Use at most 100 characters."),
+    amount: z
+      .string({ error: "Enter the amount." })
+      .superRefine((v, ctx) => {
+        const r = parseAmount(v);
+        if (!r.ok) ctx.addIssue({ code: "custom", message: r.message });
+      })
+      .transform((v) => {
+        const r = parseAmount(v);
+        return r.ok ? r.text : v;
+      }),
+  })
+  .superRefine((row, ctx) => {
+    // A line is for one term, or it recurs: never both, never neither.
+    if (row.howOften && row.period)
+      ctx.addIssue({ code: "custom", path: ["period"], message: "Leave the period empty for a fee charged every term or once a year." });
+    else if (!row.howOften && !row.period)
+      ctx.addIssue({
+        code: "custom",
+        path: ["period"],
+        message: "Choose the period, or say how often it is charged (Every term, Once a year).",
+      });
+  });
 
 /// `periods` and `classGroups` are the branch's own names, offered as dropdowns (an empty class means the whole branch).
 export const feeEntityFor = (periods: readonly string[], classGroups: readonly string[]): BulkEntity<FeeRow> => {
@@ -104,9 +127,20 @@ export const feeEntityFor = (periods: readonly string[], classGroups: readonly s
       key: "period",
       label: "Period",
       aliases: ["term", "periodname"],
-      required: true,
-      help: "As the Finance screen shows it, like 1st Term (2026/2027)",
+      required: false,
+      help: "As the Finance screen shows it, like 1st Term (2026/2027); leave it empty for a fee charged every term or once a year",
       ...(periods.length > 0 ? { options: periods.map((p) => ({ value: p, label: p })) } : {}),
+    },
+    {
+      key: "howOften",
+      label: "How often",
+      aliases: ["frequency", "recurrence", "charged"],
+      required: false,
+      help: "Every term or Once a year, for a fee that carries on into every term (or once a year) until you change the amount; empty = the term in Period only",
+      options: [
+        { value: "Every term", label: "Every term" },
+        { value: "Once a year", label: "Once a year" },
+      ],
     },
     {
       key: "classGroup",
@@ -206,7 +240,7 @@ export const feeEntityFor = (periods: readonly string[], classGroups: readonly s
     repeats: {
       column: "name",
       of: (r) =>
-        `${r.period.trim()}|${(r.classGroup ?? "").trim()}|${r.name.trim()}|${r.admission ?? ""}|${r.gender ?? ""}|${r.residence ?? ""}`,
+        `${(r.period ?? "").trim()}|${r.howOften ?? ""}|${(r.classGroup ?? "").trim()}|${r.name.trim()}|${r.admission ?? ""}|${r.gender ?? ""}|${r.residence ?? ""}`,
       message: (line) => `Same period, class, fee item and pupils as row ${line}.`,
     },
   };
@@ -228,7 +262,9 @@ export function feeTotals(rows: { values: Record<string, string> }[]): FeeTotal[
   for (const r of rows) {
     const amount = parseAmount(r.values.amount ?? "");
     if (!amount.ok) continue;
-    const period = (r.values.period ?? "").trim();
+    // A recurring line has no term: its group is named by how often (task 0124).
+    const often = parseAudienceCell(r.values.howOften, HOW_OFTEN_WORDS) ?? null;
+    const period = (r.values.period ?? "").trim() || (often ? RECURRENCE_TEXT[often] : "");
     const classGroup = (r.values.classGroup ?? "").trim() || "Every class";
     const key = `${period}|${classGroup}`;
     const g = groups.get(key) ?? { period, classGroup, lines: [] };

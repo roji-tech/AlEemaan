@@ -81,6 +81,24 @@ export const GENDER_WORDS: Record<string, FeeGender> = {
   girl: "FEMALE",
   girls: "FEMALE",
 };
+export type FeeRecurrence = "THIS_TERM" | "EVERY_TERM" | "EVERY_SESSION";
+/// How often, as an import cell says it (task 0124). Blank = this term only (the Period column names the term).
+export const HOW_OFTEN_WORDS: Record<string, "EVERY_TERM" | "EVERY_SESSION"> = {
+  "every term": "EVERY_TERM",
+  "each term": "EVERY_TERM",
+  "all terms": "EVERY_TERM",
+  termly: "EVERY_TERM",
+  "once a year": "EVERY_SESSION",
+  "once a session": "EVERY_SESSION",
+  "every session": "EVERY_SESSION",
+  "every year": "EVERY_SESSION",
+  yearly: "EVERY_SESSION",
+  annual: "EVERY_SESSION",
+  annually: "EVERY_SESSION",
+};
+/// What the screens call each recurrence.
+export const RECURRENCE_TEXT: Record<FeeRecurrence, string> = { THIS_TERM: "This term only", EVERY_TERM: "Every term", EVERY_SESSION: "Once a year" };
+
 export const RESIDENCE_WORDS: Record<string, FeeResidence> = {
   day: "DAY",
   boarding: "BOARDING",

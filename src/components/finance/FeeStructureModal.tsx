@@ -9,7 +9,9 @@ export interface FeeStructureItem {
   id: string;
   name: string;
   amount: number | string;
-  periodId: string;
+  /// Null for a line that recurs (task 0124).
+  periodId: string | null;
+  recurrence?: "THIS_TERM" | "EVERY_TERM" | "EVERY_SESSION";
   classGroupId: string | null;
   period?: { id: string; label: string };
   classGroup?: { id: string; name: string } | null;
@@ -37,6 +39,7 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
   const [name, setName] = useState(initialItem?.name ?? "");
   const [amount, setAmount] = useState(initialItem ? String(initialItem.amount) : "");
   const [periodId, setPeriodId] = useState(initialItem?.periodId ?? (periods[0]?.id || ""));
+  const [recurrence, setRecurrence] = useState<"THIS_TERM" | "EVERY_TERM" | "EVERY_SESSION">(initialItem?.recurrence ?? "THIS_TERM");
   const [classGroupId, setClassGroupId] = useState(initialItem?.classGroupId ?? "");
   const [admission, setAdmission] = useState(initialItem?.audienceAdmission ?? "");
   const [gender, setGender] = useState(initialItem?.audienceGender ?? "");
@@ -60,7 +63,7 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
       setError("Amount must be greater than zero");
       return;
     }
-    if (!periodId) {
+    if (recurrence === "THIS_TERM" && !periodId) {
       setError("Academic period is required");
       return;
     }
@@ -77,7 +80,8 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           branchId,
-          periodId,
+          periodId: recurrence === "THIS_TERM" ? periodId : null,
+          recurrence,
           classGroupId: classGroupId || null,
           name: name.trim(),
           amount: numAmount,
@@ -145,27 +149,49 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
           />
         </div>
 
+        {/* How often (task 0124): a line that recurs has no term of its own and carries on into every new term until its amount is changed. It cannot be changed after the line is made. */}
+        <SelectField
+          label="How often is it charged?"
+          value={recurrence}
+          disabled={Boolean(initialItem)}
+          onChange={(e) => setRecurrence(e.target.value as typeof recurrence)}
+          hint={
+            recurrence === "THIS_TERM"
+              ? "Only in the term below."
+              : recurrence === "EVERY_TERM"
+                ? "In every term's invoices, until you change the amount. Invoices already made keep the amount they were made with."
+                : "Once a year: on a pupil's first invoice of the school year, and again every new year, until you change the amount."
+          }
+          options={[
+            { value: "THIS_TERM", label: "This term only" },
+            { value: "EVERY_TERM", label: "Every term" },
+            { value: "EVERY_SESSION", label: "Once a year" },
+          ]}
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label htmlFor={`${formId}-period`} className="block text-xs font-medium text-fg-muted mb-1">
-              Academic Term / Period
-            </label>
-            {/* An edit cannot change the term: the update schema has no `periodId` (src/lib/finance/validation.ts), so a changed term was sent and silently dropped (task 0058). */}
-            <select
-              id={`${formId}-period`}
-              value={periodId}
-              onChange={(e) => setPeriodId(e.target.value)}
-              disabled={Boolean(initialItem)}
-              aria-describedby={initialItem ? `${formId}-period-note` : undefined}
-              className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand-strong disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {recurrence === "THIS_TERM" && (
+            <div>
+              <label htmlFor={`${formId}-period`} className="block text-xs font-medium text-fg-muted mb-1">
+                Academic Term / Period
+              </label>
+              {/* An edit cannot change the term: the update schema has no `periodId` (src/lib/finance/validation.ts), so a changed term was sent and silently dropped (task 0058). */}
+              <select
+                id={`${formId}-period`}
+                value={periodId}
+                onChange={(e) => setPeriodId(e.target.value)}
+                disabled={Boolean(initialItem)}
+                aria-describedby={initialItem ? `${formId}-period-note` : undefined}
+                className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand-strong disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label htmlFor={`${formId}-classGroup`} className="block text-xs font-medium text-fg-muted mb-1">
@@ -242,7 +268,7 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
           </p>
         </fieldset>
 
-        {initialItem && (
+        {initialItem && recurrence === "THIS_TERM" && (
           <p id={`${formId}-period-note`} className="text-xs text-fg-muted">
             A fee stays in the term it was made for. To charge it in another term, add it again there.
           </p>
