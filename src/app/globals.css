@@ -276,11 +276,22 @@ body {
     size: A4 portrait;
     margin: 12mm;
   }
+  html,
   body {
     background: #ffffff !important;
     color: #000000 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  /* A page that shows a report card prints the card alone, on white (task 0116, found in the preview of 2026-11-20): nothing floating (the quick-tools button, toasts) is drawn over it, and
+     the page's own padding does not push it onto a second sheet. */
+  body:has([data-report-template]) .fixed,
+  body:has([data-report-template]) [data-print-hide] {
+    display: none !important;
+  }
+  body:has([data-report-template]) main {
+    max-width: none !important;
+    padding: 0 !important;
   }
 }
 
