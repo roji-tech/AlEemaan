@@ -98,7 +98,10 @@ test("a superadmin makes a subject with tags, renames it in every branch, and ar
   expect(await openRowActions(page, "Arabic")).toBe(true);
   await page.getByRole("button", { name: "Archive Arabic", exact: true }).click();
   await expect(page.getByText(/Arabic archived/)).toBeVisible();
-  await expect(rowsOf(page.getByRole("list", { name: "Catalogue subjects" })).filter({ hasText: "Arabic" })).toHaveCount(0);
+  // The subject's own title, exactly: another row names the branch "Primary (Arabic)" among those offering it, which a plain text filter would match.
+  await expect(
+    rowsOf(page.getByRole("list", { name: "Catalogue subjects" })).filter({ has: page.getByText("Arabic", { exact: true }) }),
+  ).toHaveCount(0);
 });
 
 test("the administrator of a branch takes the subjects tagged core from the catalogue and filters their subjects by tag; no catalogue tab", async ({
