@@ -101,6 +101,8 @@ model ClassGroup {
   branchId   String
   name       String
   sortOrder  Int       @default(0)
+  /// An optional second name for the class, like "Grade 7" for JSS 1 (task 0123): shown beside the class name on the report card and in the Classes list. Free text, at most 30 characters; null = none.
+  gradeLabel String?
   /// The section this class is in ("Primary", "JSS", "SSS"), used to say where a person approves results (task 0039). Null = in no section. A section and its
   /// classes are of the same branch: the composite key below refuses any other.
   sectionId  String?

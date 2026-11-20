@@ -201,3 +201,73 @@ test.describe("the student routes link the strings to a real arm", () => {
     await db.academicSession.updateMany({ where: { id: { in: displaced.map((d) => d.id) } }, data: { status: "ACTIVE" } });
   });
 });
+
+test.describe("the grade label of a class (task 0123)", () => {
+  test("optional, trimmed, at most 30 characters; set when the class is made, changed and cleared by an edit, listed, audited; only an administrator writes", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const teacher = await asRole(Role.TEACHING_STAFF);
+    const made = await api(GROUPS, {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id, name: "JSS 1", gradeLabel: "  Grade 7 " },
+    });
+    expect(made.status, made.text).toBe(201);
+    const id = made.json.data.classGroup.id as string;
+    expect(made.json.data.classGroup.gradeLabel).toBe("Grade 7");
+    const plain = await api(GROUPS, { method: "POST", cookie: admin.cookie, body: { branchId: home.id, name: "SSS 1" } });
+    expect(plain.json.data.classGroup.gradeLabel).toBeNull();
+    const listed = await api(`${GROUPS}?branchId=${home.id}`, { cookie: admin.cookie });
+    const labels = Object.fromEntries(
+      (listed.json.data.classGroups as { name: string; gradeLabel: string | null }[]).map((g) => [g.name, g.gradeLabel]),
+    );
+    expect(labels).toEqual({ "JSS 1": "Grade 7", "SSS 1": null });
+
+    expect((await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: teacher.cookie, body: { gradeLabel: "Grade 8" } })).status).toBe(403);
+    expect((await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { gradeLabel: "x".repeat(31) } })).status).toBe(
+      400,
+    );
+    const changed = await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { gradeLabel: "Year 7" } });
+    expect(changed.json.data.classGroup.gradeLabel).toBe("Year 7");
+    // A rename alone leaves the label; a blank or null clears it.
+    expect(
+      (await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { name: "JSS One" } })).json.data.classGroup.gradeLabel,
+    ).toBe("Year 7");
+    expect(
+      (await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { gradeLabel: "   " } })).json.data.classGroup
+        .gradeLabel,
+    ).toBeNull();
+    expect(
+      (await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { gradeLabel: "Grade 7" } })).json.data.classGroup
+        .gradeLabel,
+    ).toBe("Grade 7");
+    expect(
+      (await api(`${GROUPS}/${id}`, { method: "PATCH", cookie: admin.cookie, body: { gradeLabel: null } })).json.data.classGroup.gradeLabel,
+    ).toBeNull();
+    const audits = await db.auditLog.findMany({ where: { targetId: id, action: "CLASS_GROUP_UPDATED" }, orderBy: { createdAt: "asc" } });
+    expect(audits.length).toBeGreaterThanOrEqual(2);
+    expect((audits[0].afterValue as { gradeLabel: string | null }).gradeLabel).toBe("Year 7");
+  });
+
+  test("the bulk class file has a Grade label column", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const rows = [
+      { line: 2, values: { name: "Basic 1", gradeLabel: "Grade 1", arms: "A" } },
+      { line: 3, values: { name: "Basic 2" } },
+      { line: 4, values: { name: "Basic 3", gradeLabel: "x".repeat(31) } },
+    ];
+    const dry = await api("/api/v1/academics/class-groups/import", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id, dryRun: true, rows },
+    });
+    expect(JSON.stringify(dry.json)).toContain("at most 30");
+    const saved = await api("/api/v1/academics/class-groups/import", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id, dryRun: false, rows: rows.slice(0, 2) },
+    });
+    expect(saved.status, saved.text).toBe(201);
+    const stored = Object.fromEntries((await db.classGroup.findMany({ where: { branchId: home.id } })).map((g) => [g.name, g.gradeLabel]));
+    expect(stored).toEqual({ "Basic 1": "Grade 1", "Basic 2": null });
+  });
+});

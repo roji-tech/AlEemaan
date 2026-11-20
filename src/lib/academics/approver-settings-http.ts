@@ -17,7 +17,12 @@ const sortOrderField = z.number({ error: "The order must be a whole number from 
 
 export const branchQuery = z.object({ branchId: idField });
 
-export const createSectionBody = z.strictObject({ branchId: idField, name: nameField, sortOrder: sortOrderField.optional(), stepUp: stepUpProofSchema });
+export const createSectionBody = z.strictObject({
+  branchId: idField,
+  name: nameField,
+  sortOrder: sortOrderField.optional(),
+  stepUp: stepUpProofSchema,
+});
 
 export const updateSectionBody = z
   .strictObject({
@@ -43,7 +48,11 @@ export const setScopesBody = z.strictObject({
   stepUp: stepUpProofSchema,
 });
 
-export const unsectionedBody = z.strictObject({ branchId: idField, value: z.enum(UNSECTIONED_VALUES, { error: "Choose one of the two." }), stepUp: stepUpProofSchema });
+export const unsectionedBody = z.strictObject({
+  branchId: idField,
+  value: z.enum(UNSECTIONED_VALUES, { error: "Choose one of the two." }),
+  stepUp: stepUpProofSchema,
+});
 
 const WRITES_PER_WINDOW = 120;
 /// One superadmin's changes to sections and scopes are limited like the Users page's: a runaway client cannot hammer the approval setup.
@@ -63,7 +72,9 @@ export function approverSettingsFailure(reason: ApproverSettingsFailure, what?: 
     case "NOT_FOUND":
       return fail(`No such ${what ?? "item"}.`, 404, "NOT_FOUND");
     case "INVALID_NAME":
-      return fail("Give it a name of 1 to 80 characters.", 400, "VALIDATION", [{ path: "body.name", message: "Give it a name (not blank, at most 80 characters)." }]);
+      return fail("Give it a name of 1 to 80 characters.", 400, "VALIDATION", [
+        { path: "body.name", message: "Give it a name (not blank, at most 80 characters)." },
+      ]);
     case "NAME_TAKEN":
       return fail("Another section in that branch already has that name.", 409, "NAME_TAKEN", [
         { path: "body.name", message: "Another section in that branch already has that name." },
