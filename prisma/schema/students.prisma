@@ -59,6 +59,8 @@ model StudentRecord {
   results               Result[]
   remarks               ReportRemark[]
   invoices              Invoice[]
+  feeOptOuts            StudentFeeOptOut[]
+  feeHandovers          FeeItemHandover[]
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
   guardianLinkTokens    GuardianLinkToken[]

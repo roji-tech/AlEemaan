@@ -1,5 +1,11 @@
 // --- Finance & Billing (Slice P4: Fee Structures, Invoices, Payments, Dual-Mode Paystack & Webhooks) ---
 
+/// Whether a fee line is for pupils new to the school that period or for returning ones (task 0122).
+enum FeeAdmission {
+  NEW
+  RETURNING
+}
+
 enum InvoiceStatus {
   UNPAID
   PARTIALLY_PAID
@@ -29,18 +35,31 @@ enum DiscountWorkflowMode {
 
 /// Fee structure item per academic period, optionally scoped to a class group (null = applies to all classes in branch).
 model FeeStructure {
-  id           String   @id @default(cuid())
-  branchId     String
-  periodId     String
-  classGroupId String?
-  name         String // "Tuition", "Sports Levy", "PTA", "Books", etc.
-  amount       Decimal  @db.Decimal(12, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now()) @updatedAt
+  id                String        @id @default(cuid())
+  branchId          String
+  periodId          String
+  classGroupId      String?
+  name              String // "Tuition", "Sports Levy", "PTA", "Books", etc.
+  amount            Decimal       @db.Decimal(12, 2)
+  /// Who the line is for (task 0122). Each is null = everyone, so a line made before these existed is billed to every pupil of its class, as it always was. A pupil is NEW for a period when they
+  /// have no enrolment in a session that began earlier (worked out, never typed); gender and residence are the pupil's own. A pupil whose record lacks a value a line asks for does not get the line.
+  audienceAdmission FeeAdmission?
+  audienceGender    Gender?
+  audienceResidence Residence?
+  /// An optional line is billed unless the pupil opted out of it (StudentFeeOptOut).
+  optional          Boolean       @default(false)
+  /// false: a scholarship's percent is not taken of this line (uniforms, the ID card). The invoice's snapshot carries it, so every place that works a scholarship out agrees. Default true = as before.
+  scholarshipCovers Boolean       @default(true)
+  /// A physical item (uniform, cardigan, sport wear): a pupil's receipt of it can be recorded (FeeItemHandover). Records only; it never blocks an invoice or a payment.
+  trackHandover     Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
 
-  branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  period     AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: Cascade)
-  classGroup ClassGroup?    @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  branch     Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  period     AcademicPeriod     @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: Cascade)
+  classGroup ClassGroup?        @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
+  optOuts    StudentFeeOptOut[]
+  handovers  FeeItemHandover[]
 
   @@unique([branchId, id])
   @@index([branchId, periodId])
@@ -213,4 +232,45 @@ model InvoiceCounter {
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@id([branchId, year])
+}
+
+/// A pupil's choice not to take an optional fee line (task 0122: "turn off the school uniform for one new student"). One per pupil and line. Before the invoice exists the line is simply not put on it;
+/// after, it is taken off only while nothing has been paid on the invoice (the service recomputes the total and the scholarship share). Financial: administrators of the branch and superadmins.
+model StudentFeeOptOut {
+  id             String   @id @default(cuid())
+  branchId       String
+  studentId      String
+  feeStructureId String
+  note           String?
+  byUserId       String
+  createdAt      DateTime @default(now())
+
+  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student      StudentRecord @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  feeStructure FeeStructure  @relation(fields: [branchId, feeStructureId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, id])
+  @@unique([studentId, feeStructureId])
+  @@index([branchId, feeStructureId])
+}
+
+/// That a pupil has received a physical item (task 0122): the uniform, the cardigan, sport wear. One per pupil and line; undone by deleting it, and the audit log keeps who did what. It records only: no
+/// invoice or payment waits for it. A fee line that has handovers cannot be deleted (the service says so).
+model FeeItemHandover {
+  id               String   @id @default(cuid())
+  branchId         String
+  studentId        String
+  feeStructureId   String
+  receivedOn       DateTime @db.Date
+  receivedByUserId String
+  note             String?
+  createdAt        DateTime @default(now())
+
+  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student      StudentRecord @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: Cascade)
+  feeStructure FeeStructure  @relation(fields: [branchId, feeStructureId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, id])
+  @@unique([studentId, feeStructureId])
+  @@index([branchId, feeStructureId])
 }
