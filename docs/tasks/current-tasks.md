@@ -774,3 +774,11 @@
 ## TASK-0122: Who a fee line is for, optional items per pupil, items handed over (requested 2026-11-20)
 
 [Task file](0122-fee-audience-optional-items-handover.md). A fee line can be for new or returning pupils, one gender, day or boarders (nothing = everyone, as every existing line is); a line can be optional (a pupil opts out: the invoice follows while nothing is paid), a scholarship's share can skip it, and an item can be tracked as handed over (a record, never a block). One additive migration, `20261122090000_fee_audience`, the maintainer's to run in production after the prod merge.
+
+## TASK-0123: Grade labels on classes (requested 2026-11-20)
+
+[Task file](0123-grade-labels-on-classes.md). An optional label (JSS 1 = Grade 7) on a class, set on the class and in the classes file, shown beside the class name on the cards. One additive migration, `20261122100000_class_grade_label`, the maintainer's to run in production after the prod merge.
+
+## TASK-0124: How often a fee line is charged (requested 2026-11-20)
+
+[Task file](0124-fee-how-often.md). A fee line is for this term only (as today), every term, or once a year; recurring lines are one row that carries into new terms and sessions until its amount is edited, and "How often" is a column of the fees file. One additive migration, `20261122110000_fee_recurrence`, the maintainer's to run in production after the prod merge.

@@ -8,7 +8,7 @@ import type { Problem } from "./types";
 // an invoice keeps its own line-item snapshot.
 
 export type FeeBulkCtx = { branchId: string };
-type Resolved = { periodId: string; classGroupId: string | null };
+type Resolved = { periodId: string | null; classGroupId: string | null };
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -27,17 +27,21 @@ type Lookups = Awaited<ReturnType<typeof lookups>>;
 function resolve(l: Lookups, row: FeeRow): { ok: true; at: Resolved } | { ok: false; problems: Problem[] } {
   const problems: Problem[] = [];
   let periodId: string | null = null;
-  const exact = l.periods.filter((p) => same(p.full, row.period));
-  const byLabel = l.periods.filter((p) => same(p.label, row.period));
-  const hits = exact.length > 0 ? exact : byLabel;
-  if (hits.length === 1) periodId = hits[0].id;
-  else if (hits.length > 1)
-    problems.push({ column: "period", message: `More than one period is called "${row.period}". Add the session, like ${hits[0].full}.` });
-  else
-    problems.push({
-      column: "period",
-      message: `There is no period called "${row.period}" in this branch. Use it as the Finance screen shows it, like ${l.periods[0]?.full ?? "1st Term (2026/2027)"}.`,
-    });
+  // A line that recurs (every term, once a year) has no term of its own (task 0124); the row rules already refuse both a term and a how-often, or neither.
+  if (!row.howOften) {
+    const period = row.period ?? "";
+    const exact = l.periods.filter((p) => same(p.full, period));
+    const byLabel = l.periods.filter((p) => same(p.label, period));
+    const hits = exact.length > 0 ? exact : byLabel;
+    if (hits.length === 1) periodId = hits[0].id;
+    else if (hits.length > 1)
+      problems.push({ column: "period", message: `More than one period is called "${period}". Add the session, like ${hits[0].full}.` });
+    else
+      problems.push({
+        column: "period",
+        message: `There is no period called "${period}" in this branch. Use it as the Finance screen shows it, like ${l.periods[0]?.full ?? "1st Term (2026/2027)"}.`,
+      });
+  }
 
   let classGroupId: string | null = null;
   if (row.classGroup) {
@@ -49,7 +53,7 @@ function resolve(l: Lookups, row: FeeRow): { ok: true; at: Resolved } | { ok: fa
         message: `There is no class called "${row.classGroup}" in this branch. Leave it empty for every class.`,
       });
   }
-  return problems.length > 0 || periodId === null ? { ok: false, problems } : { ok: true, at: { periodId, classGroupId } };
+  return problems.length > 0 ? { ok: false, problems } : { ok: true, at: { periodId, classGroupId } };
 }
 
 export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
@@ -65,12 +69,13 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
       if (res.ok) at.set(r.line, res.at);
       else found.set(r.line, res.problems);
     }
-    const periodIds = [...new Set([...at.values()].map((a) => a.periodId))];
-    if (periodIds.length === 0) return found;
+    const periodIds = [...new Set([...at.values()].map((a) => a.periodId).filter((p): p is string => p !== null))];
+    if (at.size === 0) return found;
     const existing = await db.feeStructure.findMany({
-      where: { branchId: ctx.branchId, periodId: { in: periodIds } },
+      where: { branchId: ctx.branchId, OR: [{ periodId: { in: periodIds } }, { recurrence: { not: "THIS_TERM" } }] },
       select: {
         periodId: true,
+        recurrence: true,
         classGroupId: true,
         name: true,
         amount: true,
@@ -86,6 +91,7 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
       const hit = existing.find(
         (e) =>
           e.periodId === here.periodId &&
+          e.recurrence === (r.row.howOften ?? "THIS_TERM") &&
           e.classGroupId === here.classGroupId &&
           same(e.name, r.row.name) &&
           e.audienceAdmission === (r.row.admission ?? null) &&
@@ -94,7 +100,10 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
       );
       if (hit)
         found.set(r.line, [
-          { column: "name", message: `This fee line already exists for that period and class (${formatNaira(hit.amount.toString())}).` },
+          {
+            column: "name",
+            message: `This fee line already exists for ${hit.periodId === null ? "that how-often setting" : "that period"} and class (${formatNaira(hit.amount.toString())}).`,
+          },
         ]);
     }
     return found;
@@ -108,6 +117,7 @@ export const feeKind: ServerKind<FeeRow, FeeBulkCtx> = {
         data: {
           branchId: ctx.branchId,
           periodId: res.at.periodId,
+          recurrence: row.howOften ?? "THIS_TERM",
           classGroupId: res.at.classGroupId,
           name: row.name.trim(),
           amount: row.amount,

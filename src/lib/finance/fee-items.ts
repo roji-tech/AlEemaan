@@ -14,6 +14,15 @@ type LineItem = { feeStructureId?: string; name: string; amount: string; covered
 const dec = (v: Prisma.Decimal.Value) => new Prisma.Decimal(v);
 const asLines = (json: Prisma.JsonValue | null): LineItem[] => (Array.isArray(json) ? (json as unknown as LineItem[]) : []);
 
+/// The branch's current term, else its latest (a line that recurs has no term of its own). Refused when the branch has no term yet.
+async function currentPeriodId(branchId: string): Promise<string> {
+  const p =
+    (await prisma.academicPeriod.findFirst({ where: { branchId, isCurrent: true }, select: { id: true } })) ??
+    (await prisma.academicPeriod.findFirst({ where: { branchId }, orderBy: { startDate: "desc" }, select: { id: true } }));
+  if (!p) throw new FinanceError("This branch has no term yet.", "NOT_FOUND");
+  return p.id;
+}
+
 /// What is known of a pupil for a period: their class group that session, new or returning, gender and residence. Null when the pupil is not enrolled in the period's session.
 async function pupilFor(branchId: string, studentId: string, periodId: string) {
   const period = await prisma.academicPeriod.findFirst({
@@ -46,6 +55,9 @@ export type PupilFeeItem = {
   name: string;
   amount: string;
   verdict: LineVerdict;
+  /// How often the line is charged (task 0124), and for a once-a-year line whether an earlier invoice of this session already carries it (so it is not charged again this term).
+  recurrence: "THIS_TERM" | "EVERY_TERM" | "EVERY_SESSION";
+  carried: boolean;
   optional: boolean;
   trackHandover: boolean;
   scholarshipCovers: boolean;
@@ -77,7 +89,13 @@ export async function pupilFeeItems(branchId: string, studentId: string, wanted:
   if (!periodId) throw new FinanceError("This branch has no term yet.", "NOT_FOUND");
   const { period, student, classGroupId, facts } = await pupilFor(branchId, studentId, periodId);
   const lines = await prisma.feeStructure.findMany({
-    where: { branchId, periodId, OR: [{ classGroupId: null }, ...(classGroupId ? [{ classGroupId }] : [])] },
+    where: {
+      branchId,
+      AND: [
+        { OR: [{ periodId }, { recurrence: { not: "THIS_TERM" } }] },
+        { OR: [{ classGroupId: null }, ...(classGroupId ? [{ classGroupId }] : [])] },
+      ],
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const [optOuts, handovers, invoice] = await Promise.all([
@@ -90,6 +108,14 @@ export async function pupilFeeItems(branchId: string, studentId: string, wanted:
   ]);
   const out = new Set(optOuts.map((o) => o.feeStructureId));
   const onInvoice = new Set(asLines(invoice?.lineItems ?? null).map((l) => l.feeStructureId));
+  // Once-a-year lines an earlier invoice of this session already carries (task 0124).
+  const carried = new Set<string>();
+  if (lines.some((l) => l.recurrence === "EVERY_SESSION"))
+    for (const inv of await prisma.invoice.findMany({
+      where: { branchId, studentId, periodId: { not: periodId }, period: { sessionId: period.sessionId } },
+      select: { lineItems: true },
+    }))
+      for (const l of asLines(inv.lineItems)) if (l.feeStructureId) carried.add(l.feeStructureId);
   return {
     periodId,
     periodLabel: period.label,
@@ -106,6 +132,8 @@ export async function pupilFeeItems(branchId: string, studentId: string, wanted:
         name: l.name,
         amount: l.amount.toString(),
         verdict: verdictFor(factsOf(l), facts, out),
+        recurrence: l.recurrence,
+        carried: l.recurrence === "EVERY_SESSION" && carried.has(l.id) && !onInvoice.has(l.id),
         optional: l.optional,
         trackHandover: l.trackHandover,
         scholarshipCovers: l.scholarshipCovers,
@@ -144,7 +172,9 @@ export async function setFeeOptOut(
   const line = await prisma.feeStructure.findFirst({ where: { branchId, id: feeStructureId } });
   if (!line) throw new FinanceError("Fee line not found", "NOT_FOUND");
   if (!line.optional) throw new FinanceError("Only an optional line can be opted out of. Make the line optional first.", "NOT_OPTIONAL");
-  const { facts } = await pupilFor(branchId, studentId, line.periodId);
+  // A line that recurs has no term of its own: the change is made to the pupil's invoice of the current term (task 0124).
+  const termId = line.periodId ?? (await currentPeriodId(branchId));
+  const { facts } = await pupilFor(branchId, studentId, termId);
 
   class Refused extends Error {}
   try {
@@ -158,7 +188,7 @@ export async function setFeeOptOut(
 
       let invoiceChanged = false;
       const found = await tx.invoice.findUnique({
-        where: { branchId_studentId_periodId: { branchId, studentId, periodId: line.periodId } },
+        where: { branchId_studentId_periodId: { branchId, studentId, periodId: termId } },
         select: { id: true },
       });
       if (found) {
@@ -287,7 +317,7 @@ export async function handoverList(
   periodId: string,
   feeStructureId: string,
 ): Promise<{ line: { id: string; name: string }; rows: HandoverRow[] }> {
-  const line = await prisma.feeStructure.findFirst({ where: { branchId, id: feeStructureId, periodId } });
+  const line = await prisma.feeStructure.findFirst({ where: { branchId, id: feeStructureId, OR: [{ periodId }, { periodId: null }] } });
   if (!line) throw new FinanceError("Fee line not found", "NOT_FOUND");
   if (!line.trackHandover) throw new FinanceError("This line is not tracked as an item that is handed over.", "NOT_TRACKED");
   const invoices = await prisma.invoice.findMany({

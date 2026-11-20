@@ -56,13 +56,18 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
   optional: { pass: ["", "Yes", "no", "TRUE"], fail: ["maybe"] },
   trackHandover: { pass: ["", "Yes", "No"], fail: ["sometimes"] },
   scholarshipCovers: { pass: ["", "Yes", "No"], fail: ["half"] },
+  // Task 0124: with an empty Period (the test sets one), how often is every term or once a year; an unknown word is a problem on that cell.
+  howOften: { pass: ["Every term", "once a year", "Annually"], fail: ["sometimes"] },
 };
 test("every column has samples; each passing value passes and each failing value is a problem on that column alone", () => {
   expect(Object.keys(SAMPLES).sort()).toEqual(feeEntity.columns.map((c) => c.key).sort());
   for (const [column, { pass, fail }] of Object.entries(SAMPLES)) {
-    for (const value of pass) expect(one({ [column]: value }).verdicts[0].status, `${column}=${JSON.stringify(value)}`).toBe("ready");
+    // How often goes with an empty Period (task 0124): a line is for one term or it recurs, never both.
+    const base: Record<string, string> = column === "howOften" ? { period: "" } : {};
+    for (const value of pass)
+      expect(one({ ...base, [column]: value }).verdicts[0].status, `${column}=${JSON.stringify(value)}`).toBe("ready");
     for (const value of fail) {
-      const v = one({ [column]: value }).verdicts[0];
+      const v = one({ ...base, [column]: value }).verdicts[0];
       expect([v.status, v.problems.map((p) => p.column)], `${column}=${JSON.stringify(value)}`).toEqual(["error", [column]]);
     }
   }
@@ -151,7 +156,10 @@ test("the branch's periods and classes become dropdowns, and every dropdown labe
   ]);
   for (const column of entity.columns.filter((c) => c.options))
     for (const o of column.options!)
-      expect(validateRows(entity, [row({ [column.key]: o.label })]).verdicts[0].status, `${column.key}=${o.label}`).toBe("ready");
+      expect(
+        validateRows(entity, [row({ ...(column.key === "howOften" ? { period: "" } : {}), [column.key]: o.label })]).verdicts[0].status,
+        `${column.key}=${o.label}`,
+      ).toBe("ready");
 });
 
 test("the review adds a class up per kind of pupil the lines tell apart: the school's printed Basic 1 bill is 128,000, 136,000 and 47,000", () => {
@@ -179,5 +187,28 @@ test("the review adds a class up per kind of pupil the lines tell apart: the sch
   // Lines with no condition at all keep the old shape: one total, no "who".
   expect(feeTotals([line("School fees", "42000"), line("Lesson fee", "2000")])).toEqual([
     { period: "1st Term (2026/2027)", classGroup: "Basic 1", kobo: 4400000, lines: 2 },
+  ]);
+});
+
+test("a line is for one term or it recurs: both, or neither, is a problem on the Period cell (task 0124)", () => {
+  const status = (values: Record<string, string>) => {
+    const v = one(values).verdicts[0];
+    return [v.status, v.problems.map((p) => p.column)];
+  };
+  expect(status({ period: "", howOften: "Every term" })).toEqual(["ready", []]);
+  expect(status({ period: "1st Term (2026/2027)", howOften: "" })).toEqual(["ready", []]);
+  expect(status({ period: "1st Term (2026/2027)", howOften: "Every term" })).toEqual(["error", ["period"]]);
+  expect(status({ period: "", howOften: "" })).toEqual(["error", ["period"]]);
+  expect(one({ period: "", howOften: "once a year" }).ok[0].row).toMatchObject({ howOften: "EVERY_SESSION" });
+});
+
+test("the review groups recurring rows by how often (task 0124)", () => {
+  const t = feeTotals([
+    row({ period: "", howOften: "Every term", classGroup: "", amount: "85000" }),
+    row({ period: "", howOften: "Once a year", classGroup: "", amount: "20000" }),
+  ]);
+  expect(t).toEqual([
+    { period: "Every term", classGroup: "Every class", kobo: 8500000, lines: 1 },
+    { period: "Once a year", classGroup: "Every class", kobo: 2000000, lines: 1 },
   ]);
 });
