@@ -26,7 +26,7 @@ type MembershipRow = {
 type RecordRow = {
   id: string;
   userId: string | null;
-  branchId: string;
+  branchId: string | null; // null = not placed in a branch yet (task 0101 D3); such a record is never part of a unit
   standing: StandingState;
   standingUntil: Date | null;
   archivedAt: Date | null;
@@ -59,7 +59,8 @@ async function unitOf(db: Reader, target: StaffTarget): Promise<Unit | null> {
     return { branchId: membership.branchId, membership, record };
   }
   const record = await db.staffRecord.findUnique({ where: { id: target.staffRecordId }, select: RECORD });
-  if (!record) return null;
+  // A record not placed in a branch (task 0101 D3) has no standing to suspend or terminate: it belongs to no branch's unit.
+  if (!record || record.branchId === null) return null;
   const membership = record.userId
     ? await db.membership.findUnique({
         where: { userId_branchId: { userId: record.userId, branchId: record.branchId } },
@@ -78,6 +79,7 @@ async function unitsOfUser(db: Reader, userId: string): Promise<Unit[]> {
   const byBranch = new Map<string, Unit>();
   for (const membership of memberships) byBranch.set(membership.branchId, { branchId: membership.branchId, membership, record: null });
   for (const record of records) {
+    if (record.branchId === null) continue; // not placed in a branch yet (task 0101 D3): no unit
     const unit = byBranch.get(record.branchId);
     if (unit) unit.record = record;
     else byBranch.set(record.branchId, { branchId: record.branchId, membership: null, record });

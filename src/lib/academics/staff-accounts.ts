@@ -1,5 +1,6 @@
 import { Prisma, Role, StaffCategory } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { LIVE_STAFF } from "@/lib/drafts/live";
 
 // Accounts and staff records (task 0112, the maintainer 2026-11-19: "if I invite a new user ... as admin for a branch, why am I not seeing the person as part of the staff of that branch?").
 // A sign-in account (a membership: a role in a branch) and a staff record (how the branch knows a person) were never joined unless someone linked them by hand, and an administrator's
@@ -34,22 +35,25 @@ export function namesFrom(name: string | null, email: string): { firstName: stri
 
 type Tx = Prisma.TransactionClient;
 
-/// Puts a member on the branch's staff list, in the caller's transaction: nothing when the role is not a staff role or the account already has a record here; else links an unlinked live
-/// record with the same e-mail (and a fitting kind), else makes one. Returns what it did. A record that cannot be made (another live record holds the address) is left alone: "none".
+/// Puts a member on the branch's staff list, in the caller's transaction: nothing when the role is not a staff role or the account already has a record here; else links an unlinked LIVE
+/// record (not archived, not a draft: task 0101 D1) with the same e-mail and a fitting kind, else makes one. Returns what it did. A DRAFT that holds the address is left alone ("draft": it is
+/// unfinished, so it is neither linked nor duplicated; the person shows under "not on the staff list yet" until the draft is completed); another live record holding it is "none".
 export async function ensureStaffRecord(
   tx: Tx,
   input: { userId: string; branchId: string; role: Role; actorUserId: string; why: string },
-): Promise<"none" | "linked" | "created"> {
+): Promise<"none" | "linked" | "created" | "draft"> {
   if (!STAFF_ROLES.includes(input.role)) return "none";
   if ((await tx.staffRecord.count({ where: { branchId: input.branchId, userId: input.userId } })) > 0) return "none";
   const user = await tx.user.findUnique({ where: { id: input.userId }, select: { name: true, email: true } });
   if (!user?.email) return "none";
-  const existing = await tx.staffRecord.findFirst({
+  const holder = await tx.staffRecord.findFirst({
     where: { branchId: input.branchId, userId: null, archivedAt: null, email: { equals: user.email, mode: Prisma.QueryMode.insensitive } },
-    select: { id: true, category: true },
+    select: { id: true, category: true, isDraft: true },
   });
+  if (holder?.isDraft) return "draft";
+  const existing = holder;
   if (existing && accountFitsRecord(input.role, existing.category)) {
-    await tx.staffRecord.update({ where: { id: existing.id }, data: { userId: input.userId } });
+    await tx.staffRecord.updateMany({ where: { id: existing.id, userId: null, ...LIVE_STAFF }, data: { userId: input.userId } });
     await tx.auditLog.create({
       data: {
         actorUserId: input.actorUserId,

@@ -27,6 +27,8 @@ export const invitationBody = z
     email: inviteEmail,
     role: inviteRole,
     branchId: inviteBranchId.optional(),
+    /// Save as a DRAFT (task 0101 D2): nothing is sent and no link exists until the draft is sent. Absent or false sends as before.
+    draft: z.boolean().optional(),
     branchIds: z
       .array(inviteBranchId, { error: "Choose the branches." })
       .min(1, "Choose at least one branch.")

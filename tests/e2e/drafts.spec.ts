@@ -92,8 +92,8 @@ test("staff: Save as draft shows the badge and what is missing; the Drafts filte
   await clickAction(item(), `Edit ${tag}Dee Raft`);
   await dialog(page).getByLabel("Gender (optional)").selectOption("FEMALE");
   await dialog(page).getByLabel("Email (optional)").fill(`${tag.toLowerCase()}dee@school.example`);
-  await dialog(page).getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText(`${tag}Dee Raft saved.`)).toBeVisible();
+  await dialog(page).getByRole("button", { name: "Save draft", exact: true }).click(); // already a draft: Save draft (stays one) and Complete, not Save
+  await expect(page.getByText(`${tag}Dee Raft saved as a draft.`)).toBeVisible();
   await expect(item()).toContainText("Draft"); // saving never completes it on its own
   await clickAction(item(), `Complete ${tag}Dee Raft`);
   await expect(page.getByText(`${tag}Dee Raft is complete: no longer a draft.`)).toBeVisible();
@@ -179,8 +179,8 @@ test("pupils: Save as draft with only the names; the list says what is missing; 
   await dialog(page).getByLabel("Arm").selectOption("A");
   await dialog(page).getByLabel("Guardian name (optional)").fill("Mr Aliyu");
   await dialog(page).getByLabel("Guardian phone (optional)").fill("08031234567");
-  await dialog(page).getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText(`${tag}Zainab Aliyu saved.`)).toBeVisible();
+  await dialog(page).getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(page.getByText(`${tag}Zainab Aliyu saved as a draft.`)).toBeVisible();
   await expect(row()).toContainText(`${tag} JSS 1 A`);
   await expect(row()).toContainText("Draft");
   await clickAction(row(), `Complete ${tag}Zainab Aliyu`);

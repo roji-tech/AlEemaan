@@ -1,4 +1,4 @@
-import type { Prisma, Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { brand } from "@/lib/brand";
 import { maskEmail } from "@/lib/auth/mask-email";
@@ -6,6 +6,7 @@ import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 import { INVITATION_TTL_MS, hashInvitationToken, newInvitationToken } from "./token";
 import { invitationStatus, isLiveInvitation, type InvitationStatus } from "./status";
 import { accountFitsRecord, ensureStaffRecord } from "@/lib/academics/staff-accounts";
+import { LIVE_STAFF } from "@/lib/drafts/live";
 
 // Invitations (domain-implementation-plan.md "Build design — Users pages and invitations", a port of Octalve Edu's 0.5.4).
 //
@@ -23,6 +24,7 @@ const PUBLIC_SELECT = {
   role: true,
   branchId: true,
   createdAt: true,
+  sentAt: true,
   expiresAt: true,
   acceptedAt: true,
   revokedAt: true,
@@ -41,7 +43,10 @@ export type PublicInvitation = {
   branchName: string;
   invitedByName: string | null;
   createdAt: Date;
-  expiresAt: Date;
+  /// When the link was sent; null for a draft (task 0101 D2).
+  sentAt: Date | null;
+  /// Null for a draft: there is no link yet, so nothing runs out.
+  expiresAt: Date | null;
   status: InvitationStatus;
 };
 
@@ -53,6 +58,7 @@ const toPublic = (row: InvitationRow, now: Date = new Date()): PublicInvitation 
   branchName: row.branch.name,
   invitedByName: row.invitedBy?.name ?? null,
   createdAt: row.createdAt,
+  sentAt: row.sentAt,
   expiresAt: row.expiresAt,
   status: invitationStatus(row, now),
 });
@@ -113,7 +119,7 @@ async function writeInvitation(
 ): Promise<{ invitation: PublicInvitation; token: string }> {
   const earlier = await tx.invitation.findMany({
     where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null }, // (a different branch's open invitation stays)
-    select: { id: true },
+    select: { id: true, role: true },
   });
   for (const old of earlier) {
     await tx.invitation.update({ where: { id: old.id }, data: { revokedAt: now } });
@@ -123,7 +129,7 @@ async function writeInvitation(
         action: "INVITATION_REVOKED",
         targetType: "Invitation",
         targetId: old.id,
-        afterValue: { email: input.email },
+        afterValue: { email: input.email, role: old.role, branchId: input.branchId },
         reason: "replaced by a new invitation",
       },
     });
@@ -137,6 +143,7 @@ async function writeInvitation(
       branchId: input.branchId,
       tokenHash: hashInvitationToken(token),
       invitedById: actorUserId,
+      sentAt: now,
       expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
       ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
     },
@@ -258,7 +265,8 @@ export async function resendInvitation(
 ): Promise<{ invitation: PublicInvitation; token: string } | null> {
   return prisma.$transaction(async (tx) => {
     const open = await tx.invitation.findFirst({
-      where: { id: invitationId, acceptedAt: null, revokedAt: null, ...visibleTo(scope) },
+      // A draft has no link to renew: it is sent (`sendDraftInvitation`), not resent.
+      where: { id: invitationId, acceptedAt: null, revokedAt: null, tokenHash: { not: null }, ...visibleTo(scope) },
       select: { id: true, email: true },
     });
     if (!open) return null;
@@ -266,7 +274,7 @@ export async function resendInvitation(
     const token = newInvitationToken();
     const updated = await tx.invitation.update({
       where: { id: open.id },
-      data: { tokenHash: hashInvitationToken(token), expiresAt: new Date(now.getTime() + INVITATION_TTL_MS) },
+      data: { tokenHash: hashInvitationToken(token), expiresAt: new Date(now.getTime() + INVITATION_TTL_MS), sentAt: now },
       select: PUBLIC_SELECT,
     });
     await tx.auditLog.create({
@@ -279,7 +287,10 @@ export async function resendInvitation(
 /// Ends an open invitation. The conditional update is the gate: it changes exactly one row or the answer is "no such open invitation".
 export async function revokeInvitation(actorUserId: string, invitationId: string, scope: AdminScope): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const target = await tx.invitation.findUnique({ where: { id: invitationId }, select: { email: true } });
+    const target = await tx.invitation.findUnique({
+      where: { id: invitationId },
+      select: { email: true, role: true, branchId: true, tokenHash: true },
+    });
     const claimed = await tx.invitation.updateMany({
       where: { id: invitationId, acceptedAt: null, revokedAt: null, ...visibleTo(scope) },
       data: { revokedAt: new Date() },
@@ -288,14 +299,289 @@ export async function revokeInvitation(actorUserId: string, invitationId: string
     await tx.auditLog.create({
       data: {
         actorUserId,
-        action: "INVITATION_REVOKED",
+        // A draft that is thrown away is its own event (task 0101 D2); both are read by the history (task 0117).
+        action: target?.tokenHash === null ? "INVITATION_DRAFT_DELETED" : "INVITATION_REVOKED",
         targetType: "Invitation",
         targetId: invitationId,
-        afterValue: { email: target?.email ?? null },
+        // Who it was for, and what it was for: the history of invitations (task 0117) is read from these rows.
+        afterValue: { email: target?.email ?? null, role: target?.role ?? null, branchId: target?.branchId ?? null },
+        reason: target?.tokenHash === null ? "draft deleted" : "revoked by an administrator",
       },
     });
     return true;
   });
+}
+
+// --- drafts (task 0101 D2) ------------------------------------------------------------------------------------------------
+// A draft invitation is saved, not sent: no token, no expiry, no e-mail (`tokenHash`, `expiresAt` and `sentAt` are all null together, a CHECK holds it). Sending it makes the link and
+// e-mails it. A draft is the open invitation of its (address, branch) as far as the unique index goes (`Invitation_one_live_per_address_branch` counts every invitation that is neither
+// accepted nor revoked), so there is one per pair: saving a draft for a pair that already has a DRAFT updates it; one that already has a SENT open invitation is refused (revoke or resend that
+// first: a draft must never silently kill a live link). A draft never matches an accept link (no token) and is never "accepted" or "expired".
+
+export type DraftRefusal = "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "INVALID_BRANCH" | "OUT_OF_SCOPE" | "ADMIN_ONLY" | "OPEN_EXISTS";
+export type SaveDraftResult = { ok: true; invitation: PublicInvitation; created: boolean } | { ok: false; reason: DraftRefusal };
+
+/// Saves a draft inside a transaction the caller owns (a bulk saves many and rolls them all back together). The authority and the membership rules are the single invitation's.
+export async function saveDraftIn(
+  tx: Prisma.TransactionClient,
+  actorUserId: string,
+  input: { email: string; role: Role; branchId: string; staffRecordId?: string },
+  scope: AdminScope,
+): Promise<SaveDraftResult> {
+  await lockAddress(tx, input.email);
+  const authority = await authorityToInvite(tx, input, scope);
+  if (!authority.ok) return { ok: false, reason: authority.reason };
+  const refusal = await membershipRefusal(tx, input.email, input.branchId);
+  if (refusal) return { ok: false, reason: refusal };
+  const now = new Date();
+  const open = await tx.invitation.findFirst({
+    where: { email: input.email, branchId: input.branchId, acceptedAt: null, revokedAt: null },
+    select: { id: true, tokenHash: true },
+  });
+  if (open && open.tokenHash !== null) return { ok: false, reason: "OPEN_EXISTS" };
+  if (open) {
+    const updated = await tx.invitation.update({
+      where: { id: open.id },
+      data: { role: input.role, invitedById: actorUserId, staffRecordId: input.staffRecordId ?? null },
+      select: PUBLIC_SELECT,
+    });
+    await tx.auditLog.create({
+      data: {
+        actorUserId,
+        action: "INVITATION_DRAFT_SAVED",
+        targetType: "Invitation",
+        targetId: open.id,
+        afterValue: { email: input.email, role: input.role, branchId: input.branchId, updated: true },
+      },
+    });
+    return { ok: true, invitation: toPublic(updated, now), created: false };
+  }
+  const created = await tx.invitation.create({
+    data: {
+      email: input.email,
+      role: input.role,
+      branchId: input.branchId,
+      invitedById: actorUserId,
+      ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+    },
+    select: PUBLIC_SELECT,
+  });
+  await tx.auditLog.create({
+    data: {
+      actorUserId,
+      action: "INVITATION_DRAFT_SAVED",
+      targetType: "Invitation",
+      targetId: created.id,
+      afterValue: {
+        email: input.email,
+        role: input.role,
+        branchId: input.branchId,
+        ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+      },
+    },
+  });
+  return { ok: true, invitation: toPublic(created, now), created: true };
+}
+
+/// Saves one address, as one role, as a draft for each of several branches: ALL or NONE (the several-branches invitation's rule).
+export async function saveDrafts(
+  actorUserId: string,
+  input: { email: string; role: Role; branchIds: readonly string[] },
+  scope: AdminScope,
+): Promise<{ ok: true; invitations: PublicInvitation[] } | { ok: false; reason: DraftRefusal; branchName?: string }> {
+  type Refused = { ok: false; reason: DraftRefusal; branchName?: string };
+  // A refusal must ROLL BACK the drafts already written for the earlier branches: returning from the transaction callback would commit them (all or none). So it is thrown, and caught here.
+  class DraftsRefused extends Error {
+    constructor(readonly refusal: Refused) {
+      super("drafts refused");
+    }
+  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const saved: PublicInvitation[] = [];
+      for (const branchId of input.branchIds) {
+        const result = await saveDraftIn(tx, actorUserId, { email: input.email, role: input.role, branchId }, scope);
+        if (!result.ok) {
+          const branch = await tx.branch.findUnique({ where: { id: branchId }, select: { name: true } });
+          // The name is given only for a branch the caller administers (the refusal came from this branch's own state), never for one they may not see.
+          throw new DraftsRefused({
+            ok: false,
+            reason: result.reason,
+            ...(result.reason === "INVALID_BRANCH" || result.reason === "OUT_OF_SCOPE" ? {} : { branchName: branch?.name }),
+          });
+        }
+        saved.push(result.invitation);
+      }
+      return { ok: true as const, invitations: saved };
+    });
+  } catch (error) {
+    if (error instanceof DraftsRefused) return error.refusal;
+    throw error;
+  }
+}
+
+export type SendDraftResult =
+  | { ok: true; invitation: PublicInvitation; token: string }
+  | { ok: false; reason: "NOT_FOUND" | "ALREADY_MEMBER" | "DEACTIVATED_MEMBER" | "OUT_OF_SCOPE" | "ADMIN_ONLY" };
+
+/// Sends a draft: makes the link (token, hash, seven days) and records when. The authority and the membership rule are asked again (the person may have joined since it was saved). The
+/// caller e-mails the token after the commit. `NOT_FOUND` for anything that is not a draft the caller can see (a sent, accepted or revoked invitation, another branch's draft, an unknown id).
+export async function sendDraftInvitation(actorUserId: string, invitationId: string, scope: AdminScope): Promise<SendDraftResult> {
+  return prisma.$transaction(async (tx) => {
+    const draft = await tx.invitation.findFirst({
+      where: { id: invitationId, acceptedAt: null, revokedAt: null, tokenHash: null, ...visibleTo(scope) },
+      select: { id: true, email: true, role: true, branchId: true },
+    });
+    if (!draft) return { ok: false, reason: "NOT_FOUND" } as const;
+    await lockAddress(tx, draft.email);
+    const authority = await authorityToInvite(tx, draft, scope);
+    if (!authority.ok) return { ok: false, reason: authority.reason === "INVALID_BRANCH" ? "NOT_FOUND" : authority.reason } as const;
+    const refusal = await membershipRefusal(tx, draft.email, draft.branchId);
+    if (refusal) return { ok: false, reason: refusal } as const;
+    const now = new Date();
+    const token = newInvitationToken();
+    const claimed = await tx.invitation.updateMany({
+      where: { id: draft.id, tokenHash: null, acceptedAt: null, revokedAt: null },
+      data: {
+        tokenHash: hashInvitationToken(token),
+        expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
+        sentAt: now,
+        invitedById: actorUserId,
+      },
+    });
+    if (claimed.count !== 1) return { ok: false, reason: "NOT_FOUND" } as const; // two administrators sent it at once: one sends it
+    const sent = await tx.invitation.findUniqueOrThrow({ where: { id: draft.id }, select: PUBLIC_SELECT });
+    await tx.auditLog.create({
+      data: {
+        actorUserId,
+        action: "INVITATION_DRAFT_SENT",
+        targetType: "Invitation",
+        targetId: draft.id,
+        afterValue: { email: draft.email, role: draft.role, branchId: draft.branchId },
+      },
+    });
+    return { ok: true, invitation: toPublic(sent, now), token } as const;
+  });
+}
+
+/// The ids of the drafts a caller may see and send, oldest first, at most `limit` (for "Send all drafts").
+export async function listDraftIds(scope: AdminScope, limit: number): Promise<string[]> {
+  const rows = await prisma.invitation.findMany({
+    where: { acceptedAt: null, revokedAt: null, tokenHash: null, ...visibleTo(scope) },
+    select: { id: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: limit,
+  });
+  return rows.map((r) => r.id);
+}
+
+/// Changes a draft's role or address. Only a draft: a sent invitation is revoked and made again, never edited. The new address is asked the membership rule and must not already have an open
+/// invitation to the branch (the unique index answers `OPEN_EXISTS`).
+export async function updateDraftInvitation(
+  actorUserId: string,
+  invitationId: string,
+  patch: { email?: string; role?: Role },
+  scope: AdminScope,
+): Promise<{ ok: true; invitation: PublicInvitation } | { ok: false; reason: "NOT_FOUND" | DraftRefusal }> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const draft = await tx.invitation.findFirst({
+        where: { id: invitationId, acceptedAt: null, revokedAt: null, tokenHash: null, ...visibleTo(scope) },
+        select: { id: true, email: true, role: true, branchId: true },
+      });
+      if (!draft) return { ok: false, reason: "NOT_FOUND" } as const;
+      const next = { email: patch.email ?? draft.email, role: patch.role ?? draft.role };
+      await lockAddress(tx, next.email);
+      const authority = await authorityToInvite(tx, { role: next.role, branchId: draft.branchId }, scope);
+      if (!authority.ok) return { ok: false, reason: authority.reason } as const;
+      if (next.email !== draft.email) {
+        const refusal = await membershipRefusal(tx, next.email, draft.branchId);
+        if (refusal) return { ok: false, reason: refusal } as const;
+      }
+      const updated = await tx.invitation.update({ where: { id: draft.id }, data: next, select: PUBLIC_SELECT });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "INVITATION_DRAFT_SAVED",
+          targetType: "Invitation",
+          targetId: draft.id,
+          afterValue: { email: next.email, role: next.role, branchId: draft.branchId, updated: true },
+        },
+      });
+      return { ok: true, invitation: toPublic(updated, new Date()) } as const;
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { ok: false, reason: "OPEN_EXISTS" };
+    throw error;
+  }
+}
+
+/// One invitation that is no longer open (task 0117): accepted, revoked, or run out. `revokedByName` and `revokedAt` come from the audit row of the revoke.
+export type HistoricInvitation = PublicInvitation & {
+  acceptedAt: Date | null;
+  revokedAt: Date | null;
+  revokedByName: string | null;
+  /// "revoked by an administrator" or "replaced by a new invitation".
+  revokedWhy: string | null;
+};
+
+/// The history of invitations that are not open (accepted, revoked, expired without being accepted), newest first, with who revoked and why (read from the `INVITATION_REVOKED` audit
+/// rows). Scoped like the open list: a branch administrator sees their own branches' and never an administrator's.
+export async function listInvitationHistory(
+  page: { skip: number; take: number },
+  scope: AdminScope,
+): Promise<{ invitations: HistoricInvitation[]; total: number }> {
+  const now = new Date();
+  const where: Prisma.InvitationWhereInput = {
+    OR: [{ acceptedAt: { not: null } }, { revokedAt: { not: null } }, { acceptedAt: null, revokedAt: null, expiresAt: { lte: now } }],
+    ...visibleTo(scope),
+  };
+  const [total, rows] = await Promise.all([
+    prisma.invitation.count({ where }),
+    prisma.invitation.findMany({
+      where,
+      select: PUBLIC_SELECT,
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      skip: page.skip,
+      take: page.take,
+    }),
+  ]);
+  const revokedIds = rows.filter((r) => r.revokedAt).map((r) => r.id);
+  const audits =
+    revokedIds.length === 0
+      ? []
+      : await prisma.auditLog.findMany({
+          where: {
+            action: { in: ["INVITATION_REVOKED", "INVITATION_DRAFT_DELETED"] },
+            targetType: "Invitation",
+            targetId: { in: revokedIds },
+          },
+          select: { targetId: true, actorUserId: true, reason: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        });
+  const actors =
+    audits.length === 0
+      ? []
+      : await prisma.user.findMany({
+          where: { id: { in: [...new Set(audits.map((a) => a.actorUserId))] } },
+          select: { id: true, name: true, email: true },
+        });
+  const nameOf = new Map(actors.map((u) => [u.id, u.name || u.email]));
+  const auditOf = new Map<string, (typeof audits)[number]>();
+  for (const a of audits) if (!auditOf.has(a.targetId)) auditOf.set(a.targetId, a); // newest first: the latest revoke of an invitation
+  return {
+    invitations: rows.map((row) => {
+      const audit = auditOf.get(row.id);
+      return {
+        ...toPublic(row, now),
+        acceptedAt: row.acceptedAt,
+        revokedAt: row.revokedAt,
+        revokedByName: audit ? (nameOf.get(audit.actorUserId) ?? null) : null,
+        revokedWhy: audit?.reason ?? null,
+      };
+    }),
+    total,
+  };
 }
 
 /// The open invitations (pending, and expired ones that can still be resent), newest first.
@@ -437,7 +723,7 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
       let linkedFromRecord = false;
       if (found.staffRecordId) {
         const record = await tx.staffRecord.findFirst({
-          where: { id: found.staffRecordId, branchId: found.branchId, userId: null, archivedAt: null },
+          where: { id: found.staffRecordId, branchId: found.branchId, userId: null, ...LIVE_STAFF }, // a record made a draft since is left for the unlisted list
           select: { id: true, category: true },
         });
         const matches = record && accountFitsRecord(found.role, record.category);

@@ -124,6 +124,7 @@ test.describe("export", () => {
       "Bursar",
       "",
       "Yes",
+      "",
     ]);
     expect(
       exportTable("classes", [exportValues.classes({ name: "JSS 1", arms: ["A", "B"], subjects: ["English", "Maths"] })]).rows[0],

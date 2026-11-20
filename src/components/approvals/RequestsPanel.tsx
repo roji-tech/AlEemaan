@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { Button } from "@/components/ui/Button";
 import { Collection, Item, ItemTile } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
@@ -55,7 +56,7 @@ function describe(value: Record<string, unknown> | null): string {
 }
 
 export function RequestsPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const [status, setStatus] = useState("PENDING");
   const [items, setItems] = useState<Approval[] | null>(null);
   const [error, setError] = useState<string | null>(null);

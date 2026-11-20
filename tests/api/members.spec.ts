@@ -233,6 +233,7 @@ test.describe("a deactivated administrator", () => {
         email: unique("ghost"),
         role: Role.PARENT,
         branchId: branches[0].id,
+        sentAt: new Date(),
         tokenHash: "e".repeat(64),
         expiresAt: new Date(Date.now() + 60_000),
       },

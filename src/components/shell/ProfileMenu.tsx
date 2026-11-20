@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useSignOut } from "@/components/auth/useSignOut";
 import { ChevronDownIcon, LogOutIcon, MonitorIcon, SlidersIcon, UserIcon } from "@/components/ui/icons";
 import { InstallApp } from "@/components/pwa/InstallApp";
+import { useOutsideClick } from "@/components/ui/useOutsideClick";
 import { FOCUS_RING, initialsOf } from "./nav";
 
 type ProfileMenuProps = {
@@ -41,14 +42,8 @@ export function ProfileMenu({ name, email, roleLabel, isSuperAdmin }: ProfileMen
     setOpen(false);
   }
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  // A press or touch outside closes it (the one shared rule, task 0117); Escape and Tab are handled on the element below, with focus returned to the button.
+  useOutsideClick(rootRef, () => setOpen(false), open, false);
 
   const displayName = name?.trim() || email || "Account";
 

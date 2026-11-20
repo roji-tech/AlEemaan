@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -36,7 +37,7 @@ const SCALES = "/api/v1/academics/grade-scales";
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 
 export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [schemes, setSchemes] = useState<Scheme[] | null>(null);
   const [scales, setScales] = useState<Scale[] | null>(null);
