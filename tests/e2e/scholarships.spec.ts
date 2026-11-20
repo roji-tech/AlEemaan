@@ -160,8 +160,9 @@ test("raising a share offers Apply the change to open invoices: it says how many
   await expect(dialog.getByRole("button", { name: /Apply the change to open invoices/ })).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Change Merit" }).click();
-  await dialog.getByLabel("Share of the fees (%)").fill("75");
-  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  const change = dialog.getByRole("form", { name: "Change Merit" }); // the add form above has a field with the same label
+  await change.getByLabel("Share of the fees (%)").fill("75");
+  await change.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     page.getByText(/New invoices take the new share; for invoices already issued, use Apply the change to open invoices/),
   ).toBeVisible();

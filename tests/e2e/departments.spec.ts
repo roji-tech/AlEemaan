@@ -96,7 +96,7 @@ test("an administrator turns departments on, makes one, adds people, chooses the
   await confirm.getByRole("button", { name: "Replace head" }).click();
   await expect(box).toContainText("HOD: Bala Musa");
   expect(await db.departmentMember.count({ where: { isHead: true } })).toBe(1);
-  await box.getByRole("button", { name: "Close" }).click();
+  await box.getByRole("button", { name: "Close" }).last().click();
 
   // The staff list now says so, and filters by it.
   await page.goto(`/academics?tab=staff&branch=${branch.id}`);
