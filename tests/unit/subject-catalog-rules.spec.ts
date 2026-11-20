@@ -82,7 +82,8 @@ test("tags: lower-cased, trimmed, spaces made one, repeats dropped; letters, dig
   expect(tagList.safeParse(["-leading"]).success).toBe(false);
   expect(tagList.safeParse(["x".repeat(30)]).success).toBe(true);
   expect(tagList.safeParse(["x".repeat(31)]).success).toBe(false);
-  expect(tagList.safeParse(["   "]).success).toBe(false); // an empty tag is refused
+  // a blank entry is dropped, not refused (a cell "core;;basic" or a trailing comma is a slip, not an error)
+  expect(tagList.parse(["   ", "core", ""])).toEqual(["core"]);
   const ten = Array.from({ length: MAX_TAGS }, (_, i) => `t${i}`);
   expect(tagList.safeParse(ten).success).toBe(true);
   expect(tagList.safeParse([...ten, "one-more"]).success).toBe(false);

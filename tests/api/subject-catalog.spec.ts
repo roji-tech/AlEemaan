@@ -60,7 +60,7 @@ test("create: name, code and tags are cleaned; a taken name (any capitals) or co
   expect((await add(boss.cookie, { name: "Maths", extra: 1 })).status).toBe(400);
   expect((await add(boss.cookie, { name: "" })).status).toBe(400);
   expect((await add(boss.cookie, { name: "x".repeat(61) })).status).toBe(400);
-  for (const tags of [["bad_tag"], ["<b>"], ["x".repeat(31)], Array.from({ length: 11 }, (_, i) => `t${i}`), [""]])
+  for (const tags of [["bad_tag"], ["<b>"], ["x".repeat(31)], Array.from({ length: 11 }, (_, i) => `t${i}`)])
     expect((await add(boss.cookie, { name: "Tagged", tags })).status, JSON.stringify(tags)).toBe(400);
   await api(`${CATALOG}/${made.json.data.entry.id}`, { method: "PATCH", cookie: boss.cookie, body: { archived: true } });
   expect((await add(boss.cookie, { name: "ENGLISH LANGUAGE", code: "ENG" })).status).toBe(201);

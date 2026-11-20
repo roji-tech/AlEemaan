@@ -319,6 +319,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 /// join this list without someone writing why; the aim is for it to shrink.
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
+  "POST v1/subject-catalog/[id]/branches/route.ts":
+    "superadmin only (withAuth superAdmin): acts on SEVERAL branches at once, each named in the body and checked to exist; no one branch to resolve a grant for",
   "GET v1/portal/students/[studentId]/progress/route.ts":
     "portal route: no staff login; the branch comes from the pupil's place in the program, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/progress/seen/route.ts":
