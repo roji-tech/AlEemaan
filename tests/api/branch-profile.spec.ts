@@ -273,4 +273,18 @@ test.describe("what the report card shows", () => {
     const card = (await api(CARD(w.student.id, w.period.id), { cookie: boss.cookie })).json.data.card;
     expect(card.school).toMatchObject({ principal: SCHOOL.principal, motto: SCHOOL.motto, phone: SCHOOL.phone });
   });
+  test("a branch's own school name is on its card; another branch and a blank name use the school's; too short is refused; only an administrator of that branch may set it", async () => {
+    const { home: branch, w } = await publishedWorld({ remarks: false });
+    const boss = await superAdmin();
+    const away = await db.branch.findFirstOrThrow({ where: { id: { not: branch.id } }, orderBy: { name: "asc" } });
+    expect((await save(boss.cookie, { schoolName: "A" }, branch.id)).status).toBe(400); // at least 2 characters
+    expect((await save(boss.cookie, { schoolName: "Al-Eeman Nursery and Primary School" }, branch.id)).status).toBe(200);
+    const own = (await api(CARD(w.student.id, w.period.id), { cookie: boss.cookie })).json.data.card;
+    expect(own.school.name).toBe("Al-Eeman Nursery and Primary School");
+    const elsewhere = await branchAdmin(away.id);
+    expect((await save(elsewhere.cookie, { schoolName: "Hijack" }, branch.id)).status).toBe(403); // not their branch
+    expect((await save(boss.cookie, { schoolName: "   " }, branch.id)).status).toBe(200); // blank = the school's again
+    const back = (await api(CARD(w.student.id, w.period.id), { cookie: boss.cookie })).json.data.card;
+    expect(back.school.name).not.toBe("Al-Eeman Nursery and Primary School");
+  });
 });

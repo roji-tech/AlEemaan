@@ -4,6 +4,7 @@ import { PROFILE_FIELDS, cardPreview, mergeProfile, setValue, type ProfileValues
 // School details per branch (task 0115): the pure rule that decides what a branch shows. No database, no browser.
 
 const SCHOOL: ProfileValues = {
+  schoolName: "Al-Eeman Schools",
   principal: "Mrs School",
   phone: "0803 000 0001",
   motto: "Faith and knowledge",
@@ -11,7 +12,7 @@ const SCHOOL: ProfileValues = {
   email: "info@school.example",
   website: "https://school.example",
 };
-const NOTHING: ProfileValues = { principal: null, phone: null, motto: null, address: null, email: null, website: null };
+const NOTHING: ProfileValues = { schoolName: null, principal: null, phone: null, motto: null, address: null, email: null, website: null };
 
 test.describe("setValue", () => {
   test("trims; nothing, blank and only spaces are not set", () => {
@@ -87,5 +88,20 @@ test.describe("cardPreview", () => {
   });
   test("says so when nothing is set anywhere", () => {
     expect(cardPreview(NOTHING)).toBe("no motto, address, phone or principal, because none is set");
+  });
+});
+
+test.describe("the school name of a branch's report cards", () => {
+  test("a branch's own name wins; a branch with none shows the school's", () => {
+    const own = mergeProfile(SCHOOL, { ...NOTHING, schoolName: "Al-Eeman Nursery and Primary School" });
+    expect(own.values.schoolName).toBe("Al-Eeman Nursery and Primary School");
+    expect(own.source.schoolName).toBe("branch");
+    const none = mergeProfile(SCHOOL, NOTHING);
+    expect(none.values.schoolName).toBe("Al-Eeman Schools");
+    expect(none.source.schoolName).toBe("school");
+  });
+
+  test("a blank branch name is the school's again (a stray space never prints a blank header)", () => {
+    expect(mergeProfile(SCHOOL, { ...NOTHING, schoolName: "   " }).values.schoolName).toBe("Al-Eeman Schools");
   });
 });
