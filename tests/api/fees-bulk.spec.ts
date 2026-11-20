@@ -89,7 +89,7 @@ test("a dry run finds the period and class by name and says what is wrong, and w
   expect(v[4].problems[0].column).toBe("classGroup");
   expect(v[6].problems).toEqual([{ column: "name", message: expect.stringContaining("already exists for that period and class") }]);
   expect(v[7].problems).toEqual(
-    [{ column: "name", message: "Same period, class and fee item as row 2." }].map((p) => ({ ...p, message: expect.any(String) })),
+    [{ column: "name", message: "Same period, class, fee item and pupils as row 2." }].map((p) => ({ ...p, message: expect.any(String) })),
   );
   expect(v[8].problems[0].column).toBe("amount");
   expect(await db.feeStructure.count({ where: { branchId: home.id } })).toBe(1);

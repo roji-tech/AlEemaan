@@ -42,8 +42,9 @@ export function BulkFeesDialog({
         <h3 className="font-semibold text-fg">What the rows without problems add up to</h3>
         <ul className="mt-1 space-y-0.5 text-fg-2">
           {list.map((t) => (
-            <li key={`${t.period}|${t.classGroup}`}>
-              {t.period} · {t.classGroup}: <span className="font-semibold text-fg">{formatNaira(t.kobo / 100)}</span> ({t.lines}{" "}
+            <li key={`${t.period}|${t.classGroup}|${t.who ?? ""}`}>
+              {t.period} · {t.classGroup}
+              {t.who ? ` · ${t.who}` : ""}: <span className="font-semibold text-fg">{formatNaira(t.kobo / 100)}</span> ({t.lines}{" "}
               {t.lines === 1 ? "line" : "lines"})
             </li>
           ))}
