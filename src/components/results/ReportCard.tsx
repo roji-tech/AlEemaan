@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { TemplateReportCard, isTemplateLayout } from "@/components/results/TemplateReportCard";
+import { classText } from "@/lib/academics/report-card-rules";
 
 // The report card as the school hands it out (Slice P2d): school header, student block, the subjects table, summary tiles, remarks, the grading legend and each
 // published subject's verification link. Pure presentation of what `GET students/[id]/report-card` returns; it prints cleanly (the shell is hidden by print styles).
@@ -8,7 +9,8 @@ export type Card = {
   school: { name: string; principal: string | null; motto: string | null; address: string | null; phone: string | null };
   branch: { id: string; name: string };
   student: { id: string; name: string; admissionNo: string; gender: string; dateOfBirth?: string | null };
-  class: { group: string; arm: string } | null;
+  /// `gradeLabel` is the class's optional second name, like "Grade 7" (task 0123).
+  class: { group: string; arm: string; gradeLabel?: string | null } | null;
   period: { id: string; label: string; session: string };
   subjects: {
     subjectId: string;
@@ -115,9 +117,7 @@ export function ReportCard({ card, origin }: { card: Card; origin: string }) {
         </div>
         <div>
           <dt className="text-fg-muted print:text-black">Class</dt>
-          <dd className="font-semibold">
-            {card.class ? (card.layout?.options?.classArm ? `${card.class.group} ${card.class.arm}` : card.class.group) : "—"}
-          </dd>
+          <dd className="font-semibold">{card.class ? classText(card.class, card.layout?.options?.classArm === true) : "—"}</dd>
         </div>
         <div>
           <dt className="text-fg-muted print:text-black">Gender</dt>

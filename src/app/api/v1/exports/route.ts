@@ -136,6 +136,7 @@ async function classRows(body: ExportRequest) {
     take: EXPORT_MAX_ROWS + 1,
     select: {
       name: true,
+      gradeLabel: true,
       arms: { where: { archivedAt: null }, orderBy: { name: "asc" }, select: { name: true } },
       offerings: {
         where: { subject: { archivedAt: null } },
@@ -145,7 +146,12 @@ async function classRows(body: ExportRequest) {
     },
   });
   return rows.map((r) =>
-    exportValues.classes({ name: r.name, arms: r.arms.map((a) => a.name), subjects: r.offerings.map((o) => o.subject.name) }),
+    exportValues.classes({
+      name: r.name,
+      gradeLabel: r.gradeLabel,
+      arms: r.arms.map((a) => a.name),
+      subjects: r.offerings.map((o) => o.subject.name),
+    }),
   );
 }
 
