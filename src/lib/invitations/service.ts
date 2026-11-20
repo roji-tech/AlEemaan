@@ -389,23 +389,35 @@ export async function saveDrafts(
   input: { email: string; role: Role; branchIds: readonly string[] },
   scope: AdminScope,
 ): Promise<{ ok: true; invitations: PublicInvitation[] } | { ok: false; reason: DraftRefusal; branchName?: string }> {
-  return prisma.$transaction(async (tx) => {
-    const saved: PublicInvitation[] = [];
-    for (const branchId of input.branchIds) {
-      const result = await saveDraftIn(tx, actorUserId, { email: input.email, role: input.role, branchId }, scope);
-      if (!result.ok) {
-        const branch = await tx.branch.findUnique({ where: { id: branchId }, select: { name: true } });
-        // The name is given only for a branch the caller administers (the refusal came from this branch's own state), never for one they may not see.
-        return {
-          ok: false as const,
-          reason: result.reason,
-          ...(result.reason === "INVALID_BRANCH" || result.reason === "OUT_OF_SCOPE" ? {} : { branchName: branch?.name }),
-        };
-      }
-      saved.push(result.invitation);
+  type Refused = { ok: false; reason: DraftRefusal; branchName?: string };
+  // A refusal must ROLL BACK the drafts already written for the earlier branches: returning from the transaction callback would commit them (all or none). So it is thrown, and caught here.
+  class DraftsRefused extends Error {
+    constructor(readonly refusal: Refused) {
+      super("drafts refused");
     }
-    return { ok: true as const, invitations: saved };
-  });
+  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const saved: PublicInvitation[] = [];
+      for (const branchId of input.branchIds) {
+        const result = await saveDraftIn(tx, actorUserId, { email: input.email, role: input.role, branchId }, scope);
+        if (!result.ok) {
+          const branch = await tx.branch.findUnique({ where: { id: branchId }, select: { name: true } });
+          // The name is given only for a branch the caller administers (the refusal came from this branch's own state), never for one they may not see.
+          throw new DraftsRefused({
+            ok: false,
+            reason: result.reason,
+            ...(result.reason === "INVALID_BRANCH" || result.reason === "OUT_OF_SCOPE" ? {} : { branchName: branch?.name }),
+          });
+        }
+        saved.push(result.invitation);
+      }
+      return { ok: true as const, invitations: saved };
+    });
+  } catch (error) {
+    if (error instanceof DraftsRefused) return error.refusal;
+    throw error;
+  }
 }
 
 export type SendDraftResult =
