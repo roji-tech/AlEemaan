@@ -1,10 +1,12 @@
 import { staysUnconfirmed } from "@/lib/results/scale-confirmation";
+import { markCustomised } from "@/lib/results/school-template-marks";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { audit, ConflictError } from "@/lib/academics/structure";
 import { DomainError } from "@/lib/academics/sessions";
-import { checkBands, checkScheme, snapshotScheme, type SchemeProblem, type ScaleProblem } from "@/lib/academics/scoring";
+import { checkBands, checkScheme, type SchemeProblem, type ScaleProblem } from "@/lib/academics/scoring";
+import { snapshotScheme } from "@/lib/academics/scoring-snapshot";
 
 // Assessment schemes and grade scales of ONE branch (Slice P1b). The caller's authority was checked by `withBranch` in the route; this module only enforces the
 // rules of the data. Both are VERSIONED: edited in place only while unlocked (the first result that references one locks it - Slice P2 - and the database
@@ -211,6 +213,7 @@ export async function updateScheme(actorUserId: string, id: string, patch: z.inf
       await tx.assessmentScheme.update({ where: { id }, data: { name: schemeName, totalMax: parsed.totalMax, examMax: parsed.examMax } });
       await tx.assessmentComponent.deleteMany({ where: { schemeId: id } });
       await tx.assessmentComponent.createMany({ data: parsed.components.map((c) => ({ branchId: current.branchId, schemeId: id, ...c })) });
+      await markCustomised(tx, { branchId: current.branchId, schemeId: id }); // templates that follow a school template and use this scheme (task 0120)
       await tx.auditLog.create({
         data: {
           actorUserId,
@@ -264,6 +267,7 @@ export async function newSchemeVersion(actorUserId: string, id: string, patch: z
       await tx.assessmentComponent.createMany({
         data: parsed.components.map((c) => ({ branchId: old.branchId, schemeId: created.id, ...c })),
       });
+      await markCustomised(tx, { branchId: old.branchId, schemeId: id }); // rows still pointing at the predecessor (task 0120)
       await tx.auditLog.create({
         data: {
           actorUserId,
@@ -370,6 +374,7 @@ export async function updateScale(actorUserId: string, id: string, patch: z.infe
       const bandsChanged = JSON.stringify(beforeRec.bands) !== JSON.stringify(after.bands);
       const confirmsNow = current.unconfirmed && !staysUnconfirmed(current.unconfirmed, bandsChanged);
       await tx.gradeScale.update({ where: { id }, data: { name: scaleName, ...(confirmsNow ? { unconfirmed: false } : {}) } });
+      if (bandsChanged) await markCustomised(tx, { branchId: current.branchId, gradeScaleId: id }); // a rename or a confirmation alone is not a change of content (task 0120)
       await tx.gradeBand.deleteMany({ where: { scaleId: id } });
       await tx.gradeBand.createMany({
         data: bands.map((b) => ({
@@ -442,6 +447,7 @@ export async function newScaleVersion(actorUserId: string, id: string, patch: z.
           sortOrder: b.sortOrder,
         })),
       });
+      if (bandsChanged) await markCustomised(tx, { branchId: old.branchId, gradeScaleId: id }); // rows still pointing at the predecessor (task 0120)
       await tx.auditLog.create({
         data: {
           actorUserId,

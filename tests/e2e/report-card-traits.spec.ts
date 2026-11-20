@@ -153,3 +153,22 @@ test("once the pupil's results are published the dialog is read-only", async ({ 
   await expect(dialog.getByLabel("Times school opened")).toBeDisabled();
   await expectAccessible(page, "the read-only traits dialog");
 });
+
+test("the class arm and the Verify these results block are hidden unless the template turns them on (task 0121)", async ({ page }) => {
+  const { branch, w } = await setUp(page);
+  await seedResult(w, branch.id, "PUBLISHED");
+  let card = await openCard(page, w);
+  // Default: the class reads without its arm, and there is no verification block, although the result is published and has its token.
+  await expect(card).not.toContainText(`${w.group.name} A`);
+  await expect(card).toContainText(w.group.name);
+  await expect(card.getByRole("region", { name: "Verification" })).toHaveCount(0);
+
+  await db.resultTemplate.updateMany({
+    where: { branchId: branch.id, layoutCode: "SENIOR" },
+    data: { layoutOptions: { classArm: true, verifyLinks: true } },
+  });
+  card = await openCard(page, w);
+  await expect(card).toContainText(`${w.group.name} A`);
+  await expect(card.getByRole("region", { name: "Verification" }).getByRole("heading", { name: "Verify these results" })).toBeVisible();
+  await expectAccessible(page, "the senior card with the arm and the verify block shown");
+});

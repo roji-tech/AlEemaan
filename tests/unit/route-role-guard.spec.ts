@@ -206,6 +206,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
   "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "POST v1/subject-catalog/[id]/branches/route.ts":
     "superadmin only (withAuth superAdmin): a superadmin reaches every branch; each branch id in the body is checked to exist and is reported as gone when it does not",
+  "POST v1/school-templates/[id]/branches/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; each branch id in the body is checked to exist and is reported as gone when it does not",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
   "GET v1/settings/portal-access/route.ts":
     "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
@@ -320,6 +322,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
   "POST v1/subject-catalog/[id]/branches/route.ts":
+    "superadmin only (withAuth superAdmin): acts on SEVERAL branches at once, each named in the body and checked to exist; no one branch to resolve a grant for",
+  "POST v1/school-templates/[id]/branches/route.ts":
     "superadmin only (withAuth superAdmin): acts on SEVERAL branches at once, each named in the body and checked to exist; no one branch to resolve a grant for",
   "GET v1/portal/students/[studentId]/progress/route.ts":
     "portal route: no staff login; the branch comes from the pupil's place in the program, and the portal session limits which pupils",
@@ -689,5 +693,40 @@ test.describe("class grade scale and scale confirmation (task 0116)", () => {
       expect(s.indexOf("withAuth"), rel).toBeGreaterThan(-1);
       expect(s.indexOf("withAuth<") === -1 ? s.indexOf("withAuth(") : s.indexOf("withAuth<"), rel).toBeLessThan(s.indexOf("withBranch<"));
     }
+  });
+});
+
+// Task 0120: the school-wide template routes. The master routes belong to the school, so they are SUPERADMIN only (`withAuth ... superAdmin: true`) and name no single branch; "detach" is for a branch
+// ADMINISTRATOR of the template's branch (the role gate before the branch lookup, `administer`, a foreign or unknown template a 404).
+test.describe("school-wide result templates (task 0120)", () => {
+  const source = (rel: string) => readFileSync(join(API_ROOT, "v1", rel), "utf8");
+  const MASTER_ROUTES = [
+    "school-templates/route.ts",
+    "school-templates/[id]/route.ts",
+    "school-templates/[id]/sync/route.ts",
+    "school-templates/[id]/branches/route.ts",
+  ];
+  test("every master route is superadmin only and none is branch-scoped", () => {
+    for (const rel of MASTER_ROUTES) {
+      const s = source(rel);
+      expect(s, rel).toContain("superAdmin: true");
+      expect(s, rel).not.toContain("withBranch");
+      expect(s, rel).not.toContain("roles: [Role.ADMIN]"); // a branch administrator is not enough
+    }
+  });
+  test("every master route that writes is rate limited", () => {
+    for (const rel of MASTER_ROUTES) {
+      const s = source(rel);
+      if (/export const (POST|PATCH)/.test(s)) expect(s, rel).toContain("reserveAttempt");
+    }
+  });
+  test("detach: administrators only, the branch comes from the template in the path and is checked with administer, a foreign or unknown template is a 404", () => {
+    const s = source("results/templates/[id]/detach/route.ts");
+    expect(s).toContain("roles: [Role.ADMIN]");
+    expect(s).toContain('as: "administer"');
+    expect(s).toContain("templateBranchId");
+    expect(s).toContain('notFound("Result template")');
+    expect(s).not.toContain("staff-read");
+    expect(s.indexOf("withAuth<")).toBeLessThan(s.indexOf("withBranch<")); // the role gate wraps the branch check
   });
 });

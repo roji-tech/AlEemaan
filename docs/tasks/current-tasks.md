@@ -760,3 +760,13 @@
 - [x] Table, migration with backfill, rules, service, routes, bulk kind, screens, tags, docs, specs written
 - [ ] The run (section 5: the unit project, then the API and browser specs), merged to `dev`, promoted
 
+## TASK-0120: School-wide result templates (requested 2026-11-20)
+
+[Task file](0120-school-wide-result-templates.md). The four printed cards as templates the whole school shares: a school-wide `SchoolResultTemplate` master (migration `20261121090000_school_result_templates`, the maintainer's to run in production after the prod merge) that each branch's own `ResultTemplate` row follows, so a card is edited once and the branches are brought up to it with "Update branches" (never silently; a branch that changed its copy is skipped unless replaced), a branch can detach, and a new branch starts on the masters' current definition.
+
+- [x] Table, migration with backfill, rules, service, routes, screens, docs, specs written; the service run against a throwaway database (15 integration tests) and the migration checked
+- [ ] The run (section 5: the API and browser specs), merged to `dev`, promoted
+
+## TASK-0121: Show or hide the class arm and "Verify these results" (requested 2026-11-20)
+
+[Task file](0121-card-arm-and-verify-options.md). Two layout options, `classArm` and `verifyLinks`, shown only when a template or the branch layout says true; existing cards are hidden too. No migration (the options are JSON on the layout and template).

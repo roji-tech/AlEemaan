@@ -13,11 +13,13 @@ import { useBranchSelection } from "@/components/ui/useBranchSelection";
 // (for every branch): then an administrator's save becomes a request with their reason, and the report cards keep the old layout until it is approved.
 
 type Layout = { code: string; name: string; type: string; isLegacy: boolean };
-type Options = { logo: boolean; signatureLine: boolean; nextTermDate: boolean };
+type Options = { logo: boolean; signatureLine: boolean; nextTermDate: boolean; classArm: boolean; verifyLinks: boolean };
 const OPTIONS: { key: keyof Options; label: string }[] = [
   { key: "logo", label: "School logo" },
   { key: "signatureLine", label: "Signature line" },
   { key: "nextTermDate", label: "Next-term resumption date" },
+  { key: "classArm", label: "Class arm (the A of SSS 1 A)" },
+  { key: "verifyLinks", label: "Verify these results (a link for each subject)" },
 ];
 
 export function LayoutPanel({ branches, isSuperAdmin }: { branches: BranchChoice[]; isSuperAdmin: boolean }) {
@@ -25,7 +27,13 @@ export function LayoutPanel({ branches, isSuperAdmin }: { branches: BranchChoice
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [layouts, setLayouts] = useState<Layout[] | null>(null);
   const [code, setCode] = useState("DEFAULT");
-  const [options, setOptions] = useState<Options>({ logo: true, signatureLine: true, nextTermDate: true });
+  const [options, setOptions] = useState<Options>({
+    logo: true,
+    signatureLine: true,
+    nextTermDate: true,
+    classArm: false,
+    verifyLinks: false,
+  });
   const [reason, setReason] = useState("");
   const [enforced, setEnforced] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +50,7 @@ export function LayoutPanel({ branches, isSuperAdmin }: { branches: BranchChoice
     setLayouts(l.data!.layouts as Layout[]);
     const active = l.data!.activeLayout as { code: string; options: Partial<Options> } | null;
     setCode(active?.code ?? "DEFAULT");
-    setOptions({ logo: true, signatureLine: true, nextTermDate: true, ...(active?.options ?? {}) });
+    setOptions({ logo: true, signatureLine: true, nextTermDate: true, classArm: false, verifyLinks: false, ...(active?.options ?? {}) });
     if (e?.ok) {
       const flags = e.data!.flags as { key: string; branchId: string | null; enforced: boolean }[];
       setEnforced(flags.some((f) => f.key === "report_card_layout" && f.branchId === null && f.enforced));

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // Entering marks, reviewing and publishing them, and the report cards (Slice P2d). The page offers the branches the person holds a STAFF role in (a superadmin: all)
 // and whether they administer each. It is display: the results APIs behind every list and button decide, on every request.
 export default async function ResultsPage() {
-  const { session, isAdmin } = await requirePageSession();
+  const { session, isAdmin, isSuperAdmin } = await requirePageSession();
   const visible = await branchIdsFor(session.userId);
   const scope = await adminScope(session.userId);
   const approverIn = new Set(await approverBranchIds(session.userId)); // where they approve results as a member (task 0039), not as an administrator
@@ -57,6 +57,7 @@ export default async function ResultsPage() {
             headReview: reviewIn.has(b.id),
           }))}
           isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
         />
       )}
     </div>
