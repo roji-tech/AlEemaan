@@ -4,7 +4,7 @@ import { getSchoolSettings } from "@/lib/settings/school-settings";
 import { profileFor } from "@/lib/settings/branch-profile";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import { contentHash } from "@/lib/academics/results-workflow";
-import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
+import { averageHundredths, orderBySubjectAdded, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
 import { getVerificationPageConfig } from "@/lib/settings/approvals";
 import { layoutForClass } from "@/lib/results/templates";
 import { cardExtras, enrolledPlace } from "@/lib/results/report-traits";
@@ -99,7 +99,15 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     orderBy: [{ subject: { name: "asc" } }, { id: "asc" }],
   });
   const first = rows[0];
-  const subjects = rows.map((r) => ({
+  // The order the school's subjects were added to the class, not the alphabet (task 0116).
+  const offered = first
+    ? await prisma.subjectOffering.findMany({
+        where: { branchId, classGroupId: first.classArm.classGroup.id },
+        select: { subjectId: true, createdAt: true },
+      })
+    : [];
+  const ordered = orderBySubjectAdded(rows, new Map(offered.map((o) => [o.subjectId, o.createdAt.getTime()])));
+  const subjects = ordered.map((r) => ({
     subjectId: r.subjectId,
     name: r.subject.name,
     parts: (r.componentScores as { name: string; max: number; score: number }[]).map((p) => ({ name: p.name, max: p.max, score: p.score })),

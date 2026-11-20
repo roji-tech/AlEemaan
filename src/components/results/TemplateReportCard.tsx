@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SiteImage } from "@/components/site/SiteImage";
 import { TRAIT_SCALE } from "@/lib/results/report-traits-rules";
+import { legendLine } from "@/lib/results/grade-legend";
 import type { Card } from "@/components/results/ReportCard";
 
 // The school's four printed report cards (task 0116): pre-school, basic, junior secondary and senior secondary. One component draws all four from the card's data, so the subjects, the trait
@@ -17,7 +18,7 @@ const EXACT = "[print-color-adjust:exact] [-webkit-print-color-adjust:exact]";
 const BAND = `bg-[#1a6b5a] text-white ${EXACT}`;
 const HEAD = `bg-[#dcefe9] text-black ${EXACT}`;
 const TINT = `bg-[#eef7f4] text-black ${EXACT}`;
-const CELL = "border border-[#1a6b5a]/60 px-1.5 py-1 align-middle print:px-1 print:py-0.5";
+const CELL = "border border-[#1a6b5a]/60 px-1.5 py-1 align-middle break-words print:px-0.5 print:py-px";
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 const ordinal = (n: number) => {
@@ -40,8 +41,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function SignLine({ label, note }: { label: string; note: string }) {
   return (
-    <div className="mt-2">
-      <div className="h-6 border-b border-dashed border-black" />
+    <div className="mt-2 print:mt-1">
+      <div className="h-6 border-b border-dashed border-black print:h-4" />
       <p className="mt-0.5 flex justify-between text-[10px]">
         <span>{label}</span>
         <span>{note}</span>
@@ -66,7 +67,7 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
     <article
       aria-label={`Report card for ${card.student.name}`}
       data-report-template={code}
-      className="mx-auto max-w-[210mm] rounded-xl border border-[#1a6b5a]/50 bg-white p-4 text-[12px] leading-snug text-black print:max-w-none print:rounded-none print:border-0 print:p-0 print:text-[9.5px] print:leading-tight"
+      className="mx-auto max-w-[250mm] rounded-xl border border-[#1a6b5a]/50 bg-white p-4 text-[12px] leading-snug text-black print:max-w-none print:rounded-none print:border-0 print:p-0 print:text-[9px] print:leading-tight"
     >
       <header className={`flex items-center gap-4 rounded-lg px-4 py-3 print:rounded-none print:px-3 print:py-2 ${BAND}`}>
         <div className="shrink-0 rounded-lg bg-white p-1.5">
@@ -99,7 +100,7 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
         <Field label="No of times absent">{dash(att?.timesAbsent.value)}</Field>
       </dl>
 
-      <section aria-label="Attendance" className="mt-2">
+      <section aria-label="Attendance" className="mt-2 print:break-inside-avoid">
         <table className="w-full border-collapse text-center">
           <caption className="sr-only">Attendance</caption>
           <thead>
@@ -148,9 +149,9 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
           role="region"
           aria-label="Subjects"
           tabIndex={0}
-          className="mt-2 overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a6b5a]"
+          className="mt-2 overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a6b5a] print:overflow-visible"
         >
-          <table className="w-full min-w-[640px] border-collapse text-center print:min-w-0">
+          <table className="w-full min-w-[640px] border-collapse text-center print:min-w-0 print:text-[8.5px]">
             <caption className="sr-only">Subjects, marks and grades</caption>
             <thead>
               <tr className={HEAD}>
@@ -227,7 +228,7 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
                   <td className={CELL}>{x.position === null || x.position === undefined ? "—" : ordinal(x.position)}</td>
                   {secondary && <td className={`${CELL} font-bold`}>{x.gradeLetter}</td>}
                   <td className={CELL}>{x.gradeRemark}</td>
-                  <td className={`${CELL} min-w-12`} />
+                  <td className={`${CELL} min-w-12 print:min-w-8`} />
                 </tr>
               ))}
               <tr className={`${TINT} font-bold`}>
@@ -256,7 +257,7 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
         className="mt-2 grid gap-2 sm:grid-cols-2 print:grid-cols-2"
       >
         {card.traits?.map((g) => (
-          <div key={g.id}>
+          <div key={g.id} className="print:break-inside-avoid">
             <table className="w-full border-collapse">
               <caption className={`px-2 py-1 text-left font-bold tracking-wide uppercase ${BAND}`}>{g.title}</caption>
               <thead>
@@ -296,30 +297,29 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
       )}
 
       {secondary && card.legend.length > 0 && (
-        <p className="mt-2">
-          <span className="font-bold">Grading:</span>{" "}
-          {card.legend.map((l) => `${l.letter} (${fmt(l.min)}–${fmt(l.max)}) ${l.remark}`).join(" · ")}
+        <p className="mt-2 print:mt-1 print:break-inside-avoid">
+          <span className="font-bold">Grading:</span> {legendLine(card.legend, code === "SENIOR" ? "ranges" : "names")}
         </p>
       )}
 
       <section aria-label="Comments" className="mt-2 grid gap-2 sm:grid-cols-2 print:grid-cols-2">
-        <div className="rounded border border-[#1a6b5a]/60 p-2">
+        <div className="rounded border border-[#1a6b5a]/60 p-2 print:break-inside-avoid print:p-1">
           <h3 className="font-bold uppercase">{primary ? "Class teacher's comment" : "Class teacher's report"}</h3>
-          <p className="min-h-8 whitespace-pre-line">{card.remarks.teacher ?? ""}</p>
+          <p className="min-h-8 whitespace-pre-line print:min-h-5">{card.remarks.teacher ?? ""}</p>
           <SignLine label="Signature" note="Date" />
         </div>
-        <div className="rounded border border-[#1a6b5a]/60 p-2">
+        <div className="rounded border border-[#1a6b5a]/60 p-2 print:break-inside-avoid print:p-1">
           <h3 className="font-bold uppercase">
             {primary ? "Headmaster / head mistress comment" : "Principal's report"}
             {card.school.principal ? ` (${card.school.principal})` : ""}
           </h3>
-          <p className="min-h-8 whitespace-pre-line">{card.remarks.principal ?? ""}</p>
+          <p className="min-h-8 whitespace-pre-line print:min-h-5">{card.remarks.principal ?? ""}</p>
           <SignLine label="Signature" note="Date" />
         </div>
         {primary && (
-          <div className="rounded border border-[#1a6b5a]/60 p-2 sm:col-span-2 print:col-span-2">
+          <div className="rounded border border-[#1a6b5a]/60 p-2 sm:col-span-2 print:col-span-2 print:break-inside-avoid print:p-1">
             <h3 className="font-bold uppercase">Parent&apos;s / guardian&apos;s comment</h3>
-            <div className="h-8" />
+            <div className="h-8 print:h-3" />
             <SignLine label="Signature" note="Date" />
           </div>
         )}
@@ -332,13 +332,16 @@ export function TemplateReportCard({ card, origin }: { card: Card; origin: strin
       )}
 
       {card.subjects.some((x) => x.verificationToken) && (
-        <section aria-label="Verification" className="mt-2 border-t border-black pt-1 text-[10px]">
+        <section
+          aria-label="Verification"
+          className="mt-2 border-t border-black pt-1 text-[10px] print:mt-1 print:break-inside-avoid print:text-[6px] print:leading-[7px]"
+        >
           <h3 className="font-semibold">Verify these results</h3>
-          <ul className="space-y-0.5 break-all">
+          <ul className="space-y-0.5 break-all print:columns-2 print:gap-x-3 print:space-y-0">
             {card.subjects
               .filter((x) => x.verificationToken)
               .map((x) => (
-                <li key={x.subjectId}>
+                <li key={x.subjectId} className="print:break-inside-avoid">
                   {x.name}: {origin}/verify/{x.verificationToken}
                 </li>
               ))}
