@@ -116,7 +116,8 @@ test.describe("the card", () => {
     });
     expect((await api(CARD(w.student.id, w.period.id), { cookie: teacher.cookie })).json.data.card.subjects).toHaveLength(1);
     const preview = (await api(CARD(w.student.id, w.period.id, "&preview=true"), { cookie: a.cookie })).json.data.card;
-    expect(preview.subjects.map((s: { name: string }) => s.name)).toEqual(["Art", w.subject.name]);
+    // In the order the subjects were added to the class (the world's subject, offered to the class), then the ones not offered to it (Art): not alphabetical (task 0116).
+    expect(preview.subjects.map((s: { name: string }) => s.name)).toEqual([w.subject.name, "Art"]);
     expect(preview).toMatchObject({ preview: true, allPublished: false });
     expect(preview.summary.average).toBe(82.5); // (100% + 65%) / 2
     expect((await api(CARD(w.student.id, w.period.id, "&preview=true"), { cookie: teacher.cookie })).status).toBe(403); // a teacher cannot preview

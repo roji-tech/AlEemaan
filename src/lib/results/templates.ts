@@ -328,6 +328,8 @@ const optionsSchema = z.strictObject({
   logo: z.boolean().optional(),
   signatureLine: z.boolean().optional(),
   nextTermDate: z.boolean().optional(),
+  classArm: z.boolean().optional(),
+  verifyLinks: z.boolean().optional(),
 });
 const layoutCodeSchema = z.enum(LAYOUT_CODES).nullable();
 const idSchema = z.string().trim().min(1).max(64);
