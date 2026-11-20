@@ -1,18 +1,30 @@
 import { z } from "zod";
 import { DiscountWorkflowMode } from "@prisma/client";
 
+/// Who a fee line is for and how it behaves (task 0122); all optional, and null means no condition.
+const feeAudienceFields = {
+  audienceAdmission: z.enum(["NEW", "RETURNING"]).nullable().optional(),
+  audienceGender: z.enum(["MALE", "FEMALE"]).nullable().optional(),
+  audienceResidence: z.enum(["DAY", "BOARDING"]).nullable().optional(),
+  optional: z.boolean().optional(),
+  scholarshipCovers: z.boolean().optional(),
+  trackHandover: z.boolean().optional(),
+};
+
 export const createFeeStructureSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
   periodId: z.string().min(1, "Academic period is required"),
   classGroupId: z.string().optional().nullable(),
   name: z.string().trim().min(2, "Fee item name must be at least 2 characters").max(100),
   amount: z.number().positive("Amount must be greater than 0"),
+  ...feeAudienceFields,
 });
 
 export const updateFeeStructureSchema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
   amount: z.number().positive("Amount must be greater than 0").optional(),
   classGroupId: z.string().optional().nullable(),
+  ...feeAudienceFields,
 });
 
 export const generateInvoicesSchema = z.object({

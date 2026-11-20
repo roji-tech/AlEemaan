@@ -33,6 +33,7 @@ import { AccessCodesDialog } from "@/components/guardians/AccessCodesDialog";
 import { ClassSlipsDialog } from "@/components/guardians/ClassSlipsDialog";
 import { RELATIONSHIP_OPTIONS, type GuardianMatch } from "@/components/guardians/model";
 import { PupilScholarshipsDialog } from "@/components/scholarships/PupilScholarshipsDialog";
+import { PupilFeeItemsDialog } from "@/components/finance/PupilFeeItemsDialog";
 import { TONE } from "@/components/ui/tone";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
@@ -126,6 +127,7 @@ export function StudentsPanel({
   const [codesOf, setCodesOf] = useState<{ id: string; name: string } | null>(null);
   const [slips, setSlips] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [scholarshipsOf, setScholarshipsOf] = useState<{ id: string; name: string } | null>(null);
+  const [feeLinesOf, setFeeLinesOf] = useState<{ id: string; name: string } | null>(null);
   // The branch's current scholarship types, for the filter (administrators only: the API refuses anyone else).
   const [scholarshipTypes, setScholarshipTypes] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
@@ -495,6 +497,12 @@ export function StudentsPanel({
                             ariaLabel: `Scholarships of ${name}`,
                             onSelect: () => setScholarshipsOf({ id: s.id, name }),
                           },
+                          {
+                            id: "fee-lines",
+                            label: "Fee lines",
+                            ariaLabel: `Fee lines of ${name}`,
+                            onSelect: () => setFeeLinesOf({ id: s.id, name }),
+                          },
                         ]
                       : []),
                     {
@@ -588,6 +596,12 @@ export function StudentsPanel({
           setScholarshipsOf(null);
           void load();
         }}
+        onChanged={(text) => setNotice({ variant: "success", text })}
+      />
+      <PupilFeeItemsDialog
+        branchId={branchId}
+        pupil={feeLinesOf}
+        onClose={() => setFeeLinesOf(null)}
         onChanged={(text) => setNotice({ variant: "success", text })}
       />
       <AccessCodesDialog pupil={codesOf} onClose={() => setCodesOf(null)} onChanged={(text) => setNotice({ variant: "success", text })} />

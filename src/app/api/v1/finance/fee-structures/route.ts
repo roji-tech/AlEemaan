@@ -53,7 +53,7 @@ export const POST = withAuth(
         return fail(parsed.error.issues[0]?.message ?? "Invalid fee structure payload", 400, "VALIDATION");
       }
 
-      const { branchId, periodId, classGroupId, name, amount } = parsed.data;
+      const { branchId, periodId, classGroupId, name, amount, ...behaviour } = parsed.data;
 
       if (!(await canAdminister(auth.userId, branchId))) {
         return fail("Forbidden: You do not have permission to manage finance for this branch", 403, "FORBIDDEN");
@@ -64,6 +64,7 @@ export const POST = withAuth(
         classGroupId: classGroupId ?? null,
         name,
         amount,
+        ...behaviour,
       });
 
       return ok(item, {}, 201);

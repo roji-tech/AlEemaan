@@ -15,7 +15,8 @@ import { getPaystackGateway } from "./paystack";
 import { checkPart } from "./part-payment";
 import { loadEffectivePolicy } from "./part-payment-service";
 import { NOT_DRAFT } from "@/lib/drafts/live";
-import { paidByScholarship, planDiscounts, planTopUp, settledBy, statusAfterDiscounts } from "@/lib/scholarships/rules";
+import { coveredGross, paidByScholarship, planDiscounts, planTopUp, settledBy, statusAfterDiscounts } from "@/lib/scholarships/rules";
+import { admissionFor, billedFor } from "@/lib/finance/fee-audience";
 import { liveForInvoices, today as schoolToday } from "@/lib/scholarships/service";
 
 export class FinanceError extends Error {
@@ -66,7 +67,7 @@ export async function listFeeStructures(branchId: string, filter?: { periodId?: 
 
 export async function createFeeStructure(
   branchId: string,
-  data: { periodId: string; classGroupId?: string | null; name: string; amount: DecimalLike },
+  data: { periodId: string; classGroupId?: string | null; name: string; amount: DecimalLike } & FeeBehaviour,
 ) {
   // Validate period belongs to this branch
   await prisma.academicPeriod.findFirstOrThrow({
@@ -91,6 +92,7 @@ export async function createFeeStructure(
       classGroupId: data.classGroupId ?? null,
       name: data.name.trim(),
       amount: amountDecimal,
+      ...behaviourData(data),
     },
     include: {
       period: { select: { id: true, label: true, ordinal: true } },
@@ -99,10 +101,28 @@ export async function createFeeStructure(
   });
 }
 
+/// The settings of a fee line beyond name and amount (task 0122): who it is for (null = everyone), whether it is optional, whether a scholarship covers it, whether its handover is recorded.
+export type FeeBehaviour = {
+  audienceAdmission?: "NEW" | "RETURNING" | null;
+  audienceGender?: "MALE" | "FEMALE" | null;
+  audienceResidence?: "DAY" | "BOARDING" | null;
+  optional?: boolean;
+  scholarshipCovers?: boolean;
+  trackHandover?: boolean;
+};
+const behaviourData = (d: FeeBehaviour): FeeBehaviour => ({
+  ...(d.audienceAdmission !== undefined ? { audienceAdmission: d.audienceAdmission } : {}),
+  ...(d.audienceGender !== undefined ? { audienceGender: d.audienceGender } : {}),
+  ...(d.audienceResidence !== undefined ? { audienceResidence: d.audienceResidence } : {}),
+  ...(d.optional !== undefined ? { optional: d.optional } : {}),
+  ...(d.scholarshipCovers !== undefined ? { scholarshipCovers: d.scholarshipCovers } : {}),
+  ...(d.trackHandover !== undefined ? { trackHandover: d.trackHandover } : {}),
+});
+
 export async function updateFeeStructure(
   branchId: string,
   id: string,
-  data: { name?: string; amount?: DecimalLike; classGroupId?: string | null },
+  data: { name?: string; amount?: DecimalLike; classGroupId?: string | null } & FeeBehaviour,
 ) {
   const existing = await prisma.feeStructure.findFirstOrThrow({
     where: { branchId, id },
@@ -125,6 +145,7 @@ export async function updateFeeStructure(
       name: data.name !== undefined ? data.name.trim() : existing.name,
       amount: amountDecimal,
       classGroupId: data.classGroupId !== undefined ? data.classGroupId : existing.classGroupId,
+      ...behaviourData(data),
     },
     include: {
       period: { select: { id: true, label: true, ordinal: true } },
@@ -137,6 +158,13 @@ export async function deleteFeeStructure(branchId: string, id: string) {
   await prisma.feeStructure.findFirstOrThrow({
     where: { branchId, id },
   });
+  // A line whose handovers were recorded keeps them: they are the school's record of what was given out (task 0122).
+  const handed = await prisma.feeItemHandover.count({ where: { branchId, feeStructureId: id } });
+  if (handed > 0)
+    throw new FinanceError(
+      `${handed} ${handed === 1 ? "pupil has" : "pupils have"} received this item, so the line cannot be deleted. Stop tracking it instead.`,
+      "HAS_HANDOVERS",
+    );
 
   return prisma.feeStructure.delete({
     where: { branchId_id: { branchId, id } },
@@ -199,6 +227,25 @@ export async function generateInvoices(
       schoolToday(),
     );
 
+    // Task 0122: who is new this period (no enrolment in a session that began earlier), and each pupil's opt-outs, read once for the whole run.
+    const pupilIds = enrollments.map((e) => e.studentId);
+    const returning = new Set(
+      (
+        await tx.studentEnrollment.findMany({
+          where: { branchId, studentId: { in: pupilIds }, session: { startDate: { lt: period.session.startDate } } },
+          select: { studentId: true },
+          distinct: ["studentId"],
+        })
+      ).map((r) => r.studentId),
+    );
+    const optedOut = new Map<string, Set<string>>();
+    for (const o of await tx.studentFeeOptOut.findMany({
+      where: { branchId, studentId: { in: pupilIds }, feeStructure: { periodId: options.periodId } },
+      select: { studentId: true, feeStructureId: true },
+    }))
+      optedOut.set(o.studentId, (optedOut.get(o.studentId) ?? new Set()).add(o.feeStructureId));
+    let missingResidence = 0;
+
     for (const enrollment of enrollments) {
       // Check if invoice already exists (idempotent)
       const existing = await tx.invoice.findUnique({
@@ -218,7 +265,23 @@ export async function generateInvoices(
 
       // Filter applicable fee structures: general (null classGroupId) or matching student's class group
       const studentClassGroupId = enrollment.classArm?.classGroupId ?? null;
-      const applicableFees = feeStructures.filter((f) => !f.classGroupId || f.classGroupId === studentClassGroupId);
+      const ofClass = feeStructures.filter((f) => !f.classGroupId || f.classGroupId === studentClassGroupId);
+      // Task 0122: of the class's lines, the ones this pupil is billed (their gender, new or returning, day or boarding, and the optional lines they did not opt out of).
+      const { billed: applicableFees, missingResidence: lacking } = billedFor(
+        ofClass.map((f) => ({
+          ...f,
+          admission: f.audienceAdmission,
+          gender: f.audienceGender,
+          residence: f.audienceResidence,
+        })),
+        {
+          admission: enrollment.student.feeAdmission ?? admissionFor(returning.has(enrollment.studentId)),
+          gender: enrollment.student.gender,
+          residence: enrollment.student.residence,
+        },
+        optedOut.get(enrollment.studentId) ?? new Set(),
+      );
+      if (lacking > 0) missingResidence++;
 
       if (applicableFees.length === 0) {
         skipped++;
@@ -232,6 +295,8 @@ export async function generateInvoices(
           feeStructureId: f.id,
           name: f.name,
           amount: f.amount.toString(),
+          // false only when the fee says a scholarship does not cover this line (task 0122); the snapshot carries it so every later scholarship calculation agrees.
+          ...(f.scholarshipCovers ? {} : { covered: false }),
         };
       });
 
@@ -252,7 +317,12 @@ export async function generateInvoices(
       });
 
       // A scholarship live today takes its share off the new invoice, through the one discount function (net total and status as for a manual discount); one discount per scholarship.
-      for (const { scholarship, amount } of planDiscounts(totalAmount, liveScholarships.get(enrollment.studentId) ?? [], totalAmount)) {
+      // The share is taken of the part the scholarship covers (task 0122: all of it unless a line says otherwise), never more than what the invoice owes.
+      for (const { scholarship, amount } of planDiscounts(
+        coveredGross(lineItems),
+        liveScholarships.get(enrollment.studentId) ?? [],
+        totalAmount,
+      )) {
         await addDiscountTx(tx, branchId, invoice.id, {
           amount,
           reason: `${scholarship.typeName} (${scholarship.percent}%)`,
@@ -266,7 +336,8 @@ export async function generateInvoices(
       created++;
     }
 
-    return { created, skipped, scholarshipDiscounts };
+    // `missingResidence`: pupils who were left without a line for boarders or day pupils because their record does not say which (task 0122); fix the record and generate again.
+    return { created, skipped, scholarshipDiscounts, missingResidence };
   });
 }
 
@@ -782,7 +853,7 @@ export async function applyScholarshipToOpenInvoices(
       if (invoice.status !== InvoiceStatus.UNPAID && invoice.status !== InvoiceStatus.PARTIALLY_PAID) continue;
       if (invoice.discounts.some((d) => d.studentScholarshipId === scholarshipId)) continue;
       const balance = invoice.totalAmount.sub(invoice.amountPaid);
-      const gross = computeInvoiceBreakdown((invoice.lineItems as { amount: string }[] | null) ?? [], []).grossAmount;
+      const gross = coveredGross((invoice.lineItems as { amount: string; covered?: boolean }[] | null) ?? []);
       const [plan] = planDiscounts(gross, [{ id: scholarshipId, percent: scholarship.percent }], balance);
       if (!plan) continue;
       await addDiscountTx(tx, branchId, invoice.id, {
@@ -851,7 +922,7 @@ export async function previewScholarshipTopUp(
     const given = invoice.discounts
       .filter((d) => d.studentScholarshipId === scholarshipId)
       .reduce((n, d) => n.add(d.amount), new Prisma.Decimal(0));
-    const gross = computeInvoiceBreakdown((invoice.lineItems as { amount: string }[] | null) ?? [], []).grossAmount;
+    const gross = coveredGross((invoice.lineItems as { amount: string; covered?: boolean }[] | null) ?? []);
     const delta = planTopUp(gross, scholarship.percent, given, invoice.totalAmount.sub(invoice.amountPaid));
     if (delta.gt(0)) {
       invoices++;
@@ -887,8 +958,8 @@ export async function topUpScholarshipOnOpenInvoices(
       const mine = invoice.discounts.filter((d) => d.studentScholarshipId === scholarshipId);
       if (mine.length === 0) continue;
       const given = mine.reduce((n, d) => n.add(d.amount), new Prisma.Decimal(0));
-      const items = (invoice.lineItems as { amount: string }[] | null) ?? [];
-      const gross = computeInvoiceBreakdown(items, []).grossAmount;
+      const items = (invoice.lineItems as { amount: string; covered?: boolean }[] | null) ?? [];
+      const gross = coveredGross(items);
       const delta = planTopUp(gross, scholarship.percent, given, invoice.totalAmount.sub(invoice.amountPaid));
       if (delta.lte(0)) continue;
       const line = mine[0];
