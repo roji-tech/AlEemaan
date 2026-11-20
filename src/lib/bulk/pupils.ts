@@ -19,6 +19,8 @@ export type PupilRow = {
   guardianPhone?: string;
   guardianEmail?: string;
   residence?: "DAY" | "BOARDING";
+  /// How the fee lines see the pupil (task 0122): empty = worked out from the pupil's earlier years; New or Returning sets it. For the pupils loaded into the app already at the school.
+  feeAdmission?: "NEW" | "RETURNING";
   /// A scholarship type of the branch, by name, and (optionally) this pupil's share of it (task 0113 S1); the share comes from the type when it is not given.
   scholarship?: string;
   scholarshipPercent?: number;
@@ -38,6 +40,18 @@ export function toIsoDate(raw: string): string | null {
 }
 /// Day or Boarding, as a school writes it (task 0113 R1): any case; "boarder" and "boarding" are boarding, "day" and "day student" are day; blank is not set; anything else is left for
 /// the rule to refuse.
+export const toFeeAdmission = (v: unknown): unknown => {
+  if (typeof v !== "string") return v;
+  const t = v
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ");
+  if (t === "") return undefined;
+  if (["new", "new intake", "new pupil", "new student", "newly admitted"].includes(t)) return "NEW";
+  if (["returning", "returning student", "returning pupil", "old", "old student", "continuing"].includes(t)) return "RETURNING";
+  return v;
+};
+
 export const toResidence = (v: unknown): unknown => {
   if (typeof v !== "string") return v;
   const t = v
@@ -101,6 +115,10 @@ const pupilRowBase = z.object({
   guardianPhone: optionalPhone,
   guardianEmail: optionalEmail,
   residence: z.preprocess(toResidence, z.enum(["DAY", "BOARDING"], { error: "Write Day or Boarding, or leave it empty." }).optional()),
+  feeAdmission: z.preprocess(
+    toFeeAdmission,
+    z.enum(["NEW", "RETURNING"], { error: "Write New or Returning, or leave it empty." }).optional(),
+  ),
   scholarship: optionalText(80),
   scholarshipPercent: z.preprocess(
     toPercent,
@@ -182,6 +200,17 @@ const columns = (classNames: readonly string[]): BulkColumn[] => [
     options: [
       { value: "DAY", label: "Day" },
       { value: "BOARDING", label: "Boarding" },
+    ],
+  },
+  {
+    key: "feeAdmission",
+    label: "Admission status",
+    aliases: ["newreturning", "newoldstudent", "pupiltype", "feeadmission"],
+    required: false,
+    help: "New or Returning, for the fee lines; empty = worked out from the pupil's earlier years. Mark the pupils already at the school as Returning",
+    options: [
+      { value: "NEW", label: "New" },
+      { value: "RETURNING", label: "Returning" },
     ],
   },
   {

@@ -2,6 +2,8 @@
 
 import { useState, useId, type FormEvent } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { CheckboxField } from "@/components/ui/CheckboxField";
+import { SelectField } from "@/components/ui/SelectField";
 
 export interface FeeStructureItem {
   id: string;
@@ -11,6 +13,13 @@ export interface FeeStructureItem {
   classGroupId: string | null;
   period?: { id: string; label: string };
   classGroup?: { id: string; name: string } | null;
+  /// Who the line is for and how it behaves (task 0122); null = everyone.
+  audienceAdmission?: "NEW" | "RETURNING" | null;
+  audienceGender?: "MALE" | "FEMALE" | null;
+  audienceResidence?: "DAY" | "BOARDING" | null;
+  optional?: boolean;
+  scholarshipCovers?: boolean;
+  trackHandover?: boolean;
 }
 
 export interface FeeStructureModalProps {
@@ -29,6 +38,12 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
   const [amount, setAmount] = useState(initialItem ? String(initialItem.amount) : "");
   const [periodId, setPeriodId] = useState(initialItem?.periodId ?? (periods[0]?.id || ""));
   const [classGroupId, setClassGroupId] = useState(initialItem?.classGroupId ?? "");
+  const [admission, setAdmission] = useState(initialItem?.audienceAdmission ?? "");
+  const [gender, setGender] = useState(initialItem?.audienceGender ?? "");
+  const [residence, setResidence] = useState(initialItem?.audienceResidence ?? "");
+  const [optional, setOptional] = useState(initialItem?.optional ?? false);
+  const [covers, setCovers] = useState(initialItem?.scholarshipCovers ?? true);
+  const [track, setTrack] = useState(initialItem?.trackHandover ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +81,12 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
           classGroupId: classGroupId || null,
           name: name.trim(),
           amount: numAmount,
+          audienceAdmission: admission || null,
+          audienceGender: gender || null,
+          audienceResidence: residence || null,
+          optional,
+          scholarshipCovers: covers,
+          trackHandover: track,
         }),
       });
 
@@ -165,6 +186,61 @@ export function FeeStructureModal({ isOpen, onClose, onSaved, branchId, periods,
             </select>
           </div>
         </div>
+
+        {/* Who the line is for, and how it behaves (task 0122). Nothing chosen = the line is for every pupil of its class, as before. */}
+        <fieldset className="space-y-3 rounded-xl border border-line p-3">
+          <legend className="px-1 text-xs font-medium text-fg-muted">Who is charged this</legend>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <SelectField
+              label="New or returning"
+              value={admission}
+              onChange={(e) => setAdmission(e.target.value as typeof admission)}
+              options={[
+                { value: "", label: "Everyone" },
+                { value: "NEW", label: "New pupils" },
+                { value: "RETURNING", label: "Returning pupils" },
+              ]}
+            />
+            <SelectField
+              label="Gender"
+              value={gender}
+              onChange={(e) => setGender(e.target.value as typeof gender)}
+              options={[
+                { value: "", label: "Everyone" },
+                { value: "MALE", label: "Male" },
+                { value: "FEMALE", label: "Female" },
+              ]}
+            />
+            <SelectField
+              label="Day or boarding"
+              value={residence}
+              onChange={(e) => setResidence(e.target.value as typeof residence)}
+              options={[
+                { value: "", label: "Everyone" },
+                { value: "DAY", label: "Day pupils" },
+                { value: "BOARDING", label: "Boarders" },
+              ]}
+            />
+          </div>
+          <CheckboxField
+            label="Optional: a pupil can opt out of it (for example the school uniform)"
+            checked={optional}
+            onChange={(e) => setOptional(e.target.checked)}
+          />
+          <CheckboxField
+            label="A scholarship's share is taken of this line too"
+            checked={covers}
+            onChange={(e) => setCovers(e.target.checked)}
+          />
+          <CheckboxField
+            label="It is an item that is handed over: record who has received it"
+            checked={track}
+            onChange={(e) => setTrack(e.target.checked)}
+          />
+          <p className="text-xs text-fg-muted">
+            A change here applies to invoices made from now on; invoices already made keep their lines.
+          </p>
+        </fieldset>
 
         {initialItem && (
           <p id={`${formId}-period-note`} className="text-xs text-fg-muted">
