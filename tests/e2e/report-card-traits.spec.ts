@@ -6,6 +6,7 @@ import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db
 import { resultsWorld } from "../support/results-world";
 import { ensureReportTemplates } from "@/lib/results/seed-branch";
 import { signInThroughUi } from "./helpers";
+import { resultFootprint } from "../support/result-footprint";
 
 // Task 0116 on screen (the maintainer, 2026-11-20): the school's four printed report cards. An administrator enters a pupil's trait ratings and attendance from the report card screen and sees them
 // on the coloured card; after publication they are read-only; the card prints with its colours kept. Desktop and phone, with axe.
@@ -56,8 +57,10 @@ const seedResult = async (w: Awaited<ReturnType<typeof resultsWorld>>, branchId:
       maxScore: 100,
       gradeLetter: "C",
       gradeRemark: "Credit",
-      status,
-      enteredByUserId: (await db.user.findFirstOrThrow()).id,
+      ...(await (async () => {
+        const by = (await db.user.findFirstOrThrow()).id;
+        return { enteredByUserId: by, ...resultFootprint(status, by) };
+      })()),
     },
   });
 
@@ -86,7 +89,7 @@ test("a senior card shows the template's trait sections, the dates and its colou
   await expect(card).toHaveAttribute("data-report-template", "SENIOR");
   await expect(card.getByRole("table", { name: "Character development" })).toBeVisible();
   await expect(card.getByRole("table", { name: "Practical skills" })).toBeVisible();
-  await expect(card.getByRole("columnheader", { name: "Sign" })).toHaveCount(2); // the secondary cards print a SIGN column beside the rating
+  await expect(card.getByRole("columnheader", { name: "Sign", exact: true })).toHaveCount(2); // the secondary cards print a SIGN column beside the rating
   await expect(card.getByText("Next term begins:")).toBeVisible();
   await expectAccessible(page, "the senior report card");
 
@@ -124,7 +127,7 @@ test("a pre-school card has the psychomotor and affective sections and the term'
   await expect(card.getByRole("table", { name: "Psychomotor skill" })).toBeVisible();
   await expect(card.getByRole("table", { name: "Affective domain" })).toBeVisible();
   await expect(card.getByRole("row", { name: /^Verbal fluency/ })).toBeVisible();
-  await expect(card.getByRole("columnheader", { name: "Sign" })).toHaveCount(0);
+  await expect(card.getByRole("columnheader", { name: "Sign", exact: true })).toHaveCount(0);
   await expect(card.getByRole("columnheader", { name: "This term starts on" })).toBeVisible();
   await expect(card.getByRole("columnheader", { name: "School closed on" })).toBeVisible();
   await expect(card.getByText("Parent's / guardian's comment")).toBeVisible();

@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { resultsWorld } from "../support/results-world";
+import { resultFootprint } from "../support/result-footprint";
 
 // Task 0116 (the maintainer, 2026-11-20): "make the scale editable per class per branch, and always superadmin editable", and the seeded junior scale is UNCONFIRMED until someone confirms or edits its
 // bands (publishing results graded on it is refused). Over real HTTP: who may, the resolution order (class, template, branch default), an archived scale is a 409 never a silent substitute, entered
@@ -246,8 +247,8 @@ async function approved(w: World, scaleId: string, subjectId = w.subject.id) {
       maxScore: 100,
       gradeLetter: "B",
       gradeRemark: "Good",
-      status: "APPROVED",
       enteredByUserId: by.id,
+      ...resultFootprint("APPROVED", by.id),
     },
   });
 }
@@ -267,28 +268,25 @@ test.describe("an unconfirmed grade scale", () => {
     expect(list.filter((s) => s.unconfirmed)).toHaveLength(1);
   });
 
-  test("entering and approving work, but publishing results graded on it is a 409 that says where to confirm; a confirmed scale publishes", async () => {
+  test("an unconfirmed scale does not stop publishing (the maintainer accepted the junior defaults for now, 2026-11-20); confirming afterwards still works and the scale is only then marked confirmed", async () => {
     const admin = await asRole(Role.ADMIN);
     const second = await asRole(Role.ADMIN);
     const w = await resultsWorld(home.id);
     const junior = await juniorScale(admin.cookie);
     const r = await approved(w, junior.id);
-    const refused = await publish(second.cookie, [r.id]);
-    expect([refused.status, refused.json.error.code]).toEqual([409, "CONFLICT"]);
-    expect(refused.json.error.message).toContain("Junior secondary report card scale");
-    expect(refused.json.error.message).toContain("Results > Templates");
-    expect((await db.result.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("APPROVED");
-    // A result on a confirmed scale publishes in the same branch.
-    const ok = await approved(w, w.scale.id, await extraSubject(w, "Art"));
-    expect((await publish(second.cookie, [ok.id])).status).toBe(200);
-    // One unconfirmed result in a batch stops the whole batch (all or nothing).
+    // BLOCK_PUBLISH_ON_UNCONFIRMED is off: results graded on the unconfirmed scale publish like any other.
+    const done = await publish(second.cookie, [r.id]);
+    expect(done.status, JSON.stringify(done.json)).toBe(200);
+    expect((await db.result.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("PUBLISHED");
+    // Publishing did not confirm the scale: the notice and the Confirm button stay until somebody confirms.
+    expect((await db.gradeScale.findUniqueOrThrow({ where: { id: junior.id } })).unconfirmed).toBe(true);
+    // A mixed batch (one confirmed scale, one unconfirmed) publishes whole.
     const art = await extraSubject(w, "Music");
     const fine = await approved(w, w.scale.id, art);
-    expect((await publish(second.cookie, [fine.id, r.id])).status).toBe(409);
-    expect((await db.result.findUniqueOrThrow({ where: { id: fine.id } })).status).toBe("APPROVED");
-    // Confirm, and it publishes.
+    const more = await approved(w, junior.id, await extraSubject(w, "Art"));
+    expect((await publish(second.cookie, [fine.id, more.id])).status).toBe(200);
     expect((await api(`${SCALES}/${junior.id}/confirm`, { method: "POST", cookie: admin.cookie })).status).toBe(200);
-    expect((await publish(second.cookie, [r.id, fine.id])).status).toBe(200);
+    expect((await db.gradeScale.findUniqueOrThrow({ where: { id: junior.id } })).unconfirmed).toBe(false);
   });
 
   test("Confirm these bands: a branch administrator and a superadmin may; a teacher and another branch's administrator may not; repeating is safe; audited with who", async () => {
@@ -339,7 +337,7 @@ test.describe("an unconfirmed grade scale", () => {
     expect(row.afterValue).toMatchObject({ confirmedByEdit: true });
   });
 
-  test("once marks have used it, an edit is a new version that is confirmed; the earlier version stays unconfirmed, its results cannot be published, and it can be confirmed on its own", async () => {
+  test("once marks have used it, an edit is a new version that is confirmed; the earlier version stays unconfirmed, the list names it, and it can be confirmed on its own", async () => {
     const admin = await asRole(Role.ADMIN);
     const second = await asRole(Role.ADMIN);
     const w = await resultsWorld(home.id);
@@ -359,9 +357,7 @@ test.describe("an unconfirmed grade scale", () => {
     expect(v2.unconfirmed).toBe(false); // the bands were edited
     const old = await db.gradeScale.findUniqueOrThrow({ where: { id: junior.id } });
     expect([old.unconfirmed, old.archivedAt !== null]).toEqual([true, true]);
-    // The result graded on the earlier version cannot be published; the list names it.
-    const refused = await publish(second.cookie, [r.id]);
-    expect(refused.status).toBe(409);
+    // The earlier version stays unconfirmed and the list names it (publishing is not blocked, so the result on it still publishes).
     const list = (await api(`${TEMPLATES}?branchId=${home.id}`, { cookie: admin.cookie })).json.data;
     expect(list.choices.earlierUnconfirmed).toEqual([{ id: junior.id, name: "Junior secondary report card scale", version: 1 }]);
     expect((await api(`${SCALES}/${junior.id}/confirm`, { method: "POST", cookie: admin.cookie })).json.data.changed).toBe(true);

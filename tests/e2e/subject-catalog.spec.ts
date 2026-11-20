@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { openRowActions, signInThroughUi } from "./helpers";
@@ -24,6 +24,9 @@ test.afterAll(async () => {
 });
 
 const dialog = (page: Page) => page.getByRole("dialog").first();
+/// The ROWS of a list: its own items, not the items of the lists inside them (each row holds a list of the branches offering it).
+const rowsOf = (list: Locator) => list.locator(":scope > li");
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 async function setUp() {
   const home = await seedInstance();
@@ -46,7 +49,7 @@ test("a superadmin sees every subject with the branches offering it, chooses tho
   await page.goto("/academics?tab=catalogue");
   await expect(page.getByRole("heading", { name: "Subject catalogue" })).toBeVisible();
   const list = page.getByRole("list", { name: "Catalogue subjects" });
-  await expect(list.getByRole("listitem")).toHaveCount(3);
+  await expect(rowsOf(list)).toHaveCount(3);
   // the branch that offers English is a chip on its row
   await expect(page.getByRole("list", { name: "Branches offering English Language" })).toContainText(first!.name);
   await expectAccessible(page, "the subject catalogue");
@@ -54,7 +57,7 @@ test("a superadmin sees every subject with the branches offering it, chooses tho
   // filter by tag, choose them all in one click, add to two branches
   await page.getByRole("button", { name: /Filters/ }).click();
   await page.getByLabel("Tag", { exact: true }).selectOption("core");
-  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(rowsOf(list)).toHaveCount(2);
   await page.getByLabel("Choose all tagged core").check();
   await page.getByRole("button", { name: "Add chosen to branches" }).click();
   const box = dialog(page);
@@ -95,7 +98,7 @@ test("a superadmin makes a subject with tags, renames it in every branch, and ar
   expect(await openRowActions(page, "Arabic")).toBe(true);
   await page.getByRole("button", { name: "Archive Arabic", exact: true }).click();
   await expect(page.getByText(/Arabic archived/)).toBeVisible();
-  await expect(page.getByRole("list", { name: "Catalogue subjects" }).getByRole("listitem").filter({ hasText: "Arabic" })).toHaveCount(0);
+  await expect(rowsOf(page.getByRole("list", { name: "Catalogue subjects" })).filter({ hasText: "Arabic" })).toHaveCount(0);
 });
 
 test("the administrator of a branch takes the subjects tagged core from the catalogue and filters their subjects by tag; no catalogue tab", async ({
@@ -115,18 +118,16 @@ test("the administrator of a branch takes the subjects tagged core from the cata
   await expect(box.getByLabel("Arabic (ARB)")).toHaveCount(0);
   await box.getByRole("button", { name: "Choose all tagged core" }).click();
   await expectAccessible(page, "adding from the catalogue");
-  await box.getByRole("button", { name: new RegExp(`^Add 2 to ${home.name}`) }).click();
+  await box.getByRole("button", { name: new RegExp(`^Add 2 to ${escaped(home.name)}`) }).click();
   await expect(page.getByText(/Added 2/)).toBeVisible();
 
   const subjects = page.getByRole("list", { name: "Subjects" });
-  await expect(subjects.getByRole("listitem")).toHaveCount(3);
-  await expect(subjects.getByRole("listitem").filter({ hasText: "English Language" }).getByRole("group", { name: "Tags" })).toContainText(
-    "core",
-  );
+  await expect(rowsOf(subjects)).toHaveCount(3);
+  await expect(rowsOf(subjects).filter({ hasText: "English Language" }).getByRole("group", { name: "Tags" })).toContainText("core");
   await page.getByRole("button", { name: /Filters/ }).click();
   await page.getByLabel("Tag", { exact: true }).selectOption("basic");
-  await expect(subjects.getByRole("listitem")).toHaveCount(1);
-  await expect(subjects.getByRole("listitem")).toContainText("English Language");
+  await expect(rowsOf(subjects)).toHaveCount(1);
+  await expect(rowsOf(subjects)).toContainText("English Language");
 });
 
 test("a teacher has no Add from catalogue and no catalogue tab; the catalogue's own page falls back to Classes", async ({ page }) => {

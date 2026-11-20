@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 import { resultsWorld } from "../support/results-world";
+import { resultFootprint } from "../support/result-footprint";
 
 // Task 0116, report-card sets, over real HTTP: the four seeded templates, trait ratings (1 to 5) and attendance for a pupil's term, who may enter them (an administrator or the class teacher of the
 // pupil's arm), the lock at publication, the register's numbers against entered ones, and what the printed card carries.
@@ -78,8 +79,10 @@ const publish = async (w: World, periodId: string, total: number, studentId = w.
       maxScore: 100,
       gradeLetter: "C",
       gradeRemark: "Credit",
-      status: "PUBLISHED",
-      enteredByUserId: (await db.user.findFirstOrThrow()).id,
+      ...(await (async () => {
+        const by = (await db.user.findFirstOrThrow()).id;
+        return { enteredByUserId: by, ...resultFootprint("PUBLISHED", by) };
+      })()),
     },
   });
 
