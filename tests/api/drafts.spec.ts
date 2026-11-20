@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { Gender, Role } from "@prisma/client";
 import { createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
+import { linkGuardiansFromColumns } from "../support/guardians";
 
 // Task 0101 D1 (batch 3a) over real HTTP: draft staff and draft pupils. A draft is saved with only the names (and the kind / the gender), is completed only when it has what a finished record
 // needs (and says what is missing when it does not), and is left out of everything that counts people or acts on them. Who may do each is checked first.
@@ -74,6 +75,7 @@ async function pupil(first: string, opts: { draft?: boolean; into?: Awaited<Retu
         status: "ACTIVE",
       },
     });
+  await linkGuardiansFromColumns(); // the completion rule reads the guardian links (task 0113), so turn the columns seeded above into a guardian and a link
   return student;
 }
 

@@ -95,13 +95,13 @@ test("a parent's right password on admin. is answered like a wrong password: the
 }) => {
   const parent = await createUser({ role: Role.PARENT });
   await signIn(page, "admin", parent.email, DEFAULT_PASSWORD);
-  const wrongPortal = page.getByRole("alert").filter({ hasText: "Invalid email or password" });
+  const wrongPortal = page.getByRole("alert").filter({ hasText: "The email or password you entered is incorrect" });
   await expect(wrongPortal).toBeVisible();
   const words = await wrongPortal.innerText();
   await expect(page).toHaveURL(at("admin", "/login"));
   await page.reload();
   await signIn(page, "admin", parent.email, "not-the-password-1");
-  await expect(page.getByRole("alert").filter({ hasText: "Invalid email or password" })).toHaveText(words);
+  await expect(page.getByRole("alert").filter({ hasText: "The email or password you entered is incorrect" })).toHaveText(words);
   await page.goto(at("admin", "/dashboard"));
   await expect(page).toHaveURL(at("admin", "/login")); // no session was made
   await signIn(page, "parent", parent.email, DEFAULT_PASSWORD); // and on their own portal the same person is in

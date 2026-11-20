@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { BRANCH_NAMES, Role, createUser, db, manageLoginSwitches, seedInstance } from "../support/db";
 import { LOGIN_CLOSED_MESSAGE } from "@/lib/auth/login-switch-rules";
-import { alertWith, fillCredentials, signInButton, signInThroughUi } from "./helpers";
+import { alertWith, fillCredentials, signInButton, signInThroughUi, openTab } from "./helpers";
 
 // Student and parent sign-in, per branch (task 0091), in a real browser, desktop and phone: a superadmin turns a branch's switch on in Settings (Sign-in access) and is told what changed; the
 // student the branch had shut out can then sign in; an administrator of one branch sees only that branch on the Users page. axe (WCAG 2.2 A/AA) on the panel, and no horizontal scroll at 320 px.
@@ -83,7 +83,7 @@ test("a superadmin selects several branches and turns a switch on for them in on
   await signInThroughUi(page, await createUser({ role: Role.ADMIN, name: "Sade Superadmin" }));
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/settings");
-  await page.getByRole("tab", { name: "Sign-in access" }).click();
+  await openTab(page, "Sign-in access");
   await expect(page.getByRole("heading", { level: 2, name: "Student and parent sign-in" })).toBeVisible();
 
   const turnOn = page.getByRole("button", { name: "Turn on parent sign-in" });
