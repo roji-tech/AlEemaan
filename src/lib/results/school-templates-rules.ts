@@ -12,7 +12,16 @@ export const MAX_SYNC_BRANCHES = 50;
 /// A stable key: lower-case letters, digits and dashes, 1 to 40 characters. Sync matches trait groups and traits on it, so renaming one never orphans the ratings already entered.
 export const KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
-export { slugKey } from "@/lib/results/school-template-seed";
+/// A key from a name: lower-case, anything that is not a letter or digit becomes one dash, no dash at either end, at most 40 characters. The seed module (school-template-seed.ts, which must import
+/// nothing from the app because a script runs it under plain Node, and uses `node:crypto`, which a browser bundle cannot) holds the same function; a unit test checks the two agree on every seeded name.
+export function slugKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+}
 
 const score = z.number({ error: "Give a number." });
 const key = z.string().regex(KEY_PATTERN, "A key is 1 to 40 lower-case letters, digits or dashes.");

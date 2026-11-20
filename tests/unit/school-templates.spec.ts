@@ -14,7 +14,7 @@ import {
   type Definition,
 } from "@/lib/results/school-templates-rules";
 import { SCHOOL_SEEDS } from "@/lib/results/school-seeds";
-import { schoolSeedId } from "@/lib/results/school-template-seed";
+import { schoolSeedId, slugKey as seedSlugKey } from "@/lib/results/school-template-seed";
 
 // School-wide result templates (task 0120), the pure rules and the seed data.
 
@@ -27,6 +27,18 @@ test.describe("keys", () => {
     expect(slugKey("  Drawing and painting!! ")).toBe("drawing-and-painting");
     expect(slugKey("x".repeat(60))).toHaveLength(40);
     expect(slugKey("a".repeat(39) + " b")).toBe("a".repeat(39)); // no dash left at the end after the cut
+  });
+  test("the rules' slugKey and the seed module's agree on every seeded trait name and on awkward text", () => {
+    const names = [
+      "Co-operation with others",
+      "Speaking / hand writing",
+      "  Drawing and painting!! ",
+      "x".repeat(60),
+      "a".repeat(39) + " b",
+      "Ünïcode name",
+    ];
+    for (const s of SCHOOL_SEEDS) for (const g of s.definition.groups) for (const t of g.traits) names.push(t.name);
+    for (const n of names) expect(slugKey(n), n).toBe(seedSlugKey(n));
   });
   test("every seeded group and trait key is a valid key and unique in its place", () => {
     for (const s of SCHOOL_SEEDS) {
