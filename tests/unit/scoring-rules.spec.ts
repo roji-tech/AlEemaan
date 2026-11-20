@@ -1,6 +1,7 @@
 import "../support/env";
 import { test, expect } from "@playwright/test";
-import { checkBands, checkScheme, gradeFor, snapshotScheme, toHundredths, type BandInput } from "@/lib/academics/scoring";
+import { checkBands, checkScheme, gradeFor, toHundredths, type BandInput } from "@/lib/academics/scoring";
+import { snapshotScheme } from "@/lib/academics/scoring-snapshot";
 
 // The pure rules of assessment schemes and grade scales (plan "Build design — Phase 1.0 and 1.1", decisions 14 and 15). Every boundary is spelled out.
 

@@ -5,7 +5,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { audit, ConflictError } from "@/lib/academics/structure";
 import { DomainError } from "@/lib/academics/sessions";
-import { checkBands, checkScheme, snapshotScheme, type SchemeProblem, type ScaleProblem } from "@/lib/academics/scoring";
+import { checkBands, checkScheme, type SchemeProblem, type ScaleProblem } from "@/lib/academics/scoring";
+import { snapshotScheme } from "@/lib/academics/scoring-snapshot";
 
 // Assessment schemes and grade scales of ONE branch (Slice P1b). The caller's authority was checked by `withBranch` in the route; this module only enforces the
 // rules of the data. Both are VERSIONED: edited in place only while unlocked (the first result that references one locks it - Slice P2 - and the database

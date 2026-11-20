@@ -51,8 +51,8 @@ test("a superadmin sees the four school cards, edits one to version 2, and updat
   await signInThroughUi(page, boss);
   await openTab(page, "School templates");
   const list = page.getByRole("list", { name: "School templates" });
-  await expect(list.getByRole("listitem")).toHaveCount(4);
-  const card = list.getByRole("listitem").filter({ hasText: JUNIOR });
+  await expect(list.locator(":scope > li")).toHaveCount(4);
+  const card = list.locator(":scope > li").filter({ hasText: JUNIOR });
   await expect(card).toContainText("Version 1");
   await expect(card.getByRole("list", { name: `Branches that follow ${JUNIOR}` })).toContainText(`${first.name}: Up to date`);
   await expect(card).toContainText("bands to be confirmed"); // the junior cut-offs are still a guess
@@ -94,7 +94,7 @@ test("a branch that changed its own copy is skipped, and replaced only when the 
   await db.resultTemplate.update({ where: { id: row.id }, data: { description: "Our own words", localEditedAt: new Date() } }); // as a branch administrator's edit leaves it
   await signInThroughUi(page, boss);
   await openTab(page, "School templates");
-  const card = page.getByRole("list", { name: "School templates" }).getByRole("listitem").filter({ hasText: JUNIOR });
+  const card = page.getByRole("list", { name: "School templates" }).locator(":scope > li").filter({ hasText: JUNIOR });
   await expect(card.getByRole("list", { name: `Branches that follow ${JUNIOR}` })).toContainText(`${second.name}: Customised here`);
   await clickAction(card, `Edit ${JUNIOR}`);
   await page
