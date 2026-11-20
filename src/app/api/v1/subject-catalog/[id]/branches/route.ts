@@ -10,7 +10,7 @@ type Context = { params: Promise<{ id: string }> };
 
 // POST /api/v1/subject-catalog/[id]/branches { branchIds: [..] }   (task 0119) SUPERADMIN only. Puts the subject in each of those branches (at most 50). Each branch is its own transaction and is
 // reported: added, linked (the branch already had a subject of that name: it is linked, not duplicated), already, clash (another subject of the branch has that name), gone (no such branch).
-const WRITES_PER_WINDOW = 60;
+const WRITES_PER_WINDOW = 200; // one request per subject when many are chosen
 
 export const POST = withAuth<Context>(
   validate({ body: addToBranchesInput }, async (_req, auth, ctx, { body }) => {
