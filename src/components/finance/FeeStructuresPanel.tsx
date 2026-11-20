@@ -34,9 +34,13 @@ export function FeeStructuresPanel({
   const [openings, setOpenings] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
-  const [handoverOf, setHandoverOf] = useState<FeeStructureItem | null>(null);
+  const [handoverOf, setHandoverOf] = useState<{ id: string; name: string; periodId: string } | null>(null);
 
-  const filteredItems = selectedPeriodId === "ALL" ? items : items.filter((item) => item.periodId === selectedPeriodId);
+  // A line that recurs (task 0124) belongs to every term, so it is in every term's list.
+  const filteredItems =
+    selectedPeriodId === "ALL"
+      ? items
+      : items.filter((item) => item.periodId === selectedPeriodId || (item.recurrence ?? "THIS_TERM") !== "THIS_TERM");
 
   const totalFeeAmount = filteredItems.reduce((acc, item) => acc + Number(item.amount), 0);
 
@@ -147,7 +151,13 @@ export function FeeStructuresPanel({
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-2/40 transition">
                     <td className="px-4 py-3 font-semibold text-fg">{item.name}</td>
-                    <td className="px-4 py-3 text-fg-muted">{item.period?.label ?? "General"}</td>
+                    <td className="px-4 py-3 text-fg-muted">
+                      {item.recurrence === "EVERY_TERM"
+                        ? "Every term"
+                        : item.recurrence === "EVERY_SESSION"
+                          ? "Once a year"
+                          : (item.period?.label ?? "General")}
+                    </td>
                     <td className="px-4 py-3">
                       {item.classGroup ? (
                         <span className="rounded-md bg-field border border-line px-2 py-0.5 text-[11px] font-medium text-fg">
@@ -189,7 +199,11 @@ export function FeeStructuresPanel({
                         {item.trackHandover && (
                           <button
                             type="button"
-                            onClick={() => setHandoverOf(item)}
+                            onClick={() => {
+                              // A line that recurs has no term of its own: the list is for the term chosen above, else the first listed.
+                              const periodId = item.periodId ?? (selectedPeriodId !== "ALL" ? selectedPeriodId : periods[0]?.id);
+                              if (periodId) setHandoverOf({ id: item.id, name: item.name, periodId });
+                            }}
                             aria-label={`Handover list for ${item.name}`}
                             className="rounded-lg px-2.5 py-1 text-xs font-medium border border-line hover:bg-surface-2 text-fg focus-visible:outline-2 focus-visible:outline-ring"
                           >

@@ -35,14 +35,17 @@ export const classKind: ServerKind<ClassRow, ClassBulkCtx> = {
     const subjects = await tx.subject.findMany({ where: { branchId: ctx.branchId, archivedAt: null }, select: { id: true, name: true } });
     const idOf = new Map(subjects.map((s) => [s.name.toLowerCase(), s.id]));
     for (const { row } of rows) {
-      const group = await tx.classGroup.create({ data: { branchId: ctx.branchId, name: row.name }, select: { id: true, name: true } });
+      const group = await tx.classGroup.create({
+        data: { branchId: ctx.branchId, name: row.name, gradeLabel: row.gradeLabel ?? null },
+        select: { id: true, name: true },
+      });
       await tx.auditLog.create({
         data: {
           actorUserId,
           action: "CLASS_GROUP_CREATED",
           targetType: "ClassGroup",
           targetId: group.id,
-          afterValue: { name: group.name, branchId: ctx.branchId },
+          afterValue: { name: group.name, branchId: ctx.branchId, gradeLabel: row.gradeLabel ?? null },
         },
       });
       for (const arm of row.arms) {

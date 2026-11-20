@@ -15,13 +15,27 @@ export class ConflictError extends DomainError {}
 export class ForbiddenError extends DomainError {}
 
 const name = structureName;
+/// The optional grade label of a class (task 0123): "Grade 7", "Year 10". Blank is none.
+export const gradeLabel = z
+  .string()
+  .trim()
+  .max(30, "Use at most 30 characters.")
+  .transform((v) => (v === "" ? null : v))
+  .nullable();
+
 export const classGroupInput = z.strictObject({
   branchId: z.string().min(1),
   name,
   sortOrder: z.number().int().min(0).max(999).optional(),
+  gradeLabel: gradeLabel.optional(),
 });
 export const classGroupPatch = z
-  .strictObject({ name: name.optional(), sortOrder: z.number().int().min(0).max(999).optional(), archived: z.boolean().optional() })
+  .strictObject({
+    name: name.optional(),
+    sortOrder: z.number().int().min(0).max(999).optional(),
+    archived: z.boolean().optional(),
+    gradeLabel: gradeLabel.optional(),
+  })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
 export const armInput = z.strictObject({
   classGroupId: z.string().min(1),
@@ -92,6 +106,7 @@ export async function listClassGroups(branchId: string, includeArchived = false)
     branchId: g.branchId,
     name: g.name,
     sortOrder: g.sortOrder,
+    gradeLabel: g.gradeLabel,
     archivedAt: g.archivedAt,
     subjectIds: g.offerings.map((o) => o.subjectId),
     arms: g.arms.map((a) => ({
@@ -118,9 +133,13 @@ export async function countUnmatchedEnrolments(branchId: string): Promise<number
 export async function createClassGroup(actorUserId: string, input: z.infer<typeof classGroupInput>) {
   try {
     const created = await prisma.classGroup.create({
-      data: { branchId: input.branchId, name: input.name, sortOrder: input.sortOrder ?? 0 },
+      data: { branchId: input.branchId, name: input.name, sortOrder: input.sortOrder ?? 0, gradeLabel: input.gradeLabel ?? null },
     });
-    await audit(actorUserId, "CLASS_GROUP_CREATED", "ClassGroup", created.id, { name: created.name, branchId: created.branchId });
+    await audit(actorUserId, "CLASS_GROUP_CREATED", "ClassGroup", created.id, {
+      name: created.name,
+      branchId: created.branchId,
+      gradeLabel: created.gradeLabel,
+    });
     return created;
   } catch (error) {
     return duplicate(error, CLASS_TAKEN);
@@ -136,6 +155,7 @@ export async function updateClassGroup(actorUserId: string, id: string, patch: z
       data: {
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder } : {}),
+        ...(patch.gradeLabel !== undefined ? { gradeLabel: patch.gradeLabel } : {}),
         ...(patch.archived !== undefined ? { archivedAt: patch.archived ? (before.archivedAt ?? new Date()) : null } : {}),
       },
     });
@@ -144,8 +164,8 @@ export async function updateClassGroup(actorUserId: string, id: string, patch: z
       patch.archived === true ? "CLASS_GROUP_ARCHIVED" : patch.archived === false ? "CLASS_GROUP_RESTORED" : "CLASS_GROUP_UPDATED",
       "ClassGroup",
       id,
-      { name: updated.name, sortOrder: updated.sortOrder, archived: updated.archivedAt !== null },
-      { name: before.name, sortOrder: before.sortOrder, archived: before.archivedAt !== null },
+      { name: updated.name, sortOrder: updated.sortOrder, gradeLabel: updated.gradeLabel, archived: updated.archivedAt !== null },
+      { name: before.name, sortOrder: before.sortOrder, gradeLabel: before.gradeLabel, archived: before.archivedAt !== null },
     );
     return updated;
   } catch (error) {

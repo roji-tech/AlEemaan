@@ -86,7 +86,7 @@ export type StaffExportRow = {
   /// The names of the live departments the person is in (task 0101 D7), joined with "; " in the file.
   departments?: string[];
 };
-export type ClassExportRow = { name: string; arms: string[]; subjects: string[] };
+export type ClassExportRow = { name: string; gradeLabel?: string | null; arms: string[]; subjects: string[] };
 export type SubjectExportRow = { name: string; code: string | null; tags?: readonly string[] };
 
 /// One record's cells, keyed by the import's column keys.
@@ -120,7 +120,12 @@ export const exportValues = {
     corpsMember: r.corpsMember ? "Yes" : "No",
     department: (r.departments ?? []).join("; "),
   }),
-  classes: (r: ClassExportRow): Record<string, string> => ({ name: r.name, arms: r.arms.join(", "), subjects: r.subjects.join(", ") }),
+  classes: (r: ClassExportRow): Record<string, string> => ({
+    name: r.name,
+    gradeLabel: r.gradeLabel ?? "",
+    arms: r.arms.join(", "),
+    subjects: r.subjects.join(", "),
+  }),
   subjects: (r: SubjectExportRow): Record<string, string> => ({ name: r.name, code: text(r.code), tags: (r.tags ?? []).join("; ") }),
 };
 

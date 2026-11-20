@@ -13,7 +13,9 @@ const feeAudienceFields = {
 
 export const createFeeStructureSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
-  periodId: z.string().min(1, "Academic period is required"),
+  /// The term; empty when the line is charged every term or once a year (`recurrence`, task 0124).
+  periodId: z.string().min(1).nullable().optional(),
+  recurrence: z.enum(["THIS_TERM", "EVERY_TERM", "EVERY_SESSION"]).optional(),
   classGroupId: z.string().optional().nullable(),
   name: z.string().trim().min(2, "Fee item name must be at least 2 characters").max(100),
   amount: z.number().positive("Amount must be greater than 0"),

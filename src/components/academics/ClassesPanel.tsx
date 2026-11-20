@@ -38,7 +38,15 @@ type Arm = {
   enrolments: number;
   classTeacher: { id: string; name: string } | null;
 };
-type ClassGroup = { id: string; name: string; sortOrder: number; archivedAt: string | null; subjectIds: string[]; arms: Arm[] };
+type ClassGroup = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  gradeLabel?: string | null;
+  archivedAt: string | null;
+  subjectIds: string[];
+  arms: Arm[];
+};
 /// `department`: where the subject belongs, when the branch uses departments (task 0101 D7); set from the Departments tab.
 type Subject = {
   id: string;
@@ -266,7 +274,7 @@ export function ClassesPanel({
                       <GraduationCapIcon className="h-5 w-5" />
                     </ItemTile>
                   }
-                  title={g.name}
+                  title={g.gradeLabel ? `${g.name} (${g.gradeLabel})` : g.name}
                   factsStyle="stats"
                   facts={[
                     {
@@ -592,13 +600,19 @@ export function ClassesPanel({
         title={editing?.kind === "class" && editing.item ? `Edit ${editing.item.name}` : "New class"}
         label="Class name"
         initial={editing?.kind === "class" ? (editing.item?.name ?? "") : ""}
+        extra={{
+          label: "Grade label (optional)",
+          hint: "For example Grade 7 for JSS 1. Shown beside the class name on the report card.",
+          maxLength: 30,
+          initial: editing?.kind === "class" ? (editing.item?.gradeLabel ?? "") : "",
+        }}
         submitLabel={editing?.kind === "class" && editing.item ? "Save" : "Create class"}
         onClose={() => setEditing(null)}
-        onSubmit={async (name) => {
+        onSubmit={async (name, gradeLabel) => {
           const item = editing?.kind === "class" ? editing.item : null;
           const reply = item
-            ? await sendJson(`/api/v1/academics/class-groups/${item.id}`, "PATCH", { name })
-            : await sendJson("/api/v1/academics/class-groups", "POST", { branchId, name });
+            ? await sendJson(`/api/v1/academics/class-groups/${item.id}`, "PATCH", { name, gradeLabel: gradeLabel || null })
+            : await sendJson("/api/v1/academics/class-groups", "POST", { branchId, name, ...(gradeLabel ? { gradeLabel } : {}) });
           if (reply.ok) await done(`${name} ${item ? "saved" : "created"}.`);
           return reply;
         }}
@@ -667,11 +681,14 @@ export function ClassesPanel({
   );
 }
 
+type Extra = { label: string; hint?: string; maxLength: number; initial: string };
+
 function NameDialog({
   open,
   title,
   label,
   initial,
+  extra,
   submitLabel,
   onClose,
   onSubmit,
@@ -680,17 +697,20 @@ function NameDialog({
   title: string;
   label: string;
   initial: string;
+  /// A second optional text field (the class's grade label, task 0123); its text is the second argument of `onSubmit`.
+  extra?: Extra;
   submitLabel: string;
   onClose: () => void;
-  onSubmit: (name: string) => Promise<Reply | null>;
+  onSubmit: (name: string, extra: string) => Promise<Reply | null>;
 }) {
   return (
     <Dialog open={open} onClose={onClose} title={title}>
       {open && (
         <NameForm
-          key={`${title}|${initial}`}
+          key={`${title}|${initial}|${extra?.initial ?? ""}`}
           label={label}
           initial={initial}
+          extra={extra}
           submitLabel={submitLabel}
           onClose={onClose}
           onSubmit={onSubmit}
@@ -703,17 +723,21 @@ function NameDialog({
 function NameForm({
   label,
   initial,
+  extra,
   submitLabel,
   onClose,
   onSubmit,
 }: {
   label: string;
   initial: string;
+  extra?: Extra;
   submitLabel: string;
   onClose: () => void;
-  onSubmit: (name: string) => Promise<Reply | null>;
+  onSubmit: (name: string, extra: string) => Promise<Reply | null>;
 }) {
   const [name, setName] = useState(initial);
+  const [second, setSecond] = useState(extra?.initial ?? "");
+  const [secondProblem, setSecondProblem] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -723,9 +747,13 @@ function NameForm({
     if (!trimmed) return setProblem("Give a name.");
     setProblem(null);
     setPending(true);
-    const reply = await onSubmit(trimmed);
+    setSecondProblem(null);
+    const reply = await onSubmit(trimmed, second.trim());
     setPending(false);
-    if (reply && !reply.ok) setProblem(problemFor(reply, "name") ?? say(reply, "That didn't work."));
+    if (reply && !reply.ok) {
+      setSecondProblem(problemFor(reply, "gradeLabel") ?? null);
+      setProblem(problemFor(reply, "name") ?? (problemFor(reply, "gradeLabel") ? null : say(reply, "That didn't work.")));
+    }
   }
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
@@ -739,6 +767,19 @@ function NameForm({
         disabled={pending}
         autoComplete="off"
       />
+      {extra && (
+        <TextField
+          label={extra.label}
+          name="gradeLabel"
+          value={second}
+          onChange={(e) => setSecond(e.target.value)}
+          hint={extra.hint}
+          error={secondProblem}
+          maxLength={extra.maxLength}
+          disabled={pending}
+          autoComplete="off"
+        />
+      )}
       <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
         <Button variant="ghost" onClick={onClose} disabled={pending}>
           Cancel

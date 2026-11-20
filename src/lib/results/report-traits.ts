@@ -48,7 +48,9 @@ async function placement(branchId: string, studentId: string, sessionId: string)
       where: { studentId_sessionId: { studentId, sessionId } },
       select: {
         branchId: true,
-        classArm: { select: { id: true, name: true, classTeacherId: true, classGroup: { select: { id: true, name: true } } } },
+        classArm: {
+          select: { id: true, name: true, classTeacherId: true, classGroup: { select: { id: true, name: true, gradeLabel: true } } },
+        },
       },
     })
     .then((e) => (e && e.branchId === branchId ? e.classArm : null));
