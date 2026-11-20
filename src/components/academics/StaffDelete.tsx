@@ -15,7 +15,8 @@ export function StaffDeleteDialog({
   onClose,
   onDone,
 }: {
-  person: { id: string; name: string } | null;
+  /// `unplaced`: the record belongs to no branch yet (task 0101 D3), so it is deleted through the unplaced route.
+  person: { id: string; name: string; unplaced?: boolean } | null;
   onClose: () => void;
   onDone: (text: string) => void | Promise<void>;
 }) {
@@ -27,7 +28,7 @@ export function StaffDeleteDialog({
   async function remove() {
     setBusy(true);
     setError(null);
-    const reply = await sendJson(`/api/v1/staff/${person!.id}`, "DELETE");
+    const reply = await sendJson(person!.unplaced ? `/api/v1/staff/unplaced/${person!.id}` : `/api/v1/staff/${person!.id}`, "DELETE");
     setBusy(false);
     if (!reply.ok) return setError(say(reply, "The record could not be deleted."));
     await onDone(`The record of ${person!.name} was deleted.`);

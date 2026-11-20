@@ -1,5 +1,6 @@
 import type { Problem } from "./types";
 import { EMAIL_TAKEN } from "@/lib/academics/staff";
+import { usesDepartments } from "@/lib/academics/departments-setting";
 import { staffEntity, type StaffRow } from "./staff";
 import type { ServerKind } from "./server";
 
@@ -14,6 +15,14 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
   auditDetail: (ctx) => ({ branchId: ctx.branchId, asDraft: ctx.asDraft === true }),
   async check(db, rows, ctx) {
     const found = new Map<number, Problem[]>();
+    // Task 0101 D7: a department is matched by name (any capitals) to a live department of the branch. While the branch does not use departments the column is ignored (see `notes`).
+    if (rows.some((r) => r.row.department) && (await usesDepartments(ctx.branchId))) {
+      const live = await db.department.findMany({ where: { branchId: ctx.branchId, archivedAt: null }, select: { name: true } });
+      const names = new Set(live.map((d) => d.name.toLowerCase()));
+      for (const r of rows)
+        if (r.row.department && !names.has(r.row.department.toLowerCase()))
+          found.set(r.line, [{ column: "department", message: `This branch has no department called "${r.row.department}".` }]);
+    }
     const emails = rows.flatMap((r) => (r.row.email ? [r.row.email] : []));
     if (emails.length === 0) return found;
     // A live record's email is unique per branch, case-insensitively (the partial index StaffRecord_email_live): archived records do not count.
@@ -23,10 +32,28 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
     });
     const used = new Set(taken.map((t) => t.email?.toLowerCase()));
     for (const r of rows)
-      if (r.row.email && used.has(r.row.email.toLowerCase())) found.set(r.line, [{ column: "email", message: EMAIL_TAKEN }]);
+      if (r.row.email && used.has(r.row.email.toLowerCase()))
+        found.set(r.line, [...(found.get(r.line) ?? []), { column: "email", message: EMAIL_TAKEN }]);
     return found;
   },
+  async notes(_db, rows, ctx) {
+    const withDepartment = rows.filter((r) => r.row.department);
+    if (withDepartment.length === 0) return new Map();
+    if (!(await usesDepartments(ctx.branchId)))
+      return new Map(withDepartment.map((r) => [r.line, "The department is ignored: this branch does not use departments."]));
+    // A draft is not put in a department (task 0101 D1: drafts are left out of everything that acts on staff): it joins one from the department's own screen once it is completed.
+    return ctx.asDraft
+      ? new Map(withDepartment.map((r) => [r.line, "Saved as a draft: it is not put in a department until it is completed."]))
+      : new Map();
+  },
   async save(tx, rows, ctx, actorUserId) {
+    const departments = (await usesDepartments(ctx.branchId))
+      ? new Map(
+          (await tx.department.findMany({ where: { branchId: ctx.branchId, archivedAt: null }, select: { id: true, name: true } })).map(
+            (d) => [d.name.toLowerCase(), d.id],
+          ),
+        )
+      : new Map<string, string>();
     for (const { row } of rows) {
       const created = await tx.staffRecord.create({
         data: {
@@ -54,6 +81,20 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
           afterValue: { category: row.category, branchId: ctx.branchId, ...(ctx.asDraft ? { isDraft: true } : {}) },
         },
       });
+      // A department (task 0101 D7): the person joins it as a member, never as its head.
+      const departmentId = row.department && !ctx.asDraft ? departments.get(row.department.toLowerCase()) : undefined;
+      if (departmentId) {
+        await tx.departmentMember.create({ data: { branchId: ctx.branchId, departmentId, staffRecordId: created.id, isHead: false } });
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            action: "DEPARTMENT_MEMBER_ADDED",
+            targetType: "Department",
+            targetId: departmentId,
+            afterValue: { staffRecordId: created.id, viaBulk: true },
+          },
+        });
+      }
     }
   },
 };

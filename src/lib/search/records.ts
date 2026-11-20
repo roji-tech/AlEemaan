@@ -64,7 +64,8 @@ export async function searchRecords(userId: string, q: string): Promise<RecordHi
     }),
     prisma.staffRecord.findMany({
       where: {
-        ...inBranches,
+        // "every branch" is every branch's staff: a record not placed in a branch yet (task 0101 D3) is in none of them.
+        ...(visible === "all" ? { branchId: { not: null } } : inBranches),
         archivedAt: null,
         AND: everyWord(words, (w) => [{ firstName: like(w) }, { lastName: like(w) }, { email: like(w) }]),
       },
@@ -129,13 +130,20 @@ export async function searchRecords(userId: string, q: string): Promise<RecordHi
         href: href("/students", { branch: p.branchId, q: p.admissionNo }),
       };
     }),
-    ...staff.map((s) => ({
-      kind: "staff" as const,
-      id: s.id,
-      title: `${s.title ? `${s.title} ` : ""}${s.firstName} ${s.lastName}`,
-      line: `${CATEGORY[s.category] ?? "Staff"} · ${s.branch.name}`,
-      href: href("/academics", { tab: "staff", branch: s.branchId, q: `${s.firstName} ${s.lastName}` }),
-    })),
+    // A record not placed in a branch (task 0101 D3) is not found from a branch's search: `inBranches` never matches a null branch; the guard is for the type.
+    ...staff.flatMap((s) =>
+      s.branchId === null || s.branch === null
+        ? []
+        : [
+            {
+              kind: "staff" as const,
+              id: s.id,
+              title: `${s.title ? `${s.title} ` : ""}${s.firstName} ${s.lastName}`,
+              line: `${CATEGORY[s.category] ?? "Staff"} · ${s.branch.name}`,
+              href: href("/academics", { tab: "staff", branch: s.branchId, q: `${s.firstName} ${s.lastName}` }),
+            },
+          ],
+    ),
     ...classes.map((c) => ({
       kind: "class" as const,
       id: c.id,

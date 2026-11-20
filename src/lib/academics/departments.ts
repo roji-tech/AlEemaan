@@ -15,6 +15,7 @@ import {
   mayDoToDepartment,
 } from "@/lib/academics/department-rules";
 import { usesDepartments } from "@/lib/academics/departments-setting";
+import { LIVE_STAFF } from "@/lib/drafts/live";
 
 // Departments and their heads (task 0101 D7): the database side. Every function takes the department (or the branch) and the caller's authority has ALREADY been checked by `withBranch` in the
 // route (ADR 0015); what a HEAD of department may do beyond that is decided by `canManageDepartment`, once, here. Nothing is deleted: a department is archived. While the branch's switch
@@ -213,10 +214,12 @@ export async function addMembers(actorUserId: string, departmentId: string, staf
   if (!department) return null;
   const ids = [...new Set(staffIds)];
   const people = await prisma.staffRecord.findMany({
-    where: { id: { in: ids }, branchId: department.branchId, archivedAt: null },
+    // Not archived and not a draft (task 0101 D1: a draft is left out of everything that acts on staff, a department included until it is completed).
+    where: { id: { in: ids }, branchId: department.branchId, ...LIVE_STAFF },
     select: { id: true, title: true, firstName: true, lastName: true },
   });
-  if (people.length !== ids.length) throw new ConflictError("Only live members of staff of this branch can be added.");
+  if (people.length !== ids.length)
+    throw new ConflictError("Only live members of staff of this branch can be added (not drafts: complete them first).");
   return prisma.$transaction(async (tx) => {
     const already = new Set(
       (await tx.departmentMember.findMany({ where: { departmentId, staffRecordId: { in: ids } }, select: { staffRecordId: true } })).map(

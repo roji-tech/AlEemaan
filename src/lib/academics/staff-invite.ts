@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
-import { createInvitationIn } from "@/lib/invitations/service";
+import { createInvitationIn, saveDraftIn } from "@/lib/invitations/service";
 import { roleForCategory } from "@/lib/academics/staff";
 import { accountFitsRecord } from "@/lib/academics/staff-accounts";
 
@@ -25,6 +25,8 @@ export type StaffInviteOutcome =
       role: "TEACHING_STAFF" | "NON_TEACHING_STAFF";
     }
   | { staffId: string; name: string; result: "linked"; email: string }
+  /// Saved as a DRAFT invitation (task 0101 D2): nothing sent; it is sent from Users > Pending invitations.
+  | { staffId: string; name: string; result: "drafted"; email: string }
   | { staffId: string; name: string; result: "skipped"; why: string };
 
 const WHY = {
@@ -45,6 +47,8 @@ export async function inviteStaffRecords(
   scope: AdminScope,
   branchId: string,
   staffIds: readonly string[],
+  /// `draft` (task 0101 D2): save each invitation as a draft instead of sending it. Linking an existing member is not a sending, so it still happens.
+  options: { draft?: boolean } = {},
 ): Promise<{ ok: false; reason: "OUT_OF_SCOPE" } | { ok: true; outcomes: StaffInviteOutcome[] }> {
   if (!mayAdminister(scope, branchId)) return { ok: false, reason: "OUT_OF_SCOPE" };
   const ids = [...new Set(staffIds)];
@@ -84,7 +88,7 @@ export async function inviteStaffRecords(
     else {
       seen.add(email);
       const role = roleForCategory(record.category) as "TEACHING_STAFF" | "NON_TEACHING_STAFF";
-      outcomes.push(await inviteOne(actorUserId, scope, branchId, { id, name, email, role }));
+      outcomes.push(await inviteOne(actorUserId, scope, branchId, { id, name, email, role }, options.draft === true));
     }
   }
   return { ok: true, outcomes };
@@ -95,6 +99,7 @@ async function inviteOne(
   scope: AdminScope,
   branchId: string,
   record: { id: string; name: string; email: string; role: "TEACHING_STAFF" | "NON_TEACHING_STAFF" },
+  draft = false,
 ): Promise<StaffInviteOutcome> {
   const { id, name, email, role } = record;
   return prisma.$transaction(async (tx): Promise<StaffInviteOutcome> => {
@@ -126,6 +131,23 @@ async function inviteOne(
       where: { email, branchId, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
     });
     if (waiting > 0) return { staffId: id, name, result: "skipped", why: WHY.ALREADY_INVITED };
+    if (draft) {
+      const saved = await saveDraftIn(tx, actorUserId, { email, role, branchId, staffRecordId: id }, scope);
+      if (saved.ok) return { staffId: id, name, result: "drafted", email };
+      return {
+        staffId: id,
+        name,
+        result: "skipped",
+        why:
+          saved.reason === "ALREADY_MEMBER"
+            ? WHY.ALREADY_MEMBER
+            : saved.reason === "DEACTIVATED_MEMBER"
+              ? WHY.DEACTIVATED_MEMBER
+              : saved.reason === "OPEN_EXISTS"
+                ? WHY.ALREADY_INVITED
+                : WHY.NOT_FOUND,
+      };
+    }
     const made = await createInvitationIn(tx, actorUserId, { email, role, branchId, staffRecordId: id }, scope);
     if (!made.ok) {
       const why =

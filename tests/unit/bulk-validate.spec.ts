@@ -34,6 +34,8 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
   designation: { pass: ["", "Bursar", "Security guard"], fail: ["x".repeat(121)] },
   qualification: { pass: ["", "B.Ed. Mathematics", "NCE"], fail: ["x".repeat(121)] },
   corpsMember: { pass: ["", "Yes", "no", "Y", "0"], fail: ["maybe", "2"] },
+  // Task 0101 D7: a department's name (matched to the branch's departments by the server, not here).
+  department: { pass: ["", "Sciences", "Arabic and Islamic Studies"], fail: ["x".repeat(81)] },
 };
 test("every column has samples, and each passing value passes while each failing value is a problem on that column", () => {
   expect(Object.keys(SAMPLES).sort()).toEqual(staffColumns.map((c) => c.key).sort());

@@ -36,7 +36,7 @@ const writeMemory = (id: string) => {
 /// it. `allowAll` offers the reserved "all" (every branch the person may read): it lives in the address but is never the remembered branch, because other pages cannot show it.
 export function useBranchSelection(
   branches: readonly { id: string }[],
-  options: { initial?: string | null; allowAll?: boolean; fallback?: string } = {},
+  options: { initial?: string | null; allowAll?: boolean; allowUnplaced?: boolean; fallback?: string } = {},
 ): [string, (id: string) => void] {
   const search = useSearchParams();
   const pathname = usePathname();
@@ -46,6 +46,7 @@ export function useBranchSelection(
   const value = pickBranch({
     ids,
     allowAll: options.allowAll,
+    allowUnplaced: options.allowUnplaced,
     chosen,
     address: search.get(BRANCH_PARAM),
     initial: options.initial,

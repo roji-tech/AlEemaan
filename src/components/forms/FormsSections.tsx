@@ -7,6 +7,7 @@ import { FormsList } from "@/components/forms/FormsList";
 import { MarkingQueue } from "@/components/forms/MarkingQueue";
 import { SectionTabs } from "@/components/forms/SectionTabs";
 import { useClassGroups } from "@/components/forms/useClassGroups";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // The Forms page's sections behind one tab list, the same ARIA tabs pattern as the Question bank, Approvals and Results (Left/Right/Home/End move between tabs, only the active
 // section is mounted). Presentation only - the forms APIs decide who may do what.
@@ -21,7 +22,7 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function FormsSections({ branches }: { branches: { id: string; name: string }[] }) {
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const classGroups = useClassGroups(branchId);
   const [active, setActive] = useState<SectionId>("practice");
 

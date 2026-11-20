@@ -36,8 +36,11 @@ export type Invitation = {
   branchName: string;
   invitedByName: string | null;
   createdAt: string;
-  expiresAt: string;
-  status: "pending" | "expired";
+  /// When the link was sent; null for a draft (task 0101 D2).
+  sentAt?: string | null;
+  /// Null for a draft: no link yet, so nothing to run out.
+  expiresAt: string | null;
+  status: "pending" | "expired" | "draft";
 };
 
 export type PageMeta = { page: number; limit: number; total: number; pages: number; hasNext: boolean };
@@ -63,7 +66,8 @@ const UNITS: [string, number][] = [
 ];
 
 /// "Expires in 6 days" · "Expires in 3 hours" · "Expires in 1 minute" · "Expired".
-export function expiryText(expiresAt: string, now: number = Date.now()): string {
+export function expiryText(expiresAt: string | null, now: number = Date.now()): string {
+  if (expiresAt === null) return "Draft: not sent yet";
   const left = new Date(expiresAt).getTime() - now;
   if (left <= 0) return "Expired";
   for (const [unit, size] of UNITS) {

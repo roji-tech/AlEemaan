@@ -2,9 +2,11 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 import { EntryPanel } from "@/components/results/EntryPanel";
+import { DepartmentReviewPanel } from "@/components/results/DepartmentReviewPanel";
 import { ReviewPanel } from "@/components/results/ReviewPanel";
 import { CardsPanel } from "@/components/results/CardsPanel";
 import type { BranchChoice } from "@/components/academics/common";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // The Results page's sections behind one tab list (Slice P2d), the same ARIA tabs pattern as Academics: Left/Right/Home/End move between tabs, only the active
 // section is mounted. Review is for administrators and for approvers (task 0039); a teacher sees Enter marks and Report cards. Presentation only - the results APIs decide
@@ -13,11 +15,12 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
   const sections = [
     { id: "enter", label: "Enter marks" },
     ...(isAdmin || branches.some((b) => b.canApprove) ? [{ id: "review", label: "Review" }] : []),
+    ...(branches.some((b) => b.headReview) ? [{ id: "department", label: "Department review" }] : []),
     { id: "cards", label: "Report cards" },
   ];
   const [active, setActive] = useState(sections[0].id);
   const adminBranches = branches.filter((b) => b.canEdit);
-  const [selectedBranchId, setSelectedBranchId] = useState((adminBranches[0] ?? branches[0]).id);
+  const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches, { fallback: (adminBranches[0] ?? branches[0]).id });
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -72,6 +75,9 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
         {active === "enter" && <EntryPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />}
         {active === "review" && (
           <ReviewPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />
+        )}
+        {active === "department" && (
+          <DepartmentReviewPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />
         )}
         {active === "cards" && <CardsPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />}
       </div>

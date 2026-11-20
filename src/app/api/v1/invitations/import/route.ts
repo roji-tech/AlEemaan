@@ -16,7 +16,12 @@ import { branchIdField, scopeOrForbidden } from "@/lib/members/http";
 // Administrators only, with the authority of one invitation: a branch administrator invites to their own branches and never makes an administrator. `dryRun: true` checks every row
 // and writes nothing (200, a verdict per row, a row that would replace an open invitation says so). `dryRun: false` checks again inside one transaction and creates ALL the
 // invitations or NONE (201, or 422 `BULK_PROBLEMS` with every row's verdict); the e-mails are sent after the commit, so a failed send never undoes an invitation.
-const body = z.strictObject({ branchId: branchIdField, ...bulkBodyShape(invitationEntity.maxRows) });
+// `asDraft: true` (task 0101 D2) saves every row as a DRAFT invitation: nothing is e-mailed until each is sent from the Pending invitations tab.
+const body = z.strictObject({
+  branchId: branchIdField,
+  asDraft: z.boolean().optional().default(false),
+  ...bulkBodyShape(invitationEntity.maxRows),
+});
 const DRY_PER_WINDOW = 30; // per administrator per 5 minutes
 const SAVE_PER_WINDOW = 20; // saving goes in batches of 20 rows (task 0095): 20 requests is the old ceiling of two saves of 200 invitations in five minutes, counted apart from the 30 single invitations
 
@@ -34,7 +39,7 @@ export const POST = withAuth(
         return structureCall("INVITATIONS_BULK", async () => {
           const outcome = await runBulk(
             invitationKind,
-            { branchId: body.branchId, scope, inviterName: auth.user.name },
+            { branchId: body.branchId, scope, inviterName: auth.user.name, asDraft: body.asDraft },
             { dryRun: body.dryRun, rows: body.rows },
             auth.userId,
           );

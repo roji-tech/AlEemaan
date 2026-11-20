@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { CheckIcon, ChevronDownIcon } from "./icons";
 import { POPOVER_ITEM, POPOVER_LIST, popoverSide, usePopover } from "./usePopover";
-import { ALL_BRANCHES } from "./branch-selection";
+import { ALL_BRANCHES, UNPLACED } from "./branch-selection";
 
 /// Which branch a page is showing, as one slim bar (the maintainer, 2026-11-18: the full-width "Branch" field took too much of the screen, and then asked for exactly this):
 ///   BRANCH: Primary (English)                                      [ Switch branch v ]
@@ -17,16 +17,23 @@ export function BranchPicker({
   onChange,
   className = "",
   allOption = false,
+  unplacedOption = false,
 }: {
   branches: readonly { id: string; name: string }[];
   value: string;
   onChange: (id: string) => void;
   className?: string;
   allOption?: boolean;
+  /// Adds "Not placed in a branch" (task 0101 D3), for a superadmin's staff list.
+  unplacedOption?: boolean;
 }) {
   const listId = useId();
   const { open, setOpen, up, rootRef, buttonRef, listRef, focusButton, onListKeyDown } = usePopover();
-  const choices = allOption && branches.length > 1 ? [{ id: ALL_BRANCHES, name: "All branches" }, ...branches] : branches;
+  const choices = [
+    ...(allOption && branches.length > 1 ? [{ id: ALL_BRANCHES, name: "All branches" }] : []),
+    ...branches,
+    ...(unplacedOption ? [{ id: UNPLACED, name: "Not placed in a branch" }] : []),
+  ];
   const current = choices.find((b) => b.id === value) ?? choices[0];
   if (!current) return null;
   return (

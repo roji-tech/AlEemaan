@@ -45,10 +45,12 @@ const failureText = (status: number, message?: string) =>
         : (message ?? "That didn't work. Please try again in a moment.");
 
 /// What the page says after an invitation went out: one branch keeps the original sentence; several say how many and which (one e-mail lists them all).
-const invitedText = (sent: Invitation[]) =>
-  sent.length === 1
-    ? `Invitation sent to ${sent[0].email}. The link works for 7 days.`
-    : `${sent.length} invitations created for ${sent[0].email}: ${sent.map((i) => i.branchName).join(", ")}. One email lists a link for each branch; each link works for 7 days.`;
+const invitedText = (sent: Invitation[], drafted = false) =>
+  drafted
+    ? `${sent.length === 1 ? "Draft saved" : `${sent.length} drafts saved`} for ${sent[0].email}. Nothing was sent: send it from Pending invitations when you are ready.`
+    : sent.length === 1
+      ? `Invitation sent to ${sent[0].email}. The link works for 7 days.`
+      : `${sent.length} invitations created for ${sent[0].email}: ${sent.map((i) => i.branchName).join(", ")}. One email lists a link for each branch; each link works for 7 days.`;
 
 /// The Users page (plan §0.5.4): the school's people with filters and paging, the open invitations, and the four things an administrator does —
 /// invite, change role/branch, deactivate, reactivate; a superadmin also makes or removes superadmins. A branch administrator sees and acts on
@@ -196,6 +198,59 @@ export function UsersPanel({
     } else {
       setNotice({ variant: "error", text: failureText(reply.status, reply.message) });
     }
+  }
+
+  /// Sends one draft now (task 0101 D2).
+  async function sendDraft(invitation: Invitation) {
+    setBusyInvitation(invitation.id);
+    const reply = await sendJson(`/api/v1/invitations/${invitation.id}/send`, "POST", {});
+    setBusyInvitation(null);
+    if (reply.ok) {
+      setNotice({ variant: "success", text: `The invitation to ${invitation.email} was sent. The link works for 7 days.` });
+      await refresh();
+    } else if (reply.status === 404) {
+      setNotice({ variant: "error", text: "That draft is gone or was already sent." });
+      await refresh();
+    } else {
+      setNotice({ variant: "error", text: failureText(reply.status, reply.message) });
+    }
+  }
+
+  /// "Send all drafts": the server sends a batch at a time; this calls again until none are left, or it is told to wait.
+  async function sendAllDrafts() {
+    setBusyInvitation("all-drafts");
+    let sent = 0;
+    let left = 0;
+    let wait = false;
+    for (let round = 0; round < 50; round++) {
+      const reply = await sendJson(`/api/v1/invitations/drafts/send`, "POST", {});
+      if (!reply.ok) {
+        setBusyInvitation(null);
+        setNotice({ variant: "error", text: failureText(reply.status, reply.message) });
+        await refresh();
+        return;
+      }
+      const data = reply.data as { sent: number; remaining: number; rateLimited: boolean };
+      sent += data.sent;
+      left = data.remaining;
+      wait = data.rateLimited;
+      if (left === 0 || wait || data.sent === 0) break;
+    }
+    setBusyInvitation(null);
+    setNotice({
+      variant: "success" as const,
+      text: `${sent} ${sent === 1 ? "draft" : "drafts"} sent.${left > 0 ? ` ${left} left as ${left === 1 ? "a draft" : "drafts"}${wait ? ": too many in a few minutes, try again shortly" : ""}.` : ""}`,
+    });
+    await refresh();
+  }
+
+  /// Changes a draft's address or role (task 0101 D2).
+  async function editDraft(invitation: Invitation, patch: { email?: string; role?: string }): Promise<string | null> {
+    const reply = await sendJson(`/api/v1/invitations/${invitation.id}`, "PATCH", patch);
+    if (!reply.ok) return failureText(reply.status, reply.message);
+    setNotice({ variant: "success", text: `The draft for ${patch.email ?? invitation.email} was changed.` });
+    await refresh();
+    return null;
   }
 
   async function revoke(invitation: Invitation) {
@@ -403,7 +458,16 @@ export function UsersPanel({
 
       {tab === "invitations" && (
         <section role="tabpanel" id={panelId("users", "invitations")} aria-labelledby={tabId("users", "invitations")}>
-          <InvitationsList invitations={invitations} busyId={busyInvitation} onResend={resend} onRevoke={revoke} />
+          <InvitationsList
+            invitations={invitations}
+            busyId={busyInvitation}
+            onResend={resend}
+            onRevoke={revoke}
+            onSendDraft={sendDraft}
+            onSendAllDrafts={sendAllDrafts}
+            onEditDraft={editDraft}
+            roleOptions={roleOptionsFor(isSuperAdmin)}
+          />
         </section>
       )}
 
@@ -413,10 +477,12 @@ export function UsersPanel({
         onClose={() => setBulk((b) => ({ ...b, open: false }))}
         branches={branches}
         isSuperAdmin={isSuperAdmin}
-        onSaved={async (count) => {
+        onSaved={async (count, drafted) => {
           setNotice({
             variant: "success",
-            text: `${count} ${count === 1 ? "invitation" : "invitations"} created. The emails are on their way; each link works for 7 days.`,
+            text: drafted
+              ? `${count} ${count === 1 ? "draft" : "drafts"} saved. Nothing was sent: send them from Pending invitations when you are ready.`
+              : `${count} ${count === 1 ? "invitation" : "invitations"} created. The emails are on their way; each link works for 7 days.`,
           });
           await afterChange();
         }}
@@ -431,9 +497,9 @@ export function UsersPanel({
           setInviting(false);
           setTab("staff");
         }}
-        onInvited={(sent) => {
+        onInvited={(sent, drafted) => {
           flushSync(() => setInviting(false)); // the dialog is closed (and focus handed back) before the lists are reloaded
-          setNotice({ variant: "success", text: invitedText(sent) });
+          setNotice({ variant: "success", text: invitedText(sent, drafted) });
           void afterChange();
         }}
       />
@@ -445,9 +511,9 @@ export function UsersPanel({
         roleOptions={roleOptionsFor(isSuperAdmin)}
         invitations={invitations ?? []}
         person={adding.member}
-        onInvited={(sent) => {
+        onInvited={(sent, drafted) => {
           flushSync(() => setAdding((a) => ({ ...a, member: null })));
-          setNotice({ variant: "success", text: invitedText(sent) });
+          setNotice({ variant: "success", text: invitedText(sent, drafted) });
           void afterChange();
         }}
       />

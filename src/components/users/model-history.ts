@@ -14,6 +14,9 @@ export type HistoricInvitation = Omit<Invitation, "status"> & {
 
 export type HistoryState = "accepted" | "revoked" | "expired";
 
+/// A draft invitation that was deleted before it was sent: revoked with no link ever made (`sentAt` null).
+export const isDeletedDraft = (i: Pick<HistoricInvitation, "revokedAt" | "sentAt">): boolean => i.revokedAt !== null && i.sentAt === null;
+
 export const historyState = (i: Pick<HistoricInvitation, "acceptedAt" | "revokedAt">): HistoryState =>
   i.acceptedAt ? "accepted" : i.revokedAt ? "revoked" : "expired";
 
@@ -25,8 +28,10 @@ export function historyText(i: HistoricInvitation): string {
   if (state === "accepted") return `Accepted ${when(i.acceptedAt!)}`;
   if (state === "revoked") {
     const by = i.revokedByName ? ` by ${i.revokedByName}` : "";
+    // A draft that was thrown away before it was ever sent (task 0101 D2).
+    if (isDeletedDraft(i)) return `Draft deleted${by}, ${when(i.revokedAt!)}`;
     const why = i.revokedWhy ? ` (${i.revokedWhy})` : "";
     return `Revoked${by}, ${when(i.revokedAt!)}${why}`;
   }
-  return `Ran out ${when(i.expiresAt)}`;
+  return `Ran out ${i.expiresAt ? when(i.expiresAt) : ""}`.trim();
 }

@@ -709,6 +709,7 @@ function StudentDialog({
   const [namesake, setNamesake] = useState<string | null>(null);
   // Whether the attempt a namesake question came from was "Save as draft": confirming it keeps it a draft.
   const [askedAsDraft, setAskedAsDraft] = useState(false);
+  const [askedToComplete, setAskedToComplete] = useState(false);
   const [pending, setPending] = useState(false);
   const set = (key: keyof typeof f, value: string) => setF((all) => ({ ...all, [key]: value }));
   const arms = classes.find((c) => c.name === f.className)?.arms ?? [];
@@ -716,7 +717,8 @@ function StudentDialog({
   const canPlace = !item || item.currentClass === null;
 
   /// `asDraft` (task 0101 D1): keep the pupil unfinished. A plain save never changes a pupil's draft state (a new pupil is a normal record; a draft stays a draft until it is completed).
-  async function submit(event: FormEvent<HTMLFormElement> | null, allowDuplicate = false, asDraft = false) {
+  /// `complete`: for a pupil who is already a draft, save the form and then run the complete check (the server says what is missing; the form stays open to say so).
+  async function submit(event: FormEvent<HTMLFormElement> | null, allowDuplicate = false, asDraft = false, complete = false) {
     event?.preventDefault();
     if (pending) return;
     setProblem(null);
@@ -724,6 +726,7 @@ function StudentDialog({
     if (!allowDuplicate) {
       setNamesake(null);
       setAskedAsDraft(asDraft);
+      setAskedToComplete(complete);
     }
     setPending(true);
     // The main guardian (task 0113 D9): a guardian chosen from the ones found, or the three fields; on an edit, only when something about the guardian changed (an untouched form does not
@@ -766,11 +769,18 @@ function StudentDialog({
           ...person,
           ...(f.className ? { className: f.className, arm: f.arm || undefined } : {}),
         });
+    if (reply.ok && complete && item) {
+      const done = await sendJson(`/api/v1/students/${item.id}/complete`, "POST");
+      setPending(false);
+      // Saved, but still a draft: the form stays open and says what is missing.
+      if (!done.ok) return setProblem(say(done, "It could not be completed."));
+      return void (await onDone(`${f.firstName} ${f.lastName} saved and completed: no longer a draft.`));
+    }
     setPending(false);
     if (reply.ok) {
       const unplaced = f.className && canPlace && reply.data?.enrolled === false;
       return void (await onDone(
-        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}${asDraft ? " as a draft" : ""}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
+        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}${asDraft || item?.isDraft ? " as a draft" : ""}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
       ));
     }
     if (reply.code === "POSSIBLE_DUPLICATE")
@@ -987,7 +997,7 @@ function StudentDialog({
                 variant="secondary"
                 className="mt-3"
                 loading={pending}
-                onClick={(e) => void submit(e as unknown as FormEvent<HTMLFormElement>, true, askedAsDraft)}
+                onClick={(e) => void submit(e as unknown as FormEvent<HTMLFormElement>, true, askedAsDraft, askedToComplete)}
               >
                 {item ? "Save anyway" : "Register anyway"}
               </Button>
@@ -998,12 +1008,26 @@ function StudentDialog({
             <Button variant="ghost" onClick={onClose} disabled={pending}>
               Cancel
             </Button>
-            <Button variant="secondary" onClick={() => void submit(null, false, true)} disabled={pending}>
-              Save as draft
-            </Button>
-            <Button type="submit" loading={pending}>
-              {pending ? "Working…" : item ? "Save" : "Register student"}
-            </Button>
+            {item?.isDraft ? (
+              <>
+                {/* Already a draft: "Save" and "Save as draft" would be the same thing, so it is Save draft (stays a draft) and Complete (runs the check). */}
+                <Button type="submit" variant="secondary" disabled={pending}>
+                  Save draft
+                </Button>
+                <Button loading={pending} onClick={() => void submit(null, false, false, true)}>
+                  Complete
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => void submit(null, false, true)} disabled={pending}>
+                  Save as draft
+                </Button>
+                <Button type="submit" loading={pending}>
+                  {pending ? "Working…" : item ? "Save" : "Register student"}
+                </Button>
+              </>
+            )}
           </div>
         </form>
       )}

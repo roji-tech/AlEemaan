@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
@@ -25,7 +26,7 @@ import {
 // Presentation only: the staff invite and transfer APIs decide who may do what and check every record again.
 
 export type InvitePerson = { id: string; name: string; email: string };
-type Outcome = { staffId: string; name: string; result: "invited" | "linked" | "skipped"; email?: string; why?: string };
+type Outcome = { staffId: string; name: string; result: "invited" | "drafted" | "linked" | "skipped"; email?: string; why?: string };
 
 /// Can this record be invited from the list? A live, active record that is not a draft, with an e-mail address, no sign-in yet, and no link still waiting.
 export function invitable(p: {
@@ -59,19 +60,26 @@ export function StaffInviteDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<Outcome[] | null>(null);
+  // Task 0101 D2: save the invitations as drafts and send them later from Users > Pending invitations.
+  const [asDraft, setAsDraft] = useState(false);
   if (!people) return null;
   const many = people.length !== 1;
 
   async function send() {
     setBusy(true);
     setError(null);
-    const reply = await sendJson("/api/v1/staff/invite", "POST", { branchId, staffIds: people!.map((p) => p.id) });
+    const reply = await sendJson("/api/v1/staff/invite", "POST", {
+      branchId,
+      staffIds: people!.map((p) => p.id),
+      ...(asDraft ? { draft: true } : {}),
+    });
     setBusy(false);
     if (!reply.ok) return setError(say(reply, "The invitations could not be sent."));
     setOutcomes(reply.data!.outcomes as Outcome[]);
   }
   const counts = outcomes && {
     invited: outcomes.filter((o) => o.result === "invited").length,
+    drafted: outcomes.filter((o) => o.result === "drafted").length,
     linked: outcomes.filter((o) => o.result === "linked").length,
     skipped: outcomes.filter((o) => o.result === "skipped"),
   };
@@ -79,6 +87,8 @@ export function StaffInviteDialog({
     if (!counts) return onClose();
     const parts = [
       counts.invited > 0 && `${counts.invited} ${counts.invited === 1 ? "invitation" : "invitations"} sent`,
+      counts.drafted > 0 &&
+        `${counts.drafted} saved as ${counts.drafted === 1 ? "a draft" : "drafts"} (send from Users > Pending invitations)`,
       counts.linked > 0 && `${counts.linked} linked to the account they already had`,
       counts.skipped.length > 0 && `${counts.skipped.length} not invited`,
     ].filter(Boolean);
@@ -105,7 +115,10 @@ export function StaffInviteDialog({
         ) : (
           <>
             <Alert variant={counts!.skipped.length === 0 ? "success" : "info"}>
-              {counts!.invited} sent{counts!.linked > 0 ? `, ${counts!.linked} linked` : ""}
+              {counts!.drafted > 0
+                ? `${counts!.drafted} saved as ${counts!.drafted === 1 ? "a draft" : "drafts"}, not sent`
+                : `${counts!.invited} sent`}
+              {counts!.linked > 0 ? `, ${counts!.linked} linked` : ""}
               {counts!.skipped.length > 0 ? `, ${counts!.skipped.length} not invited` : ""}.
             </Alert>
             {counts!.skipped.length > 0 && (
@@ -120,6 +133,13 @@ export function StaffInviteDialog({
             )}
           </>
         )}
+        {!outcomes && (
+          <CheckboxField
+            label="Save as drafts, send later (nothing is e-mailed now)"
+            checked={asDraft}
+            onChange={(e) => setAsDraft(e.target.checked)}
+          />
+        )}
         {error && <Alert variant="error">{error}</Alert>}
         <div className="flex flex-wrap justify-end gap-3">
           {!outcomes ? (
@@ -128,7 +148,13 @@ export function StaffInviteDialog({
                 Cancel
               </Button>
               <Button loading={busy} onClick={() => void send()}>
-                {many ? `Send ${people.length} invitations` : "Send invitation"}
+                {asDraft
+                  ? many
+                    ? `Save ${people.length} drafts`
+                    : "Save draft"
+                  : many
+                    ? `Send ${people.length} invitations`
+                    : "Send invitation"}
               </Button>
             </>
           ) : (
@@ -454,5 +480,124 @@ export function UnlistedMembers({
         )}
       </div>
     </section>
+  );
+}
+
+/// Placing a record that belongs to no branch yet in one (task 0101 D3, a superadmin's): from then on that branch's administrators manage it. The server refuses a branch that already has a
+/// live record with the same e-mail address (409, shown here).
+export function StaffPlaceDialog({
+  person,
+  branches,
+  onClose,
+  onDone,
+}: {
+  person: { id: string; name: string } | null;
+  /// The real branches (not the "all" and "not placed" choices).
+  branches: BranchChoice[];
+  onClose: () => void;
+  onDone: (text: string) => void | Promise<void>;
+}) {
+  const [to, setTo] = useState(branches[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!person) return null;
+  async function go() {
+    setBusy(true);
+    setError(null);
+    const reply = await sendJson(`/api/v1/staff/unplaced/${person!.id}/place`, "POST", { branchId: to });
+    setBusy(false);
+    if (!reply.ok) return setError(say(reply, "That didn't work."));
+    await onDone(
+      `${person!.name} is now in ${branches.find((b) => b.id === to)?.name ?? "the branch"}. Its administrators manage the record from here.`,
+    );
+  }
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`Place ${person.name} in a branch`}
+      description="Until then only a superadmin sees this record, and it has no classes, subjects or sign-in. Placing it hands it to the branch's administrators."
+    >
+      <div className="mt-4 space-y-4">
+        <SelectField
+          label="Branch"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          options={branches.map((b) => ({ value: b.id, label: b.name }))}
+        />
+        {error && <Alert variant="error">{error}</Alert>}
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={busy} disabled={!to} onClick={() => void go()}>
+            Place in branch
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+/// "Add to department" for the people ticked in the selection bar (task 0101 D7 and the maintainer's follow-up): one department, every selected record, through the department's members
+/// route (which checks again that each is a live member of staff of the branch and that the caller may manage that department). Shown only while the branch uses departments.
+export function AddToDepartmentDialog({
+  people,
+  departments,
+  onClose,
+  onDone,
+}: {
+  /// The records to add; null closes the dialog.
+  people: { id: string; name: string }[] | null;
+  departments: { id: string; name: string }[];
+  onClose: () => void;
+  onDone: (text: string) => void | Promise<void>;
+}) {
+  const [to, setTo] = useState(departments[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!people) return null;
+  async function go() {
+    setBusy(true);
+    setError(null);
+    const reply = await sendJson(`/api/v1/academics/departments/${to}/members`, "POST", { staffIds: people!.map((p) => p.id) });
+    setBusy(false);
+    if (!reply.ok) return setError(say(reply, "That didn't work."));
+    const r = reply.data as { added: number; skipped: number };
+    const name = departments.find((d) => d.id === to)?.name ?? "the department";
+    await onDone(`${r.added} added to ${name}${r.skipped > 0 ? `, ${r.skipped} already in it` : ""}.`);
+  }
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`Add ${people.length} ${people.length === 1 ? "person" : "people"} to a department`}
+      description="They become members (not head). Anyone already in it is left as they are."
+    >
+      <div className="mt-4 space-y-4">
+        <ul className="max-h-48 divide-y divide-line overflow-y-auto rounded-xl border border-line text-sm" aria-label="People to add">
+          {people.map((p) => (
+            <li key={p.id} className="px-3 py-2 font-medium text-fg">
+              {p.name}
+            </li>
+          ))}
+        </ul>
+        <SelectField
+          label="Department"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
+        />
+        {error && <Alert variant="error">{error}</Alert>}
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={busy} disabled={!to} onClick={() => void go()}>
+            Add to department
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }

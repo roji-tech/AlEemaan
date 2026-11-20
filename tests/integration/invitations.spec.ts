@@ -106,7 +106,7 @@ test.describe("creating", () => {
     const row = await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } });
     expect(row.tokenHash).toBe(hashInvitationToken(token));
     expect(row.tokenHash).not.toContain(token);
-    expect(Math.abs(row.expiresAt.getTime() - (Date.now() + SEVEN_DAYS_MS))).toBeLessThan(60_000);
+    expect(Math.abs(row.expiresAt!.getTime() - (Date.now() + SEVEN_DAYS_MS))).toBeLessThan(60_000);
     expect(row).toMatchObject({
       email: to,
       role: "TEACHING_STAFF",
@@ -248,7 +248,7 @@ test.describe("resend, revoke, list", () => {
     expect(resent!.token).not.toBe(token);
     expect(await previewInvitation(token)).toBeNull();
     expect(await previewInvitation(resent!.token)).not.toBeNull();
-    expect(Math.abs(resent!.invitation.expiresAt.getTime() - (Date.now() + SEVEN_DAYS_MS))).toBeLessThan(60_000);
+    expect(Math.abs(resent!.invitation.expiresAt!.getTime() - (Date.now() + SEVEN_DAYS_MS))).toBeLessThan(60_000);
     expect((await db.auditLog.findMany({ where: { targetId: invitation.id, action: "INVITATION_RESENT" } })).length).toBe(1);
   });
 

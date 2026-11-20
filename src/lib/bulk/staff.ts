@@ -50,7 +50,12 @@ export type StaffRow = {
   designation?: string;
   qualification?: string;
   corpsMember?: boolean;
+  /// The name of a department of the branch (task 0101 D7); only counts while the branch uses departments, else the row says it is ignored. The server matches it to a live department.
+  department?: string;
 };
+
+/// Longest department name (the same bound as the department's own name rule).
+const DEPARTMENT_NAME_MAX = 80;
 
 export const staffColumns: BulkColumn[] = [
   {
@@ -120,7 +125,27 @@ export const staffColumns: BulkColumn[] = [
     required: false,
     help: "Yes or No (an NYSC corps member); empty is No",
   },
+  // Task 0101 D7: after every older column, so a file filled or a block pasted the old way still lands in the right cells.
+  {
+    key: "department",
+    label: "Department",
+    aliases: ["dept", "departmentname"],
+    required: false,
+    help: "The name of one of the branch's departments; only used when the branch uses departments; may be left empty",
+  },
 ];
+
+/// The staff kind with the branch's own departments offered as a dropdown in the template and the grid (task 0101 D7). `null` = the branch does not use departments: the column stays (a file
+/// with it still reads) but offers no choices, and the review says a department is ignored.
+export function staffEntityFor(departmentNames: readonly string[] | null): BulkEntity<StaffRow> {
+  if (!departmentNames || departmentNames.length === 0) return staffEntity;
+  return {
+    ...staffEntity,
+    columns: staffColumns.map((c) =>
+      c.key === "department" ? { ...c, options: departmentNames.map((name) => ({ value: name, label: name })) } : c,
+    ),
+  };
+}
 
 export const staffRowSchema: z.ZodType<StaffRow> = z.object({
   category: z.preprocess(toCategory, z.enum(["TEACHING", "NON_TEACHING"], { error: CATEGORY_MESSAGE })),
@@ -133,6 +158,7 @@ export const staffRowSchema: z.ZodType<StaffRow> = z.object({
   designation: z.preprocess(blankToUndefined, staffDetail.optional()),
   qualification: z.preprocess(blankToUndefined, staffDetail.optional()),
   corpsMember: z.preprocess(toYesNo, z.boolean({ error: "Write Yes or No." }).optional()),
+  department: z.preprocess(blankToUndefined, z.string().max(DEPARTMENT_NAME_MAX, `Up to ${DEPARTMENT_NAME_MAX} characters.`).optional()),
 });
 
 export const staffEntity: BulkEntity<StaffRow> = {

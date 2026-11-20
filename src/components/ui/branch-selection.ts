@@ -4,6 +4,8 @@
 /// The address parameter that names the branch, and the reserved value for "every branch the person may read" (offered only where a page lists across branches).
 export const BRANCH_PARAM = "branch";
 export const ALL_BRANCHES = "all";
+/// The reserved value for staff records that are not placed in a branch yet (task 0101 D3): offered only to a superadmin, only where a page lists staff, never remembered.
+export const UNPLACED = "unplaced";
 /// Where the browser remembers the last branch the person chose (one value for the whole app: the branches are the same on every page).
 export const BRANCH_MEMORY_KEY = "aleemaan:branch";
 
@@ -12,6 +14,8 @@ type Choices = {
   ids: readonly string[];
   /// Where "All branches" is offered.
   allowAll?: boolean;
+  /// Where "Not placed in a branch" is offered (a superadmin's staff list).
+  allowUnplaced?: boolean;
   /// What the person chose on this page since it opened.
   chosen?: string | null;
   /// The branch named in the address.
@@ -26,8 +30,18 @@ type Choices = {
 
 /// The first usable of: what was chosen here, the address, the link's branch, the remembered branch, the fallback. A value is usable when it is one of `ids`, or `all` where `allowAll`.
 /// An id the person does not have (an old link, another account's memory) is skipped, never trusted.
-export function pickBranch({ ids, allowAll = false, chosen, address, initial, remembered, fallback }: Choices): string {
-  const usable = (id: string | null | undefined): id is string => !!id && (ids.includes(id) || (allowAll && id === ALL_BRANCHES));
+export function pickBranch({
+  ids,
+  allowAll = false,
+  allowUnplaced = false,
+  chosen,
+  address,
+  initial,
+  remembered,
+  fallback,
+}: Choices): string {
+  const usable = (id: string | null | undefined): id is string =>
+    !!id && (ids.includes(id) || (allowAll && id === ALL_BRANCHES) || (allowUnplaced && id === UNPLACED));
   // The remembered branch is always a real one (`all` is never stored), so it is checked against the ids only.
   const memory = remembered && ids.includes(remembered) ? remembered : null;
   for (const candidate of [chosen, address, initial, memory]) if (usable(candidate)) return candidate;
@@ -42,4 +56,4 @@ export function withBranchParam(search: string, id: string): string {
 }
 
 /// What to store as "the last branch used": a real branch, never the reserved `all`.
-export const rememberable = (id: string): string | null => (id === ALL_BRANCHES ? null : id);
+export const rememberable = (id: string): string | null => (id === ALL_BRANCHES || id === UNPLACED ? null : id);

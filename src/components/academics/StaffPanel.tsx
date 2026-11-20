@@ -5,7 +5,7 @@ import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { BranchPicker } from "@/components/ui/BranchPicker";
-import { ALL_BRANCHES } from "@/components/ui/branch-selection";
+import { ALL_BRANCHES, UNPLACED } from "@/components/ui/branch-selection";
 import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { Collection, Item, ItemInitials, type ItemAction } from "@/components/ui/Collection";
 import { ActionsMenu, type MenuAction } from "@/components/ui/ActionsMenu";
@@ -21,7 +21,7 @@ import { getJson, problemFor, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
 import { initialsOf } from "@/components/shell/nav";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
-import { staffEntity } from "@/lib/bulk/staff";
+import { staffEntityFor } from "@/lib/bulk/staff";
 import { StandingBadge } from "@/components/standing/StandingBadge";
 import { StandingDialog, type StandingAsk } from "@/components/standing/StandingDialog";
 import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDialog";
@@ -44,7 +44,15 @@ import {
 import { DepartmentBadges, DepartmentChips } from "@/components/academics/DepartmentChips";
 import { StaffDetailsDialog, corpsPill, draftPill, kindPill } from "@/components/academics/StaffDetails";
 import { StaffDeleteDialog } from "@/components/academics/StaffDelete";
-import { StaffInviteDialog, StaffTransferDialog, UnlistedMembers, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
+import {
+  AddToDepartmentDialog,
+  StaffInviteDialog,
+  StaffPlaceDialog,
+  StaffTransferDialog,
+  UnlistedMembers,
+  invitable,
+  type InvitePerson,
+} from "@/components/academics/StaffAccess";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
 // sign-in account is an existing member it can be linked to. Presentation only: the API decides who may read and change what.
@@ -130,16 +138,33 @@ export function StaffPanel({
   initialQuery?: string;
 }) {
   // The branch (or "all", task 0117) is kept in the address and remembered, so coming back to this page does not start on the first branch again.
-  const [branchId, setBranchId] = useBranchSelection(branches, { initial: initialBranchId, allowAll: branches.length > 1 });
+  const [branchId, setBranchId] = useBranchSelection(branches, {
+    initial: initialBranchId,
+    allowAll: branches.length > 1,
+    allowUnplaced: isSuperAdmin,
+  });
   // "All branches" (task 0117): the staff of every branch the person may read. It has no classes, subjects or standing powers of its own, and nothing can be added to it: each record is
   // acted on through its own branch (`rowBranch`), and what needs the branch itself opens that branch.
   const viewAll = branchId === ALL_BRANCHES;
+  // "Not placed in a branch" (task 0101 D3, a superadmin only): records that belong to no branch yet. They can be added, edited, placed in a branch and deleted, and nothing else: no classes,
+  // subjects, sign-in, invitation, export or transfer exists for a record with no branch.
+  const viewUnplaced = branchId === UNPLACED;
   const branch: BranchChoice = viewAll
     ? { id: ALL_BRANCHES, name: "All branches", canEdit: false }
-    : (branches.find((b) => b.id === branchId) ?? branches[0]);
+    : viewUnplaced
+      ? { id: UNPLACED, name: "Not placed in a branch", canEdit: true }
+      : (branches.find((b) => b.id === branchId) ?? branches[0]);
   const rowBranch = (p: Staff): BranchChoice => (viewAll ? (branches.find((b) => b.id === p.branchId) ?? branch) : branch);
   const [truncated, setTruncated] = useState(false);
-  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState<{ id: string; name: string; unplaced?: boolean } | null>(null);
+  const [placing, setPlacing] = useState<{ id: string; name: string } | null>(null);
+  // Task 0101 D7: the branch's departments, when it uses them: the bulk file offers them as a dropdown, and the selection bar can add the ticked people to one.
+  const [deptInfo, setDeptInfo] = useState<{
+    branchId: string;
+    enabled: boolean;
+    items: { id: string; name: string; canManage: boolean }[];
+  } | null>(null);
+  const [addingToDepartment, setAddingToDepartment] = useState<{ id: string; name: string }[] | null>(null);
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
@@ -168,6 +193,18 @@ export function StaffPanel({
 
   const load = useCallback(async () => {
     const base = `branchId=${encodeURIComponent(branchId)}`;
+    if (branchId === UNPLACED) {
+      const none = await getJson(`/api/v1/staff/unplaced?status=${status}&q=${encodeURIComponent(q)}`);
+      if (!none.ok) return setError(say(none, "Couldn't load the staff who are not placed in a branch."));
+      setError(null);
+      setStaff(none.data!.staff as Staff[]);
+      setTruncated(false);
+      setLoads((n) => n + 1);
+      setSelected(new Set());
+      setClasses([]);
+      setSubjects([]);
+      return;
+    }
     if (branchId === ALL_BRANCHES) {
       const all = await getJson(`/api/v1/staff?${base}&status=${status}&q=${encodeURIComponent(q)}`);
       if (!all.ok) return setError(say(all, "Couldn't load the staff."));
@@ -200,6 +237,25 @@ export function StaffPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading data on a branch / filter change is exactly what this effect is for
     void load();
   }, [load]);
+
+  // The departments of one real branch (not "all", not "not placed"): only an administrator of it needs them (the bulk file and the selection bar).
+  const realBranch = branchId !== ALL_BRANCHES && branchId !== UNPLACED;
+  useEffect(() => {
+    if (!realBranch || !branch.canEdit) return;
+    let live = true;
+    void getJson(`/api/v1/academics/departments?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
+      if (!live || !reply.ok) return;
+      const d = reply.data as { enabled: boolean; departments: { id: string; name: string; canManage?: boolean }[] };
+      setDeptInfo({
+        branchId,
+        enabled: d.enabled,
+        items: d.departments.map((x) => ({ id: x.id, name: x.name, canManage: x.canManage !== false })),
+      });
+    });
+    return () => {
+      live = false;
+    };
+  }, [branchId, realBranch, branch.canEdit]);
 
   const done = async (text: string) => {
     setEditing(null);
@@ -244,7 +300,7 @@ export function StaffPanel({
   };
   const list = staff === null ? null : filterStaff(staff, filters);
   const shown = paginate(list ?? [], page, layout.size);
-  const canInvite = branch.canEdit;
+  const canInvite = branch.canEdit && !viewUnplaced;
   const invitableShown = (list ?? []).filter(invitable);
   const toggle = (id: string, on: boolean) =>
     setSelected((all) => {
@@ -268,6 +324,7 @@ export function StaffPanel({
     <div className="space-y-6">
       <BranchPicker
         branches={branches}
+        unplacedOption={isSuperAdmin}
         allOption
         value={branchId}
         onChange={(id) => {
@@ -290,13 +347,21 @@ export function StaffPanel({
             </h2>
             {branch.canEdit && (
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                  Add many
-                </Button>
+                {!viewUnplaced && (
+                  <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                    Add many
+                  </Button>
+                )}
                 <Button onClick={() => setEditing({ kind: "record", item: null })}>New staff record</Button>
               </div>
             )}
           </div>
+          {viewUnplaced && (
+            <p className="mt-1 text-sm font-medium text-fg-2">
+              People added without a branch. Only a superadmin sees them here; they have no classes, subjects or sign-in until you place
+              them in a branch, and then that branch&apos;s administrators manage them.
+            </p>
+          )}
           {viewAll && (
             <p className="mt-1 text-sm font-medium text-fg-2">
               Every branch you may read, in one list. Choose a branch to add staff there; each card opens its own branch for Manage, Edit,
@@ -318,7 +383,7 @@ export function StaffPanel({
           onClear={clearFilters}
           trailing={
             <>
-              {branch.canEdit && (
+              {branch.canEdit && !viewUnplaced && (
                 <ExportButton
                   kind="staff"
                   branchId={branch.id}
@@ -385,7 +450,7 @@ export function StaffPanel({
             />
           )}
         </ListToolbar>
-        {branch.canEdit && status === "live" && (
+        {branch.canEdit && !viewUnplaced && status === "live" && (
           <UnlistedMembers
             branchId={branch.id}
             version={loads}
@@ -420,6 +485,20 @@ export function StaffPanel({
               <Button variant="ghost" onClick={() => setSelected(new Set())}>
                 Clear
               </Button>
+              {deptInfo?.branchId === branchId && deptInfo.enabled && deptInfo.items.some((d) => d.canManage) && (
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    setAddingToDepartment(
+                      (staff ?? [])
+                        .filter((p) => selected.has(p.id) && !p.archived && !p.isDraft)
+                        .map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}` })),
+                    )
+                  }
+                >
+                  Add to department
+                </Button>
+              )}
               <Button onClick={() => setInviting((staff ?? []).filter((p) => selected.has(p.id)).map(asInvitee))}>
                 <MailIcon className="h-4 w-4" aria-hidden="true" />
                 Invite to sign in
@@ -445,96 +524,116 @@ export function StaffPanel({
             // branch's classes or the branch itself (Manage, Edit, Invite, Transfer) is one button that opens that branch.
             const rb = rowBranch(p);
             const rbCan = rb.standing ?? { suspend: false, remove: false };
-            const buttons: ItemAction[] = viewAll
-              ? [{ id: "open", label: "Open in branch", ariaLabel: `Open ${who} in ${p.branchName}`, onClick: () => openIn(p) }]
-              : [
+            const buttons: ItemAction[] = viewUnplaced
+              ? [
                   {
-                    id: branch.canEdit ? "manage" : "view",
-                    label: branch.canEdit ? "Manage" : "View",
-                    ariaLabel: `${branch.canEdit ? "Manage" : "View"} ${who}`,
-                    onClick: () => setEditing({ kind: "manage", item: p }),
+                    id: "place",
+                    label: "Place in a branch",
+                    ariaLabel: `Place ${who} in a branch`,
+                    onClick: () => setPlacing({ id: p.id, name: who }),
                   },
-                ];
+                ]
+              : viewAll
+                ? [{ id: "open", label: "Open in branch", ariaLabel: `Open ${who} in ${p.branchName}`, onClick: () => openIn(p) }]
+                : [
+                    {
+                      id: branch.canEdit ? "manage" : "view",
+                      label: branch.canEdit ? "Manage" : "View",
+                      ariaLabel: `${branch.canEdit ? "Manage" : "View"} ${who}`,
+                      onClick: () => setEditing({ kind: "manage", item: p }),
+                    },
+                  ];
             if (!viewAll && branch.canEdit && !p.archived) {
               buttons.push({ id: "edit", label: "Edit", ariaLabel: `Edit ${who}`, onClick: () => setEditing({ kind: "record", item: p }) });
             }
-            const more = rb.canEdit
+            const more = viewUnplaced
               ? [
-                  ...kindsFor("staff", p.standing, rbCan).map((kind) => ({
-                    id: kind,
-                    label: KIND_TEXT[kind],
-                    ariaLabel: `${KIND_TEXT[kind]} ${who}`,
-                    onSelect: () =>
-                      setStandingAsk({
-                        kind,
-                        subject: "staff",
-                        endpoint: `/api/v1/staff/${p.id}/standing`,
-                        name: who,
-                        canSchoolWide: rbCan.remove && p.account.state === "linked",
-                      }),
-                  })),
-                  ...(!viewAll && invitable(p)
-                    ? [
-                        {
-                          id: "invite",
-                          label: "Invite to sign in",
-                          ariaLabel: `Invite ${who} to sign in`,
-                          onSelect: () => setInviting([asInvitee(p)]),
-                        },
-                      ]
-                    : []),
-                  ...(!p.archived
-                    ? [
-                        p.isDraft
-                          ? { id: "complete", label: "Complete", ariaLabel: `Complete ${who}`, onSelect: () => void setDraft(p, false) }
-                          : {
-                              id: "draft",
-                              label: "Mark as draft",
-                              ariaLabel: `Mark ${who} as a draft`,
-                              onSelect: () => void setDraft(p, true),
-                            },
-                      ]
-                    : []),
-                  ...(!viewAll && !p.archived && !p.isDraft && p.standing === "ACTIVE" && otherBranches.length > 0
-                    ? [
-                        {
-                          id: "transfer",
-                          label: "Transfer or add to another branch",
-                          ariaLabel: `Transfer ${who} or add them to another branch`,
-                          onSelect: () => setMoving(p),
-                        },
-                      ]
-                    : []),
+                  // A record with no branch has no standing, sign-in, subjects or history: the only other thing a superadmin does to it is delete it (nothing can point at it).
                   {
-                    id: "history",
-                    label: "History",
-                    ariaLabel: `Standing history of ${who}`,
-                    onSelect: () => setHistoryOf({ endpoint: `/api/v1/staff/${p.id}/standing`, name: who }),
+                    id: "delete",
+                    label: "Delete record",
+                    ariaLabel: `Delete the record of ${who}`,
+                    danger: true,
+                    onSelect: () => setDeleting({ id: p.id, name: who, unplaced: true }),
                   },
-                  ...(p.standing !== "TERMINATED"
-                    ? [
-                        {
-                          id: "archive",
-                          label: p.archived ? "Restore" : "Archive",
-                          ariaLabel: `${p.archived ? "Restore" : "Archive"} ${who}`,
-                          onSelect: () => setArchived(p, !p.archived),
-                        },
-                      ]
-                    : []),
-                  // Only a superadmin, only a record with no history (the server decides and says why not).
-                  ...(isSuperAdmin
-                    ? [
-                        {
-                          id: "delete",
-                          label: "Delete record",
-                          ariaLabel: `Delete the record of ${who}`,
-                          danger: true,
-                          onSelect: () => setDeleting({ id: p.id, name: who }),
-                        },
-                      ]
-                    : []),
                 ]
-              : [];
+              : rb.canEdit
+                ? [
+                    ...kindsFor("staff", p.standing, rbCan).map((kind) => ({
+                      id: kind,
+                      label: KIND_TEXT[kind],
+                      ariaLabel: `${KIND_TEXT[kind]} ${who}`,
+                      onSelect: () =>
+                        setStandingAsk({
+                          kind,
+                          subject: "staff",
+                          endpoint: `/api/v1/staff/${p.id}/standing`,
+                          name: who,
+                          canSchoolWide: rbCan.remove && p.account.state === "linked",
+                        }),
+                    })),
+                    ...(!viewAll && invitable(p)
+                      ? [
+                          {
+                            id: "invite",
+                            label: "Invite to sign in",
+                            ariaLabel: `Invite ${who} to sign in`,
+                            onSelect: () => setInviting([asInvitee(p)]),
+                          },
+                        ]
+                      : []),
+                    ...(!p.archived
+                      ? [
+                          p.isDraft
+                            ? { id: "complete", label: "Complete", ariaLabel: `Complete ${who}`, onSelect: () => void setDraft(p, false) }
+                            : {
+                                id: "draft",
+                                label: "Mark as draft",
+                                ariaLabel: `Mark ${who} as a draft`,
+                                onSelect: () => void setDraft(p, true),
+                              },
+                        ]
+                      : []),
+                    ...(!viewAll && !p.archived && !p.isDraft && p.standing === "ACTIVE" && otherBranches.length > 0
+                      ? [
+                          {
+                            id: "transfer",
+                            label: "Transfer or add to another branch",
+                            ariaLabel: `Transfer ${who} or add them to another branch`,
+                            onSelect: () => setMoving(p),
+                          },
+                        ]
+                      : []),
+                    {
+                      id: "history",
+                      label: "History",
+                      ariaLabel: `Standing history of ${who}`,
+                      onSelect: () => setHistoryOf({ endpoint: `/api/v1/staff/${p.id}/standing`, name: who }),
+                    },
+                    ...(p.standing !== "TERMINATED"
+                      ? [
+                          {
+                            id: "archive",
+                            label: p.archived ? "Restore" : "Archive",
+                            ariaLabel: `${p.archived ? "Restore" : "Archive"} ${who}`,
+                            onSelect: () => setArchived(p, !p.archived),
+                          },
+                        ]
+                      : []),
+                    // Only a superadmin, only a record with no history (the server decides and says why not).
+                    ...(isSuperAdmin
+                      ? [
+                          {
+                            id: "delete",
+                            label: "Delete record",
+                            ariaLabel: `Delete the record of ${who}`,
+                            danger: true,
+                            onSelect: () => setDeleting({ id: p.id, name: who }),
+                          },
+                        ]
+                      : []),
+                  ]
+                : [];
 
             if (layout.view === "grid") {
               const theme = staffCardTheme(p.category);
@@ -767,6 +866,29 @@ export function StaffPanel({
           await load();
         }}
       />
+      <AddToDepartmentDialog
+        key={addingToDepartment ? addingToDepartment.map((p) => p.id).join(",") : "no-dept"}
+        people={addingToDepartment && addingToDepartment.length > 0 ? addingToDepartment : null}
+        departments={(deptInfo?.items ?? []).filter((d) => d.canManage)}
+        onClose={() => setAddingToDepartment(null)}
+        onDone={async (text) => {
+          setAddingToDepartment(null);
+          setNotice({ variant: "success", text });
+          await load();
+        }}
+      />
+      <StaffPlaceDialog
+        key={placing?.id ?? "no-place"}
+        person={placing}
+        branches={branches}
+        onClose={() => setPlacing(null)}
+        onDone={async (text) => {
+          setPlacing(null);
+          setViewing(null);
+          setNotice({ variant: "success", text });
+          await load();
+        }}
+      />
       <StaffInviteDialog
         key={inviting ? inviting.map((p) => p.id).join(",") : "no-invite"}
         branchId={branchId}
@@ -811,8 +933,16 @@ export function StaffPanel({
             ? () => (setEditing({ kind: "record", item: viewing }), setViewing(null))
             : undefined
         }
-        onManage={() => viewing && (viewAll ? openIn(viewing) : setEditing({ kind: "manage", item: viewing }), setViewing(null))}
-        manageLabel={viewAll ? "Open in branch" : branch.canEdit ? "Manage" : "View"}
+        onManage={() =>
+          viewing &&
+          (viewUnplaced
+            ? setPlacing({ id: viewing.id, name: `${viewing.firstName} ${viewing.lastName}` })
+            : viewAll
+              ? openIn(viewing)
+              : setEditing({ kind: "manage", item: viewing }),
+          setViewing(null))
+        }
+        manageLabel={viewUnplaced ? "Place in a branch" : viewAll ? "Open in branch" : branch.canEdit ? "Manage" : "View"}
       />
       <RecordDialog
         key={editing?.kind === "record" ? (editing.item?.id ?? "new") : "none"}
@@ -855,7 +985,7 @@ export function StaffPanel({
           key={bulk.key}
           open={bulk.open}
           onClose={() => setBulk((b) => ({ ...b, open: false }))}
-          entity={staffEntity}
+          entity={staffEntityFor(deptInfo?.branchId === branchId && deptInfo.enabled ? deptInfo.items.map((d) => d.name) : null)}
           title="Add staff in bulk"
           description={`Into ${branch.name}. Nothing is saved until you press Save, and a record never creates a sign-in.`}
           endpoint="/api/v1/staff/import"
@@ -914,7 +1044,8 @@ function RecordDialog({
   const set = (key: keyof typeof f, value: string) => setF((all) => ({ ...all, [key]: value }));
 
   /// `asDraft` (task 0101 D1): keep the record unfinished. A plain save never changes a record's draft state (a new record is a normal one; a draft stays a draft until it is completed).
-  async function save(asDraft: boolean) {
+  /// `complete`: for a record that is already a draft, save the form and then run the complete check (the server says what is missing; the form stays open to say so).
+  async function save(asDraft: boolean, complete = false) {
     if (pending) return;
     setProblem(null);
     setFieldProblems({});
@@ -935,10 +1066,22 @@ function RecordDialog({
       ...(asDraft ? { isDraft: true } : {}),
     };
     const reply = item
-      ? await sendJson(`/api/v1/staff/${item.id}`, "PATCH", body)
-      : await sendJson("/api/v1/staff", "POST", { branchId, ...body });
+      ? await sendJson(item.branchId === null ? `/api/v1/staff/unplaced/${item.id}` : `/api/v1/staff/${item.id}`, "PATCH", body)
+      : branchId === UNPLACED
+        ? await sendJson("/api/v1/staff/unplaced", "POST", body)
+        : await sendJson("/api/v1/staff", "POST", { branchId, ...body });
+    if (reply.ok && complete && item) {
+      const done = await sendJson(`/api/v1/staff/${item.id}/complete`, "POST");
+      setPending(false);
+      // Saved, but still a draft: the form stays open and says what is missing.
+      if (!done.ok) return setProblem(say(done, "It could not be completed."));
+      return void (await onDone(`${f.firstName} ${f.lastName} saved and completed: no longer a draft.`));
+    }
     setPending(false);
-    if (reply.ok) return void (await onDone(`${f.firstName} ${f.lastName} ${item ? "saved" : "added"}${asDraft ? " as a draft" : ""}.`));
+    if (reply.ok)
+      return void (await onDone(
+        `${f.firstName} ${f.lastName} ${item ? "saved" : "added"}${asDraft || item?.isDraft ? " as a draft" : ""}.`,
+      ));
     const found: Record<string, string> = {};
     for (const key of ["title", "firstName", "lastName", "gender", "designation", "qualification", "role", "phone", "email"]) {
       const message = problemFor(reply, key);
@@ -1077,12 +1220,28 @@ function RecordDialog({
             <Button variant="ghost" onClick={onClose} disabled={pending}>
               Cancel
             </Button>
-            <Button variant="secondary" onClick={() => void save(true)} disabled={pending}>
-              Save as draft
-            </Button>
-            <Button type="submit" loading={pending}>
-              {pending ? "Working…" : item ? "Save" : "Add staff record"}
-            </Button>
+            {item?.isDraft ? (
+              <>
+                {/* Already a draft: "Save" and "Save as draft" would be the same thing, so it is Save draft (stays a draft) and Complete (runs the check). A record with no branch cannot be completed yet. */}
+                <Button type="submit" variant="secondary" disabled={pending}>
+                  Save draft
+                </Button>
+                {item.branchId !== null && (
+                  <Button loading={pending} onClick={() => void save(false, true)}>
+                    Complete
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => void save(true)} disabled={pending}>
+                  Save as draft
+                </Button>
+                <Button type="submit" loading={pending}>
+                  {pending ? "Working…" : item ? "Save" : "Add staff record"}
+                </Button>
+              </>
+            )}
           </div>
         </form>
       )}

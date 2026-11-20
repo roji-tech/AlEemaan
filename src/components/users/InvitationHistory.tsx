@@ -8,7 +8,7 @@ import { Pager, paginate } from "@/components/ui/Pager";
 import { getJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
 import { ROLE_LABELS } from "@/lib/roles";
-import { historyState, historyText, type HistoricInvitation } from "./model-history";
+import { historyState, historyText, isDeletedDraft, type HistoricInvitation } from "./model-history";
 
 /// The invitations that are no longer open (task 0117, the maintainer, 2026-11-20: "can we keep the record of revoked invites"): accepted, revoked (by whom, when, why) and run out.
 /// Read from `GET /api/v1/invitations/history` when it is opened; the API scopes it like the open list.
@@ -48,7 +48,17 @@ export function InvitationHistory() {
         {shown.rows.map((invitation) => {
           const state = historyState(invitation);
           const facts: ItemFact[] = [
-            { label: "Status", value: state === "accepted" ? "Accepted" : state === "revoked" ? "Revoked" : "Ran out" },
+            {
+              label: "Status",
+              value:
+                state === "accepted"
+                  ? "Accepted"
+                  : state === "revoked"
+                    ? isDeletedDraft(invitation)
+                      ? "Draft deleted"
+                      : "Revoked"
+                    : "Ran out",
+            },
             { label: "Role", value: ROLE_LABELS[invitation.role] },
           ];
           if (invitation.branchName) facts.push({ label: "Branch", value: invitation.branchName });
