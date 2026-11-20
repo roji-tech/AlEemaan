@@ -47,7 +47,8 @@ export function InviteDialog({
   /// The open invitations the page already holds, so a branch with a link still waiting is not offered (`person` only; the server refuses it anyway).
   invitations?: Invitation[];
   person?: InvitePerson | null;
-  onInvited: (invitations: Invitation[]) => void;
+  /// `drafted`: they were saved as drafts, not sent (task 0101 D2).
+  onInvited: (invitations: Invitation[], drafted?: boolean) => void;
   /// Task 0114: go to the Staff tab, where staff are ticked and invited at the addresses on their records (no typing). Absent when adding a member to another branch.
   onFromStaff?: () => void;
 }) {
@@ -133,8 +134,13 @@ export function InviteDialog({
     setBranchError(null);
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    void save(false);
+  }
+
+  /// `draft` (task 0101 D2): keep the invitation without sending it; nothing is e-mailed and no link exists until it is sent from Pending invitations.
+  async function save(draft: boolean) {
     if (pending) return;
     setFormError(null);
     const address = email.trim();
@@ -151,13 +157,12 @@ export function InviteDialog({
 
     setPending(true);
     // One branch keeps the original request and its answer; several send the list.
-    const reply = await sendJson(
-      `/api/v1/invitations`,
-      "POST",
-      several ? { email: address, role, branchIds: picked } : { email: address, role, branchId },
-    );
+    const reply = await sendJson(`/api/v1/invitations`, "POST", {
+      ...(several ? { email: address, role, branchIds: picked } : { email: address, role, branchId }),
+      ...(draft ? { draft: true } : {}),
+    });
     setPending(false);
-    if (reply.ok) return onInvited(several ? (reply.data!.invitations as Invitation[]) : [reply.data!.invitation as Invitation]);
+    if (reply.ok) return onInvited(several ? (reply.data!.invitations as Invitation[]) : [reply.data!.invitation as Invitation], draft);
 
     const emailProblem = problemFor(reply, "email");
     const branchProblem = problemFor(reply, several ? "branchIds" : "branchId");
@@ -299,6 +304,9 @@ export function InviteDialog({
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => void save(true)} disabled={pending || loading || nothingToOffer}>
+            Save as draft
           </Button>
           <Button type="submit" loading={pending} disabled={loading || nothingToOffer}>
             {pending ? "Sending…" : several ? "Send invitations" : "Send invitation"}

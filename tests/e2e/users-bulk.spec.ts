@@ -59,6 +59,7 @@ test("the branch comes first; a file is reviewed with what it would replace, and
       email: email("open"),
       role: "PARENT",
       branchId: branch.branchId,
+      sentAt: new Date(),
       tokenHash: "h".repeat(64),
       invitedById: admin.id,
       expiresAt: new Date(Date.now() + 86_400_000),

@@ -6,6 +6,7 @@ import { isSuperAdmin } from "@/lib/auth/branch-access";
 import { canSelfApproveResults } from "@/lib/settings/approvals";
 import { approverScope, covers, hasAnyScope, type ApproverScope } from "@/lib/academics/approver-scope";
 import { ConflictError, ForbiddenError } from "@/lib/academics/structure";
+import { awaitingReview, clearReviews } from "@/lib/academics/department-review";
 
 // Results, Slice P2b: the REVIEW WORKFLOW. DRAFT -> SUBMITTED -> APPROVED -> PUBLISHED -> LOCKED, with the back-steps and the unlock. The caller's authority over the
 // BRANCH was checked by `withBranch` in the route; here each action has its own rule (who, from which status), a batch is ALL OR NOTHING in one transaction with the
@@ -142,6 +143,16 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
       }
     }
 
+    // A branch that asks for the head of department's review (task 0101 F, off by default) does not approve a result of a subject in a department until it has been reviewed. Nothing else
+    // changes: who may approve, and who may publish, is as before. Off: `awaitingReview` is 0 and this does nothing.
+    if (input.action === "approve") {
+      const waiting = await awaitingReview(tx, branchId, ids);
+      if (waiting > 0)
+        throw new ConflictError(
+          `${waiting} of ${results.length} results are waiting for the head of their department's review before they can be approved.`,
+        );
+    }
+
     // Guard: results under pending or rejected schemes cannot be published
     if (input.action === "publish") {
       const schemeIds = [...new Set(results.map((r) => r.schemeId))];
@@ -197,6 +208,8 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
         },
       });
     }
+    // A result sent back to DRAFT can change again, so a department review of it no longer stands (task 0101 F).
+    if (input.action === "return") await clearReviews(tx, branchId, ids);
     return { action: input.action, count: results.length, status: rule.to };
   });
 }

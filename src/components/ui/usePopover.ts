@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useOutsideClick } from "./useOutsideClick";
 
 /// What every dropdown of the app shares (task 0100): the three-dots menu of a row and the branch picker. Each draws its own button and its own list; this is the behaviour.
 ///   - one button opens and closes the list (`aria-expanded` on it says which);
@@ -33,22 +34,15 @@ export function usePopover() {
     button.current?.focus();
   }, []);
 
+  // A press, a touch or focus outside closes it (the shared rule, `useOutsideClick`, task 0117); Escape closes it and puts focus back on the button.
+  useOutsideClick(root, () => setOpen(false), open, false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
-    const onOutside = (e: Event) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
     document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onOutside);
-    document.addEventListener("focusin", onOutside);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onOutside);
-      document.removeEventListener("focusin", onOutside);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, close]);
 
   // Before the first paint of an open list: which side has room, and where focus goes.

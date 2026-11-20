@@ -18,6 +18,8 @@ const body = z.strictObject({
     .array(z.string().trim().min(1).max(64))
     .min(1, "Choose at least one person.")
     .max(STAFF_INVITE_MAX, `At most ${STAFF_INVITE_MAX} at once.`),
+  /// Save the invitations as drafts, to send later (task 0101 D2): nothing is e-mailed now. Default: send.
+  draft: z.boolean().optional(),
 });
 
 export const POST = withAuth(
@@ -34,7 +36,7 @@ export const POST = withAuth(
             return noStore(fail("Too many invitations in a few minutes. Please wait and try again.", 429, "RATE_LIMITED"));
           }
         }
-        const done = await inviteStaffRecords(auth.userId, scope, input.branchId, input.staffIds);
+        const done = await inviteStaffRecords(auth.userId, scope, input.branchId, input.staffIds, { draft: input.draft === true });
         if (!done.ok) return noStore(fail("You can only invite the staff of the branches you administer.", 403, "FORBIDDEN"));
 
         const toMail = done.outcomes.flatMap((o) => (o.result === "invited" ? [o] : []));
@@ -60,11 +62,12 @@ export const POST = withAuth(
             outcomes: done.outcomes.map((o) =>
               o.result === "invited"
                 ? { staffId: o.staffId, name: o.name, result: o.result, email: o.email }
-                : o.result === "linked"
+                : o.result === "linked" || o.result === "drafted"
                   ? { staffId: o.staffId, name: o.name, result: o.result, email: o.email }
                   : { staffId: o.staffId, name: o.name, result: o.result, why: o.why },
             ),
             invited: toMail.length,
+            drafted: done.outcomes.filter((o) => o.result === "drafted").length,
             linked: done.outcomes.filter((o) => o.result === "linked").length,
             skipped: done.outcomes.filter((o) => o.result === "skipped").length,
           }),

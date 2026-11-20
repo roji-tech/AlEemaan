@@ -93,6 +93,7 @@ test.describe("the bulk staff file", () => {
       "Job title",
       "Qualification",
       "Corps member",
+      "Department",
     ]);
     const t = mapTable(
       [

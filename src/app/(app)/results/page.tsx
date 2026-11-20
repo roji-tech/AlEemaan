@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageSession } from "@/lib/auth/page-session";
 import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
 import { approverBranchIds } from "@/lib/academics/approver-scope";
+import { reviewBranchIds } from "@/lib/academics/department-review";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ResultsSections } from "@/components/results/ResultsSections";
 
@@ -21,6 +22,14 @@ export default async function ResultsPage() {
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+  // Task 0101 F: where the branch asks for a head of department's review and this person may give it (they administer the branch, or head a department there).
+  const reviewIn = new Set(
+    await reviewBranchIds(
+      session.userId,
+      branches.map((b) => b.id),
+      (id) => mayAdminister(scope, id),
+    ),
+  );
 
   return (
     <div>
@@ -45,6 +54,7 @@ export default async function ResultsPage() {
             name: b.name,
             canEdit: mayAdminister(scope, b.id),
             canApprove: approverIn.has(b.id),
+            headReview: reviewIn.has(b.id),
           }))}
           isAdmin={isAdmin}
         />

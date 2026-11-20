@@ -432,18 +432,25 @@ export async function candidates(
     select: { id: true, firstName: true, lastName: true, designation: true, branchId: true },
   });
   return done(
-    staff.map((s) => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`,
-      detail: s.designation ?? "Staff",
-      branchId: s.branchId,
-      branchName: names.get(s.branchId) ?? "",
-      note: taken.has(s.id)
-        ? taken.get(s.id) === ProgramPlaceStatus.ACTIVE
-          ? "Already in this program"
-          : "Has left this program: re-enrol them"
-        : linkNote(s.branchId),
-    })),
+    // A record not placed in a branch (task 0101 D3) is never offered: the search is limited to branches, so none comes back; the guard is for the type.
+    staff.flatMap((s) =>
+      s.branchId === null
+        ? []
+        : [
+            {
+              id: s.id,
+              name: `${s.firstName} ${s.lastName}`,
+              detail: s.designation ?? "Staff",
+              branchId: s.branchId,
+              branchName: names.get(s.branchId) ?? "",
+              note: taken.has(s.id)
+                ? taken.get(s.id) === ProgramPlaceStatus.ACTIVE
+                  ? "Already in this program"
+                  : "Has left this program: re-enrol them"
+                : linkNote(s.branchId),
+            },
+          ],
+    ),
   );
 }
 
@@ -588,6 +595,7 @@ export async function addPerson(actorUserId: string, programId: string, input: A
         select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true, isDraft: true },
       });
       if (!record || record.archivedAt || record.isDraft) return refuse(404, "NOT_FOUND", "That member of staff was not found.");
+      if (record.branchId === null) return refuse(409, "UNPLACED", "Place that member of staff in a branch first.");
       const allowed = await branchAllowed(tx, program.id, record.branchId, viewer, true);
       if (!allowed.ok) return allowed;
       toLink = allowed.data;

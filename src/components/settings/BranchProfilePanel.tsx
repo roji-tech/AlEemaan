@@ -18,6 +18,7 @@ import {
   type ProfileField,
   type ProfileValues,
 } from "@/lib/settings/branch-profile-rules";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // School details per branch (task 0115, task 0101 D4): the principal, phone, motto, address, e-mail and website one branch prints. A field left empty uses the school's; a field with a
 // value is the branch's own, and "Use the school's" takes it back. Presentation only: the API decides who may read and change which branch, and checks every field again.
@@ -146,7 +147,7 @@ export function BranchProfileEditor({ branchId, branchName }: { branchId: string
 
 /// The card for an administrator's page (Approvals > Report cards, next to the branch's layout): the branches they administer to choose from, then the editor.
 export function BranchProfilePanel({ branches }: { branches: { id: string; name: string }[] }) {
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   if (!branch) return null;
   return (

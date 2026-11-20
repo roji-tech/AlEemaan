@@ -75,6 +75,7 @@ test.describe("GET one", () => {
         email: `${unique("a").replaceAll(" ", "")}@test.example`,
         role: "PARENT",
         branchId: branch.id,
+        sentAt: new Date(),
         tokenHash: unique("h").padEnd(64, "x"),
         expiresAt: new Date(Date.now() + 86_400_000),
       },

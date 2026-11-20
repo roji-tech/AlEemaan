@@ -81,6 +81,8 @@ export type StaffExportRow = {
   designation: string | null;
   qualification: string | null;
   corpsMember: boolean;
+  /// The names of the live departments the person is in (task 0101 D7), joined with "; " in the file.
+  departments?: string[];
 };
 export type ClassExportRow = { name: string; arms: string[]; subjects: string[] };
 export type SubjectExportRow = { name: string; code: string | null };
@@ -114,6 +116,7 @@ export const exportValues = {
     designation: text(r.designation),
     qualification: text(r.qualification),
     corpsMember: r.corpsMember ? "Yes" : "No",
+    department: (r.departments ?? []).join("; "),
   }),
   classes: (r: ClassExportRow): Record<string, string> => ({ name: r.name, arms: r.arms.join(", "), subjects: r.subjects.join(", ") }),
   subjects: (r: SubjectExportRow): Record<string, string> => ({ name: r.name, code: text(r.code) }),

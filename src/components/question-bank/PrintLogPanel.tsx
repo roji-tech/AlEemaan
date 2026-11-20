@@ -7,6 +7,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { getJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
 import { whenText } from "@/components/question-bank/model";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // The print log: who printed what, when, how many pages and why, newest first, for a branch (`GET .../print-logs`). Presentation only: the list is what the server answered. A log line
 // is never changed or removed (the table is append-only), so there is nothing to edit here.
@@ -35,7 +36,7 @@ const KIND_LABEL: Record<TargetKind, string> = {
 const PAGE = 20;
 
 export function PrintLogPanel({ branches }: { branches: { id: string; name: string }[] }) {
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const [kind, setKind] = useState<"" | TargetKind>("");
   const [logs, setLogs] = useState<PrintLog[] | null>(null);
   const [total, setTotal] = useState(0);

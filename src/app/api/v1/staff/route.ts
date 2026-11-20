@@ -5,9 +5,11 @@ import { validate, type Parsed } from "@/lib/api/validate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
 import { READ_ROLES, structureCall } from "@/lib/academics/structure-http";
-import { createStaff, listStaff, staffInput } from "@/lib/academics/staff";
+import { createStaff, listStaff, listStaffAcross, staffInput } from "@/lib/academics/staff";
+import { ALL_BRANCHES } from "@/components/ui/branch-selection";
 
 // GET  /api/v1/staff?branchId=&status=live|archived|all&q=   the branch's staff records. Any staff role held IN that branch; another branch's id is a 404.
+//      ...?branchId=all   (task 0117) the staff of every branch the caller holds a staff role in (a superadmin: every branch), never more; at most 1000, `truncated` says there were more.
 // POST /api/v1/staff { branchId, category, firstName, lastName, phone?, email? }   Administrators of that branch (a branch named in the body that is not theirs: 403).
 //                                                            Creating a record never creates a sign-in account.
 const query = z.object({
@@ -17,13 +19,21 @@ const query = z.object({
 });
 type Query = Parsed<undefined, z.infer<typeof query>>;
 
+// "All branches" has no single branch to resolve, so it skips withBranch: the list itself is narrowed to the caller's own branches (`listStaffAcross`, from `branchIdsFor`). Every other
+// branchId goes through withBranch exactly as before.
 export const GET = withAuth(
-  validate(
-    { query },
-    withBranch<Query, AuthContext, unknown>({ of: ({ query }) => query.branchId, as: "staff-read" }, async (_req, _auth, _ctx, { query }) =>
-      structureCall("STAFF_LIST", async () => ok({ staff: await listStaff(query.branchId, { status: query.status, q: query.q }) })),
-    ),
-  ),
+  validate({ query }, async (req, auth: AuthContext, ctx: unknown, input) => {
+    if (input.query.branchId === ALL_BRANCHES) {
+      return structureCall("STAFF_LIST_ALL", async () =>
+        ok(await listStaffAcross(auth.userId, { status: input.query.status, q: input.query.q })),
+      );
+    }
+    return withBranch<Query, AuthContext, unknown>(
+      { of: ({ query }) => query.branchId, as: "staff-read" },
+      async (_req, _auth, _ctx, { query }) =>
+        structureCall("STAFF_LIST", async () => ok({ staff: await listStaff(query.branchId, { status: query.status, q: query.q }) })),
+    )(req, auth, ctx, input);
+  }),
   { roles: READ_ROLES },
 );
 

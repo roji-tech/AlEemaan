@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
 import { SchemeForm, type SchemeBody, type SchemeInitial } from "@/components/academics/SchemeForm";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // The levels above a branch's own default scheme: the school-wide default (a superadmin sets it) and a scheme for one class group (an administrator of the branch).
 // Marks use the most specific scheme that applies: a teacher's own for the subject, then the class group's, then the branch default, then the school-wide one.
@@ -21,7 +22,7 @@ const toInitial = (s: Scheme | null): SchemeInitial | null => (s ? { name: s.nam
 
 export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: BranchChoice[]; isSuperAdmin: boolean }) {
   const adminBranches = branches.filter((b) => b.canEdit);
-  const [branchId, setBranchId] = useState((adminBranches[0] ?? branches[0]).id);
+  const [branchId, setBranchId] = useBranchSelection(branches, { fallback: (adminBranches[0] ?? branches[0]).id });
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [globals, setGlobals] = useState<GlobalRow[]>([]);
   const [groups, setGroups] = useState<(Group & { scheme: Scheme | null })[] | null>(null);

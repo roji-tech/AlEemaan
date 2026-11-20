@@ -12,6 +12,7 @@ import { describeScope, describeScopes, placementTargets, roleLabel } from "@/li
 import type { ScopeEntry } from "@/lib/academics/section-rules";
 import { ScopeEditor } from "./ScopeEditor";
 import { StepUpModal, type StepUpChange, type StepUpProof } from "./StepUpModal";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // The Results approval tab of the Settings page (task 0039, slice 3), for one branch at a time: the sections of the branch and which class is in which, for each person who may
 // approve results where they approve, and whether a Section approver also approves the classes in no section. Every change is one call to a route of slice 2b, and each asks for a
@@ -19,7 +20,12 @@ import { StepUpModal, type StepUpChange, type StepUpProof } from "./StepUpModal"
 
 const API = "/api/v1/settings/results-approval";
 type Branch = { id: string; name: string };
-type Loaded = { sections: SectionView[]; unplacedClassGroups: ClassGroupView[]; approvers: ApproverView[]; unsectionedClassApproval: "GENERAL_OR_CLASS_ONLY" | "ANY_SECTION_APPROVER" };
+type Loaded = {
+  sections: SectionView[];
+  unplacedClassGroups: ClassGroupView[];
+  approvers: ApproverView[];
+  unsectionedClassApproval: "GENERAL_OR_CLASS_ONLY" | "ANY_SECTION_APPROVER";
+};
 /// A change waiting for the proof: what the dialog shows, how to send it, and what to say when it worked.
 type Pending = { change: StepUpChange; send: (stepUp: StepUpProof) => Promise<Reply>; done: string; after?: () => void };
 
@@ -31,10 +37,16 @@ const NO_SECTION = "none";
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 const change = (field: string, fromValue: string, toValue: string): StepUpChange => ({ field, fromValue, toValue });
 const failureText = (reply: Reply) =>
-  reply.status === 401 ? SESSION_ENDED : reply.status === 429 ? (reply.message ?? RATE_LIMITED) : reply.status === 0 ? NETWORK_ERROR : (reply.message ?? "That didn't work. Please try again in a moment.");
+  reply.status === 401
+    ? SESSION_ENDED
+    : reply.status === 429
+      ? (reply.message ?? RATE_LIMITED)
+      : reply.status === 0
+        ? NETWORK_ERROR
+        : (reply.message ?? "That didn't work. Please try again in a moment.");
 
 export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[]; hasMfa: boolean }) {
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -70,7 +82,8 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
   const allClassGroups = useMemo(() => {
     if (!data) return [];
     const byId = new Map<string, ClassGroupView>();
-    for (const group of [...data.sections.flatMap((section) => section.classGroups), ...data.unplacedClassGroups]) byId.set(group.id, group);
+    for (const group of [...data.sections.flatMap((section) => section.classGroups), ...data.unplacedClassGroups])
+      byId.set(group.id, group);
     return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
@@ -109,7 +122,8 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
     </div>
   );
 
-  if (branches.length === 0) return <p className="rounded-xl border border-dashed border-line p-6 text-sm text-fg-muted">There is no branch yet.</p>;
+  if (branches.length === 0)
+    return <p className="rounded-xl border border-dashed border-line p-6 text-sm text-fg-muted">There is no branch yet.</p>;
 
   if (error && !data) {
     return (
@@ -145,8 +159,8 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
       <div>
         <p ref={summary} tabIndex={-1} className="text-sm text-fg-muted focus:outline-none">
           {plural(live.length, "section", "sections")}
-          {archivedCount > 0 ? ` (${archivedCount} archived)` : ""}, {plural(data.unplacedClassGroups.length, "class", "classes")} in no section,{" "}
-          {plural(data.approvers.length, "person", "people")} who may approve results.
+          {archivedCount > 0 ? ` (${archivedCount} archived)` : ""}, {plural(data.unplacedClassGroups.length, "class", "classes")} in no
+          section, {plural(data.approvers.length, "person", "people")} who may approve results.
         </p>
         <div role="status" className="mt-3 empty:hidden">
           {done && (
@@ -163,7 +177,8 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
             Sections
           </h2>
           <p className="text-sm text-fg-muted">
-            A section groups classes (for example Primary, JSS and SSS), so an approver can be given a whole section at once. A class is in one section at most.
+            A section groups classes (for example Primary, JSS and SSS), so an approver can be given a whole section at once. A class is in
+            one section at most.
           </p>
         </div>
 
@@ -181,7 +196,9 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
         />
 
         {data.sections.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line p-6 text-sm text-fg-muted">There are no sections yet. Add the first one above, then put classes in it.</p>
+          <p className="rounded-xl border border-dashed border-line p-6 text-sm text-fg-muted">
+            There are no sections yet. Add the first one above, then put classes in it.
+          </p>
         ) : (
           <ul className="space-y-4">
             {data.sections.map((section) => (
@@ -268,7 +285,9 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
           <h2 id="approvers-heading" className="text-base font-bold text-fg">
             Approvers
           </h2>
-          <p className="text-sm text-fg-muted">Each person who may approve results does so only where you say here. Someone with nowhere to approve approves nothing.</p>
+          <p className="text-sm text-fg-muted">
+            Each person who may approve results does so only where you say here. Someone with nowhere to approve approves nothing.
+          </p>
         </div>
         {data.approvers.length === 0 ? (
           <p className="rounded-xl border border-dashed border-line p-6 text-sm text-fg-muted">
@@ -300,7 +319,15 @@ export function ResultsApprovalPanel({ branches, hasMfa }: { branches: Branch[];
         )}
       </section>
 
-      <StepUpModal open={pending !== null} onClose={() => setPending(null)} onConfirm={confirm} hasMfa={hasMfa} change={pending?.change ?? null} saving={saving} error={saveError} />
+      <StepUpModal
+        open={pending !== null}
+        onClose={() => setPending(null)}
+        onConfirm={confirm}
+        hasMfa={hasMfa}
+        change={pending?.change ?? null}
+        saving={saving}
+        error={saveError}
+      />
     </div>
   );
 }
@@ -319,8 +346,21 @@ function AddSectionForm({ disabled, onAsk }: { disabled: boolean; onAsk: (name: 
   };
 
   return (
-    <form onSubmit={submit} className="grid items-start gap-3 rounded-2xl border border-line bg-surface p-5 shadow-xs sm:grid-cols-[1fr_auto]" noValidate>
-      <TextField label="New section" name="sectionName" value={name} onChange={(event) => setName(event.target.value)} error={problem} placeholder="For example Primary" maxLength={400} autoComplete="off" />
+    <form
+      onSubmit={submit}
+      className="grid items-start gap-3 rounded-2xl border border-line bg-surface p-5 shadow-xs sm:grid-cols-[1fr_auto]"
+      noValidate
+    >
+      <TextField
+        label="New section"
+        name="sectionName"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        error={problem}
+        placeholder="For example Primary"
+        maxLength={400}
+        autoComplete="off"
+      />
       <div className="sm:pt-[1.625rem]">
         <Button type="submit" variant="primary" disabled={disabled} className="w-full sm:w-auto">
           Add section
@@ -366,7 +406,9 @@ function SectionCard({
         <div className="min-w-0">
           <h3 className="flex flex-wrap items-center gap-2 text-sm font-bold text-fg">
             <span className="break-words">{section.name}</span>
-            {section.archived && <span className="rounded-full border border-line px-2 py-0.5 text-xs font-medium text-fg-muted">Archived</span>}
+            {section.archived && (
+              <span className="rounded-full border border-line px-2 py-0.5 text-xs font-medium text-fg-muted">Archived</span>
+            )}
           </h3>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -402,7 +444,16 @@ function SectionCard({
       {renaming && (
         <form onSubmit={save} className="mt-3 flex flex-wrap items-start gap-3" noValidate>
           <div className="min-w-0 flex-1">
-            <TextField label={`New name for ${section.name}`} name="renameSection" value={draft} onChange={(event) => setDraft(event.target.value)} error={problem} maxLength={400} autoComplete="off" autoFocus />
+            <TextField
+              label={`New name for ${section.name}`}
+              name="renameSection"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              error={problem}
+              maxLength={400}
+              autoComplete="off"
+              autoFocus
+            />
           </div>
           <div className="flex gap-2 sm:pt-[1.625rem]">
             <Button type="submit" variant="primary" disabled={disabled}>
@@ -416,7 +467,9 @@ function SectionCard({
       )}
 
       {section.classGroups.length === 0 ? (
-        <p className="mt-3 text-xs text-fg-muted">No classes in this section yet. Put a class in it from the list of classes in no section, or move one here.</p>
+        <p className="mt-3 text-xs text-fg-muted">
+          No classes in this section yet. Put a class in it from the list of classes in no section, or move one here.
+        </p>
       ) : (
         <ul className="mt-3 divide-y divide-line">
           {section.classGroups.map((group) => (
@@ -457,7 +510,11 @@ function ClassRow({
 }) {
   const [value, setValue] = useState("");
   // The first option is the prompt and sends nothing, so a move is always a choice. For a class that is in a section, "No section" is a choice of its own.
-  const options = [{ value: "", label: promptLabel }, ...targets.map((section) => ({ value: section.id, label: section.name })), ...(allowNone ? [{ value: NO_SECTION, label: "No section" }] : [])];
+  const options = [
+    { value: "", label: promptLabel },
+    ...targets.map((section) => ({ value: section.id, label: section.name })),
+    ...(allowNone ? [{ value: NO_SECTION, label: "No section" }] : []),
+  ];
   const noTarget = targets.length === 0 && !allowNone;
 
   return (
@@ -469,7 +526,13 @@ function ClassRow({
         ) : (
           <>
             <div className="min-w-0 sm:w-56">
-              <SelectField label={`Section for ${group.name}`} hideLabel value={value} onChange={(event) => setValue(event.target.value)} options={options} />
+              <SelectField
+                label={`Section for ${group.name}`}
+                hideLabel
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+                options={options}
+              />
             </div>
             <Button
               type="button"
@@ -531,11 +594,16 @@ function ApproverCard({
       </div>
 
       {approver.scopes.length === 0 ? (
-        <p className="mt-3 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-xs text-warn-fg">Approves nothing yet. Choose where they approve.</p>
+        <p className="mt-3 rounded-lg border border-warn-line bg-warn-bg px-3 py-2 text-xs text-warn-fg">
+          Approves nothing yet. Choose where they approve.
+        </p>
       ) : (
         <ul className="mt-3 flex flex-wrap gap-2" aria-label={`Where ${who} approves`}>
           {approver.scopes.map((scope) => (
-            <li key={`${scope.kind}:${scope.sectionId ?? scope.classGroupId ?? ""}`} className="rounded-full border border-line bg-field/30 px-3 py-1 text-xs font-medium text-fg">
+            <li
+              key={`${scope.kind}:${scope.sectionId ?? scope.classGroupId ?? ""}`}
+              className="rounded-full border border-line bg-field/30 px-3 py-1 text-xs font-medium text-fg"
+            >
               {describeScope(scope)}
             </li>
           ))}

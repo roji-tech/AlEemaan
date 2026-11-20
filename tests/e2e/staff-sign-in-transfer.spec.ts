@@ -53,6 +53,8 @@ test("Users > Staff: select everyone who can be invited and invite them, no e-ma
   await page.getByRole("button", { name: "Select everyone who can be invited (2)" }).click();
   const bar = page.getByRole("region", { name: "Selected staff" });
   await expect(bar).toContainText("2 selected");
+  // Back to the top before axe: after ticking the cards the page has scrolled, and the List and Grid view buttons sat half under the sticky top bar, where axe reports target-size.
+  await page.evaluate(() => window.scrollTo(0, 0));
   await expectAccessible(page, "the staff tab with two selected");
   await bar.getByRole("button", { name: "Invite to sign in" }).click();
   const dialog = page.getByRole("dialog", { name: "Invite 2 people to sign in" });
