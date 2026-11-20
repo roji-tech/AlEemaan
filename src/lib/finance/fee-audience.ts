@@ -97,7 +97,11 @@ export const HOW_OFTEN_WORDS: Record<string, "EVERY_TERM" | "EVERY_SESSION"> = {
   annually: "EVERY_SESSION",
 };
 /// What the screens call each recurrence.
-export const RECURRENCE_TEXT: Record<FeeRecurrence, string> = { THIS_TERM: "This term only", EVERY_TERM: "Every term", EVERY_SESSION: "Once a year" };
+export const RECURRENCE_TEXT: Record<FeeRecurrence, string> = {
+  THIS_TERM: "This term only",
+  EVERY_TERM: "Every term",
+  EVERY_SESSION: "Once a year",
+};
 
 export const RESIDENCE_WORDS: Record<string, FeeResidence> = {
   day: "DAY",
