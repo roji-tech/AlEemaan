@@ -214,6 +214,9 @@ model SubjectCatalog {
   id         String    @id @default(cuid())
   name       String
   code       String?
+  /// Labels only (Pre-school, Basic, Arabic, Core...): lower-case, trimmed, no repeats, at most 10 of 30 characters (the application normalises; a CHECK in the migration bounds the count). They
+  /// give no access and change no result. A branch subject shows its entry's tags through `catalogId`. Only a superadmin edits them.
+  tags       String[]  @default([])
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt

@@ -8,32 +8,66 @@ import { structureName, subjectCode } from "@/lib/academics/structure-rules";
 export const MAX_CATALOG_IDS = 50; // entries added to a branch in one request
 export const MAX_CATALOG_BRANCHES = 50; // branches an entry is added to in one request
 export const MAX_CATALOG_LIST = 500; // entries one list answer holds
+export const MAX_TAGS = 10; // tags on one subject
+export const MAX_TAG_CHARS = 30;
 
 export const CATALOG_TAKEN = "The catalogue already has a subject with that name or code.";
 export const CATALOG_RENAME_NEEDS_NAME = "Give the new name to rename it in the branches.";
 
 const id = z.string().trim().min(1).max(64);
 
-export const catalogInput = z.strictObject({ name: structureName, code: subjectCode.nullable().optional() });
+/// One tag as stored: lower-case, trimmed, runs of spaces made one. Letters, digits, spaces and dashes only; it starts with a letter or digit. (Tags are labels: they give no access.)
+export const normalizeTag = (raw: string): string => raw.trim().replace(/\s+/g, " ").toLowerCase();
+const TAG_SHAPE = /^[\p{L}\p{N}][\p{L}\p{N} -]*$/u;
+export const tagText = z
+  .string()
+  .transform(normalizeTag)
+  .pipe(
+    z
+      .string()
+      .min(1, "A tag cannot be empty.")
+      .max(MAX_TAG_CHARS, `A tag is at most ${MAX_TAG_CHARS} characters.`)
+      .regex(TAG_SHAPE, "A tag uses letters, numbers, spaces and dashes only."),
+  );
+/// A list of tags: each normalised, repeats dropped, at most `MAX_TAGS`. The raw list is bounded too, so a huge payload is refused before anything is looked at.
+export const tagList = z
+  .array(z.string().max(200))
+  .max(MAX_TAGS * 3, `Use at most ${MAX_TAGS} tags.`)
+  .transform((list) => list.map(normalizeTag).filter((t) => t !== ""))
+  .pipe(z.array(tagText))
+  .transform((list) => [...new Set(list)])
+  .refine((list) => list.length <= MAX_TAGS, `Use at most ${MAX_TAGS} tags.`);
+/// A tags cell of a file: tags separated by semicolons ("core; basic"), an empty cell none.
+export const splitTagCell = (cell: string): string[] =>
+  cell
+    .split(";")
+    .map((t) => t.trim())
+    .filter((t) => t !== "");
+
+export const catalogInput = z.strictObject({ name: structureName, code: subjectCode.nullable().optional(), tags: tagList.optional() });
 export const catalogPatch = z
   .strictObject({
     name: structureName.optional(),
     code: subjectCode.nullable().optional(),
+    tags: tagList.optional(),
     archived: z.boolean().optional(),
     /// Also rename the branches' own subjects that are linked to this entry (default: no). Refused as a whole when a branch already has another live subject with the new name.
     renameInBranches: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.")
   .refine((v) => v.renameInBranches !== true || v.name !== undefined, CATALOG_RENAME_NEEDS_NAME);
-export const addToBranchesInput = z.strictObject({ branchIds: z.array(id).min(1, "Choose at least one branch.").max(MAX_CATALOG_BRANCHES) });
+export const addToBranchesInput = z.strictObject({
+  branchIds: z.array(id).min(1, "Choose at least one branch.").max(MAX_CATALOG_BRANCHES),
+});
 export const fromCatalogInput = z.strictObject({
   branchId: id,
   catalogIds: z.array(id).min(1, "Choose at least one subject.").max(MAX_CATALOG_IDS),
 });
-export const availableQuery = z.object({ branchId: id });
+export const availableQuery = z.object({ branchId: id, tag: tagText.optional() });
 export const listQuery = z.object({
   q: z.string().trim().max(60).optional(),
   archived: z.enum(["true", "false"]).optional(),
+  tag: tagText.optional(),
 });
 
 /// Two names are the same subject when they match ignoring case and the spaces at the ends.
@@ -77,5 +111,5 @@ export const ADD_RESULT_TEXT: Record<AddResult, string> = {
   linked: "Linked to the subject it already has",
   already: "Already has it",
   clash: "Has another subject with that name",
-  gone: "Not in the catalogue",
+  gone: "Not found",
 };

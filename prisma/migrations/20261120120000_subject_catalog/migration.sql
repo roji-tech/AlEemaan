@@ -1,4 +1,4 @@
--- Task 0119: the shared subject catalogue. Additive: one new table and one nullable column on Subject with its index and key. Nothing is changed or dropped.
+-- Task 0119: the shared subject catalogue (with tags). Additive: one new table and one nullable column on Subject with its index and key. Nothing is changed or dropped.
 --
 -- A branch's Subject stays the branch's own row (results, offerings and assignments point at it with the branch-checked key); "catalogId" only says it is the same subject as the
 -- catalogue entry. The partial unique indexes at the end are not in prisma/schema/academics.prisma because Prisma cannot express them (the same as Subject_live_name_key, which
@@ -12,12 +12,16 @@ CREATE TABLE "SubjectCatalog" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "archivedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "SubjectCatalog_pkey" PRIMARY KEY ("id")
 );
+
+-- Tags are labels only (no access, no result effect); the application normalises them (lower-case, trimmed, no repeats, 30 characters each). The database bounds how many.
+ALTER TABLE "SubjectCatalog" ADD CONSTRAINT "SubjectCatalog_tags_max_10" CHECK ("tags" IS NULL OR cardinality("tags") <= 10);
 
 -- CreateIndex
 CREATE INDEX "Subject_catalogId_idx" ON "Subject"("catalogId");

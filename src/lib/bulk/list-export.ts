@@ -4,6 +4,7 @@ import { pupilEntity } from "./pupils";
 import { staffColumns } from "./staff";
 import { classColumns } from "./classes";
 import { subjectColumns } from "./subjects";
+import { subjectTagsColumn } from "./subject-catalog";
 import type { BulkColumn } from "./types";
 
 // Exporting a list (task 0103 D3): the four lists' rows as the import template's columns, in the same order and wording, so an export can be corrected in a spreadsheet and imported again.
@@ -23,7 +24,8 @@ export const EXPORT_COLUMNS: Record<ExportKind, BulkColumn[]> = {
   pupils: pupilEntity.columns,
   staff: staffColumns,
   classes: classColumns,
-  subjects: subjectColumns,
+  // A branch's subjects, with the tags of their catalogue entry (task 0119) as a last column.
+  subjects: [...subjectColumns, subjectTagsColumn],
 };
 export const EXPORT_NOUN: Record<ExportKind, string> = { pupils: "pupils", staff: "staff", classes: "classes", subjects: "subjects" };
 
@@ -83,7 +85,7 @@ export type StaffExportRow = {
   corpsMember: boolean;
 };
 export type ClassExportRow = { name: string; arms: string[]; subjects: string[] };
-export type SubjectExportRow = { name: string; code: string | null };
+export type SubjectExportRow = { name: string; code: string | null; tags?: readonly string[] };
 
 /// One record's cells, keyed by the import's column keys.
 export const exportValues = {
@@ -116,7 +118,7 @@ export const exportValues = {
     corpsMember: r.corpsMember ? "Yes" : "No",
   }),
   classes: (r: ClassExportRow): Record<string, string> => ({ name: r.name, arms: r.arms.join(", "), subjects: r.subjects.join(", ") }),
-  subjects: (r: SubjectExportRow): Record<string, string> => ({ name: r.name, code: text(r.code) }),
+  subjects: (r: SubjectExportRow): Record<string, string> => ({ name: r.name, code: text(r.code), tags: (r.tags ?? []).join("; ") }),
 };
 
 /// The header row and the rows, in the template's column order.
