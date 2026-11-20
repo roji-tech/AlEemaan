@@ -55,5 +55,5 @@ export function orderBySubjectAdded<T extends { subjectId: string; subject: { na
 export function classText(cls: { group: string; arm: string; gradeLabel?: string | null }, withArm: boolean): string {
   const base = withArm ? `${cls.group} ${cls.arm}` : cls.group;
   const label = cls.gradeLabel?.trim();
-  return label ? `${base} ( ${label} )` : base;
+  return label ? `${base} (${label})` : base;
 }

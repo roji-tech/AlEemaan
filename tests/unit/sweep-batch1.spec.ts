@@ -129,8 +129,10 @@ test.describe("export", () => {
       "",
     ]);
     expect(
-      exportTable("classes", [exportValues.classes({ name: "JSS 1", arms: ["A", "B"], subjects: ["English", "Maths"] })]).rows[0],
-    ).toEqual(["JSS 1", "A, B", "English, Maths"]);
+      exportTable("classes", [
+        exportValues.classes({ name: "JSS 1", gradeLabel: "Grade 7", arms: ["A", "B"], subjects: ["English", "Maths"] }),
+      ]).rows[0],
+    ).toEqual(["JSS 1", "Grade 7", "A, B", "English, Maths"]);
   });
   test("the file name is letters, digits and dashes only", () => {
     expect(exportFileStem("pupils", "Primary (English)", "2026-11-19", "shown")).toBe("pupils-primary-english-filtered-2026-11-19");

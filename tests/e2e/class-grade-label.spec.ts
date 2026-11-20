@@ -24,7 +24,7 @@ test.afterAll(async () => {
 });
 
 test("a class is made with a grade label, edited, and cleared; the list shows the label beside the name", async ({ page }) => {
-  const branch = await seedInstance();
+  await seedInstance();
   const admin = await createUser({ role: Role.ADMIN, name: "Grade Admin" });
   await signInThroughUi(page, admin);
   await page.goto("/academics");
@@ -38,7 +38,7 @@ test("a class is made with a grade label, edited, and cleared; the list shows th
   await dialog.getByRole("button", { name: "Create class" }).click();
   const card = page.getByRole("listitem").filter({ hasText: "JSS 1" }).first();
   await expect(card).toContainText("JSS 1 (Grade 7)");
-  expect((await db.classGroup.findFirstOrThrow({ where: { branchId: branch.id, name: "JSS 1" } })).gradeLabel).toBe("Grade 7");
+  expect((await db.classGroup.findFirstOrThrow({ where: { name: "JSS 1" } })).gradeLabel).toBe("Grade 7");
 
   await clickAction(card, "Rename JSS 1");
   const edit = page.getByRole("dialog", { name: "Edit JSS 1" });
@@ -52,5 +52,5 @@ test("a class is made with a grade label, edited, and cleared; the list shows th
   await again.getByLabel("Grade label (optional)").fill("");
   await again.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "JSS 1" }).first()).not.toContainText("(");
-  expect((await db.classGroup.findFirstOrThrow({ where: { branchId: branch.id, name: "JSS 1" } })).gradeLabel).toBeNull();
+  expect((await db.classGroup.findFirstOrThrow({ where: { name: "JSS 1" } })).gradeLabel).toBeNull();
 });
