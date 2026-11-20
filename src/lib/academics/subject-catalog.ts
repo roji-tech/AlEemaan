@@ -54,6 +54,7 @@ export async function listCatalog(input: { q?: string; archived?: boolean; tag?:
       id: e.id,
       name: e.name,
       code: e.code,
+      tags: e.tags,
       archivedAt: e.archivedAt,
       branches,
       liveBranches: branches.filter((b) => b.live).length,

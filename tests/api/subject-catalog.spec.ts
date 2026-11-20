@@ -87,6 +87,11 @@ test("list: every entry with the branches offering it (and how many classes ther
   const entries = all.json.data.entries as { name: string; liveBranches: number; branches: { branchName: string; classes: number }[] }[];
   expect(entries.map((e) => e.name)).toEqual(["Arabic", "English Language"]);
   const english = entries.find((e) => e.name === "English Language")!;
+  // The list carries each entry's tags (the screen builds its tag filter from them: the list once left them out and the filter was empty).
+  expect(entries.map((e) => [e.name, (e as unknown as { tags: string[] }).tags])).toEqual([
+    ["Arabic", ["arabic"]],
+    ["English Language", ["core", "basic"]],
+  ]);
   expect(english.liveBranches).toBe(2);
   expect(english.branches.map((b) => [b.branchName, b.classes]).sort()).toEqual(
     [

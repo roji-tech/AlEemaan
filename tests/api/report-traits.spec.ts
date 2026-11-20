@@ -419,6 +419,13 @@ test.describe("the card", () => {
         isCurrent: false,
       },
     });
+    // Ratings and attendance are entered BEFORE the term's results are published: once they are, the sheet is locked (409).
+    const [a] = t.traits;
+    expect((await put(t.admin.cookie, t.w.student.id, { periodId: second.id, ratings: [{ traitId: a.id, rating: 4 }] })).status).toBe(200);
+    expect(
+      (await putAtt(t.admin.cookie, t.w.student.id, { periodId: second.id, timesOpen: 60, timesPresent: 55, timesAbsent: 5 })).status,
+    ).toBe(200);
+
     await publish(t.w, t.w.period.id, 60);
     await publish(t.w, second.id, 80);
     const mate = await db.studentRecord.create({
@@ -442,11 +449,6 @@ test.describe("the card", () => {
       },
     });
     await publish(t.w, second.id, 90, mate.id);
-    const [a] = t.traits;
-    expect((await put(t.admin.cookie, t.w.student.id, { periodId: second.id, ratings: [{ traitId: a.id, rating: 4 }] })).status).toBe(200);
-    expect(
-      (await putAtt(t.admin.cookie, t.w.student.id, { periodId: second.id, timesOpen: 60, timesPresent: 55, timesAbsent: 5 })).status,
-    ).toBe(200);
 
     const res = await card(t.admin.cookie, t.w, second.id);
     expect(res.status, JSON.stringify(res.json)).toBe(200);
