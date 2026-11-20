@@ -63,7 +63,7 @@ test("All branches: one list of every branch, each card names its branch, nothin
   // Search works across branches.
   await page.getByRole("searchbox", { name: "Search staff" }).fill("Olu");
   await expect(page.getByText("1 staff record match")).toBeVisible();
-  await page.getByRole("button", { name: `Open Olu Other in ${other.name}` }).click();
+  await clickAction(page, `Open Olu Other in ${other.name}`); // inside the card's Actions menu
   await expect(page.getByTestId("current-branch")).toHaveText(other.name);
   await expect(page.getByRole("button", { name: "New staff record" })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`branch=${other.id}`));
@@ -98,8 +98,9 @@ test("the 'not on the staff list yet' panel: Close, Remind me later, Don't list;
     .first()
     .click();
   // Don't list: the person is left out, "Show hidden" brings them back.
+  // The signed-in administrator has no record either, so the panel stays up for them; it is Khalid who is gone from it.
   await panel.getByRole("button", { name: "Don't list Akinniyi Khalid" }).click();
-  await expect(panel).toBeHidden();
+  await expect(panel).not.toContainText("Akinniyi Khalid");
   await page.reload();
   await expect(page.getByRole("button", { name: /^Show hidden \(1\)/ })).toBeVisible();
   await page.getByRole("button", { name: /^Show hidden \(1\)/ }).click();

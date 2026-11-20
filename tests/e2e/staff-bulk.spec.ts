@@ -82,7 +82,9 @@ test("a file is reviewed row by row; problem rows download, are corrected and up
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/problem-rows.*\.csv$/);
   const text = fs.readFileSync((await file.path())!, "utf8");
-  expect(text).toContain("Row,Category,First name,Last name,Phone,Email,Title,Gender,Job title,Qualification,Corps member,Problem"); // task 0111's columns come after the old ones
+  expect(text).toContain(
+    "Row,Category,First name,Last name,Phone,Email,Title,Gender,Job title,Qualification,Corps member,Department,Problem",
+  ); // task 0111's columns come after the old ones; the Department column (task 0118) sits before Problem
   expect(text).toContain(`3,Teaching,${tag}B,Two`);
 
   await dialog(page)
