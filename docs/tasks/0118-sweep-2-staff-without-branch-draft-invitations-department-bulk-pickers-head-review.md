@@ -1,7 +1,7 @@
 # 0118: Sweep 2: drafts-aware accept rule, staff with no branch yet, draft invitations, departments in bulk staff and the selection bar, remembered branch in the last pickers, head-of-department review (design)
 
 - **Period / Focus:** 2026-11-20 (the maintainer: "start in sweep", for the remaining task 0101 items: staff with no branch, draft invitations, the Department column in bulk staff and "Add to department", head of department approving results, the pickers that still reset, and making the accept rule and the unlisted list skip drafts)
-- **Status:** Built; the API and browser specs are written and not yet run (section 7)
+- **Status:** Built and run on 2026-11-20 (section 9); the last browser group's result is posted on the PR before it merges
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** `claude/sweep-2` (built on the combined batch and `claude/staff-ux`) / to be opened into `dev`
@@ -99,3 +99,12 @@ I read `results-workflow.ts`, the `Result` model and the migrations that guard i
 ## 8. Build record
 
 Built on `claude/combined-batch` (bb8bd11) after merging `claude/staff-ux` (3af6c63). Gates run on this worktree: `prisma generate`, `next typegen`, `tsc --noEmit` (0 errors), ESLint (0 errors; one warning on a line neither branch touched, `staff-transfer.ts`), Prettier `--check` on the changed files, `prisma validate`, and the migration-versus-schema comparison. Numbers (unit, counts) are in the final report and were read from the run logs, not from memory.
+
+## 9. Test record (2026-11-20, from the run logs)
+
+Merged with the combined batch (PR #316) first. One worker, one shared test database, API and browser (desktop and phone).
+
+- **New specs** (`sweep2-staff`, `draft-invitations`, `staff-department-bulk`, `department-head-review` API; `sweep2` browser): first run 48 passed, 4 failed. The four: (1) a real defect, `saveDrafts` returned its refusal from inside the transaction so a refusal for one branch still COMMITTED the drafts saved for the branches before it ("all or none" broken); it now throws inside and is caught outside, so nothing is kept; (2) the staff form's add button is "Add staff record" (test said "Save"); (3) the remembered-branch test read the picker once, before the remembered branch is applied after hydration (now polled); and the phone run of the same staff test. Rerun of those specs: 25 passed, 1 skipped (the remembered-branch test is skipped on phones by design).
+- **Regression run**, 19 spec files (staff, invitations, results workflow and approver scope, departments, drafts, users, students, grading, accessibility): 14 failures before it was interrupted at 160 passed. All test-side: 9 were direct database inserts of a SENT invitation without `sentAt`, which the new `Invitation_draft_or_sent` check refuses (18 inserts in 13 files now set it); 2 drafts browser specs saved an already-draft record with "Save" (that form now offers "Save draft" and "Complete", and the notice says "saved as a draft"); 1 grading spec did not pass once and passed on rerun (a timing flake, not in this change). Rerun of the failed files: 107 passed, 0 failed.
+- The rest of the browser set (accessibility, staff bulk, details, sign-in transfer, UX, students, departments, desktop and phone) was run last; its result is on the PR.
+
