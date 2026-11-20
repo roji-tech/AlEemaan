@@ -400,7 +400,8 @@ export async function setFeeAdmissionMany(
       take: MANY_LIMIT + 1,
     });
   const split = (rows: { id: string; feeAdmission: "NEW" | "RETURNING" | null }[]) => {
-    if (rows.length > MANY_LIMIT) throw new FinanceError(`That is more than ${MANY_LIMIT} pupils; choose one class at a time.`, "VALIDATION");
+    if (rows.length > MANY_LIMIT)
+      throw new FinanceError(`That is more than ${MANY_LIMIT} pupils; choose one class at a time.`, "VALIDATION");
     return { inScope: rows.length, change: rows.filter((r) => r.feeAdmission !== options.admission) };
   };
   if (options.dryRun) {
@@ -410,7 +411,10 @@ export async function setFeeAdmissionMany(
   return prisma.$transaction(async (tx) => {
     const { inScope, change } = split(await find(tx));
     if (change.length > 0) {
-      await tx.studentRecord.updateMany({ where: { branchId, id: { in: change.map((c) => c.id) } }, data: { feeAdmission: options.admission } });
+      await tx.studentRecord.updateMany({
+        where: { branchId, id: { in: change.map((c) => c.id) } },
+        data: { feeAdmission: options.admission },
+      });
       await tx.auditLog.create({
         data: {
           actorUserId,
@@ -418,11 +422,15 @@ export async function setFeeAdmissionMany(
           targetType: "Branch",
           targetId: branchId,
           beforeValue: Object.fromEntries(change.map((c) => [c.id, c.feeAdmission])),
-          afterValue: { admission: options.admission, classGroupId: options.classGroupId ?? null, onlyUnset: options.onlyUnset, changed: change.length },
+          afterValue: {
+            admission: options.admission,
+            classGroupId: options.classGroupId ?? null,
+            onlyUnset: options.onlyUnset,
+            changed: change.length,
+          },
         },
       });
     }
     return { inScope, willChange: change.length, changed: change.length, dryRun: false };
   });
 }
-
