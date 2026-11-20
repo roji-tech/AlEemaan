@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { UsersPanel } from "@/components/users/UsersPanel";
 import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
 import { LoginSwitchPanel } from "@/components/settings/LoginSwitchPanel";
+import { FamilySecretsPanel } from "@/components/settings/FamilySecretsPanel";
 import { switchableBranches } from "@/lib/auth/login-switch";
 
 export const metadata: Metadata = { title: "Users" };
@@ -66,6 +67,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       />
       {/* Student and parent sign-in, per branch (task 0091). A superadmin finds it under Settings; an administrator cannot open Settings, so it is here, where the people who sign in are managed: their own branches only. */}
       {!isSuperAdmin && <LoginSwitchPanel initial={await switchableBranches(scope)} canBulk={false} />}
+      {!isSuperAdmin && <FamilySecretsPanel />}
       <UsersPanel
         branches={branches}
         standingCan={standingCan}

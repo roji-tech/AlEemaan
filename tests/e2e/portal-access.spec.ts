@@ -4,7 +4,7 @@ import { Gender } from "@prisma/client";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { DEFAULT_PORTAL_ACCESS, PORTAL_ACCESS_KEY, type PortalAccess } from "@/lib/portal/access";
-import { signInThroughUi } from "./helpers";
+import { signInThroughUi, openTab } from "./helpers";
 
 // What a pupil and a guardian see in the portal, and the Settings screen that decides it (task 0040), in a real browser on a desktop and a phone, in both themes.
 
@@ -246,7 +246,7 @@ test.describe("the Settings screen", () => {
     const admin = await createUser({ name: "Sue Superadmin", role: Role.ADMIN });
     await signInThroughUi(page, admin);
     await page.goto("/settings");
-    await page.getByRole("tab", { name: "Portal access" }).click();
+    await openTab(page, "Portal access");
     await expect(panel(page)).toBeVisible();
     await expect(box(page, "Pupil", "Overview")).toBeVisible();
   }
@@ -277,7 +277,7 @@ test.describe("the Settings screen", () => {
 
     // a reload shows the saved value; the pupil now has the fees section
     await page.reload();
-    await page.getByRole("tab", { name: "Portal access" }).click();
+    await openTab(page, "Portal access");
     await expect(box(page, "Pupil", "Fees and invoices")).toBeChecked();
     await page.context().clearCookies();
     await portalSignIn(page, DOB);

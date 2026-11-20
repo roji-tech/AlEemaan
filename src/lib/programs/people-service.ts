@@ -19,6 +19,7 @@ import {
   placeState,
   type PlaceState,
 } from "./people-rules";
+import { LIVE_PUPIL, LIVE_STAFF, NOT_DRAFT } from "@/lib/drafts/live";
 
 // Programs, slice P2: the people of a program (task 0043, section 9). Every change goes through the same `change()` guard as the structure (the program's row lock, the
 // school's switch, the audit); a person is never hard-deleted (withdrawing ends the place). The state of a place is READ from the school's own records every time.
@@ -392,7 +393,7 @@ export async function candidates(
     const students = await prisma.studentRecord.findMany({
       where: {
         branchId: { in: ids },
-        archivedAt: null,
+        ...LIVE_PUPIL,
         OR: [
           { firstName: { contains: escapeLike(q), mode: "insensitive" } },
           { lastName: { contains: escapeLike(q), mode: "insensitive" } },
@@ -423,7 +424,7 @@ export async function candidates(
   const staff = await prisma.staffRecord.findMany({
     where: {
       branchId: { in: ids },
-      archivedAt: null,
+      ...LIVE_STAFF,
       OR: [{ firstName: { contains: escapeLike(q), mode: "insensitive" } }, { lastName: { contains: escapeLike(q), mode: "insensitive" } }],
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -463,7 +464,7 @@ export async function classOptions(actorUserId: string, programId: string): Prom
       name: true,
       branchId: true,
       classGroup: { select: { name: true } },
-      _count: { select: { enrollments: { where: { status: "ACTIVE" } } } },
+      _count: { select: { enrollments: { where: { status: "ACTIVE", student: NOT_DRAFT } } } },
     },
   });
   return done(
@@ -562,9 +563,10 @@ export async function addPerson(actorUserId: string, programId: string, input: A
     if (input.kind === "STUDENT") {
       const student = await tx.studentRecord.findUnique({
         where: { id: input.studentId },
-        select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true },
+        select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true, isDraft: true },
       });
-      if (!student || student.archivedAt) return refuse(404, "NOT_FOUND", "That student was not found.");
+      // A draft (task 0101 D1) is not put in a program: complete the record first.
+      if (!student || student.archivedAt || student.isDraft) return refuse(404, "NOT_FOUND", "That student was not found.");
       const allowed = await branchAllowed(tx, program.id, student.branchId, viewer, true);
       if (!allowed.ok) return allowed;
       toLink = allowed.data;
@@ -583,9 +585,9 @@ export async function addPerson(actorUserId: string, programId: string, input: A
     } else if (input.kind === "STAFF") {
       const record = await tx.staffRecord.findUnique({
         where: { id: input.staffRecordId },
-        select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true },
+        select: { id: true, branchId: true, firstName: true, lastName: true, archivedAt: true, isDraft: true },
       });
-      if (!record || record.archivedAt) return refuse(404, "NOT_FOUND", "That member of staff was not found.");
+      if (!record || record.archivedAt || record.isDraft) return refuse(404, "NOT_FOUND", "That member of staff was not found.");
       const allowed = await branchAllowed(tx, program.id, record.branchId, viewer, true);
       if (!allowed.ok) return allowed;
       toLink = allowed.data;
@@ -683,7 +685,7 @@ export async function addClass(
     const allowed = await branchAllowed(tx, program.id, arm.branchId, viewer, true);
     if (!allowed.ok) return allowed;
     const enrolments = await tx.studentEnrollment.findMany({
-      where: { classArmId: arm.id, status: "ACTIVE" },
+      where: { classArmId: arm.id, status: "ACTIVE", student: NOT_DRAFT },
       select: { student: { select: { id: true, firstName: true, lastName: true, archivedAt: true, standing: true } } },
     });
     if (enrolments.length > MAX_CLASS_ADD)

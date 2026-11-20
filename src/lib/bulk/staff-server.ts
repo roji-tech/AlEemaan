@@ -5,12 +5,13 @@ import type { ServerKind } from "./server";
 
 // The server half of the staff kind (task 0084): the one thing only the database knows (a live record in the branch already uses the email) and the save.
 
-export type StaffBulkCtx = { branchId: string };
+/// `asDraft` (task 0101 D1): save every row as a draft; the rows' own rules still apply, the completeness rules do not.
+export type StaffBulkCtx = { branchId: string; asDraft?: boolean };
 
 export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
   entity: staffEntity,
   auditAction: "STAFF_BULK_IMPORTED",
-  auditDetail: (ctx) => ({ branchId: ctx.branchId }),
+  auditDetail: (ctx) => ({ branchId: ctx.branchId, asDraft: ctx.asDraft === true }),
   async check(db, rows, ctx) {
     const found = new Map<number, Problem[]>();
     const emails = rows.flatMap((r) => (r.row.email ? [r.row.email] : []));
@@ -40,6 +41,7 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
           designation: row.designation ?? null,
           qualification: row.qualification ?? null,
           corpsMember: row.corpsMember ?? false,
+          isDraft: ctx.asDraft === true,
         },
         select: { id: true },
       });
@@ -49,7 +51,7 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
           action: "STAFF_CREATED",
           targetType: "StaffRecord",
           targetId: created.id,
-          afterValue: { category: row.category, branchId: ctx.branchId },
+          afterValue: { category: row.category, branchId: ctx.branchId, ...(ctx.asDraft ? { isDraft: true } : {}) },
         },
       });
     }

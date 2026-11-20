@@ -24,16 +24,59 @@ export interface PortalStudentRecord {
   }>;
 }
 
+/// Who this card signs in (task 0113, task 0094 D1/D2): decided by the address, never chosen on the form. `ANY` is a deployment with the portals off (one address for everyone).
+export type FamilyDoor = "PUPIL" | "GUARDIAN" | "ANY";
+
+/// `ANY` is a deployment with the portals switched off: one address for everyone, where the old single form stays as it was (its heading, field name and button), so what people (and the tests)
+/// know does not move; the student. and parent. addresses get the new wording.
+const COPY: Record<
+  FamilyDoor,
+  { title: string; subtitle: string; secret: string; placeholder: string; hint: string; admissionLabel: string; button: string }
+> = {
+  PUPIL: {
+    admissionLabel: "Admission number",
+    button: "Sign in",
+    title: "Pupil sign-in",
+    subtitle: "Results, coursework and practice",
+    secret: "Access code",
+    placeholder: "e.g. ABCD-EFGH",
+    hint: "The pupil code on the slip from the school. While your school allows it, your date of birth works too (like 2014-03-21).",
+  },
+  GUARDIAN: {
+    admissionLabel: "Admission number",
+    button: "Sign in",
+    title: "Parent sign-in",
+    subtitle: "Your children's results, fees and progress",
+    secret: "Guardian access code",
+    placeholder: "e.g. ABCD-EFGH",
+    hint: "The guardian code on the slip from the school. While your school allows it, the phone number or e-mail address the school has for you works too (the whole number).",
+  },
+  ANY: {
+    admissionLabel: "Student Admission Number",
+    button: "Access Student Portal",
+    title: "AlEemaan Portal",
+    subtitle: "Results, fees, coursework and progress",
+    secret: "Access code, date of birth or guardian phone",
+    placeholder: "e.g. ABCD-EFGH, 2014-03-21 or 08012345678",
+    hint: "The code on the slip from the school; or, while your school allows it, the pupil's date of birth or the guardian's whole phone number.",
+  },
+};
+
 interface PortalLoginCardProps {
   onSuccess: (data: { student: PortalStudentRecord; siblingStudents: PortalStudentRecord[] }) => void;
-  initialToken?: string;
+  door?: FamilyDoor;
+  /// Shown under the form on the parent. and student. sign-in pages: the e-mail and password sign-in for an account the school invited (task 0094 D1).
+  onUseEmail?: () => void;
+  /// On the student. and parent. addresses: the page's own heading and line (the same ones every sign-in page of that portal has), and the portal's name for the marker the page carries.
+  heading?: { title: string; line: string; portal: string };
+  /// A line under the heading from the host alone (task 0091): the school has not opened this portal.
+  notice?: string | null;
 }
 
-export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProps) {
-  const [tab, setTab] = useState<"credentials" | "token">(initialToken ? "token" : "credentials");
+export function PortalLoginCard({ onSuccess, door = "ANY", onUseEmail, heading, notice = null }: PortalLoginCardProps) {
+  const copy = COPY[door];
   const [admissionNo, setAdmissionNo] = useState("");
   const [secret, setSecret] = useState("");
-  const [token, setToken] = useState(initialToken || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +86,10 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
     setLoading(true);
 
     try {
-      const payload = tab === "token" ? { token: token.trim() } : { admissionNo: admissionNo.trim(), secret: secret.trim() };
-
       const res = await fetch("/api/v1/portal/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ admissionNo: admissionNo.trim(), secret: secret.trim() }),
       });
 
       const json = await res.json();
@@ -81,41 +122,22 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
             />
           </svg>
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-fg">AlEemaan Portal</h1>
-        <p className="text-sm text-fg-muted mt-1">Parent & Student Self-Service Access</p>
+        {heading && (
+          <span
+            data-portal={heading.portal}
+            className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold tracking-wide text-brand-fg uppercase"
+          >
+            {heading.portal}
+          </span>
+        )}
+        <h1 className="text-2xl font-bold tracking-tight text-fg">{heading?.title ?? copy.title}</h1>
+        <p className="text-sm text-fg-muted mt-1">{heading ? `${heading.line} ${copy.subtitle}.` : copy.subtitle}</p>
       </div>
-
-      {/* Tabs */}
-      <div className="flex rounded-xl bg-surface-2 p-1 border border-line mb-6" role="tablist" aria-label="Login Options">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "credentials"}
-          onClick={() => {
-            setTab("credentials");
-            setError(null);
-          }}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-brand ${
-            tab === "credentials" ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg"
-          }`}
-        >
-          Admission Number
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "token"}
-          onClick={() => {
-            setTab("token");
-            setError(null);
-          }}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-brand ${
-            tab === "token" ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg"
-          }`}
-        >
-          Access Token / Link
-        </button>
-      </div>
+      {notice && (
+        <p role="status" className="mb-4 rounded-xl border border-info-line bg-info-bg px-3.5 py-3 text-sm text-info-fg">
+          {notice}
+        </p>
+      )}
 
       {error && (
         <div
@@ -135,56 +157,43 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {tab === "credentials" ? (
-          <>
-            <div>
-              <label htmlFor="admissionNo" className="block text-xs font-semibold text-fg-2 uppercase tracking-wider mb-1.5">
-                Student Admission Number
-              </label>
-              <input
-                id="admissionNo"
-                type="text"
-                required
-                value={admissionNo}
-                onChange={(e) => setAdmissionNo(e.target.value)}
-                placeholder="e.g. 2025/0001"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-field border border-line text-fg placeholder:text-fg-muted/60 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
-              />
-            </div>
+        <div>
+          <label htmlFor="admissionNo" className="block text-xs font-semibold text-fg-2 uppercase tracking-wider mb-1.5">
+            {copy.admissionLabel}
+          </label>
+          <input
+            id="admissionNo"
+            type="text"
+            required
+            autoComplete="username"
+            value={admissionNo}
+            onChange={(e) => setAdmissionNo(e.target.value)}
+            placeholder="e.g. 2025/0001"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-field border border-line text-fg placeholder:text-fg-muted/60 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+          />
+        </div>
 
-            <div>
-              <label htmlFor="secret" className="block text-xs font-semibold text-fg-2 uppercase tracking-wider mb-1.5">
-                Date of Birth OR Guardian Phone
-              </label>
-              <input
-                id="secret"
-                type="text"
-                required
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder="e.g. 2012-05-18 or 08012345678"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-field border border-line text-fg placeholder:text-fg-muted/60 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
-              />
-              <p className="text-xs text-fg-muted mt-1.5">Matches the pupil&apos;s date of birth or guardian mobile phone.</p>
-            </div>
-          </>
-        ) : (
-          <div>
-            <label htmlFor="tokenInput" className="block text-xs font-semibold text-fg-2 uppercase tracking-wider mb-1.5">
-              Guardian Magic Access Token
-            </label>
-            <input
-              id="tokenInput"
-              type="text"
-              required
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste token or link received via SMS/Email"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-field border border-line text-fg placeholder:text-fg-muted/60 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
-            />
-            <p className="text-xs text-fg-muted mt-1.5">Check your SMS or WhatsApp message for your secure magic link.</p>
-          </div>
-        )}
+        <div>
+          <label htmlFor="secret" className="block text-xs font-semibold text-fg-2 uppercase tracking-wider mb-1.5">
+            {copy.secret}
+          </label>
+          <input
+            id="secret"
+            type="text"
+            required
+            autoComplete="current-password"
+            autoCapitalize="characters"
+            spellCheck={false}
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder={copy.placeholder}
+            aria-describedby="secret-hint"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-field border border-line text-fg placeholder:text-fg-muted/60 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+          />
+          <p id="secret-hint" className="text-xs text-fg-muted mt-1.5">
+            {copy.hint}
+          </p>
+        </div>
 
         <button
           type="submit"
@@ -200,10 +209,21 @@ export function PortalLoginCard({ onSuccess, initialToken }: PortalLoginCardProp
               Verifying...
             </>
           ) : (
-            "Access Student Portal"
+            copy.button
           )}
         </button>
       </form>
+      {onUseEmail && (
+        <p className="mt-4 text-center text-sm">
+          <button
+            type="button"
+            onClick={onUseEmail}
+            className="min-h-11 rounded-md px-2 font-semibold text-brand-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            I have an account with an e-mail address
+          </button>
+        </p>
+      )}
       <InstallApp className="mt-4 w-full text-center" />
     </div>
   );

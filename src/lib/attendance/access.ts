@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { canAdminister } from "@/lib/auth/branch-access";
+import { LIVE_STAFF } from "@/lib/drafts/live";
 
 export type AttendanceArmGrantType = "ADMIN" | "CLASS_TEACHER" | "EXPLICIT_GRANT";
 
@@ -225,7 +226,7 @@ export async function createAttendanceGrant({
   // Cross-branch checks: staff and arm must strictly belong to branchId
   const [staff, arm] = await Promise.all([
     prisma.staffRecord.findFirst({
-      where: { id: staffRecordId, branchId, archivedAt: null },
+      where: { id: staffRecordId, branchId, ...LIVE_STAFF },
       select: { id: true },
     }),
     prisma.classArm.findFirst({
@@ -333,8 +334,9 @@ export async function assignClassTeacher({
   }
 
   if (staffRecordId) {
+    // A draft cannot be a class teacher (task 0101 D1): complete the record first.
     const staff = await prisma.staffRecord.findFirst({
-      where: { id: staffRecordId, branchId, archivedAt: null },
+      where: { id: staffRecordId, branchId, ...LIVE_STAFF },
     });
     if (!staff) {
       throw new Error("Staff record not found in this branch");

@@ -7,6 +7,7 @@ import { FeeStructuresPanel } from "./FeeStructuresPanel";
 import { type FeeStructureItem } from "./FeeStructureModal";
 import { PaymentRulesPanel } from "./PaymentRulesPanel";
 import { FinanceOverview } from "./FinanceOverview";
+import { ScholarshipsPanel } from "./ScholarshipsPanel";
 import { useTabParam } from "@/components/ui/useTabParam";
 import { FINANCE_TAB_IDS } from "@/lib/finance/tabs";
 
@@ -24,7 +25,7 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
   // The open tab is in the address (`?tab=`, task 0100). Overview is the first tab and opens by default (task 0106); the old tab names are kept as they were in the page's own state.
   const [openTab, chooseTab] = useTabParam(FINANCE_TAB_IDS, "overview");
   const activeTab = openTab === "fees" ? "fee_structures" : openTab === "rules" ? "payment_rules" : openTab;
-  const setActiveTab = (tab: "overview" | "invoices" | "fee_structures" | "payment_rules") =>
+  const setActiveTab = (tab: "overview" | "invoices" | "fee_structures" | "payment_rules" | "scholarships") =>
     chooseTab(tab === "fee_structures" ? "fees" : tab === "payment_rules" ? "rules" : tab);
 
   const [invoices, setInvoices] = useState<InvoiceItemSummary[]>([]);
@@ -138,6 +139,17 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
         >
           Fee Schedules & Structures
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "scholarships"}
+          onClick={() => setActiveTab("scholarships")}
+          className={`pb-3 px-1 border-b-2 transition ${
+            activeTab === "scholarships" ? "border-brand-strong text-fg font-bold" : "border-transparent text-fg-muted hover:text-fg"
+          }`}
+        >
+          Scholarships
+        </button>
         {canManage && (
           <button
             type="button"
@@ -155,6 +167,8 @@ export function FinancePanel({ branches, isSuperAdmin = false, canManage = true,
 
       {activeTab === "payment_rules" ? (
         <PaymentRulesPanel />
+      ) : activeTab === "scholarships" ? (
+        <ScholarshipsPanel key={selectedBranchId} branchId={selectedBranchId} />
       ) : loading ? (
         <div className="flex h-64 items-center justify-center rounded-2xl border border-line bg-surface">
           <p className="text-xs font-medium text-fg-muted animate-pulse">Loading finance records...</p>

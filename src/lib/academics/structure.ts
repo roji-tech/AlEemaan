@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
 import { CLASS_TAKEN, SUBJECT_TAKEN, structureName, subjectCode } from "@/lib/academics/structure-rules";
+import { NOT_DRAFT } from "@/lib/drafts/live";
 
 // Academic structure (Slice P1a): the classes, arms, subjects and "this class studies this subject" of ONE branch. Every function here takes the branch (or an
 // entity that has one) and the caller's authority has ALREADY been checked by `withBranch` in the route (ADR 0015) - this module never decides who may act.
@@ -76,7 +77,8 @@ export async function listClassGroups(branchId: string, includeArchived = false)
         where: includeArchived ? {} : { archivedAt: null },
         orderBy: { name: "asc" },
         include: {
-          _count: { select: { enrollments: true } },
+          // Draft pupils (task 0101 D1) are not counted in a class: they are kept unfinished until completed.
+          _count: { select: { enrollments: { where: { student: NOT_DRAFT } } } },
           // The arm's class teacher (task 0114: shown and chosen on the Classes tab; it was only in Attendance > Manage Permissions).
           classTeacher: { select: { id: true, title: true, firstName: true, lastName: true } },
         },
@@ -197,11 +199,26 @@ export async function updateArm(actorUserId: string, id: string, patch: z.infer<
 
 // ---- subjects and offerings ----
 export async function listSubjects(branchId: string, includeArchived = false) {
-  return prisma.subject.findMany({
-    where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
-    orderBy: { name: "asc" },
-    select: { id: true, branchId: true, name: true, code: true, archivedAt: true },
-  });
+  return prisma.subject
+    .findMany({
+      where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
+      orderBy: { name: "asc" },
+      // `department`: the department the subject is in (task 0101 D7); null when it is in none or the department is archived. The screen shows it only while the branch uses departments.
+      select: {
+        id: true,
+        branchId: true,
+        name: true,
+        code: true,
+        archivedAt: true,
+        department: { select: { id: true, name: true, archivedAt: true } },
+      },
+    })
+    .then((rows) =>
+      rows.map(({ department, ...row }) => ({
+        ...row,
+        department: department && department.archivedAt === null ? { id: department.id, name: department.name } : null,
+      })),
+    );
 }
 
 export async function createSubject(actorUserId: string, input: z.infer<typeof subjectInput>) {
