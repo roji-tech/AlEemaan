@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { Button } from "@/components/ui/Button";
 import { Collection, Item, ItemInitials, type ItemAction, type ItemFact } from "@/components/ui/Collection";
 import { Dialog } from "@/components/ui/Dialog";
@@ -93,7 +94,7 @@ export function StudentsPanel({
   /// The program each branch was made for, if any, as this person may see it (task 0110).
   programs?: Record<string, OwnProgram>;
 }) {
-  const [branchId, setBranchId] = useState(branches.some((b) => b.id === initialBranchId) ? initialBranchId! : branches[0].id);
+  const [branchId, setBranchId] = useBranchSelection(branches, { initial: initialBranchId });
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [students, setStudents] = useState<Student[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);

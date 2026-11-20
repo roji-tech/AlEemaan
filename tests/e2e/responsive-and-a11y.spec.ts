@@ -462,7 +462,9 @@ test.describe("account self-service screens (profile, email, sessions)", () => {
     isMobile,
     browser,
   }) => {
-    test.setTimeout(90_000); // many screens, each checked with axe: it took about 40 s when timed alone, over the default 30 s
+    // Many screens, each checked with axe at several widths: about 40 s when first timed alone; 90 s ran out on 2026-11-19 at the eighth check (the app bar has grown since), with
+    // nothing failing. The budget is generous, not a limit on the page.
+    test.setTimeout(180_000);
     const user = await createUser({ role: Role.ADMIN, name: "Amina Yusuf" });
     await signInThroughUi(page, user);
     await page.goto("/account");

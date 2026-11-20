@@ -1,6 +1,8 @@
 import { Prisma, Role, type StaffCategory } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { branchIdsFor } from "@/lib/auth/branch-access";
+import { accountFitsRecord } from "@/lib/academics/staff-accounts";
 import { DomainError } from "@/lib/academics/sessions";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import {
@@ -71,6 +73,7 @@ const duplicate = (error: unknown, message: string): never => {
 };
 
 const INCLUDE = {
+  branch: { select: { name: true } },
   membership: { select: { role: true, deactivatedAt: true, user: { select: { name: true, email: true } } } },
   _count: { select: { assignments: true } },
   /// The newest invitation sent from this record that is neither accepted nor revoked (task 0114): "Invited" on the card until it is accepted or runs out.
@@ -102,13 +105,15 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
         role: row.membership?.role ?? null,
         deactivated: row.membership?.deactivatedAt != null,
         /// The member's role no longer matches the record's category (changed on the Users page) - shown, not forbidden.
-        roleDiffers: row.membership ? row.membership.role !== roleForCategory(row.category) : false,
+        roleDiffers: row.membership ? !accountFitsRecord(row.membership.role, row.category) : false,
       }
     : { state: "none" as const };
   const invitation = row.invitations[0];
   return {
     id: row.id,
     branchId: row.branchId,
+    /// The branch's name (task 0117: the list across branches says where each person is).
+    branchName: row.branch.name,
     category: row.category,
     firstName: row.firstName,
     lastName: row.lastName,
@@ -173,28 +178,52 @@ const mustFind = async (id: string) => {
 };
 
 // ---- the record ----
-export async function listStaff(branchId: string, opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
+/// The status and search part of a list's `where`, shared by one branch's list and the list across branches, so the two can never filter differently.
+function listFilter(opts: { status?: "live" | "archived" | "all"; q?: string }): Prisma.StaffRecordWhereInput {
   const status = opts.status ?? "live";
   const tokens = (opts.q ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
+  return {
+    ...(status === "live" ? { archivedAt: null } : status === "archived" ? { archivedAt: { not: null } } : {}),
+    AND: tokens.map((t) => ({
+      OR: [
+        { firstName: { contains: t, mode: "insensitive" as const } },
+        { lastName: { contains: t, mode: "insensitive" as const } },
+        { email: { contains: t, mode: "insensitive" as const } },
+        { phone: { contains: t } },
+      ],
+    })),
+  };
+}
+
+export async function listStaff(branchId: string, opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
   const rows = await prisma.staffRecord.findMany({
-    where: {
-      branchId,
-      ...(status === "live" ? { archivedAt: null } : status === "archived" ? { archivedAt: { not: null } } : {}),
-      AND: tokens.map((t) => ({
-        OR: [
-          { firstName: { contains: t, mode: "insensitive" as const } },
-          { lastName: { contains: t, mode: "insensitive" as const } },
-          { email: { contains: t, mode: "insensitive" as const } },
-          { phone: { contains: t } },
-        ],
-      })),
-    },
+    where: { branchId, ...listFilter(opts) },
     include: INCLUDE,
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     take: 500,
   });
   const also = await alsoInFor(rows);
   return rows.map((row) => toStaff(row, also.get(row.id) ?? []));
+}
+
+/// The most records the list across branches answers with (task 0117); more are reported as `truncated`, so the page can say "showing the first 1000".
+export const STAFF_ACROSS_CAP = 1000;
+
+/// "All branches" (task 0117): the staff of every branch the caller holds a STAFF role in (a superadmin: every branch), never more, in one query. The branch of each record is named in the
+/// view. The caller's authority is the `branchIdsFor` answer, so a record of a branch they cannot read is never in it.
+export async function listStaffAcross(userId: string, opts: { status?: "live" | "archived" | "all"; q?: string } = {}) {
+  const scope = await branchIdsFor(userId);
+  if (scope !== "all" && scope.length === 0) return { staff: [], truncated: false };
+  const rows = await prisma.staffRecord.findMany({
+    where: { ...(scope === "all" ? {} : { branchId: { in: scope } }), ...listFilter(opts) },
+    include: INCLUDE,
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { branch: { name: "asc" } }, { id: "asc" }],
+    take: STAFF_ACROSS_CAP + 1,
+  });
+  const truncated = rows.length > STAFF_ACROSS_CAP;
+  const kept = truncated ? rows.slice(0, STAFF_ACROSS_CAP) : rows;
+  const also = await alsoInFor(kept);
+  return { staff: kept.map((row) => toStaff(row, also.get(row.id) ?? [])), truncated };
 }
 
 const ASSIGNMENT_INCLUDE = {
@@ -343,7 +372,13 @@ export async function linkableAccounts(id: string) {
   // A draft is not offered an account: it is finished first (task 0101 D1).
   if (record.isDraft) return [];
   const members = await prisma.membership.findMany({
-    where: { branchId: record.branchId, deactivatedAt: null, role: roleForCategory(record.category), staffRecords: { none: {} } },
+    // The kind's own role, or an administrator (task 0112: an administrator who also teaches is on the staff list too).
+    where: {
+      branchId: record.branchId,
+      deactivatedAt: null,
+      role: { in: [roleForCategory(record.category), Role.ADMIN] },
+      staffRecords: { none: {} },
+    },
     select: { userId: true, user: { select: { name: true, email: true } } },
     orderBy: [{ user: { name: "asc" } }, { userId: "asc" }],
     take: 200,
@@ -361,7 +396,7 @@ export async function linkAccount(actorUserId: string, id: string, input: z.infe
     where: { userId_branchId: { userId: input.userId, branchId: record.branchId } },
     select: { role: true, deactivatedAt: true },
   });
-  if (!member || member.deactivatedAt || member.role !== roleForCategory(record.category))
+  if (!member || member.deactivatedAt || !accountFitsRecord(member.role, record.category))
     throw new ConflictError("That person is not an active member of this branch with the matching role.");
   try {
     // Conditional on userId IS NULL, so two administrators linking at once make one link.

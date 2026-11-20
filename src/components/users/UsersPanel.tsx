@@ -389,6 +389,7 @@ export function UsersPanel({
         <section role="tabpanel" id={panelId("users", "staff")} aria-labelledby={tabId("users", "staff")}>
           <StaffPanel
             branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: true, standing: standingCan[b.id] }))}
+            isSuperAdmin={isSuperAdmin}
             initialBranchId={undefined}
           />
         </section>

@@ -8,6 +8,8 @@ import { useCollectionView } from "@/components/ui/useCollectionView";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { ROLE_LABELS } from "@/lib/roles";
 import { expiryText, type Invitation } from "./model";
+import { InvitationHistory } from "./InvitationHistory";
+import { Button } from "@/components/ui/Button";
 
 /// The school's OPEN invitations: who was invited, as what, by whom, and how long the link has left, as rows or as cards (the list/grid kit, task 0089; the choice and the page size are
 /// remembered under "users-invitations"). Resend gives a fresh link (the old one stops working); Revoke ends it. Each button names the address, so a screen-reader user hears which row
@@ -25,13 +27,30 @@ export function InvitationsList({
   onRevoke: (invitation: Invitation) => void;
 }) {
   const [page, setPage] = useState(1);
+  // Task 0117: the invitations that are no longer open (accepted, revoked, run out), one toggle away.
+  const [history, setHistory] = useState(false);
   const layout = useCollectionView("users-invitations", { defaultView: "list", page, onPage: setPage });
   const all = invitations ?? [];
   // The page is kept inside what exists: after the last invitation of the last page is revoked the reader lands on the new last page, not on a page that is gone.
   const shown = paginate(all, page, layout.size);
 
+  const toggle = (
+    <Button variant="ghost" onClick={() => setHistory((v) => !v)} aria-pressed={history}>
+      {history ? "Back to waiting invitations" : "Show history (accepted, revoked, run out)"}
+    </Button>
+  );
+  if (history) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">{toggle}</div>
+        <InvitationHistory />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">{toggle}</div>
       {all.length > 0 && (
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-fg-muted" aria-live="polite">

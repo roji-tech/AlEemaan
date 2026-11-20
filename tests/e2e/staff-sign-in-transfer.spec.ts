@@ -66,6 +66,21 @@ test("Users > Staff: select everyone who can be invited and invite them, no e-ma
   expect(await db.invitation.count({ where: { staffRecordId: { not: null } } })).toBe(2);
 });
 
+test("someone who signs in here but has no record is offered for the staff list; Add to staff puts them on it", async ({ page }) => {
+  const { branch } = await setUp(page);
+  const khalid = await createUser({ name: "Akinniyi Khalid" });
+  await db.membership.create({ data: { userId: khalid.id, branchId: branch.id, role: Role.ADMIN } });
+  await page.goto(`/users?tab=staff&branch=${branch.id}`);
+  const panel = page.getByRole("region", { name: /Signs in here, not on the staff list yet/ });
+  await expect(panel).toContainText("Akinniyi Khalid");
+  await expectAccessible(page, "the staff tab with people not on the list");
+  await panel.getByRole("button", { name: "Add Akinniyi Khalid to staff" }).click();
+  await expect(page.getByText("Akinniyi Khalid added to the staff list. Open their card to fill in the rest.")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Staff" }).getByRole("listitem").filter({ hasText: "Akinniyi Khalid" })).toContainText(
+    "Administrator",
+  );
+});
+
 test("Invite someone points to the staff records", async ({ page }) => {
   await setUp(page);
   await page.goto("/users");
