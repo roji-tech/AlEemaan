@@ -3,6 +3,8 @@
 export const SECTIONS = [
   { id: "classes", label: "Classes" },
   { id: "subjects", label: "Subjects" },
+  /// The school's own list of subjects: a superadmin's (task 0119). `AcademicsSections` and the page leave it out for everyone else.
+  { id: "catalogue", label: "Subject catalogue" },
   { id: "sessions", label: "Sessions" },
   { id: "grading", label: "Assessment and grading" },
   { id: "staff", label: "Staff" },

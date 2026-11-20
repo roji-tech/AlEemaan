@@ -19,16 +19,18 @@ model SchoolSettings {
 /// School details that differ per branch (task 0115, task 0101 D4): the same six fields as the school's row, each null until the branch has its own. What a branch shows is its own
 /// value when it is set (not blank), else the school's: `profileFor` (lib/settings/branch-profile.ts) is the one place that decides. The school's name stays school-wide.
 model BranchProfile {
-  id        String   @id @default(cuid())
-  branchId  String   @unique
-  principal String?
-  phone     String?
-  motto     String?
-  address   String?
-  email     String?
-  website   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  id         String   @id @default(cuid())
+  branchId   String   @unique
+  /// The name this branch prints in its report-card header (task 0116, found in the preview of 2026-11-20); null = the school's name.
+  schoolName String?
+  principal  String?
+  phone      String?
+  motto      String?
+  address    String?
+  email      String?
+  website    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 }

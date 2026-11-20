@@ -5,6 +5,7 @@ import { pupilEntity } from "@/lib/bulk/pupils";
 import { staffColumns } from "@/lib/bulk/staff";
 import { classColumns } from "@/lib/bulk/classes";
 import { subjectColumns } from "@/lib/bulk/subjects";
+import { subjectTagsColumn } from "@/lib/bulk/subject-catalog";
 import { toCsv } from "@/lib/bulk/export";
 import { queryWords } from "@/lib/search/records";
 import { invitable } from "@/components/academics/StaffAccess";
@@ -64,7 +65,8 @@ test.describe("export", () => {
     expect(EXPORT_COLUMNS.pupils.map((c) => c.label)).toEqual(pupilEntity.columns.map((c) => c.label));
     expect(EXPORT_COLUMNS.staff).toBe(staffColumns);
     expect(EXPORT_COLUMNS.classes).toBe(classColumns);
-    expect(EXPORT_COLUMNS.subjects).toBe(subjectColumns);
+    // a branch's subjects add the catalogue's tags as a last column (task 0119); the branch import ignores it and says so
+    expect(EXPORT_COLUMNS.subjects).toEqual([...subjectColumns, subjectTagsColumn]);
   });
   test("a row is written as the import reads it, and a formula cell is neutralised in the CSV", () => {
     const pupil = exportValues.pupils({

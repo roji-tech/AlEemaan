@@ -204,6 +204,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
+  "POST v1/subject-catalog/[id]/branches/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; each branch id in the body is checked to exist and is reported as gone when it does not",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
   "GET v1/settings/portal-access/route.ts":
     "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
@@ -317,6 +319,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 /// join this list without someone writing why; the aim is for it to shrink.
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
+  "POST v1/subject-catalog/[id]/branches/route.ts":
+    "superadmin only (withAuth superAdmin): acts on SEVERAL branches at once, each named in the body and checked to exist; no one branch to resolve a grant for",
   "GET v1/portal/students/[studentId]/progress/route.ts":
     "portal route: no staff login; the branch comes from the pupil's place in the program, and the portal session limits which pupils",
   "POST v1/portal/students/[studentId]/progress/seen/route.ts":
@@ -654,5 +658,36 @@ test.describe("every API handler declares who may call it", () => {
     const all = handlers();
     expect(all.length).toBeGreaterThan(40);
     expect(all.some((h) => h.key === "GET v1/students/route.ts" && h.source.includes("roles:"))).toBe(true);
+  });
+});
+
+// Task 0116: the routes that set a class's grade scale and confirm a scale's bands are for a branch ADMINISTRATOR of that branch and a SUPERADMIN only. The role gate (`roles: [ADMIN]`) runs before the
+// branch is looked up, and `administer` is the one authority that lets a superadmin act everywhere; a branch named in the body is a 403, an unknown or foreign id in the path a 404.
+test.describe("class grade scale and scale confirmation (task 0116)", () => {
+  const source = (rel: string) => readFileSync(join(API_ROOT, "v1", rel), "utf8");
+  test("class-scale: administrators only, the branch is read from the body and checked with administer (403 for a foreign branch)", () => {
+    const s = source("results/templates/class-scale/route.ts");
+    expect(s).toContain("roles: [Role.ADMIN]");
+    expect(s).toContain('as: "administer"');
+    expect(s).toContain('where: "body"');
+    expect(s).toContain("withBranch");
+    expect(s).not.toContain("staff-read");
+    expect(s).not.toContain("staff-write");
+  });
+  test("confirm: administrators only, the branch comes from the scale in the path and is checked with administer, a foreign or unknown scale is a 404", () => {
+    const s = source("academics/grade-scales/[id]/confirm/route.ts");
+    expect(s).toContain("roles: [Role.ADMIN]");
+    expect(s).toContain('as: "administer"');
+    expect(s).toContain("scaleBranchId");
+    expect(s).toContain('notFound("Grade scale")');
+    expect(s).not.toContain("staff-read");
+    expect(s).not.toContain("staff-write");
+  });
+  test("the role gate wraps the branch check (withAuth outside, withBranch inside), so a teacher is refused before any branch is looked up", () => {
+    for (const rel of ["results/templates/class-scale/route.ts", "academics/grade-scales/[id]/confirm/route.ts"]) {
+      const s = source(rel);
+      expect(s.indexOf("withAuth"), rel).toBeGreaterThan(-1);
+      expect(s.indexOf("withAuth<") === -1 ? s.indexOf("withAuth(") : s.indexOf("withAuth<"), rel).toBeLessThan(s.indexOf("withBranch<"));
+    }
   });
 });

@@ -8,6 +8,7 @@ import { DepartmentsPanel } from "@/components/academics/DepartmentsPanel";
 import { GradingPanel } from "@/components/academics/GradingPanel";
 import { SchemeLevelsPanel } from "@/components/academics/SchemeLevelsPanel";
 import { SessionsPanel } from "@/components/academics/SessionsPanel";
+import { SubjectCatalogPanel } from "@/components/academics/SubjectCatalogPanel";
 import { StaffPanel } from "@/components/academics/StaffPanel";
 import { PromotionConsole } from "@/components/academics/promotion/PromotionConsole";
 import type { BranchChoice } from "@/components/academics/common";
@@ -41,7 +42,7 @@ export function AcademicsSections({
   const branchesNow = useMemo(() => branches.map((b) => ({ ...b, departments: departmentsOn[b.id] === true })), [branches, departmentsOn]);
   // The Departments tab: for an administrator of some branch (who can turn them on), and for anyone in a branch that uses them.
   const showDepartments = branchesNow.some((b) => b.canEdit || b.departments);
-  const tabs = SECTIONS.filter((s) => s.id !== "departments" || showDepartments);
+  const tabs = SECTIONS.filter((s) => (s.id !== "departments" || showDepartments) && (s.id !== "catalogue" || isSuperAdmin));
   const [active, setActive] = useTabParam(
     tabs.map((s) => s.id),
     tabs.some((s) => s.id === initialSection) ? initialSection : "classes",
@@ -68,6 +69,7 @@ export function AcademicsSections({
             initialQuery={active === initialSection ? initialQuery : undefined}
           />
         )}
+        {active === "catalogue" && isSuperAdmin && <SubjectCatalogPanel key={active} branches={branches} />}
         {active === "sessions" && (
           <SessionsPanel
             key={active}

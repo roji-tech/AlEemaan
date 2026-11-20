@@ -81,9 +81,11 @@ model User {
   markingAudits           FormMarkingAudit[]        @relation("MarkingAuditActor")
   printLogs               QuestionBankPrintLog[]    @relation("PrintLogActor")
 
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  problemReports ProblemReport[]
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  problemReports          ProblemReport[]
+  traitRatingsUpdated     TraitRating[]      @relation("TraitRatingsUpdated")
+  reportAttendanceUpdated ReportAttendance[] @relation("ReportAttendanceUpdated")
 }
 
 /// tokenHash, not the plaintext token — the client's cookie holds the

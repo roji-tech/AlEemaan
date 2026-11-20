@@ -1,17 +1,18 @@
 // School details per branch (task 0115, task 0101 D4): the pure part, with no database, so the browser can show the same answer the server gives.
 //
-// The school has one row of details (principal, phone, motto, address, e-mail, website) and a branch may have its own. What a branch SHOWS is its own value when it has one and the
+// The school has one row of details (name, principal, phone, motto, address, e-mail, website) and a branch may have its own. What a branch SHOWS is its own value when it has one and the
 // school's when it has not. A value that is blank or only spaces counts as not set: that is how a branch "uses the school's" again, and it means a stray space can never print a blank
 // line where the school's value should be.
 
-export const PROFILE_FIELDS = ["principal", "phone", "motto", "address", "email", "website"] as const;
+export const PROFILE_FIELDS = ["schoolName", "principal", "phone", "motto", "address", "email", "website"] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type ProfileValues = Record<ProfileField, string | null>;
 export type ProfileSource = "branch" | "school";
 export type EffectiveProfile = { values: ProfileValues; source: Record<ProfileField, ProfileSource> };
 
-/// The labels the screens use for the six fields (the school form's own words).
+/// The labels the screens use for the seven fields (the school form's own words; the school name is the branch's own header name: the nursery card can say "Nursery and Primary School").
 export const PROFILE_LABELS: Record<ProfileField, string> = {
+  schoolName: "School name on report cards",
   principal: "Principal / Head of School",
   phone: "Phone Number",
   motto: "Motto / Slogan",

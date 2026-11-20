@@ -368,6 +368,21 @@ export async function ensureDefaultReportCardLayouts() {
       isLegacy: false,
       options: { logo: true, signatureLine: true, nextTermDate: true },
     },
+    // The school's four printed report cards (task 0116). They are looks only: the marks, grade scale and trait set come from the template.
+    ...(
+      [
+        ["PRESCHOOL", "Pre-school report card"],
+        ["BASIC", "Basic class report card"],
+        ["JUNIOR", "Junior secondary report card"],
+        ["SENIOR", "Senior secondary report card"],
+      ] as const
+    ).map(([code, name]) => ({
+      code,
+      name,
+      type: "DEFAULT" as const,
+      isLegacy: false,
+      options: { logo: true, signatureLine: true, nextTermDate: true },
+    })),
     {
       code: "LEGACY",
       name: "Legacy Layout",

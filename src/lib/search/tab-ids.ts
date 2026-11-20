@@ -4,7 +4,7 @@
 /// Settings (superadmins).
 export const SETTINGS_TAB_IDS = ["profile", "academics", "portal", "approval", "programs", "discipline", "signin"] as const;
 /// Academics (administrators): the same ids as `components/academics/sections.ts`, which is the page's own list and is compared with this one by a test.
-export const ACADEMICS_TAB_IDS = ["classes", "subjects", "sessions", "grading", "staff", "departments", "promotion"] as const;
+export const ACADEMICS_TAB_IDS = ["classes", "subjects", "catalogue", "sessions", "grading", "staff", "departments", "promotion"] as const;
 /// Approvals: `self` is shown to superadmins only.
 export const APPROVALS_TAB_IDS = ["requests", "email", "layout", "verification", "self"] as const;
 /// Users.
