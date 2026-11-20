@@ -363,8 +363,9 @@ test.describe("an unconfirmed grade scale", () => {
     expect((await api(`${SCALES}/${junior.id}/confirm`, { method: "POST", cookie: admin.cookie })).json.data.changed).toBe(true);
     expect((await publish(second.cookie, [r.id])).status).toBe(200);
     // A rename-only new version of an unconfirmed scale stays unconfirmed.
+    // Bands first, then the lock: a locked scale refuses band changes (a database trigger).
     const again = await db.gradeScale.create({
-      data: { branchId: home.id, name: "Another guess", unconfirmed: true, lockedAt: new Date() },
+      data: { branchId: home.id, name: "Another guess", unconfirmed: true },
     });
     await db.gradeBand.createMany({
       data: bands.map((b, i) => ({
@@ -377,6 +378,7 @@ test.describe("an unconfirmed grade scale", () => {
         sortOrder: i,
       })),
     });
+    await db.gradeScale.update({ where: { id: again.id }, data: { lockedAt: new Date() } });
     const renamed = await api(`${SCALES}/${again.id}/versions`, {
       method: "POST",
       cookie: admin.cookie,
