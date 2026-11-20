@@ -11,6 +11,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { UNCONFIRMED_NOTICE } from "@/lib/results/scale-confirmation";
 
 // Assessment schemes and grade scales (Slice P1d, over the P1b API). A scheme says how a mark is built (continuous-assessment parts + exam = 100); a grade
 // scale says how a score becomes a letter. Both are edited in place until a result uses them ("Locked"); after that a change is a NEW VERSION. Presentation only.
@@ -27,8 +28,16 @@ type Scheme = {
   locked: boolean;
   components: Component[];
 };
-type Band = { min: number; max: number; letter: string; remark: string };
-type Scale = { id: string; name: string; isDefault: boolean; version: number; locked: boolean; bands: Band[] };
+export type Band = { min: number; max: number; letter: string; remark: string };
+export type Scale = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  version: number;
+  locked: boolean;
+  unconfirmed?: boolean;
+  bands: Band[];
+};
 type ClassOption = { id: string; name: string };
 type Editing = { kind: "scheme"; item: Scheme | null } | { kind: "scale"; item: Scale | null } | null;
 
@@ -191,6 +200,9 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
                       <span className="ml-2 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-fg">Default</span>
                     )}
                     {s.locked && <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Locked</span>}
+                    {s.unconfirmed && (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Unconfirmed</span>
+                    )}
                   </p>
                   {branch.canEdit && (
                     <div className="flex flex-wrap gap-2">
@@ -222,6 +234,26 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
                     </div>
                   )}
                 </div>
+                {s.unconfirmed && (
+                  <Alert variant="warning">
+                    <span className="block">{UNCONFIRMED_NOTICE}.</span>
+                    <span className="mt-1 block text-xs">
+                      Results graded on it cannot be published until it is confirmed. Check the bands below, edit them if they are wrong,
+                      then confirm.
+                    </span>
+                    {branch.canEdit && (
+                      <span className="mt-2 block">
+                        <Button
+                          variant="secondary"
+                          onClick={() => act(`${SCALES}/${s.id}/confirm`, `${s.name} confirmed.`)}
+                          aria-label={`Confirm the bands of ${s.name}`}
+                        >
+                          Confirm these bands
+                        </Button>
+                      </span>
+                    )}
+                  </Alert>
+                )}
                 <div
                   role="region"
                   aria-label={`Bands of ${s.name}`}
@@ -435,8 +467,12 @@ function SchemeDialog({
   );
 }
 
-function ScaleDialog({
+/// The grade scale editor (also used by Results > Templates, task 0116). `seed` starts a NEW scale from another's bands (a duplicate); `usedBy` names the classes that grade on the scale being
+/// changed, so nobody changes it without seeing who it reaches.
+export function ScaleDialog({
   item,
+  seed = null,
+  usedBy = [],
   open,
   branchId,
   template,
@@ -444,6 +480,8 @@ function ScaleDialog({
   onDone,
 }: {
   item: Scale | null;
+  seed?: Scale | null;
+  usedBy?: readonly string[];
   open: boolean;
   branchId: string;
   template: Band[];
@@ -451,8 +489,9 @@ function ScaleDialog({
   onDone: (text: string) => Promise<void>;
 }) {
   const asRows = (bands: Band[]) => bands.map((b) => ({ min: fmt(b.min), max: fmt(b.max), letter: b.letter, remark: b.remark }));
-  const [name, setName] = useState(item?.name ?? "");
-  const [rows, setRows] = useState(item ? asRows(item.bands) : [{ min: "0", max: "100", letter: "", remark: "" }]);
+  const start = item ?? seed;
+  const [name, setName] = useState(item ? item.name : seed ? `${seed.name} copy`.slice(0, 60) : "");
+  const [rows, setRows] = useState(start ? asRows(start.bands) : [{ min: "0", max: "100", letter: "", remark: "" }]);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const locked = item?.locked ?? false;
@@ -482,7 +521,7 @@ function ScaleDialog({
       open={open}
       onClose={onClose}
       wide
-      title={!item ? "New grade scale" : locked ? `New version of ${item.name}` : `Edit ${item.name}`}
+      title={!item ? (seed ? `Duplicate ${seed.name}` : "New grade scale") : locked ? `New version of ${item.name}` : `Edit ${item.name}`}
       description={
         locked
           ? "Results already use this scale, so it can't change. Saving makes a new version."
@@ -491,6 +530,13 @@ function ScaleDialog({
     >
       {open && (
         <form onSubmit={submit} noValidate className="space-y-4">
+          {item && (
+            <p className="rounded-xl border border-line bg-surface-2 p-3 text-sm text-fg-2">
+              {usedBy.length > 0 ? `Classes grading on this scale: ${usedBy.join(", ")}. ` : "No class grades on this scale by itself. "}
+              Marks already entered keep the letters they were given; a change reaches the marks entered after it
+              {locked ? ", as a new version" : ""}.
+            </p>
+          )}
           <TextField
             label="Scale name"
             name="name"

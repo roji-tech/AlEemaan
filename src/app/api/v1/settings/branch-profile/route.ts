@@ -12,7 +12,7 @@ import { PROFILE_FIELDS } from "@/lib/settings/branch-profile-rules";
 //
 // GET   /api/v1/settings/branch-profile?branchId=   { school, branch, effective }: the school's values, the branch's own (null where it has none), and what the branch shows with where
 //                                                   each value comes from. An administrator of THAT branch or a superadmin; another branch is a 404, a teacher or anyone else a 403.
-// PATCH /api/v1/settings/branch-profile             { branchId, principal?, phone?, motto?, address?, email?, website? }: only the fields sent, and only those that change are written
+// PATCH /api/v1/settings/branch-profile             { branchId, schoolName?, principal?, phone?, motto?, address?, email?, website? }: only the fields sent, and only those that change are written
 //                                                   and audited (BRANCH_PROFILE_UPDATED). Blank or null clears the branch's value ("Using the school's"). A branch named in the body that
 //                                                   is not the caller's is a 403. 30 saves per administrator per 5 minutes.
 const SAVES_PER_WINDOW = 30;

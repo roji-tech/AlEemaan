@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TemplateReportCard, isTemplateLayout } from "@/components/results/TemplateReportCard";
 
 // The report card as the school hands it out (Slice P2d): school header, student block, the subjects table, summary tiles, remarks, the grading legend and each
 // published subject's verification link. Pure presentation of what `GET students/[id]/report-card` returns; it prints cleanly (the shell is hidden by print styles).
@@ -6,7 +7,7 @@ import type { ReactNode } from "react";
 export type Card = {
   school: { name: string; principal: string | null; motto: string | null; address: string | null; phone: string | null };
   branch: { id: string; name: string };
-  student: { id: string; name: string; admissionNo: string; gender: string };
+  student: { id: string; name: string; admissionNo: string; gender: string; dateOfBirth?: string | null };
   class: { group: string; arm: string } | null;
   period: { id: string; label: string; session: string };
   subjects: {
@@ -21,7 +22,17 @@ export type Card = {
     gradeRemark: string;
     status: string;
     verificationToken: string | null;
+    /// Task 0116: this term's total first, then the earlier terms of the session; the annual figures over them; the pupil's position in this subject.
+    termScores?: { ordinal: number; label: string; total: number | null }[];
+    annual?: number | null;
+    annualAverage?: number | null;
+    position?: number | null;
+    classSize?: number | null;
   }[];
+  /// Task 0116: the trait groups of the pupil's template with their ratings, the attendance block (each number says whether it was entered or read from the register) and the term's dates.
+  traits?: { id: string; title: string; showSign: boolean; traits: { id: string; name: string; rating: number | null }[] }[];
+  attendance?: Record<"timesOpen" | "timesPresent" | "timesAbsent", { value: number | null; source: "entered" | "register" | null }>;
+  dates?: { termStarts: string; schoolClosed: string | null; nextTermStarts: string | null };
   summary: {
     subjectCount: number;
     totalScore: number;
@@ -63,6 +74,8 @@ function Tile({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function ReportCard({ card, origin }: { card: Card; origin: string }) {
+  // The school's four printed cards (task 0116) have their own drawing.
+  if (isTemplateLayout(card.layout?.code)) return <TemplateReportCard card={card} origin={origin} />;
   const s = card.summary;
   return (
     <article

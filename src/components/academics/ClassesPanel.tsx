@@ -21,8 +21,11 @@ import { SelectField } from "@/components/ui/SelectField";
 import { TextField } from "@/components/ui/TextField";
 import { getJson, problemFor, sendJson, type Reply } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { ClassTemplateDialog } from "@/components/results/ClassTemplateDialog";
+import { useClassTemplates } from "@/components/results/useClassTemplates";
 import { classEntity } from "@/lib/bulk/classes";
 import { subjectEntity } from "@/lib/bulk/subjects";
+import { AddFromCatalogDialog, TagChips } from "@/components/academics/SubjectCatalogDialogs";
 
 // The Academics page's lists and dialogs (Slice P1): classes with their arms and subjects, and the branch's subjects. Presentation only - the academics API
 // enforces who may read and change what, and every outcome (duplicate name, archived parent, signed out, offline) has its own honest message.
@@ -43,6 +46,8 @@ type Subject = {
   code: string | null;
   archivedAt: string | null;
   department?: { id: string; name: string } | null;
+  /// The tags of the catalogue entry it is linked to (task 0119): labels only.
+  tags?: string[];
 };
 type Editing =
   | { kind: "class"; item: ClassGroup | null }
@@ -79,6 +84,9 @@ export function ClassesPanel({
   const [groups, setGroups] = useState<ClassGroup[] | null>(null);
   const [subjects, setSubjects] = useState<Subject[] | null>(null);
   const [unmatched, setUnmatched] = useState(0);
+  // Result templates (task 0116): which template each class uses, and the class whose template is being chosen.
+  const templates = useClassTemplates(branchId, view === "classes");
+  const [templateOf, setTemplateOf] = useState<ClassGroup | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
@@ -88,6 +96,8 @@ export function ClassesPanel({
   // "Add many" (task 0084): whether the dialog is open, and a key that gives each opening a clean dialog.
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
   const [search, setSearch] = useState(initialQuery);
+  const [tagFilter, setTagFilter] = useState(""); // subjects: a catalogue tag, or ""
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [gap, setGap] = useState(""); // classes: "" | "noSubjects" | "noArms"; subjects: "" | "unused"
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered per list (task 0089). Classes read best as cards, subjects as rows.
@@ -135,9 +145,10 @@ export function ClassesPanel({
   const clearFilters = () => {
     setSearch("");
     setGap("");
+    setTagFilter("");
     setPage(1);
   };
-  const filtered = search.trim() !== "" || gap !== "";
+  const filtered = search.trim() !== "" || gap !== "" || tagFilter !== "";
 
   const shownGroups = (groups ?? []).filter(
     (g) =>
@@ -148,7 +159,10 @@ export function ClassesPanel({
       (gap === "" || (gap === "noSubjects" ? g.subjectIds.length === 0 : g.arms.length === 0)),
   );
   const shownSubjects = (subjects ?? []).filter(
-    (s) => (search.trim() === "" || same(s.name, search) || same(s.code ?? "", search)) && (gap === "" || usedBy(s.id) === 0),
+    (s) =>
+      (search.trim() === "" || same(s.name, search) || same(s.code ?? "", search)) &&
+      (gap === "" || usedBy(s.id) === 0) &&
+      (tagFilter === "" || (s.tags ?? []).includes(tagFilter)),
   );
   const classPage = paginate(shownGroups, page, layout.size);
   const subjectPage = paginate(shownSubjects, page, layout.size);
@@ -285,6 +299,12 @@ export function ClassesPanel({
                             onClick: () => setEditing({ kind: "offerings", classGroup: g }),
                           },
                           {
+                            id: "template",
+                            label: "Result template",
+                            ariaLabel: `Result template of ${g.name}`,
+                            onClick: () => setTemplateOf(g),
+                          },
+                          {
                             id: "edit",
                             label: "Edit",
                             ariaLabel: `Rename ${g.name}`,
@@ -360,6 +380,12 @@ export function ClassesPanel({
                       </>
                     )}
                   </p>
+                  {templates.byClass[g.id] && (
+                    <p className="mt-1 text-xs text-fg-muted">
+                      Result template: {templates.byClass[g.id].name}
+                      {templates.byClass[g.id].explicit ? "" : " (default)"}
+                    </p>
+                  )}
                 </Item>
               );
             })}
@@ -390,6 +416,9 @@ export function ClassesPanel({
                   <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
                     Add many
                   </Button>
+                  <Button variant="secondary" onClick={() => setCatalogOpen(true)}>
+                    Add from catalogue
+                  </Button>
                   <Button onClick={() => setEditing({ kind: "subject", item: null })}>New subject</Button>
                 </>
               )}
@@ -399,7 +428,7 @@ export function ClassesPanel({
             searchValue={search}
             onSearch={(v) => (setSearch(v), setPage(1))}
             searchPlaceholder="Search subjects by name or code"
-            activeCount={gap === "" ? 0 : 1}
+            activeCount={(gap === "" ? 0 : 1) + (tagFilter === "" ? 0 : 1)}
             onClear={clearFilters}
             trailing={
               <>
@@ -423,6 +452,17 @@ export function ClassesPanel({
               options={[
                 { value: "", label: "All subjects" },
                 { value: "unused", label: "No class studies it" },
+              ]}
+            />
+            <SelectField
+              label="Tag"
+              value={tagFilter}
+              onChange={(e) => (setTagFilter(e.target.value), setPage(1))}
+              options={[
+                { value: "", label: "All tags" },
+                ...[...new Set((subjects ?? []).flatMap((s) => s.tags ?? []))]
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((t) => ({ value: t, label: t })),
               ]}
             />
           </ListToolbar>
@@ -451,11 +491,16 @@ export function ClassesPanel({
                   }
                   title={s.name}
                   subtitle={
-                    s.code || (branch.departments && s.department) ? (
+                    s.code || (branch.departments && s.department) || (s.tags && s.tags.length > 0) ? (
                       <>
                         {s.code && <span className="font-mono text-xs">{s.code}</span>}
                         {branch.departments && s.department && (
                           <span className={s.code ? "ml-2" : undefined}>Department: {s.department.name}</span>
+                        )}
+                        {s.tags && s.tags.length > 0 && (
+                          <span className={s.code || (branch.departments && s.department) ? "ml-2" : undefined}>
+                            <TagChips tags={s.tags} />
+                          </span>
                         )}
                       </>
                     ) : undefined
@@ -529,6 +574,19 @@ export function ClassesPanel({
           }}
         />
       )}
+      {templateOf && (
+        <ClassTemplateDialog
+          key={templateOf.id}
+          branchId={branchId}
+          classGroup={templateOf}
+          onClose={() => setTemplateOf(null)}
+          onDone={async (text) => {
+            setTemplateOf(null);
+            setNotice({ variant: "success", text });
+            await templates.reload();
+          }}
+        />
+      )}
       <NameDialog
         open={editing?.kind === "class"}
         title={editing?.kind === "class" && editing.item ? `Edit ${editing.item.name}` : "New class"}
@@ -577,6 +635,18 @@ export function ClassesPanel({
             : await sendJson("/api/v1/academics/subjects", "POST", { branchId, name });
           if (reply.ok) await done(`${name} ${item ? "saved" : "created"}.`);
           return reply;
+        }}
+      />
+      <AddFromCatalogDialog
+        key={`catalog-${branchId}-${catalogOpen}`}
+        open={catalogOpen}
+        branchId={branchId}
+        branchName={branch.name}
+        onClose={() => setCatalogOpen(false)}
+        onDone={async (text) => {
+          setCatalogOpen(false);
+          setNotice({ variant: "success", text });
+          await load();
         }}
       />
       <ClassTeacherDialog

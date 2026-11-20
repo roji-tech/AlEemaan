@@ -9,6 +9,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
 import { ReportCard, type Card } from "@/components/results/ReportCard";
+import { TraitsDialog } from "@/components/results/TraitsDialog";
 import { downloadReportCardHtml } from "@/lib/academics/report-card-export";
 
 // Report cards (Slice P2d, over P2c): pick a term, a class arm and a student, read the card, print it. Administrators may preview with unpublished results and write
@@ -42,6 +43,8 @@ export function CardsPanel({
   const [studentId, setStudentId] = useState("");
   const [preview, setPreview] = useState(false);
   const [card, setCard] = useState<Card | null>(null);
+  // Trait ratings and attendance of the pupil on screen (task 0116).
+  const [traitsOpen, setTraitsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
 
@@ -164,6 +167,9 @@ export function CardsPanel({
       {card && (
         <>
           <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
+            <Button variant="secondary" onClick={() => setTraitsOpen(true)}>
+              Traits and attendance
+            </Button>
             <Button variant="secondary" onClick={() => window.print()}>
               Print this report card
             </Button>
@@ -175,6 +181,18 @@ export function CardsPanel({
             </Button>
           </div>
           <ReportCard card={card} origin={typeof window === "undefined" ? "" : window.location.origin} />
+          {traitsOpen && (
+            <TraitsDialog
+              studentId={card.student.id}
+              periodId={card.period.id}
+              onClose={() => setTraitsOpen(false)}
+              onSaved={async (text) => {
+                setTraitsOpen(false);
+                setNotice({ variant: "success", text });
+                await loadCard();
+              }}
+            />
+          )}
           {branch.canEdit && (
             <RemarksForm
               key={`${card.student.id}|${card.period.id}`}

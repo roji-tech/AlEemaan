@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
 import { CLASS_TAKEN, SUBJECT_TAKEN, structureName, subjectCode } from "@/lib/academics/structure-rules";
 import { NOT_DRAFT } from "@/lib/drafts/live";
+import { catalogIdForName } from "@/lib/academics/subject-catalog-link";
 
 // Academic structure (Slice P1a): the classes, arms, subjects and "this class studies this subject" of ONE branch. Every function here takes the branch (or an
 // entity that has one) and the caller's authority has ALREADY been checked by `withBranch` in the route (ADR 0015) - this module never decides who may act.
@@ -198,10 +199,10 @@ export async function updateArm(actorUserId: string, id: string, patch: z.infer<
 }
 
 // ---- subjects and offerings ----
-export async function listSubjects(branchId: string, includeArchived = false) {
+export async function listSubjects(branchId: string, includeArchived = false, tag?: string) {
   return prisma.subject
     .findMany({
-      where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
+      where: { branchId, ...(includeArchived ? {} : { archivedAt: null }), ...(tag ? { catalog: { tags: { has: tag } } } : {}) },
       orderBy: { name: "asc" },
       // `department`: the department the subject is in (task 0101 D7); null when it is in none or the department is archived. The screen shows it only while the branch uses departments.
       select: {
@@ -211,11 +212,14 @@ export async function listSubjects(branchId: string, includeArchived = false) {
         code: true,
         archivedAt: true,
         department: { select: { id: true, name: true, archivedAt: true } },
+        // The catalogue entry it is linked to (task 0119): its tags are shown on the branch's subject (labels only).
+        catalog: { select: { tags: true } },
       },
     })
     .then((rows) =>
-      rows.map(({ department, ...row }) => ({
+      rows.map(({ department, catalog, ...row }) => ({
         ...row,
+        tags: catalog?.tags ?? [],
         department: department && department.archivedAt === null ? { id: department.id, name: department.name } : null,
       })),
     );
@@ -223,11 +227,16 @@ export async function listSubjects(branchId: string, includeArchived = false) {
 
 export async function createSubject(actorUserId: string, input: z.infer<typeof subjectInput>) {
   try {
-    const created = await prisma.subject.create({ data: { branchId: input.branchId, name: input.name, code: input.code ?? null } });
+    // Linked to the catalogue entry of the same name when there is one (task 0119); never creates an entry.
+    const catalogId = await catalogIdForName(prisma, input.branchId, input.name);
+    const created = await prisma.subject.create({
+      data: { branchId: input.branchId, name: input.name, code: input.code ?? null, catalogId },
+    });
     await audit(actorUserId, "SUBJECT_CREATED", "Subject", created.id, {
       name: created.name,
       code: created.code,
       branchId: created.branchId,
+      ...(created.catalogId ? { catalogId: created.catalogId } : {}),
     });
     return created;
   } catch (error) {
