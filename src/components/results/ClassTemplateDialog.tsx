@@ -5,7 +5,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
-import { getJson } from "@/components/auth/postJson";
+import { getJson, sendJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
 import { setClassTemplate } from "@/components/results/template-calls";
 import { moveLines, type TemplatesData } from "@/components/results/template-types";
@@ -25,6 +25,9 @@ export function ClassTemplateDialog({
 }) {
   const [data, setData] = useState<TemplatesData | null>(null);
   const [value, setValue] = useState("");
+  // The class's OWN grade scale ("" = follow the template, then the branch default) and what it was when the dialog opened.
+  const [scaleValue, setScaleValue] = useState("");
+  const [scaleWas, setScaleWas] = useState("");
   const [moves, setMoves] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,8 @@ export function ClassTemplateDialog({
       setData(d);
       const row = d.coverage.find((c) => c.classGroupId === classGroup.id);
       setValue(row?.explicit && row.templateId ? row.templateId : "");
+      setScaleValue(row?.classScaleId ?? "");
+      setScaleWas(row?.classScaleId ?? "");
     });
     return () => {
       live = false;
@@ -52,16 +57,31 @@ export function ClassTemplateDialog({
     setBusy(true);
     setError(null);
     const reply = await setClassTemplate(data, classGroup.id, value === "" ? null : value, confirm);
+    if (!reply.ok) {
+      setBusy(false);
+      const lines = moveLines(reply);
+      if (lines.length > 0) return setMoves(lines);
+      return setError(say(reply, "That didn't work."));
+    }
+    // The grade scale (task 0116): its own scale for the class, or back to the template's. Saved after the template so the first can be confirmed on its own.
+    if (scaleValue !== scaleWas) {
+      const scale = await sendJson("/api/v1/results/templates/class-scale", "PUT", {
+        branchId,
+        classGroupId: classGroup.id,
+        gradeScaleId: scaleValue === "" ? null : scaleValue,
+      });
+      if (!scale.ok) {
+        setBusy(false);
+        setScaleWas(scaleWas);
+        return setError(say(scale, "The grade scale could not be saved."));
+      }
+    }
     setBusy(false);
-    if (reply.ok)
-      return void (await onDone(
-        value === ""
-          ? `${classGroup.name} uses the default template.`
-          : `${classGroup.name} uses ${live.find((t) => t.id === value)?.name}.`,
-      ));
-    const lines = moveLines(reply);
-    if (lines.length > 0) return setMoves(lines);
-    setError(say(reply, "That didn't work."));
+    const template =
+      value === "" ? `${classGroup.name} uses the default template.` : `${classGroup.name} uses ${live.find((t) => t.id === value)?.name}.`;
+    return void (await onDone(
+      scaleValue !== scaleWas ? `${template} Its grade scale is ${scaleValue === "" ? "its template's" : "its own"}.` : template,
+    ));
   }
 
   return (
@@ -87,6 +107,18 @@ export function ClassTemplateDialog({
               ...live.map((t) => ({ value: t.id, label: t.name })),
             ]}
             hint="Add or change templates in Results > Templates."
+          />
+        )}
+        {data && !moves && (
+          <SelectField
+            label="Grade scale"
+            value={scaleValue}
+            onChange={(e) => setScaleValue(e.target.value)}
+            options={[
+              { value: "", label: "Its template's scale, else the branch default" },
+              ...data.choices.scales.map((s) => ({ value: s.id, label: `${s.name}${s.isDefault ? " (branch default)" : ""}` })),
+            ]}
+            hint="Marks already entered keep the letters they were given. Edit scales in Results > Templates."
           />
         )}
         {moves && (

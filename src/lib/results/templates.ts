@@ -13,6 +13,7 @@ import {
   diffClasses,
   mergeLayoutOptions,
   movePreview,
+  pickScale,
   type LayoutOptions,
   type Move,
 } from "@/lib/results/templates-rules";
@@ -128,14 +129,24 @@ export async function templateMarks(branchId: string, classGroupId: string, need
         `The result template "${template.name}" uses an assessment scheme that is archived. Choose another in Results > Templates.`,
       );
   }
-  if (template.gradeScaleId) {
+  // The grade scale: the class's OWN scale first, then the template's; the branch default is the caller's last step. A scale that is named but archived with nothing replacing it is a 409
+  // that says whose it is: a different scale is never applied silently.
+  const own = await prisma.classGradeScale.findUnique({
+    where: { branchId_classGroupId: { branchId, classGroupId } },
+    select: { gradeScaleId: true, classGroup: { select: { name: true } } },
+  });
+  if (own) {
+    scale = await liveScale(branchId, own.gradeScaleId);
+    if (!scale)
+      throw new ConflictError(`The grade scale chosen for ${own.classGroup.name} is archived. Choose another in Results > Templates.`);
+  } else if (template.gradeScaleId) {
     scale = await liveScale(branchId, template.gradeScaleId);
     if (!scale)
       throw new ConflictError(
         `The result template "${template.name}" uses a grade scale that is archived. Choose another in Results > Templates.`,
       );
   }
-  return { template, scheme, scale };
+  return { template, scheme, scale, scaleSource: own ? ("class" as const) : scale ? ("template" as const) : null };
 }
 
 /// The report card's look for a class: its template's layout, else the branch's standard layout. Same shape as `getBranchReportCardLayout`.
@@ -163,7 +174,7 @@ export async function listTemplates(branchId: string, includeArchived = false) {
   await ensureDefaultTemplate(branchId);
   // A branch made before the report-card sets existed was seeded by the migration; one made some other way is seeded here, once.
   await ensureReportTemplates(branchId);
-  const [templates, classes, assignments, ownRows, schemes, scales] = await Promise.all([
+  const [templates, classes, assignments, ownRows, schemes, scales, overrides] = await Promise.all([
     prisma.resultTemplate.findMany({
       where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
       include: { scheme: SCHEME_NAME, gradeScale: SCHEME_NAME },
@@ -182,8 +193,12 @@ export async function listTemplates(branchId: string, includeArchived = false) {
     usableSchemes(branchId),
     prisma.gradeScale.findMany({
       where: { branchId, archivedAt: null },
-      select: { id: true, name: true, isDefault: true },
+      select: { id: true, name: true, isDefault: true, unconfirmed: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.classGradeScale.findMany({
+      where: { branchId },
+      select: { classGroupId: true, gradeScaleId: true, gradeScale: { select: { name: true } } },
     }),
   ]);
   const own: Record<string, { id: string; name: string }> = {};
@@ -196,7 +211,40 @@ export async function listTemplates(branchId: string, includeArchived = false) {
     sectionName: c.section?.name ?? null,
   }));
   const live = templates.filter((t) => !t.archivedAt);
-  const coverage = buildCoverage(classRefs, assignments, live, own);
+  const baseCoverage = buildCoverage(classRefs, assignments, live, own);
+  // Which grade scale each class grades on, and from where (task 0116): its own, its template's, the branch default.
+  const overrideBy = new Map(overrides.map((o) => [o.classGroupId, o]));
+  const defaultScale = scales.find((x) => x.isDefault) ?? null;
+  const nameOfScale = (id: string) =>
+    scales.find((x) => x.id === id)?.name ??
+    templates.find((t) => t.gradeScale?.id === id)?.gradeScale?.name ??
+    overrides.find((o) => o.gradeScaleId === id)?.gradeScale.name ??
+    null;
+  const coverageRows = baseCoverage.rows.map((row) => {
+    const templateScale = templates.find((t) => t.id === row.templateId)?.gradeScaleId ?? null;
+    const classScaleId = overrideBy.get(row.classGroupId)?.gradeScaleId ?? null;
+    const picked = pickScale(classScaleId, templateScale, defaultScale?.id);
+    return {
+      ...row,
+      classScaleId,
+      scale: picked.scaleId
+        ? {
+            id: picked.scaleId,
+            name: nameOfScale(picked.scaleId),
+            source: picked.source!,
+            archived: !scales.some((x) => x.id === picked.scaleId),
+            unconfirmed: scales.find((x) => x.id === picked.scaleId)?.unconfirmed ?? false,
+          }
+        : null,
+    };
+  });
+  const coverage = { rows: coverageRows, unplaced: baseCoverage.unplaced };
+  // Earlier versions of a scale that were never confirmed: marks graded on them cannot be published until they are (task 0116 D15).
+  const earlierUnconfirmed = await prisma.gradeScale.findMany({
+    where: { branchId, archivedAt: { not: null }, unconfirmed: true },
+    select: { id: true, name: true, version: true },
+    orderBy: [{ name: "asc" }, { version: "asc" }],
+  });
   const layouts = await prisma.reportCardLayout.findMany({
     orderBy: [{ isLegacy: "asc" }, { code: "asc" }],
     select: { code: true, name: true },
@@ -224,6 +272,7 @@ export async function listTemplates(branchId: string, includeArchived = false) {
           : LAYOUT_CODES.map((code) => ({ code, name: code === "DEFAULT" ? "Standard Layout" : "Legacy Layout" })),
       schemes,
       scales,
+      earlierUnconfirmed,
     },
   };
 }
@@ -593,3 +642,42 @@ export async function makeDefaultTemplate(actorUserId: string, id: string) {
 export async function createTemplateScheme(actorUserId: string, input: z.infer<typeof templateSchemeInput>) {
   return createScheme(actorUserId, input, { hosted: true });
 }
+
+/// Sets a class's own grade scale (`gradeScaleId`), or clears it (null: the class follows its template's scale, then the branch default). The class and the scale must be live ones of this
+/// branch. Marks already entered keep the scale they were entered under (a result carries its own scale). Audited with before and after. In the branch's lock.
+export async function setClassGradeScale(actorUserId: string, branchId: string, classGroupId: string, gradeScaleId: string | null) {
+  return prisma.$transaction(async (tx) => {
+    await lock(tx, branchId);
+    const group = await tx.classGroup.findFirst({
+      where: { id: classGroupId, branchId, archivedAt: null },
+      select: { id: true, name: true },
+    });
+    if (!group) throw new ConflictError("That class does not exist in this branch (or is archived).");
+    if (gradeScaleId) await checkScaleChoice(tx, branchId, gradeScaleId);
+    const current = await tx.classGradeScale.findUnique({
+      where: { branchId_classGroupId: { branchId, classGroupId } },
+      select: { id: true, gradeScaleId: true },
+    });
+    if ((current?.gradeScaleId ?? null) === gradeScaleId) return { changed: false, gradeScaleId };
+    if (gradeScaleId)
+      await tx.classGradeScale.upsert({
+        where: { branchId_classGroupId: { branchId, classGroupId } },
+        create: { branchId, classGroupId, gradeScaleId },
+        update: { gradeScaleId },
+      });
+    else await tx.classGradeScale.deleteMany({ where: { branchId, classGroupId } });
+    await tx.auditLog.create({
+      data: {
+        actorUserId,
+        action: gradeScaleId ? "RESULT_CLASS_SCALE_SET" : "RESULT_CLASS_SCALE_CLEARED",
+        targetType: "ClassGroup",
+        targetId: classGroupId,
+        beforeValue: { gradeScaleId: current?.gradeScaleId ?? null },
+        afterValue: { branchId, className: group.name, gradeScaleId },
+      },
+    });
+    return { changed: true, gradeScaleId };
+  });
+}
+
+export const classScaleInput = z.strictObject({ branchId: idSchema, classGroupId: idSchema, gradeScaleId: idSchema.nullable() });

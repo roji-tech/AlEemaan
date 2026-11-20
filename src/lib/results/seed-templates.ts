@@ -27,46 +27,50 @@ export const SEED_SCHEME = {
   components: [{ name: "Continuous assessment", maxScore: 40 }],
 } as const;
 
-export const SEED_SCALES: Record<SeedTemplate["scale"], { key: string; name: string; bands: readonly SeedBand[] }> = {
-  // Pre-school and basic print no letter: a scale is still needed to enter marks, so this one is never shown on their card.
-  plain: {
-    key: "scale-plain",
-    name: "Report card scale: marks only (letters not printed)",
-    bands: [
-      { min: 0, max: 40, letter: "F", remark: "Fail" },
-      { min: 40, max: 50, letter: "D", remark: "Fair" },
-      { min: 50, max: 60, letter: "C", remark: "Good" },
-      { min: 60, max: 70, letter: "B", remark: "Very good" },
-      { min: 70, max: 100, letter: "A", remark: "Excellent" },
-    ],
-  },
-  // The junior card prints A Excellent, B Good, C Average, E Fair and no D. THE CUT-OFFS BELOW ARE A DEFAULT, NOT THE SCHOOL'S: the maintainer must confirm them (task 0116 D15).
-  junior: {
-    key: "scale-junior",
-    name: "Junior secondary report card scale",
-    bands: [
-      { min: 0, max: 50, letter: "E", remark: "Fair" },
-      { min: 50, max: 60, letter: "C", remark: "Average" },
-      { min: 60, max: 70, letter: "B", remark: "Good" },
-      { min: 70, max: 100, letter: "A", remark: "Excellent" },
-    ],
-  },
-  senior: {
-    key: "scale-senior",
-    name: "Senior secondary report card scale",
-    bands: [
-      { min: 0, max: 40, letter: "F9", remark: "Fail" },
-      { min: 40, max: 45, letter: "E8", remark: "Pass" },
-      { min: 45, max: 50, letter: "D7", remark: "Pass" },
-      { min: 50, max: 55, letter: "C6", remark: "Credit" },
-      { min: 55, max: 60, letter: "C5", remark: "Credit" },
-      { min: 60, max: 65, letter: "C4", remark: "Credit" },
-      { min: 65, max: 70, letter: "B3", remark: "Good" },
-      { min: 70, max: 75, letter: "B2", remark: "Very good" },
-      { min: 75, max: 100, letter: "A1", remark: "Excellent" },
-    ],
-  },
-};
+/// `unconfirmed`: the bands are a guess the school must confirm (see D15); the junior card prints no ranges. The senior ranges are printed on the card, so that scale is confirmed. The migration
+/// that adds the column flags the junior scale of every branch already seeded; `ensureReportTemplates` sets it for a branch seeded later.
+export const SEED_SCALES: Record<SeedTemplate["scale"], { key: string; name: string; unconfirmed?: boolean; bands: readonly SeedBand[] }> =
+  {
+    // Pre-school and basic print no letter: a scale is still needed to enter marks, so this one is never shown on their card.
+    plain: {
+      key: "scale-plain",
+      name: "Report card scale: marks only (letters not printed)",
+      bands: [
+        { min: 0, max: 40, letter: "F", remark: "Fail" },
+        { min: 40, max: 50, letter: "D", remark: "Fair" },
+        { min: 50, max: 60, letter: "C", remark: "Good" },
+        { min: 60, max: 70, letter: "B", remark: "Very good" },
+        { min: 70, max: 100, letter: "A", remark: "Excellent" },
+      ],
+    },
+    // The junior card prints A Excellent, B Good, C Average, E Fair and no D. THE CUT-OFFS BELOW ARE A DEFAULT, NOT THE SCHOOL'S: the maintainer must confirm them (task 0116 D15).
+    junior: {
+      key: "scale-junior",
+      name: "Junior secondary report card scale",
+      unconfirmed: true,
+      bands: [
+        { min: 0, max: 50, letter: "E", remark: "Fair" },
+        { min: 50, max: 60, letter: "C", remark: "Average" },
+        { min: 60, max: 70, letter: "B", remark: "Good" },
+        { min: 70, max: 100, letter: "A", remark: "Excellent" },
+      ],
+    },
+    senior: {
+      key: "scale-senior",
+      name: "Senior secondary report card scale",
+      bands: [
+        { min: 0, max: 40, letter: "F9", remark: "Fail" },
+        { min: 40, max: 45, letter: "E8", remark: "Pass" },
+        { min: 45, max: 50, letter: "D7", remark: "Pass" },
+        { min: 50, max: 55, letter: "C6", remark: "Credit" },
+        { min: 55, max: 60, letter: "C5", remark: "Credit" },
+        { min: 60, max: 65, letter: "C4", remark: "Credit" },
+        { min: 65, max: 70, letter: "B3", remark: "Good" },
+        { min: 70, max: 75, letter: "B2", remark: "Very good" },
+        { min: 75, max: 100, letter: "A1", remark: "Excellent" },
+      ],
+    },
+  };
 
 const PSYCHOMOTOR: SeedGroup = {
   key: "psychomotor",

@@ -1,7 +1,9 @@
+import "../support/env";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
+import { ensureReportTemplates } from "@/lib/results/seed-branch";
 import { clickAction, signInThroughUi } from "./helpers";
 
 // Task 0116 on screen (the maintainer, 2026-11-19): five result templates over sixteen scattered classes, made and filled in a few clicks on Results > Templates; a class moved from one
@@ -225,4 +227,97 @@ test("a teacher does not get the Templates tab", async ({ page }) => {
   await page.goto("/results");
   await expect(page.getByRole("tab", { name: "Enter marks" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Templates" })).toHaveCount(0);
+});
+
+test("a class's own grade scale is chosen on the coverage list and says where its scale comes from", async ({ page }) => {
+  const { branch } = await setUp(page);
+  const scale = await db.gradeScale.create({ data: { branchId: branch.id, name: "Nursery scale", isDefault: true } });
+  await db.gradeBand.create({
+    data: { branchId: branch.id, scaleId: scale.id, minScore: 0, maxScore: 100, letter: "A", remark: "All", sortOrder: 0 },
+  });
+  await db.gradeScale.create({ data: { branchId: branch.id, name: "Own scale", isDefault: false } });
+  await openTemplates(page);
+  const row = page.getByRole("list", { name: "Coverage" }).getByRole("listitem").filter({ hasText: "SSS 3" });
+  await expect(row).toContainText("Grades on: Nursery scale (the branch's default)");
+  await row.getByRole("combobox", { name: "Grade scale of SSS 3" }).selectOption({ label: "Scale: Own scale" });
+  await expect(page.getByText("SSS 3 now grades on its own scale.")).toBeVisible();
+  await expect(row).toContainText("Grades on: Own scale (set for this class)");
+  expect(await db.classGradeScale.count({ where: { gradeScale: { name: "Own scale" } } })).toBe(1);
+  await row.getByRole("combobox", { name: "Grade scale of SSS 3" }).selectOption({ label: "Scale: template's, else the branch default" });
+  await expect(page.getByText("SSS 3 grades on its template's scale again.")).toBeVisible();
+  await expect(row).toContainText("Grades on: Nursery scale (the branch's default)");
+  expect(await db.classGradeScale.count()).toBe(0);
+  await expectAccessible(page, "the coverage list with grade scales");
+});
+
+test("the seeded junior scale shows the unconfirmed notice until its bands are confirmed", async ({ page }) => {
+  const { branch } = await setUp(page);
+  await ensureReportTemplates(branch.id);
+  await openTemplates(page);
+  const scales = page.getByRole("list", { name: "Grade scales" });
+  const junior = scales.getByRole("listitem").filter({ hasText: "Junior secondary report card scale" });
+  await expect(junior).toContainText("Please confirm these grade bands: they were set from the card, which prints no ranges");
+  await expect(junior.getByText("Unconfirmed")).toBeVisible();
+  await expect(scales.getByRole("listitem").filter({ hasText: "Senior secondary report card scale" })).not.toContainText(
+    "Please confirm these grade bands",
+  );
+  await expectAccessible(page, "the grade scales with an unconfirmed scale");
+  await junior.getByRole("button", { name: "Confirm the bands of Junior secondary report card scale" }).click();
+  await expect(page.getByText("Junior secondary report card scale confirmed. Results graded on it can be published.")).toBeVisible();
+  await expect(junior).not.toContainText("Please confirm these grade bands");
+  expect(await db.gradeScale.count({ where: { unconfirmed: true } })).toBe(0);
+});
+
+test("a scale is duplicated and its bands edited in the same editor as Grading; the classes using a scale are named before it is changed", async ({
+  page,
+}) => {
+  const { branch } = await setUp(page);
+  await ensureReportTemplates(branch.id);
+  await openTemplates(page);
+  const scales = page.getByRole("list", { name: "Grade scales" });
+  await scales.getByRole("button", { name: "Duplicate Senior secondary report card scale" }).click();
+  const dup = page.getByRole("dialog", { name: "Duplicate Senior secondary report card scale" });
+  await expect(dup.getByLabel("Scale name")).toHaveValue("Senior secondary report card scale copy");
+  await expect(dup.getByLabel("Band 1 grade")).toHaveValue("F9");
+  await expectAccessible(page, "the scale editor");
+  await dup.getByLabel("Scale name").fill("Nursery scale");
+  await dup.getByRole("button", { name: "Create scale" }).click();
+  await expect(page.getByText("Nursery scale created.")).toBeVisible();
+  await expect(scales.getByRole("listitem").filter({ hasText: "Nursery scale" })).toBeVisible();
+
+  // Editing the junior scale names the classes that grade on it and confirms it when the bands are saved.
+  const group = await db.classGroup.findFirstOrThrow({ where: { branchId: branch.id, name: "JSS 1" } });
+  const junior = await db.gradeScale.findFirstOrThrow({ where: { branchId: branch.id, name: "Junior secondary report card scale" } });
+  await db.classGradeScale.create({ data: { branchId: branch.id, classGroupId: group.id, gradeScaleId: junior.id } });
+  await page.reload();
+  const tab = page.getByRole("tab", { name: "Templates", exact: true });
+  await expect(async () => {
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+  await scales.getByRole("button", { name: "Edit bands of Junior secondary report card scale" }).click();
+  const edit = page.getByRole("dialog", { name: "Edit Junior secondary report card scale" });
+  await expect(edit).toContainText("Classes grading on this scale: JSS 1.");
+  await expect(edit).toContainText("Marks already entered keep the letters they were given");
+  await edit.getByLabel("Band 4 from").fill("75");
+  await edit.getByLabel("Band 3 to").fill("75");
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Junior secondary report card scale saved.")).toBeVisible();
+  expect((await db.gradeScale.findUniqueOrThrow({ where: { id: junior.id } })).unconfirmed).toBe(false);
+});
+
+test("the Classes tab chooses a class's grade scale beside its template", async ({ page }) => {
+  const { branch } = await setUp(page);
+  await db.resultTemplate.create({ data: { branchId: branch.id, name: "Template A", isDefault: true } });
+  const scale = await db.gradeScale.create({ data: { branchId: branch.id, name: "Class scale", isDefault: true } });
+  await db.gradeBand.create({
+    data: { branchId: branch.id, scaleId: scale.id, minScore: 0, maxScore: 100, letter: "A", remark: "All", sortOrder: 0 },
+  });
+  await page.goto(`/academics?tab=classes&branch=${branch.id}`);
+  await clickAction(page, "Result template of Basic 1");
+  const dlg = page.getByRole("dialog", { name: "Result template of Basic 1" });
+  await dlg.getByLabel("Grade scale").selectOption({ label: "Class scale (branch default)" });
+  await dlg.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Basic 1 uses the default template. Its grade scale is its own.")).toBeVisible();
+  expect(await db.classGradeScale.count()).toBe(1);
 });

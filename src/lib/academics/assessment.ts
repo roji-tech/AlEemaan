@@ -1,3 +1,4 @@
+import { staysUnconfirmed } from "@/lib/results/scale-confirmation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -96,6 +97,7 @@ const toScale = (r: ScaleRow) => ({
   isDefault: r.isDefault,
   version: r.version,
   locked: r.lockedAt !== null,
+  unconfirmed: r.unconfirmed,
   supersedesId: r.supersedesId,
   archived: r.archivedAt !== null,
   bands: r.bands.map((b) => ({
@@ -364,7 +366,10 @@ export async function updateScale(actorUserId: string, id: string, patch: z.infe
       const beforeRec = { name: before.name, bands: before.bands.map(({ min, max, letter, remark }) => ({ min, max, letter, remark })) };
       if (JSON.stringify(beforeRec) === JSON.stringify(after)) return { scale: before, changed: false };
       await lockKey(tx, "grade-scale", current.branchId);
-      await tx.gradeScale.update({ where: { id }, data: { name: scaleName } });
+      // Saving changed bands on an unconfirmed scale confirms it (task 0116 D15); a rename alone does not.
+      const bandsChanged = JSON.stringify(beforeRec.bands) !== JSON.stringify(after.bands);
+      const confirmsNow = current.unconfirmed && !staysUnconfirmed(current.unconfirmed, bandsChanged);
+      await tx.gradeScale.update({ where: { id }, data: { name: scaleName, ...(confirmsNow ? { unconfirmed: false } : {}) } });
       await tx.gradeBand.deleteMany({ where: { scaleId: id } });
       await tx.gradeBand.createMany({
         data: bands.map((b) => ({
@@ -384,7 +389,7 @@ export async function updateScale(actorUserId: string, id: string, patch: z.infe
           targetType: "GradeScale",
           targetId: id,
           beforeValue: beforeRec,
-          afterValue: after,
+          afterValue: { ...after, ...(confirmsNow ? { confirmedByEdit: true } : {}) },
         },
       });
       return { scale: toScale(await tx.gradeScale.findUniqueOrThrow({ where: { id }, include: SCALE_INCLUDE })), changed: true };
@@ -411,8 +416,20 @@ export async function newScaleVersion(actorUserId: string, id: string, patch: z.
         data: { archivedAt: new Date(), isDefault: false },
       });
       if (archived.count !== 1) throw new ConflictError("That grade scale just changed. Reload and try again.");
+      // The new version is confirmed when its bands were edited (the administrator wrote them); a rename alone keeps an unconfirmed scale unconfirmed. The OLD version stays as it was: marks
+      // graded on it keep its letters, and while it is unconfirmed they cannot be published (it can still be confirmed, see `confirmScale`).
+      const bandsChanged =
+        JSON.stringify(before.bands.map(({ min, max, letter, remark }) => ({ min, max, letter, remark }))) !==
+        JSON.stringify(bands.map(({ min, max, letter, remark }) => ({ min, max, letter, remark })));
       const created = await tx.gradeScale.create({
-        data: { branchId: old.branchId, name: scaleName, isDefault: old.isDefault, version: old.version + 1, supersedesId: id },
+        data: {
+          branchId: old.branchId,
+          name: scaleName,
+          isDefault: old.isDefault,
+          version: old.version + 1,
+          supersedesId: id,
+          unconfirmed: staysUnconfirmed(old.unconfirmed, bandsChanged),
+        },
       });
       await tx.gradeBand.createMany({
         data: bands.map((b) => ({
@@ -490,6 +507,32 @@ export async function lockScale(tx: Prisma.TransactionClient, id: string): Promi
 }
 
 /// The legacy WAEC-style scale (A1 ... F9) offered as a template the administrator applies - never inserted silently.
+/// "Confirm these bands" (task 0116 D15): an administrator of the scale's branch (or a superadmin) says the bands are right. Clears `unconfirmed`; works on any scale of the branch, an earlier
+/// version included (marks graded on it keep its letters and can then be published). Idempotent; audited with who and when (the audit row's actor and time).
+export async function confirmScale(actorUserId: string, id: string) {
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.gradeScale.findUnique({
+      where: { id },
+      select: { id: true, branchId: true, name: true, version: true, unconfirmed: true },
+    });
+    if (!current) return null;
+    if (!current.unconfirmed) return { id, changed: false };
+    await lockKey(tx, "grade-scale", current.branchId);
+    await tx.gradeScale.update({ where: { id }, data: { unconfirmed: false } });
+    await tx.auditLog.create({
+      data: {
+        actorUserId,
+        action: "GRADE_SCALE_CONFIRMED",
+        targetType: "GradeScale",
+        targetId: id,
+        beforeValue: { unconfirmed: true },
+        afterValue: { unconfirmed: false, name: current.name, version: current.version, branchId: current.branchId },
+      },
+    });
+    return { id, changed: true };
+  });
+}
+
 export const WAEC_TEMPLATE = [
   { min: 0, max: 40, letter: "F9", remark: "Fail" },
   { min: 40, max: 45, letter: "E8", remark: "Pass" },

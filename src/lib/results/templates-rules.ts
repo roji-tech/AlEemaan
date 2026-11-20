@@ -141,3 +141,26 @@ export function schemeSource(ownScheme: { name: string } | null, templateScheme:
   if (templateScheme) return `the template's scheme, ${templateScheme.name}`;
   return "the branch's default scheme";
 }
+
+export type ScaleSource = "class" | "template" | "branch";
+
+/// Which grade scale a class grades on (task 0116): the class's OWN scale, else its result template's scale, else the branch's default scale. Pure: the ids only. Null when none is set
+/// anywhere (a sheet is then refused with the usual "set up a default grade scale" words). A scale that is named but archived is NOT skipped here: the server refuses it (a different
+/// scale is never applied silently).
+export function pickScale(
+  classScaleId: string | null | undefined,
+  templateScaleId: string | null | undefined,
+  branchDefaultScaleId: string | null | undefined,
+): { scaleId: string | null; source: ScaleSource | null } {
+  if (classScaleId) return { scaleId: classScaleId, source: "class" };
+  if (templateScaleId) return { scaleId: templateScaleId, source: "template" };
+  if (branchDefaultScaleId) return { scaleId: branchDefaultScaleId, source: "branch" };
+  return { scaleId: null, source: null };
+}
+
+/// The words a screen uses for where a class's scale comes from.
+export const SCALE_SOURCE_TEXT: Record<ScaleSource, string> = {
+  class: "set for this class",
+  template: "from its result template",
+  branch: "the branch's default",
+};

@@ -101,6 +101,7 @@ model Branch {
   resultTemplateTraits      ResultTemplateTrait[]
   traitRatings              TraitRating[]
   reportAttendance          ReportAttendance[]
+  classGradeScales          ClassGradeScale[]
 }
 
 enum Role {

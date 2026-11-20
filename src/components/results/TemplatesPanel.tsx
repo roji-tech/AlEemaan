@@ -13,9 +13,12 @@ import { useNotice } from "@/components/ui/Toaster";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
 import { setClassTemplate } from "@/components/results/template-calls";
+import { GradeScalesSection } from "@/components/results/GradeScalesSection";
 import { TemplateClassesDialog } from "@/components/results/TemplateClassesDialog";
 import { TemplateFormDialog, type TemplateFormMode } from "@/components/results/TemplateFormDialog";
 import { lookText, moveLines, type TemplateView, type TemplatesData } from "@/components/results/template-types";
+import { SCALE_SOURCE_TEXT } from "@/lib/results/templates-rules";
+import { UNCONFIRMED_NOTICE } from "@/lib/results/scale-confirmation";
 
 // Results > Templates (task 0116): the branch's result templates, each a look + a marks structure + a grade scale with the classes that use it, and a coverage list of every class with the
 // template it uses. Any number of templates; a class is in one; a class nobody placed uses the default. Presentation only: the template APIs decide who may do what.
@@ -54,6 +57,22 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
   async function act(path: string, ok: string) {
     const reply = await sendJson(path, "POST");
     setNotice(reply.ok ? { variant: "success", text: ok } : { variant: "error", text: say(reply, "That didn't work.") });
+    await load();
+  }
+  /// Sets (or clears, with null) the class's own grade scale: it wins over the template's and the branch's.
+  async function placeScale(classGroupId: string, gradeScaleId: string | null) {
+    setBusy(true);
+    const reply = await sendJson("/api/v1/results/templates/class-scale", "PUT", { branchId, classGroupId, gradeScaleId });
+    setBusy(false);
+    const name = data?.coverage.find((c) => c.classGroupId === classGroupId)?.name ?? "The class";
+    setNotice(
+      reply.ok
+        ? {
+            variant: "success",
+            text: gradeScaleId ? `${name} now grades on its own scale.` : `${name} grades on its template's scale again.`,
+          }
+        : { variant: "error", text: say(reply, "That didn't work.") },
+    );
     await load();
   }
   async function place(classGroupId: string, target: string | null, confirm: boolean) {
@@ -224,8 +243,14 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
+                  {c.scale && (
+                    <p className="text-xs text-fg-muted">
+                      Grades on: {c.scale.name ?? "a scale"} ({SCALE_SOURCE_TEXT[c.scale.source]})
+                      {c.scale.unconfirmed ? ` · ${UNCONFIRMED_NOTICE}` : ""}
+                    </p>
+                  )}
                 </div>
-                <div className="w-full sm:w-64">
+                <div className="grid w-full gap-2 sm:w-[34rem] sm:grid-cols-2">
                   <SelectField
                     label={`Result template of ${c.name}`}
                     hideLabel
@@ -237,11 +262,29 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
                       ...live.map((t) => ({ value: t.id, label: t.name })),
                     ]}
                   />
+                  <SelectField
+                    label={`Grade scale of ${c.name}`}
+                    hideLabel
+                    value={c.classScaleId ?? ""}
+                    disabled={busy}
+                    onChange={(e) => void placeScale(c.classGroupId, e.target.value === "" ? null : e.target.value)}
+                    options={[
+                      { value: "", label: "Scale: template's, else the branch default" },
+                      ...data.choices.scales.map((s) => ({
+                        value: s.id,
+                        label: `Scale: ${s.name}${s.isDefault ? " (branch default)" : ""}`,
+                      })),
+                    ]}
+                  />
                 </div>
               </li>
             ))}
           </ul>
         </section>
+      )}
+
+      {data && (
+        <GradeScalesSection branchId={branchId} data={data} onChanged={load} onNotice={(variant, text) => setNotice({ variant, text })} />
       )}
 
       {form && data && (

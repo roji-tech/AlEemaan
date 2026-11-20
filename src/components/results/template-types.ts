@@ -15,15 +15,25 @@ export type TemplateView = {
   gradeScale: { id: string; name: string; archived: boolean } | null;
   classGroupIds: string[];
 };
+/// Which grade scale a class grades on and from where (its own, its template's, the branch's default); `unconfirmed` when its bands are still a guess.
+export type CoverageScale = {
+  id: string;
+  name: string | null;
+  source: "class" | "template" | "branch";
+  archived: boolean;
+  unconfirmed: boolean;
+};
 export type TemplatesData = {
   templates: TemplateView[];
   classes: ClassRef[];
-  coverage: CoverageRow[];
+  coverage: (CoverageRow & { classScaleId: string | null; scale: CoverageScale | null })[];
   unplaced: number;
   choices: {
     layouts: { code: string; name: string }[];
     schemes: { id: string; name: string; note: string }[];
-    scales: { id: string; name: string; isDefault: boolean }[];
+    scales: { id: string; name: string; isDefault: boolean; unconfirmed: boolean }[];
+    /// Earlier versions of a grade scale that were never confirmed (marks graded on them cannot be published until they are).
+    earlierUnconfirmed: { id: string; name: string; version: number }[];
   };
 };
 

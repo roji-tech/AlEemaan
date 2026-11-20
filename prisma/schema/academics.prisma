@@ -122,6 +122,7 @@ model ClassGroup {
   quizzes                Quiz[]
   sourcePromotionBatches PromotionBatch[]        @relation("SourceClassBatches")
   targetPromotionBatches PromotionBatch[]        @relation("TargetClassBatches")
+  classGradeScale        ClassGradeScale?
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -316,6 +317,9 @@ model GradeScale {
   branchId     String
   name         String
   isDefault    Boolean   @default(false)
+  /// True for a scale whose bands were GUESSED, not printed on the school's card (the seeded junior scale, task 0116 D15). While true, results graded on it cannot be published; an administrator
+  /// confirms the bands, or edits and saves them (a new version if results used it), and it clears.
+  unconfirmed  Boolean   @default(false)
   version      Int       @default(1)
   lockedAt     DateTime?
   supersedesId String?
@@ -323,12 +327,13 @@ model GradeScale {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
-  branch     Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  supersedes GradeScale?      @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
-  successors GradeScale[]     @relation("ScaleVersions")
-  bands      GradeBand[]
-  results    Result[]
-  templates  ResultTemplate[]
+  branch         Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supersedes     GradeScale?       @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors     GradeScale[]      @relation("ScaleVersions")
+  bands          GradeBand[]
+  results        Result[]
+  templates      ResultTemplate[]
+  classOverrides ClassGradeScale[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -702,4 +707,23 @@ model ReportAttendance {
 
   @@unique([studentId, periodId])
   @@index([branchId, periodId])
+}
+
+/// A class's own grade scale (task 0116, the maintainer 2026-11-20: "make the scale editable per class per branch"): it wins over the class's result template's scale and the branch's default.
+/// A table of its own, not a column of ResultTemplateClass, so a class that is in no template (it uses the default one) can have its own scale too. One row per class; a row means "this class
+/// grades on this scale"; no row means "follow the template, then the branch default". Same branch by composite keys; the scale is never deleted, so NoAction.
+model ClassGradeScale {
+  id           String   @id @default(cuid())
+  branchId     String
+  classGroupId String
+  gradeScaleId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: Cascade)
+  gradeScale GradeScale @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, classGroupId])
+  @@index([gradeScaleId])
 }

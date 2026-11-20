@@ -206,7 +206,7 @@ test.describe("placing one class from the Classes tab (the calls it makes)", () 
     classes: [],
     coverage: [],
     unplaced: 0,
-    choices: { layouts: [], schemes: [], scales: [] },
+    choices: { layouts: [], schemes: [], scales: [], earlierUnconfirmed: [] },
   };
   async function capture(run: () => Promise<unknown>) {
     const seen: { url: string; body: unknown }[] = [];

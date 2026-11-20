@@ -49,7 +49,9 @@ async function seed(tx: Tx, branchId: string) {
     const scaleId = seedId(branchId, scale.key);
     if (await tx.gradeScale.findUnique({ where: { id: scaleId }, select: { id: true } })) continue;
     if (await tx.gradeScale.findFirst({ where: { branchId, name: scale.name, archivedAt: null }, select: { id: true } })) continue;
-    await tx.gradeScale.create({ data: { id: scaleId, branchId, name: scale.name, isDefault: false } });
+    await tx.gradeScale.create({
+      data: { id: scaleId, branchId, name: scale.name, isDefault: false, unconfirmed: scale.unconfirmed === true },
+    });
     await tx.gradeBand.createMany({
       data: scale.bands.map((b, i) => ({
         id: `${seedId(branchId, "band", scale.key)}_${i}`,
