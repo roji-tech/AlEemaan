@@ -237,6 +237,29 @@ test.describe("new or returning, set by hand", () => {
   });
 });
 
+test.describe("the pupil import's Admission status column", () => {
+  test("New or Returning is saved on the pupil; empty leaves it worked out; a word it does not know is a problem on that row", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const send = (rows: unknown[], dryRun = false) =>
+      api("/api/v1/students/import", { method: "POST", cookie: admin.cookie, body: { branchId: home.id, dryRun, rows } });
+    const base = (line: number, first: string, extra: Record<string, string> = {}) => ({
+      line,
+      values: { firstName: first, lastName: "Import", gender: "Male", ...extra },
+    });
+    const bad = await send([base(2, "Odd", { feeAdmission: "sometimes" })], true);
+    expect(JSON.stringify(bad.json)).toContain("Write New or Returning");
+    const saved = await send([
+      base(2, "Fresh", { feeAdmission: "New" }),
+      base(3, "Veteran", { feeAdmission: "Returning" }),
+      base(4, "Plain"),
+    ]);
+    expect(saved.status, saved.text).toBe(201);
+    const of = async (first: string) =>
+      (await db.studentRecord.findFirstOrThrow({ where: { branchId: home.id, firstName: first } })).feeAdmission;
+    expect([await of("Fresh"), await of("Veteran"), await of("Plain")]).toEqual(["NEW", "RETURNING", null]);
+  });
+});
+
 test.describe("opting out of an optional line", () => {
   test("before the run: the pupil's invoice leaves the line out; the others are unchanged", async () => {
     const admin = await asRole(Role.ADMIN);

@@ -195,6 +195,7 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
           admissionNo,
           isDraft: ctx.asDraft === true,
           residence: row.residence ?? null,
+          feeAdmission: row.feeAdmission ?? null,
         },
         select: { id: true, branchId: true, firstName: true, lastName: true },
       });
