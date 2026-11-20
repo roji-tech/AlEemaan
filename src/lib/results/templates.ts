@@ -5,6 +5,8 @@ import { ConflictError } from "@/lib/academics/structure";
 import { ensureDefaultReportCardLayouts, getBranchReportCardLayout } from "@/lib/settings/approvals";
 import { createScheme, schemeInput } from "@/lib/academics/assessment";
 import { ensureReportTemplates } from "@/lib/results/seed-branch";
+import { markCustomised } from "@/lib/results/school-template-marks";
+import { STATE_LABEL, rowState } from "@/lib/results/school-templates-rules";
 import {
   LAYOUT_CODES,
   TEMPLATE_DESCRIPTION_MAX,
@@ -177,7 +179,11 @@ export async function listTemplates(branchId: string, includeArchived = false) {
   const [templates, classes, assignments, ownRows, schemes, scales, overrides] = await Promise.all([
     prisma.resultTemplate.findMany({
       where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },
-      include: { scheme: SCHEME_NAME, gradeScale: SCHEME_NAME },
+      include: {
+        scheme: SCHEME_NAME,
+        gradeScale: SCHEME_NAME,
+        schoolTemplate: { select: { id: true, name: true, version: true, archivedAt: true } },
+      },
       orderBy: [{ isDefault: "desc" }, { name: "asc" }],
     }),
     prisma.classGroup.findMany({
@@ -261,6 +267,24 @@ export async function listTemplates(branchId: string, includeArchived = false) {
       scheme: t.scheme ? { id: t.scheme.id, name: t.scheme.name, archived: t.scheme.archivedAt !== null } : null,
       gradeScale: t.gradeScale ? { id: t.gradeScale.id, name: t.gradeScale.name, archived: t.gradeScale.archivedAt !== null } : null,
       classGroupIds: assignments.filter((a) => a.templateId === t.id).map((a) => a.classGroupId),
+      // Task 0120: the school-wide template this row follows, and where the row stands against it (null for a template of the branch's own).
+      school: t.schoolTemplate
+        ? (() => {
+            const state = rowState(
+              { schoolTemplateVersion: t.schoolTemplateVersion, localEditedAt: t.localEditedAt },
+              t.schoolTemplate.version,
+            );
+            return {
+              id: t.schoolTemplate.id,
+              name: t.schoolTemplate.name,
+              version: t.schoolTemplate.version,
+              rowVersion: t.schoolTemplateVersion,
+              archived: t.schoolTemplate.archivedAt !== null,
+              state,
+              label: STATE_LABEL[state],
+            };
+          })()
+        : null,
     })),
     classes: classRefs,
     coverage: coverage.rows,
@@ -487,6 +511,7 @@ export async function applyTemplateLayout(tx: Tx, actorUserId: string, templateI
     where: { id: templateId },
     data: { layoutCode: change.layoutCode, layoutOptions: json(change.layoutCode ? change.layoutOptions : null) },
   });
+  await markCustomised(tx, { id: templateId }); // a row that follows a school template now says "Customised here"
   await audit(
     tx,
     actorUserId,
@@ -547,6 +572,7 @@ export async function updateTemplate(actorUserId: string, id: string, patch: z.i
         after.gradeScaleId = patch.gradeScaleId;
       }
       if (Object.keys(data).length > 0) {
+        if (fresh.schoolTemplateId) data.localEditedAt = new Date(); // "Customised here": a sync of the school template now skips this row unless told to replace
         await tx.resultTemplate.update({ where: { id }, data });
         await audit(tx, actorUserId, "RESULT_TEMPLATE_UPDATED", id, after as Prisma.InputJsonValue, before as Prisma.InputJsonValue);
       }
