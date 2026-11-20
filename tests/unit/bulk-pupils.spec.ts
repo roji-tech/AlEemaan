@@ -54,6 +54,9 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
   guardianName: { pass: ["", "Mr Yusuf"], fail: ["x".repeat(101)] },
   guardianPhone: { pass: ["", "08030000000", "8030000000", "+234 803 000 0000"], fail: ["123", "abc", "0".repeat(21)] },
   guardianEmail: { pass: ["", "a@x.com", "A.B@School.Org"], fail: ["nope", "a@b"] },
+  residence: { pass: ["", "Day", "boarding", "BOARDER"], fail: ["weekly", "both"] },
+  scholarship: { pass: ["", "Academic merit", "x".repeat(80)], fail: ["x".repeat(81)] },
+  scholarshipPercent: { pass: ["", "50", "100", "50%", " 1 % "], fail: ["0", "101", "abc", "12.5"] },
 };
 test("every column has samples; each passing value passes and each failing value is a problem on that column alone", () => {
   expect(Object.keys(SAMPLES).sort()).toEqual(pupilEntity.columns.map((c) => c.key).sort());

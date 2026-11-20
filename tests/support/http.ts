@@ -1,5 +1,6 @@
 import { HTTP_URL } from "./env";
 import { uniqueIp } from "./db";
+import { linkGuardiansFromColumns } from "./guardians";
 
 // Plain `fetch` on purpose, not Playwright's APIRequestContext: that keeps a
 // cookie jar between calls, which would silently attach a session to a request
@@ -36,6 +37,12 @@ export type ApiResponse = {
 
 export async function api(path: string, opts: ApiOptions = {}): Promise<ApiResponse> {
   const baseUrl = opts.baseUrl ?? HTTP_URL;
+  // Task 0113: a family signs in through guardian LINKS; pupils seeded with guardian columns get them first (tests/support/guardians.ts).
+  if (
+    path === "/api/v1/portal/session" &&
+    (opts.method ?? (opts.body !== undefined || opts.rawBody !== undefined ? "POST" : "GET")) === "POST"
+  )
+    await linkGuardiansFromColumns();
   const headers: Record<string, string> = {};
   if (opts.form === undefined && (opts.body !== undefined || opts.rawBody !== undefined)) headers["content-type"] = "application/json";
   if (opts.origin !== null) headers.origin = opts.origin ?? baseUrl;

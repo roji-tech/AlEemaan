@@ -245,27 +245,27 @@ test.describe("Slice P8 — Parent & Student Portal API", () => {
     expect(s1Lms.status).toBe(200);
     expect(s1Lms.json.data.assignments).toBeDefined();
 
-    // --- 7. Magic Link Token Authentication ---
+    // --- 7. The hand-pasted link token no longer signs in (task 0113: the old form and its token are gone; nothing in the app ever sent one) ---
     const rawToken = "magic-token-xyz-12345678901234567890";
-    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
     await db.guardianLinkToken.create({
       data: {
         branchId: home.id,
         studentId: student3.id,
-        tokenHash,
+        tokenHash: crypto.createHash("sha256").update(rawToken).digest("hex"),
         channel: NotificationChannel.SMS,
         action: "portal_access",
         expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
       },
     });
+    const magicLogin = await api("/api/v1/portal/session", { body: { token: rawToken } });
+    expect(magicLogin.status).toBe(400);
+    expect(magicLogin.setCookies).toHaveLength(0);
 
-    const magicLogin = await api("/api/v1/portal/session", {
-      body: { token: rawToken },
-    });
-    expect(magicLogin.status).toBe(200);
-    expect(magicLogin.json.data.student.id).toBe(student3.id);
-
-    const s3Cookie = magicLogin.setCookies[0].split(";")[0];
+    // Student 3's own guardian (another family: their own phone, so their own guardian record) reaches Student 3 only.
+    const s3Login = await api("/api/v1/portal/session", { body: { admissionNo: student3.admissionNo, secret: "+2348099998888" } });
+    expect(s3Login.status, s3Login.text).toBe(200);
+    expect(s3Login.json.data.student.id).toBe(student3.id);
+    const s3Cookie = s3Login.setCookies[0].split(";")[0];
     const s3Access = await api(`/api/v1/portal/students/${student3.id}/overview`, {
       cookie: s3Cookie,
     });

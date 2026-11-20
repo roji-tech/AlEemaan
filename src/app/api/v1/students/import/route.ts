@@ -18,6 +18,8 @@ import { runBulk } from "@/lib/bulk/server";
 const body = z.strictObject({
   branchId: z.string().min(1, "Branch ID is required"),
   allowDuplicates: z.boolean().optional().default(false),
+  // `asDraft: true` (task 0101 D1) saves every row as a draft: the rows' own rules still apply, the completeness rules do not. Default false.
+  asDraft: z.boolean().optional().default(false),
   ...bulkBodyShape(),
 });
 const PER_WINDOW = 150; // per administrator per 5 minutes: a dry run, and each batch of 20 rows of a save (task 0095), is a request: 150 is 3,000 rows
@@ -34,7 +36,7 @@ export const POST = withAuth(
           bulkResponse(
             await runBulk(
               pupilKind,
-              { branchId: body.branchId, allowDuplicates: body.allowDuplicates },
+              { branchId: body.branchId, allowDuplicates: body.allowDuplicates, asDraft: body.asDraft },
               { dryRun: body.dryRun, rows: body.rows },
               auth.userId,
             ),

@@ -62,8 +62,10 @@ export type Totals = {
   outstandingKobo: number;
   /// The part of it that is past its due date.
   overdueKobo: number;
-  /// Discounts given (already taken off an invoice's total; shown on their own line).
+  /// Discounts given (already taken off an invoice's total; shown on their own line). Scholarships are NOT in this: they have their own figure.
   discountsKobo: number;
+  /// Scholarships (discounts of the scholarship kind, task 0113 S1), taken off invoices' totals like a discount but never counted as money collected (collected is payments only).
+  scholarshipsKobo: number;
   waived: number;
   cancelled: number;
   ratePercent: number;
@@ -76,6 +78,7 @@ export function totalsOf(input: {
   byStatus: Partial<Record<keyof ByStatus, StatusRow>>;
   ageing: Record<AgeingBucket, number>;
   discountsKobo: number;
+  scholarshipsKobo?: number;
   waived: number;
   cancelled: number;
 }): { totals: Totals; byStatus: ByStatus } {
@@ -101,6 +104,7 @@ export function totalsOf(input: {
       outstandingKobo: Math.max(owed, 0),
       overdueKobo,
       discountsKobo: input.discountsKobo,
+      scholarshipsKobo: input.scholarshipsKobo ?? 0,
       waived: input.waived,
       cancelled: input.cancelled,
       ratePercent: ratePercent(collectedKobo, invoicedKobo),
@@ -120,6 +124,7 @@ export function sumTotals(list: readonly Totals[]): Totals {
     outstandingKobo: sum((t) => t.outstandingKobo),
     overdueKobo: sum((t) => t.overdueKobo),
     discountsKobo: sum((t) => t.discountsKobo),
+    scholarshipsKobo: sum((t) => t.scholarshipsKobo),
     waived: sum((t) => t.waived),
     cancelled: sum((t) => t.cancelled),
     ratePercent: ratePercent(collectedKobo, invoicedKobo),

@@ -25,7 +25,14 @@ import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDial
 import { KIND_TEXT, kindsFor, prettyDay, type StandingCan, type StandingValue } from "@/components/standing/model";
 import { OwnProgramCard, type OwnProgram } from "@/components/students/OwnProgramCard";
 import { ExportButton } from "@/components/bulk/ExportButton";
+import { draftPill } from "@/components/academics/StaffDetails";
 import { AGE_MAX, activePupilFilters, pupilFilterQuery, type PupilFilters } from "@/lib/students/list-filters";
+import { PupilGuardiansDialog } from "@/components/guardians/PupilGuardiansDialog";
+import { AccessCodesDialog } from "@/components/guardians/AccessCodesDialog";
+import { ClassSlipsDialog } from "@/components/guardians/ClassSlipsDialog";
+import { RELATIONSHIP_OPTIONS, type GuardianMatch } from "@/components/guardians/model";
+import { PupilScholarshipsDialog } from "@/components/scholarships/PupilScholarshipsDialog";
+import { TONE } from "@/components/ui/tone";
 
 // The branch's pupils (Slice UI1, over the students API): search, register, edit, archive and restore, and import from a spreadsheet. Presentation only: the API
 // decides who may read and change what, refuses a namesake unless an administrator confirms it (ADR 0011), and audits that confirmation.
@@ -40,12 +47,19 @@ type Student = {
   dateOfBirth: string | null;
   admissionNo: string;
   archived: boolean;
+  /// A draft (task 0101 D1): saved unfinished. `missing` is what it still needs, by the server's rule.
+  isDraft: boolean;
+  missing: string[];
   /// What applies today, and the last day of a suspension (task 0045).
   standing: StandingValue;
   standingUntil: string | null;
   guardianName: string | null;
   guardianPhone: string | null;
   guardianEmail: string | null;
+  /// Day pupil or boarder (task 0113 R1); null = not set.
+  residence: "DAY" | "BOARDING" | null;
+  /// The live scholarships (task 0113 S1): only an administrator of the pupil's branch is sent them; absent for anyone else.
+  scholarships?: { typeName: string; percent: number }[];
   currentClass: string | null;
   sessionLabel: string | null;
 };
@@ -57,6 +71,8 @@ type Editing = { kind: "form"; item: Student | null } | null;
 const USUAL_SIZE = 25;
 
 type Show = "live" | "suspended" | "expelled" | "archived";
+
+const RESIDENCE_TEXT = { DAY: "Day", BOARDING: "Boarding" } as const;
 
 /// "AY" for Amina Yusuf: the first letter of the first and the last name (whole characters, so an emoji or an accented letter is not cut in half).
 const initialsOf = (first: string, last: string) => `${Array.from(first.trim())[0] ?? ""}${Array.from(last.trim())[0] ?? ""}`.toUpperCase();
@@ -91,6 +107,9 @@ export function StudentsPanel({
   // Class, arm, gender and age (task 0103 D1), applied by the server so the counts and pages follow them.
   const [pf, setPf] = useState<PupilFilters>({});
   const [noDob, setNoDob] = useState<number | null>(null);
+  // How many of the pupils matched are drafts (task 0101 D1), and whether "Add many" saves its rows as drafts.
+  const [drafts, setDrafts] = useState(0);
+  const [asDraft, setAsDraft] = useState(false);
   const [page, setPage] = useState(1);
   // List or grid, and how many to a page: remembered in this browser (task 0089). The list is paged by the server, so the size is sent as `limit` (every size the kit offers is at most 50, the API's cap).
   const layout = useCollectionView("students", { defaultView: "list", defaultSize: USUAL_SIZE, page, onPage: setPage });
@@ -101,6 +120,30 @@ export function StudentsPanel({
   const [restoreAsk, setRestoreAsk] = useState<{ student: Student; message: string } | null>(null);
   const [standingAsk, setStandingAsk] = useState<StandingAsk | null>(null);
   const [historyOf, setHistoryOf] = useState<{ endpoint: string; name: string } | null>(null);
+  // Task 0113: a pupil's guardians, their access codes, and a class's printable slips.
+  const [guardiansOf, setGuardiansOf] = useState<{ id: string; name: string } | null>(null);
+  const [codesOf, setCodesOf] = useState<{ id: string; name: string } | null>(null);
+  const [slips, setSlips] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
+  const [scholarshipsOf, setScholarshipsOf] = useState<{ id: string; name: string } | null>(null);
+  // The branch's current scholarship types, for the filter (administrators only: the API refuses anyone else).
+  const [scholarshipTypes, setScholarshipTypes] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!branch.canEdit) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a branch the person cannot administer has no scholarship filter
+      setScholarshipTypes([]);
+      return;
+    }
+    const controller = new AbortController();
+    void getJson(`/api/v1/finance/scholarship-types?branchId=${encodeURIComponent(branchId)}`, controller.signal).then((reply) => {
+      if (!controller.signal.aborted && reply.ok)
+        setScholarshipTypes(
+          (reply.data!.types as { id: string; name: string; archived: boolean }[])
+            .filter((t) => !t.archived)
+            .map(({ id, name }) => ({ id, name })),
+        );
+    });
+    return () => controller.abort();
+  }, [branch.canEdit, branchId]);
   const can: StandingCan = standingCan[branchId] ?? { suspend: false, remove: false };
 
   // Changing the page size or the view moves the page and the size in the same breath; an answer to the request before that must not land after the one that replaced it.
@@ -121,6 +164,7 @@ export function StudentsPanel({
     setStudents(s.data!.students as Student[]);
     setPaging(s.data!.pagination as Paging);
     setNoDob((s.data!.noDateOfBirth as number | null | undefined) ?? null);
+    setDrafts((s.data!.drafts as number | undefined) ?? 0);
     setClasses(c.data!.classGroups as ClassOption[]);
   }, [branchId, status, show, q, pf, page, size]);
 
@@ -134,6 +178,19 @@ export function StudentsPanel({
     setNotice({ variant: "success", text });
     await load();
   };
+  /// Task 0101 D1: finish a draft, or put a pupil back to unfinished. The server decides (what is missing) and says so.
+  async function setDraft(s: Student, draft: boolean) {
+    const reply = draft
+      ? await sendJson(`/api/v1/students/${s.id}`, "PATCH", { isDraft: true })
+      : await sendJson(`/api/v1/students/${s.id}/complete`, "POST");
+    const who = `${s.firstName} ${s.lastName}`;
+    setNotice(
+      reply.ok
+        ? { variant: "success", text: draft ? `${who} is now a draft.` : `${who} is complete: no longer a draft.` }
+        : { variant: "error", text: say(reply, "That didn't work.") },
+    );
+    await load();
+  }
   async function setArchived(s: Student, archived: boolean, allowDuplicate = false) {
     setRestoreAsk(null);
     const reply = archived
@@ -208,6 +265,9 @@ export function StudentsPanel({
             </h2>
             {branch.canEdit && (
               <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setSlips((v) => ({ open: true, key: v.key + 1 }))}>
+                  Print access slips
+                </Button>
                 <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
                   Add many
                 </Button>
@@ -296,6 +356,40 @@ export function StudentsPanel({
               { value: "FEMALE", label: "Female" },
             ]}
           />
+          <SelectField
+            label="Drafts"
+            value={pf.draft ?? ""}
+            onChange={(e) => setFilter({ ...pf, draft: (e.target.value || undefined) as PupilFilters["draft"] })}
+            options={[
+              { value: "", label: "Any" },
+              { value: "YES", label: "Drafts only" },
+              { value: "NO", label: "Not drafts" },
+            ]}
+          />
+          <SelectField
+            label="Day or boarding"
+            value={pf.residence ?? ""}
+            onChange={(e) => setFilter({ ...pf, residence: (e.target.value || undefined) as PupilFilters["residence"] })}
+            options={[
+              { value: "", label: "Any" },
+              { value: "DAY", label: "Day" },
+              { value: "BOARDING", label: "Boarding" },
+              { value: "NONE", label: "Not set" },
+            ]}
+          />
+          {branch.canEdit && (
+            <SelectField
+              label="Scholarship"
+              value={pf.scholarship ?? ""}
+              onChange={(e) => setFilter({ ...pf, scholarship: e.target.value || undefined })}
+              options={[
+                { value: "", label: "Any" },
+                { value: "ANY", label: "Has a scholarship" },
+                { value: "NONE", label: "None" },
+                ...scholarshipTypes.map((t) => ({ value: t.id, label: t.name })),
+              ]}
+            />
+          )}
           <TextField
             label="Age from"
             type="number"
@@ -315,6 +409,12 @@ export function StudentsPanel({
             onChange={(e) => setFilter({ ...pf, ageMax: ageValue(e.target.value) })}
           />
         </ListToolbar>
+        {drafts > 0 && (
+          <p className="text-sm text-fg-muted" aria-live="polite">
+            {drafts} {drafts === 1 ? "draft" : "drafts"} among these pupils: kept unfinished and left out of classes, attendance, invoices
+            and results until completed.
+          </p>
+        )}
         {noDob !== null && noDob > 0 && (
           <p className="text-sm text-fg-muted" aria-live="polite">
             {noDob} {noDob === 1 ? "pupil has" : "pupils have"} no date of birth, so their age cannot be checked: they are left out.
@@ -359,27 +459,87 @@ export function StudentsPanel({
                     ariaLabel: `${KIND_TEXT[kind]} ${name}`,
                     onSelect: () => setStandingAsk({ kind, subject: "student", endpoint: `/api/v1/students/${s.id}/standing`, name }),
                   }))),
+              ...(s.archived
+                ? []
+                : [
+                    s.isDraft
+                      ? { id: "complete", label: "Complete", ariaLabel: `Complete ${name}`, onSelect: () => void setDraft(s, false) }
+                      : {
+                          id: "draft",
+                          label: "Mark as draft",
+                          ariaLabel: `Mark ${name} as a draft`,
+                          onSelect: () => void setDraft(s, true),
+                        },
+                  ]),
               {
                 id: "history",
                 label: "Standing history",
                 ariaLabel: `Standing history of ${name}`,
                 onSelect: () => setHistoryOf({ endpoint: `/api/v1/students/${s.id}/standing`, name }),
               },
+              ...(s.archived
+                ? []
+                : [
+                    {
+                      id: "guardians",
+                      label: "Guardians",
+                      ariaLabel: `Guardians of ${name}`,
+                      onSelect: () => setGuardiansOf({ id: s.id, name }),
+                    },
+                    ...(branch.canEdit
+                      ? [
+                          {
+                            id: "scholarships",
+                            label: "Scholarships",
+                            ariaLabel: `Scholarships of ${name}`,
+                            onSelect: () => setScholarshipsOf({ id: s.id, name }),
+                          },
+                        ]
+                      : []),
+                    {
+                      id: "access-codes",
+                      label: "Access codes",
+                      ariaLabel: `Access codes of ${name}`,
+                      onSelect: () => setCodesOf({ id: s.id, name }),
+                    },
+                  ]),
             ];
             return (
               <Item
                 key={s.id}
                 leading={<ItemInitials text={initialsOf(s.firstName, s.lastName)} />}
                 title={`${s.firstName} ${s.middleName ? `${s.middleName} ` : ""}${s.lastName}`}
-                subtitle={`${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`}
+                subtitle={
+                  s.isDraft && s.missing.length > 0 ? (
+                    <>
+                      <span className="block">{`${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`}</span>
+                      <span className="block">Missing: {s.missing.join(", ")}</span>
+                    </>
+                  ) : (
+                    `${s.admissionNo} · ${s.gender === "MALE" ? "Male" : "Female"}`
+                  )
+                }
                 facts={facts}
                 badges={
-                  s.archived || s.standing !== "ACTIVE" ? (
+                  s.archived || s.isDraft || s.standing !== "ACTIVE" || s.residence || (s.scholarships?.length ?? 0) > 0 ? (
                     <>
-                      <StandingBadge standing={s.standing} until={s.standingUntil} />
+                      {s.isDraft && draftPill()}
+                      {(s.archived || s.standing !== "ACTIVE") && <StandingBadge standing={s.standing} until={s.standingUntil} />}
                       {s.archived && (
                         <span className="shrink-0 rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs font-semibold text-fg-2">
                           Archived
+                        </span>
+                      )}
+                      {s.scholarships?.map((sc) => (
+                        <span key={sc.typeName} className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${TONE.ok.chip}`}>
+                          {sc.percent >= 100 ? `Full scholarship: ${sc.typeName}` : `Scholarship: ${sc.typeName} ${sc.percent}%`}
+                        </span>
+                      ))}
+                      {s.residence && (
+                        <span
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${TONE[s.residence === "BOARDING" ? "info" : "neutral"].chip}`}
+                        >
+                          {RESIDENCE_TEXT[s.residence]}
                         </span>
                       )}
                     </>
@@ -413,6 +573,33 @@ export function StudentsPanel({
         }}
       />
       <StandingHistoryDialog endpoint={historyOf?.endpoint ?? null} name={historyOf?.name ?? ""} onClose={() => setHistoryOf(null)} />
+      <PupilGuardiansDialog
+        pupil={guardiansOf}
+        onClose={() => {
+          setGuardiansOf(null);
+          void load();
+        }}
+        onChanged={(text) => setNotice({ variant: "success", text })}
+      />
+      <PupilScholarshipsDialog
+        pupil={scholarshipsOf}
+        onClose={() => {
+          setScholarshipsOf(null);
+          void load();
+        }}
+        onChanged={(text) => setNotice({ variant: "success", text })}
+      />
+      <AccessCodesDialog pupil={codesOf} onClose={() => setCodesOf(null)} onChanged={(text) => setNotice({ variant: "success", text })} />
+      {branch.canEdit && (
+        <ClassSlipsDialog
+          key={`slips-${slips.key}`}
+          open={slips.open}
+          branchId={branchId}
+          classes={classes}
+          onClose={() => setSlips((v) => ({ ...v, open: false }))}
+          onDone={(text) => setNotice({ variant: "success", text })}
+        />
+      )}
       <StudentDialog
         key={editing?.kind === "form" ? (editing.item?.id ?? "new") : "none"}
         open={editing?.kind === "form"}
@@ -441,18 +628,29 @@ export function StudentsPanel({
           title="Add pupils in bulk"
           description={`Into ${branch.name}. Nothing is saved until you press Save. A pupil is placed in a class only when a class of this branch is named and the branch has an active academic session.`}
           endpoint="/api/v1/students/import"
-          context={{ branchId, allowDuplicates }}
+          context={{ branchId, allowDuplicates, asDraft }}
           contextControl={(locked) => (
-            <CheckboxField
-              label="Add even if a pupil with the same name (and date of birth, when given) is already here (recorded against your name)"
-              checked={allowDuplicates}
-              disabled={locked}
-              onChange={(e) => setAllowDuplicates(e.target.checked)}
-            />
+            <div className="space-y-2">
+              <CheckboxField
+                label="Add even if a pupil with the same name (and date of birth, when given) is already here (recorded against your name)"
+                checked={allowDuplicates}
+                disabled={locked}
+                onChange={(e) => setAllowDuplicates(e.target.checked)}
+              />
+              <CheckboxField
+                label="Save these as drafts (kept unfinished: left out of classes, attendance, invoices and results until each is completed)"
+                checked={asDraft}
+                disabled={locked}
+                onChange={(e) => setAsDraft(e.target.checked)}
+              />
+            </div>
           )}
           noun={{ one: "pupil", many: "pupils" }}
           onSaved={async (count) => {
-            setNotice({ variant: "success", text: `${count} ${count === 1 ? "pupil" : "pupils"} added to ${branch.name}.` });
+            setNotice({
+              variant: "success",
+              text: `${count} ${count === 1 ? "pupil" : "pupils"} added to ${branch.name}${asDraft ? " as drafts" : ""}.`,
+            });
             await load();
           }}
         />
@@ -490,35 +688,78 @@ function StudentDialog({
     guardianName: item?.guardianName ?? "",
     guardianPhone: item?.guardianPhone ?? "",
     guardianEmail: item?.guardianEmail ?? "",
+    guardianRelationship: "",
+    residence: item?.residence ?? "",
   });
+  // Task 0113 D9: an existing guardian found by phone or e-mail (offered instead of typing them again), and the one chosen.
+  const [matches, setMatches] = useState<GuardianMatch[] | null>(null);
+  const [chosenGuardian, setChosenGuardian] = useState<GuardianMatch | null>(null);
+  const [finding, setFinding] = useState(false);
+  async function findGuardian() {
+    const contact = (f.guardianPhone.trim() || f.guardianEmail.trim()).slice(0, 254);
+    if (contact.length < 3) return;
+    setFinding(true);
+    const reply = await getJson(`/api/v1/guardians/match?contact=${encodeURIComponent(contact)}`);
+    setFinding(false);
+    setMatches(reply.ok ? (reply.data!.guardians as GuardianMatch[]) : []);
+  }
   const [problem, setProblem] = useState<string | null>(null);
   const [fieldProblems, setFieldProblems] = useState<Record<string, string>>({});
   const [namesake, setNamesake] = useState<string | null>(null);
+  // Whether the attempt a namesake question came from was "Save as draft": confirming it keeps it a draft.
+  const [askedAsDraft, setAskedAsDraft] = useState(false);
   const [pending, setPending] = useState(false);
   const set = (key: keyof typeof f, value: string) => setF((all) => ({ ...all, [key]: value }));
   const arms = classes.find((c) => c.name === f.className)?.arms ?? [];
+  // A new pupil, or an existing one with no class yet, can be placed in a class from this form.
+  const canPlace = !item || item.currentClass === null;
 
-  async function submit(event: FormEvent<HTMLFormElement>, allowDuplicate = false) {
-    event.preventDefault();
+  /// `asDraft` (task 0101 D1): keep the pupil unfinished. A plain save never changes a pupil's draft state (a new pupil is a normal record; a draft stays a draft until it is completed).
+  async function submit(event: FormEvent<HTMLFormElement> | null, allowDuplicate = false, asDraft = false) {
+    event?.preventDefault();
     if (pending) return;
     setProblem(null);
     setFieldProblems({});
-    if (!allowDuplicate) setNamesake(null);
+    if (!allowDuplicate) {
+      setNamesake(null);
+      setAskedAsDraft(asDraft);
+    }
     setPending(true);
+    // The main guardian (task 0113 D9): a guardian chosen from the ones found, or the three fields; on an edit, only when something about the guardian changed (an untouched form does not
+    // rewrite the guardian).
+    const guardianTouched =
+      !item ||
+      f.guardianName.trim() !== (item.guardianName ?? "") ||
+      f.guardianPhone.trim() !== (item.guardianPhone ?? "") ||
+      f.guardianEmail.trim() !== (item.guardianEmail ?? "");
+    const guardian = chosenGuardian
+      ? { guardianId: chosenGuardian.id }
+      : guardianTouched
+        ? {
+            guardianName: f.guardianName.trim() || null,
+            guardianPhone: f.guardianPhone.trim() || null,
+            guardianEmail: f.guardianEmail.trim() || null,
+          }
+        : {};
     const person = {
       firstName: f.firstName,
       middleName: f.middleName.trim() || null,
       lastName: f.lastName,
       gender: f.gender,
       dateOfBirth: f.dateOfBirth,
-      guardianName: f.guardianName.trim() || null,
-      guardianPhone: f.guardianPhone.trim() || null,
-      guardianEmail: f.guardianEmail.trim() || null,
+      ...guardian,
+      ...(f.guardianRelationship ? { guardianRelationship: f.guardianRelationship } : {}),
+      residence: f.residence || null,
       ...(f.admissionNo.trim() ? { admissionNo: f.admissionNo.trim() } : {}),
       allowDuplicate,
+      ...(asDraft ? { isDraft: true } : {}),
     };
     const reply = item
-      ? await sendJson(`/api/v1/students/${item.id}`, "PATCH", person)
+      ? await sendJson(`/api/v1/students/${item.id}`, "PATCH", {
+          ...person,
+          // A pupil with no class yet can be given one here (a draft needs one to be completed); for a pupil already in a class the form has no such field.
+          ...(canPlace && f.className ? { className: f.className, arm: f.arm || undefined } : {}),
+        })
       : await sendJson("/api/v1/students", "POST", {
           branchId,
           ...person,
@@ -526,9 +767,9 @@ function StudentDialog({
         });
     setPending(false);
     if (reply.ok) {
-      const unplaced = !item && f.className && reply.data?.enrolled === false;
+      const unplaced = f.className && canPlace && reply.data?.enrolled === false;
       return void (await onDone(
-        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
+        `${f.firstName} ${f.lastName} ${item ? "saved" : "registered"}${asDraft ? " as a draft" : ""}.${unplaced ? " They were not put in a class: this branch has no active academic session yet." : ""}`,
       ));
     }
     if (reply.code === "POSSIBLE_DUPLICATE")
@@ -608,7 +849,7 @@ function StudentDialog({
             autoComplete="off"
             disabled={pending}
           />
-          {!item && (
+          {canPlace && (
             <div className="grid gap-4 sm:grid-cols-2">
               <SelectField
                 label="Class (optional)"
@@ -634,33 +875,107 @@ function StudentDialog({
               />
             </div>
           )}
-          <TextField
-            label="Guardian name (optional)"
-            value={f.guardianName}
-            onChange={(e) => set("guardianName", e.target.value)}
-            error={fieldProblems.guardianName}
-            maxLength={100}
-            autoComplete="off"
+          <SelectField
+            label="Day or boarding"
+            value={f.residence}
+            onChange={(e) => set("residence", e.target.value)}
+            error={fieldProblems.residence}
+            options={[
+              { value: "", label: "Not set" },
+              { value: "DAY", label: "Day" },
+              { value: "BOARDING", label: "Boarding" },
+            ]}
             disabled={pending}
           />
-          <TextField
-            label="Guardian phone (optional)"
-            inputMode="tel"
-            value={f.guardianPhone}
-            onChange={(e) => set("guardianPhone", e.target.value)}
-            error={fieldProblems.guardianPhone}
-            autoComplete="off"
-            disabled={pending}
-          />
-          <TextField
-            label="Guardian email (optional)"
-            inputMode="email"
-            value={f.guardianEmail}
-            onChange={(e) => set("guardianEmail", e.target.value)}
-            error={fieldProblems.guardianEmail}
-            autoComplete="off"
-            disabled={pending}
-          />
+          <fieldset className="space-y-4 rounded-2xl border border-line p-4">
+            <legend className="px-1 text-sm font-semibold text-fg">Main guardian</legend>
+            {chosenGuardian ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 p-3">
+                <p className="text-sm text-fg">
+                  <span className="font-semibold">{chosenGuardian.name}</span>
+                  {chosenGuardian.children.length > 0 ? `, already the guardian of ${chosenGuardian.children.join(", ")}` : ""}
+                </p>
+                <Button variant="ghost" onClick={() => setChosenGuardian(null)} disabled={pending}>
+                  Not this guardian
+                </Button>
+              </div>
+            ) : (
+              <>
+                <TextField
+                  label="Guardian name (optional)"
+                  value={f.guardianName}
+                  onChange={(e) => set("guardianName", e.target.value)}
+                  error={fieldProblems.guardianName}
+                  maxLength={100}
+                  autoComplete="off"
+                  disabled={pending}
+                />
+                <TextField
+                  label="Guardian phone (optional)"
+                  inputMode="tel"
+                  value={f.guardianPhone}
+                  onChange={(e) => (set("guardianPhone", e.target.value), setMatches(null))}
+                  error={fieldProblems.guardianPhone}
+                  autoComplete="off"
+                  disabled={pending}
+                />
+                <TextField
+                  label="Guardian email (optional)"
+                  inputMode="email"
+                  value={f.guardianEmail}
+                  onChange={(e) => (set("guardianEmail", e.target.value), setMatches(null))}
+                  error={fieldProblems.guardianEmail}
+                  autoComplete="off"
+                  disabled={pending}
+                />
+                {!item && (
+                  <div className="space-y-2">
+                    <Button
+                      variant="secondary"
+                      loading={finding}
+                      disabled={pending || (f.guardianPhone.trim() || f.guardianEmail.trim()).length < 3}
+                      onClick={() => void findGuardian()}
+                    >
+                      Find an existing guardian
+                    </Button>
+                    {matches && matches.length === 0 && (
+                      <p className="text-sm text-fg-muted">
+                        No guardian you can see has this number or address: a new one is added when you register.
+                      </p>
+                    )}
+                    {matches && matches.length > 0 && (
+                      <ul aria-label="Guardians found" className="space-y-2">
+                        {matches.map((m) => (
+                          <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3">
+                            <p className="min-w-0 text-sm text-fg">
+                              <span className="font-semibold">{m.name}</span>
+                              {m.children.length > 0 ? `, guardian of ${m.children.join(", ")}` : ""}
+                            </p>
+                            <Button variant="secondary" onClick={() => setChosenGuardian(m)} aria-label={`Use ${m.name}`}>
+                              Use
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            <SelectField
+              label="Relationship to the pupil (optional)"
+              value={f.guardianRelationship}
+              onChange={(e) => set("guardianRelationship", e.target.value)}
+              options={[{ value: "", label: item ? "Leave as it is" : "Not said" }, ...RELATIONSHIP_OPTIONS]}
+              disabled={pending}
+            />
+            {item && (
+              <p className="text-xs text-fg-muted">
+                Changing these changes the main guardian, for all their children when you run all their branches. More guardians, blocking
+                and codes: Guardians and Access codes in the pupil&apos;s Actions list.
+              </p>
+            )}
+          </fieldset>
           {namesake && (
             <Alert variant="error">
               <p>{namesake}</p>
@@ -671,7 +986,7 @@ function StudentDialog({
                 variant="secondary"
                 className="mt-3"
                 loading={pending}
-                onClick={(e) => void submit(e as unknown as FormEvent<HTMLFormElement>, true)}
+                onClick={(e) => void submit(e as unknown as FormEvent<HTMLFormElement>, true, askedAsDraft)}
               >
                 {item ? "Save anyway" : "Register anyway"}
               </Button>
@@ -681,6 +996,9 @@ function StudentDialog({
           <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
             <Button variant="ghost" onClick={onClose} disabled={pending}>
               Cancel
+            </Button>
+            <Button variant="secondary" onClick={() => void submit(null, false, true)} disabled={pending}>
+              Save as draft
             </Button>
             <Button type="submit" loading={pending}>
               {pending ? "Working…" : item ? "Save" : "Register student"}

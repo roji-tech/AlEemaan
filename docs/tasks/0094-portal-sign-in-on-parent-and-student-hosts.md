@@ -1,7 +1,7 @@
 # 0094: The pupil and guardian sign-in (admission number + secret) on parent. and student. /login, under the per-branch switch, and hardened
 
 - **Period / Focus:** 2026-11-18 (the maintainer: "shouldn't we port the actual logins we intend for parents and students to parent.aleemanschool.com/login and student.aleemanschool.com/login, and don't forget the admin control on them, and we have to think of a way to make it secure"; earlier: "are they secure? are they same with ... parent./student. /login")
-- **Status:** Designed; the maintainer decided D1 to D8 below on 2026-11-18; phase 1 not started (it extends task 0091)
+- **Status:** Designed; the maintainer decided D1 to D8 below on 2026-11-18. Phase 2 (D2, D3, D7, D9: the one door, the whole-phone rule, access codes and slips) is built in task 0113, with guardians as their own records (the explicit links replace the sibling guess, ISS-0022)
 - **Priority:** High
 - **Assignee:** Claude
 - **Target Branch / PR:** to be opened after task 0091 / PR into `dev`

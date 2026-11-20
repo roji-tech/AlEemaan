@@ -1,11 +1,6 @@
 import { prisma } from "@/lib/db";
 import { reachForm } from "./access";
-import {
-  FormAudienceKind,
-  FormKind,
-  FormStatus,
-  TurnInStatus,
-} from "@prisma/client";
+import { FormAudienceKind, FormKind, FormStatus, TurnInStatus } from "@prisma/client";
 import {
   PaperWorkInput,
   validatePaperWorkInput,
@@ -14,11 +9,12 @@ import {
   computeRollCallSummary,
   RollCallSummary,
 } from "./paper-work";
+import { NOT_DRAFT } from "@/lib/drafts/live";
 
 export class PaperWorkError extends Error {
   constructor(
     message: string,
-    public statusCode: number = 400
+    public statusCode: number = 400,
   ) {
     super(message);
     this.name = "PaperWorkError";
@@ -36,11 +32,7 @@ async function requirePaperWork(branchId: string, userId: string, formId: string
  * Creates a new paper work assignment and auto-provisions the roll-call roster
  * for all active pupils in the targeted class groups.
  */
-export async function createPaperWork(
-  branchId: string,
-  staffUserId: string,
-  input: PaperWorkInput
-) {
+export async function createPaperWork(branchId: string, staffUserId: string, input: PaperWorkInput) {
   const validation = validatePaperWorkInput(input);
   if (!validation.valid) {
     throw new PaperWorkError(validation.errors.join(" "), 400);
@@ -76,6 +68,8 @@ export async function createPaperWork(
       where: {
         branchId,
         status: "ACTIVE",
+        // A draft pupil (task 0101 D1) is not handed paper work: complete the record first.
+        student: NOT_DRAFT,
         classArm: {
           classGroupId: { in: input.classGroupIds },
         },
@@ -128,10 +122,7 @@ export async function createPaperWork(
 /**
  * Lists paper work assignments for staff members with roll-call counters.
  */
-export async function listPaperWorkForStaff(
-  branchId: string,
-  options?: { classGroupId?: string; status?: FormStatus }
-) {
+export async function listPaperWorkForStaff(branchId: string, options?: { classGroupId?: string; status?: FormStatus }) {
   const forms = await prisma.form.findMany({
     where: {
       branchId,
@@ -222,10 +213,7 @@ export async function getPaperWorkForStaff(branchId: string, formId: string, act
         select: { id: true, name: true },
       },
     },
-    orderBy: [
-      { student: { lastName: "asc" } },
-      { student: { firstName: "asc" } },
-    ],
+    orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }],
   });
 
   const summary = computeRollCallSummary(turnIns);
@@ -248,7 +236,7 @@ export async function updateTurnIn(
   data: {
     status: TurnInStatus;
     note?: string | null;
-  }
+  },
 ) {
   await requirePaperWork(branchId, staffUserId, formId, "manage");
   const form = await prisma.form.findFirst({
@@ -327,7 +315,7 @@ export async function batchUpdateTurnIns(
     studentId: string;
     status: TurnInStatus;
     note?: string | null;
-  }>
+  }>,
 ) {
   await requirePaperWork(branchId, staffUserId, formId, "manage");
   const form = await prisma.form.findFirst({
@@ -401,9 +389,7 @@ export async function syncRosterForPaperWork(branchId: string, formId: string, a
   }
 
   const rawClassGroupIds = form.audiences[0]?.classGroupIds;
-  const classGroupIds = Array.isArray(rawClassGroupIds)
-    ? (rawClassGroupIds as string[])
-    : [];
+  const classGroupIds = Array.isArray(rawClassGroupIds) ? (rawClassGroupIds as string[]) : [];
 
   if (classGroupIds.length === 0) {
     return { addedCount: 0 };
@@ -413,6 +399,7 @@ export async function syncRosterForPaperWork(branchId: string, formId: string, a
     where: {
       branchId,
       status: "ACTIVE",
+      student: NOT_DRAFT,
       classArm: {
         classGroupId: { in: classGroupIds },
       },
@@ -449,11 +436,7 @@ export async function syncRosterForPaperWork(branchId: string, formId: string, a
 /**
  * Closes paper work manually by teacher.
  */
-export async function closePaperWork(
-  branchId: string,
-  staffUserId: string,
-  formId: string
-) {
+export async function closePaperWork(branchId: string, staffUserId: string, formId: string) {
   await requirePaperWork(branchId, staffUserId, formId, "manage");
   const form = await prisma.form.findFirst({
     where: { branchId, id: formId, kind: FormKind.PAPER_WORK },
@@ -481,10 +464,7 @@ export async function closePaperWork(
 /**
  * Lists available paper work assignments for a pupil in their student portal.
  */
-export async function listAvailablePaperWorkForPupil(
-  branchId: string,
-  studentId: string
-) {
+export async function listAvailablePaperWorkForPupil(branchId: string, studentId: string) {
   // Resolve pupil's active class group
   const enrollment = await prisma.studentEnrollment.findFirst({
     where: {
@@ -548,11 +528,7 @@ export async function listAvailablePaperWorkForPupil(
 /**
  * Gets details of a single paper work assignment for a pupil.
  */
-export async function getPaperWorkForPupil(
-  branchId: string,
-  studentId: string,
-  formId: string
-) {
+export async function getPaperWorkForPupil(branchId: string, studentId: string, formId: string) {
   const form = await prisma.form.findFirst({
     where: {
       branchId,
@@ -597,11 +573,7 @@ export async function getPaperWorkForPupil(
 /**
  * Pupil requests marking on a pending paper work assignment.
  */
-export async function requestMarkingForPupil(
-  branchId: string,
-  studentId: string,
-  formId: string
-) {
+export async function requestMarkingForPupil(branchId: string, studentId: string, formId: string) {
   const form = await prisma.form.findFirst({
     where: {
       branchId,

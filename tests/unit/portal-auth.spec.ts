@@ -84,11 +84,12 @@ test.describe("Portal Auth & Security Rules", () => {
       expect(normalizePhone("(080) 3123.4567")).toBe("08031234567");
     });
 
-    test("matches phone numbers by full value or suffix", () => {
+    test("matches phone numbers by the whole number only, written either way (task 0094 D3: never the last digits)", () => {
       const target = "+2348031234567";
       expect(matchesPhone("08031234567", target)).toBe(true);
       expect(matchesPhone("+234 803 123 4567", target)).toBe(true);
-      expect(matchesPhone("4567", target)).toBe(true);
+      expect(matchesPhone("4567", target)).toBe(false);
+      expect(matchesPhone("1234567", target)).toBe(false);
       expect(matchesPhone("9999", target)).toBe(false);
       expect(matchesPhone("", target)).toBe(false);
       expect(matchesPhone("123", target)).toBe(false); // Less than 4 digits
