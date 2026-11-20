@@ -142,15 +142,6 @@ export const SEED_TEMPLATES: readonly SeedTemplate[] = [
   },
 ];
 
-/// The 1 to 5 scale every trait is rated on, as printed on the pre-school and basic cards (1 = Poor is added: the printed scale stops at 2).
-export const TRAIT_SCALE: readonly { rating: number; label: string }[] = [
-  { rating: 5, label: "Excellent" },
-  { rating: 4, label: "V. Good" },
-  { rating: 3, label: "Good" },
-  { rating: 2, label: "Fair" },
-  { rating: 1, label: "Poor" },
-];
-
 /// A seeded row's id: the same text the migration builds with SQL `'rts_' || md5(...)`, so a branch seeded by the migration and one seeded by the app never collide and each seeding is
 /// idempotent. `md5` of the UTF-8 text, in lower-case hex.
 export const seedId = (branchId: string, ...parts: string[]): string =>

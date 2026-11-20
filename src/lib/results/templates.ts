@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ConflictError } from "@/lib/academics/structure";
 import { ensureDefaultReportCardLayouts, getBranchReportCardLayout } from "@/lib/settings/approvals";
 import { createScheme, schemeInput } from "@/lib/academics/assessment";
+import { ensureReportTemplates } from "@/lib/results/seed-branch";
 import {
   LAYOUT_CODES,
   TEMPLATE_DESCRIPTION_MAX,
@@ -160,6 +161,8 @@ const SCHEME_NAME = { select: { id: true, name: true, archivedAt: true } } as co
 /// The branch's templates, the classes each holds, the coverage of every class, and the choices a template can name.
 export async function listTemplates(branchId: string, includeArchived = false) {
   await ensureDefaultTemplate(branchId);
+  // A branch made before the report-card sets existed was seeded by the migration; one made some other way is seeded here, once.
+  await ensureReportTemplates(branchId);
   const [templates, classes, assignments, ownRows, schemes, scales] = await Promise.all([
     prisma.resultTemplate.findMany({
       where: { branchId, ...(includeArchived ? {} : { archivedAt: null }) },

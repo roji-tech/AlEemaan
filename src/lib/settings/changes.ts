@@ -1,3 +1,4 @@
+import type { LayoutCode } from "@/lib/results/templates-rules";
 import { Prisma, PupilNameFormat, SettingScope, SettingStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isSettingApprovalEnforced } from "@/lib/settings/approvals";
@@ -14,9 +15,9 @@ export type EnforceableKey = (typeof ENFORCEABLE_KEYS)[number];
 export type RequestKey = EnforceableKey | typeof VERIFICATION_KEY;
 
 /// `templateId` (task 0116): the change is to one result template's own look, not the branch's standard layout. A held change of a template's layout carries it, and approving applies it there.
-export type LayoutValue = { layoutCode: "DEFAULT" | "LEGACY"; options: Record<string, boolean>; templateId?: string };
+export type LayoutValue = { layoutCode: LayoutCode; options: Record<string, boolean>; templateId?: string };
 /// What a held change of a template's own look proposes: `layoutCode` null means "the branch's standard layout".
-export type TemplateLayoutValue = { layoutCode: "DEFAULT" | "LEGACY" | null; options: Record<string, boolean> | null; templateId: string };
+export type TemplateLayoutValue = { layoutCode: LayoutCode | null; options: Record<string, boolean> | null; templateId: string };
 export type VerificationValue = {
   showPupilName?: boolean;
   pupilNameFormat?: PupilNameFormat;

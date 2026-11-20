@@ -7,6 +7,8 @@ import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
 import { getVerificationPageConfig } from "@/lib/settings/approvals";
 import { layoutForClass } from "@/lib/results/templates";
+import { cardExtras } from "@/lib/results/report-traits";
+import { annualFigures } from "@/lib/results/report-traits-rules";
 import { NOT_DRAFT } from "@/lib/drafts/live";
 
 // Results, Slice P2c: the REPORT CARD (computed, never stored), the teacher's and principal's remarks, and the public verification of one published result.
@@ -147,6 +149,50 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     summary = { ...summary, average: avg / 100, position: mine?.position ?? null, classSize: mine?.size ?? null };
   }
 
+  // Task 0116: the printed columns for the earlier terms of the session and the annual figures, the pupil's position in each subject, and the sections the school's cards carry beyond the
+  // marks (trait ratings, attendance, the term's dates). The terms counted are this one and the ones before it in the session; the same statuses as the card itself.
+  const termPeriods = await prisma.academicPeriod.findMany({
+    where: { branchId, sessionId: period.sessionId, archivedAt: null, ordinal: { lte: period.ordinal } },
+    orderBy: { ordinal: "desc" },
+    select: { id: true, ordinal: true, label: true },
+  });
+  const [termRows, subjectPool, extras] = await Promise.all([
+    prisma.result.findMany({
+      where: { branchId, studentId, periodId: { in: termPeriods.map((t) => t.id) }, ...(statuses ? { status: statuses } : {}) },
+      select: { subjectId: true, periodId: true, total: true, maxScore: true },
+    }),
+    first
+      ? prisma.result.findMany({
+          where: {
+            branchId,
+            periodId,
+            classArmId: first.classArmId,
+            subjectId: { in: rows.map((r) => r.subjectId) },
+            ...(statuses ? { status: statuses } : {}),
+          },
+          select: { subjectId: true, studentId: true, total: true },
+        })
+      : Promise.resolve([]),
+    cardExtras(branchId, studentId, period),
+  ]);
+  const detailed = subjects.map((s) => {
+    const mine = termPeriods.map((t) => {
+      const r = termRows.find((x) => x.subjectId === s.subjectId && x.periodId === t.id);
+      return { ordinal: t.ordinal, label: t.label, total: r ? num(r.total) : null, max: r ? num(r.maxScore) : null };
+    });
+    const ranked = rankAverages(
+      subjectPool.filter((p) => p.subjectId === s.subjectId).map((p) => ({ id: p.studentId, average: num(p.total) })),
+    );
+    const place = ranked.get(studentId);
+    return {
+      ...s,
+      termScores: mine.map((t) => ({ ordinal: t.ordinal, label: t.label, total: t.total })),
+      ...annualFigures(mine),
+      position: place?.position ?? null,
+      classSize: place?.size ?? null,
+    };
+  });
+
   // The details printed in the header are THIS branch's (task 0115): its own principal, motto, address and phone where it has set them, the school's where it has not. The school's name
   // stays school-wide.
   const [profile, remarks, layout] = await Promise.all([
@@ -169,11 +215,15 @@ export async function getReportCard(branchId: string, studentId: string, periodI
       name: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
       admissionNo: student.admissionNo,
       gender: student.gender,
+      dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString().slice(0, 10) : null,
     },
     class: first ? { group: first.classArm.classGroup.name, arm: first.classArm.name } : null,
     period: { id: period.id, label: period.label, session: period.session.label },
-    subjects,
+    subjects: detailed,
     summary,
+    traits: extras.traits,
+    attendance: extras.attendance,
+    dates: extras.dates,
     remarks: { teacher: remarks?.teacherRemark ?? null, principal: remarks?.principalRemark ?? null },
     legend: first ? first.scale.bands.map((b) => ({ min: num(b.minScore), max: num(b.maxScore), letter: b.letter, remark: b.remark })) : [],
     allPublished: subjects.length > 0 && subjects.every((s) => (PUBLISHED as readonly string[]).includes(s.status)),

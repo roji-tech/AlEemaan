@@ -3,7 +3,9 @@
 
 export const TEMPLATE_NAME_MAX = 60;
 export const TEMPLATE_DESCRIPTION_MAX = 200;
-export const LAYOUT_CODES = ["DEFAULT", "LEGACY"] as const;
+/// The look of a printed card, by code. DEFAULT and LEGACY are the branch layouts that always existed; PRESCHOOL, BASIC, JUNIOR and SENIOR are the school's four printed report cards (task 0116):
+/// the card draws that card's sections (trait groups, the grade legend, the term's dates) from its template's data.
+export const LAYOUT_CODES = ["DEFAULT", "LEGACY", "PRESCHOOL", "BASIC", "JUNIOR", "SENIOR"] as const;
 export type LayoutCode = (typeof LAYOUT_CODES)[number];
 export const LAYOUT_OPTION_KEYS = ["logo", "signatureLine", "nextTermDate"] as const;
 export type LayoutOptions = Partial<Record<(typeof LAYOUT_OPTION_KEYS)[number], boolean>>;
