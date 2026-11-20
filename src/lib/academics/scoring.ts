@@ -1,5 +1,3 @@
-import crypto from "node:crypto";
-
 // The pure rules of assessment schemes and grade scales (plan "Build design — Phase 1.0 and 1.1", decisions 14 and 15). No database, no clock.
 // Scores are DECIMALS with at most two places; every comparison is done on integers of HUNDREDTHS so 0.1 + 0.2 is exactly 0.3 and a total can
 // never be "off by a rounding error".
@@ -14,7 +12,7 @@ export function toHundredths(value: unknown): number | null {
   if (dot !== -1 && text.length - dot - 1 > 2) return null;
   return Math.round(value * 100);
 }
-const fixed = (hundredths: number) => (hundredths / 100).toFixed(2);
+export const fixed = (hundredths: number) => (hundredths / 100).toFixed(2);
 
 // --- assessment schemes ---------------------------------------------------------------------------------------------------------
 
@@ -65,27 +63,6 @@ export function checkScheme(input: SchemeInput): { problem: SchemeProblem; index
     sum += max;
   }
   return sum === total ? null : { problem: "SUM_MISMATCH", sum: sum / 100 };
-}
-
-export type SchemeSnapshot = { json: string; sha256: string };
-
-/// The canonical, order-independent form of a scheme that a result will store (plan decision 14): totals and maximums as fixed two-decimal strings,
-/// components in their `sortOrder` (then name), the keys in a fixed order — so the same scheme always gives the same bytes and the same hash, and a
-/// later reader can prove a stored snapshot still matches. (The database row's ids and timestamps are NOT part of it.)
-export function snapshotScheme(scheme: {
-  totalMax: number;
-  examMax: number;
-  components: readonly { name: string; maxScore: number; sortOrder: number }[];
-}): SchemeSnapshot {
-  const components = [...scheme.components]
-    .sort((x, y) => x.sortOrder - y.sortOrder || x.name.localeCompare(y.name))
-    .map((component) => ({ name: component.name, maxScore: fixed(toHundredths(component.maxScore) ?? NaN) }));
-  const json = JSON.stringify({
-    totalMax: fixed(toHundredths(scheme.totalMax) ?? NaN),
-    examMax: fixed(toHundredths(scheme.examMax) ?? NaN),
-    components,
-  });
-  return { json, sha256: crypto.createHash("sha256").update(json).digest("hex") };
 }
 
 // --- grade scales ---------------------------------------------------------------------------------------------------------------

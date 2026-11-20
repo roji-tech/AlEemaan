@@ -6,13 +6,22 @@ import { DepartmentReviewPanel } from "@/components/results/DepartmentReviewPane
 import { ReviewPanel } from "@/components/results/ReviewPanel";
 import { CardsPanel } from "@/components/results/CardsPanel";
 import { TemplatesPanel } from "@/components/results/TemplatesPanel";
+import { SchoolTemplatesPanel } from "@/components/results/SchoolTemplatesPanel";
 import type { BranchChoice } from "@/components/academics/common";
 import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // The Results page's sections behind one tab list (Slice P2d), the same ARIA tabs pattern as Academics: Left/Right/Home/End move between tabs, only the active
 // section is mounted. Review is for administrators and for approvers (task 0039); a teacher sees Enter marks and Report cards. Presentation only - the results APIs decide
 // who may do what.
-export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[]; isAdmin: boolean }) {
+export function ResultsSections({
+  branches,
+  isAdmin,
+  isSuperAdmin = false,
+}: {
+  branches: BranchChoice[];
+  isAdmin: boolean;
+  isSuperAdmin?: boolean;
+}) {
   const adminBranches = branches.filter((b) => b.canEdit);
   const sections = [
     { id: "enter", label: "Enter marks" },
@@ -21,6 +30,8 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
     { id: "cards", label: "Report cards" },
     // Which result template each class uses (task 0116): administrators of at least one branch.
     ...(adminBranches.length > 0 ? [{ id: "templates", label: "Templates" }] : []),
+    // The report cards the whole school shares (task 0120): a superadmin only.
+    ...(isSuperAdmin ? [{ id: "school-templates", label: "School templates" }] : []),
   ];
   const [active, setActive] = useState(sections[0].id);
   const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches, { fallback: (adminBranches[0] ?? branches[0]).id });
@@ -84,6 +95,7 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
         )}
         {active === "cards" && <CardsPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />}
         {active === "templates" && <TemplatesPanel branches={adminBranches} initialBranchId={selectedBranchId} />}
+        {active === "school-templates" && isSuperAdmin && <SchoolTemplatesPanel />}
       </div>
     </div>
   );

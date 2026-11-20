@@ -1,5 +1,6 @@
 import type { Reply } from "@/components/auth/postJson";
 import type { ClassRef, CoverageRow, LayoutOptions } from "@/lib/results/templates-rules";
+import type { RowState } from "@/lib/results/school-templates-rules";
 
 // What `GET /api/v1/results/templates` answers, and the one call that places classes, shared by the Templates view and the Classes tab (task 0116). Presentation only: the API decides.
 
@@ -14,6 +15,16 @@ export type TemplateView = {
   scheme: { id: string; name: string; archived: boolean } | null;
   gradeScale: { id: string; name: string; archived: boolean } | null;
   classGroupIds: string[];
+  /// The school-wide template this row follows, and where it stands against it (task 0120); null for a template of the branch's own.
+  school?: {
+    id: string;
+    name: string;
+    version: number;
+    rowVersion: number | null;
+    archived: boolean;
+    state: RowState;
+    label: string;
+  } | null;
 };
 /// Which grade scale a class grades on and from where (its own, its template's, the branch's default); `unconfirmed` when its bands are still a guess.
 export type CoverageScale = {
