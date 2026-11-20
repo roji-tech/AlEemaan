@@ -15,7 +15,8 @@ export function describeScope(scope: ScopeView): string {
 }
 
 /// "Nothing" for no scope at all (the person approves nothing: the setting fails closed), else the scopes in the order they are kept (General, sections, classes).
-export const describeScopes = (scopes: readonly ScopeView[]): string => (scopes.length === 0 ? "Nothing" : scopes.map(describeScope).join(", "));
+export const describeScopes = (scopes: readonly ScopeView[]): string =>
+  scopes.length === 0 ? "Nothing" : scopes.map(describeScope).join(", ");
 
 /// The scopes of a person as the entries the API takes, in the canonical order: General alone, or the sections and then the classes.
 export function scopeEntries(general: boolean, sectionIds: readonly string[], classGroupIds: readonly string[]): ScopeEntry[] {

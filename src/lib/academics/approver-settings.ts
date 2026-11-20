@@ -66,7 +66,11 @@ export async function listSections(branchId: string): Promise<{ sections: Sectio
       where: { branchId },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { id: "asc" }],
       include: {
-        classGroups: { where: { branchId, archivedAt: null }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, sectionId: true } },
+        classGroups: {
+          where: { branchId, archivedAt: null },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: { id: true, name: true, sectionId: true },
+        },
       },
     }),
     prisma.classGroup.findMany({
@@ -134,7 +138,10 @@ export async function createSection(
   try {
     return await prisma.$transaction(async (tx) => {
       if (!(await tx.branch.findUnique({ where: { id: input.branchId }, select: { id: true } }))) return refuse("NOT_FOUND", "branch");
-      const created = await tx.section.create({ data: { branchId: input.branchId, name, sortOrder }, select: { id: true, name: true, sortOrder: true } });
+      const created = await tx.section.create({
+        data: { branchId: input.branchId, name, sortOrder },
+        select: { id: true, name: true, sortOrder: true },
+      });
       await audit(tx, actorUserId, "SECTION_CREATED", "Section", created.id, undefined, { branchId: input.branchId, name, sortOrder });
       return { ok: true as const, section: created };
     });
@@ -178,11 +185,19 @@ export async function updateSection(
         trail.push(["SECTION_RESTORED", { archived: true }, { archived: false }]);
       }
       if (trail.length === 0) {
-        return { ok: true as const, changed: false, section: { id, name: current.name, sortOrder: current.sortOrder, archived: archivedNow } };
+        return {
+          ok: true as const,
+          changed: false,
+          section: { id, name: current.name, sortOrder: current.sortOrder, archived: archivedNow },
+        };
       }
       const updated = await tx.section.update({ where: { id }, data });
       for (const [action, before, after] of trail) await audit(tx, actorUserId, action, "Section", id, before, after);
-      return { ok: true as const, changed: true, section: { id, name: updated.name, sortOrder: updated.sortOrder, archived: updated.archivedAt !== null } };
+      return {
+        ok: true as const,
+        changed: true,
+        section: { id, name: updated.name, sortOrder: updated.sortOrder, archived: updated.archivedAt !== null },
+      };
     });
   } catch (error) {
     if (isNameTaken(error)) return refuse("NAME_TAKEN");
@@ -197,7 +212,10 @@ export async function placeClassGroup(
   sectionId: string | null,
 ): Promise<ApproverSettingsResult<{ changed: boolean; classGroup: ClassGroupView }>> {
   return prisma.$transaction(async (tx) => {
-    const group = await tx.classGroup.findUnique({ where: { id: classGroupId }, select: { id: true, name: true, branchId: true, sectionId: true, archivedAt: true } });
+    const group = await tx.classGroup.findUnique({
+      where: { id: classGroupId },
+      select: { id: true, name: true, branchId: true, sectionId: true, archivedAt: true },
+    });
     if (!group) return refuse("NOT_FOUND", "class group");
     if (group.archivedAt) return refuse("ARCHIVED", "class group");
     if (sectionId !== null) {
@@ -258,7 +276,10 @@ export async function setApproverScopes(
       if (groups.some((group) => group.archivedAt)) return refuse("ARCHIVED", "class group");
     }
 
-    const present = await tx.resultApprovalScope.findMany({ where: { branchId, userId: targetUserId }, select: { kind: true, sectionId: true, classGroupId: true } });
+    const present = await tx.resultApprovalScope.findMany({
+      where: { branchId, userId: targetUserId },
+      select: { kind: true, sectionId: true, classGroupId: true },
+    });
     const presentEntries: ScopeEntry[] = present.map((row) =>
       row.kind === "GENERAL"
         ? { kind: "GENERAL" }
@@ -285,7 +306,15 @@ export async function setApproverScopes(
         })),
       });
     }
-    await audit(tx, actorUserId, "RESULT_APPROVAL_SCOPE_CHANGED", "User", targetUserId, { branchId, scopes: scopeJson(before) }, { branchId, scopes: scopeJson(wanted) });
+    await audit(
+      tx,
+      actorUserId,
+      "RESULT_APPROVAL_SCOPE_CHANGED",
+      "User",
+      targetUserId,
+      { branchId, scopes: scopeJson(before) },
+      { branchId, scopes: scopeJson(wanted) },
+    );
     return { ok: true as const, changed: true, scopes: wanted };
   });
 }

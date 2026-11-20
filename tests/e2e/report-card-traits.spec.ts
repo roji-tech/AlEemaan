@@ -172,3 +172,21 @@ test("the class arm and the Verify these results block are hidden unless the tem
   await expect(card.getByRole("region", { name: "Verification" }).getByRole("heading", { name: "Verify these results" })).toBeVisible();
   await expectAccessible(page, "the senior card with the arm and the verify block shown");
 });
+
+test("the class's grade label is printed beside the class name on the card (task 0123); with the arm option on it follows the arm", async ({
+  page,
+}) => {
+  const { branch, w } = await setUp(page);
+  await seedResult(w, branch.id, "PUBLISHED");
+  await db.classGroup.update({ where: { id: w.group.id }, data: { gradeLabel: "Grade 10" } });
+  let card = await openCard(page, w);
+  await expect(card).toContainText(`${w.group.name} (Grade 10)`);
+  await expect(card).not.toContainText(`${w.group.name} A`);
+  await db.resultTemplate.updateMany({ where: { branchId: branch.id, layoutCode: "SENIOR" }, data: { layoutOptions: { classArm: true } } });
+  card = await openCard(page, w);
+  await expect(card).toContainText(`${w.group.name} A (Grade 10)`);
+  // A class with no label prints as before.
+  await db.classGroup.update({ where: { id: w.group.id }, data: { gradeLabel: null } });
+  card = await openCard(page, w);
+  await expect(card).not.toContainText("(Grade");
+});
