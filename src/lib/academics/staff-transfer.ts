@@ -77,11 +77,13 @@ export async function transferStaff(
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`staff-transfer:${staffId}`}::text))`;
       const record = await tx.staffRecord.findUnique({
         where: { id: staffId },
-        select: { ...COPY, id: true, branchId: true, userId: true, personId: true, archivedAt: true, standing: true },
+        select: { ...COPY, id: true, branchId: true, userId: true, personId: true, archivedAt: true, standing: true, isDraft: true },
       });
       const target = await tx.branch.findUnique({ where: { id: input.toBranchId }, select: { id: true, name: true } });
       if (!record || !target) return { ok: false, status: 404, message: "Staff record not found." };
       if (record.archivedAt) return { ok: false, status: 409, message: "Restore this record before moving it." };
+      if (record.isDraft)
+        return { ok: false, status: 409, message: "Complete this draft before moving it or adding it to another branch." };
       if (record.standing !== "ACTIVE") return { ok: false, status: 409, message: "Lift the suspension before moving this person." };
       const personId = record.personId ?? randomUUID();
       const there = await tx.staffRecord.findFirst({

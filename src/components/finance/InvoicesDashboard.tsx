@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatNaira, InvoiceStatus } from "@/lib/finance/format";
+import { formatNaira, InvoiceStatus, SETTLED_TEXT, type SettledBy } from "@/lib/finance/format";
 import { BatchInvoiceModal } from "./BatchInvoiceModal";
 import { InvoiceDetailModal, type InvoiceDetail } from "./InvoiceDetailModal";
 
@@ -12,6 +12,10 @@ export interface InvoiceItemSummary {
   totalAmount: number | string;
   amountPaid: number | string;
   status: InvoiceStatus;
+  /// Settled with nothing paid because scholarships took the fees off (task 0113 S1).
+  paidByScholarship?: boolean;
+  /// What settled an invoice nobody paid money on (2026-11-19): shown in place of Paid.
+  settledBy?: SettledBy | null;
   student: {
     id: string;
     firstName: string;
@@ -222,7 +226,7 @@ export function InvoicesDashboard({
                     <td className="px-4 py-3 text-center">
                       {inv.status === InvoiceStatus.PAID && (
                         <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-ok-fg">
-                          PAID
+                          {inv.settledBy ? SETTLED_TEXT[inv.settledBy].toUpperCase() : "PAID"}
                         </span>
                       )}
                       {inv.status === InvoiceStatus.PARTIALLY_PAID && (

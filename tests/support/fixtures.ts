@@ -1,6 +1,17 @@
 import "./env"; // must stay first: points DATABASE_URL at the test database
 import { test as base, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
 import { uniqueIp } from "./db";
+import { linkGuardiansFromColumns } from "./guardians";
+
+/// Task 0113: a family signs in through guardian LINKS, not the pupil's guardian columns. Pupils a spec seeded with those columns get links just before any family sign-in from a page
+/// (tests/support/guardians.ts); the request itself goes on unchanged.
+async function linkBeforeFamilySignIn(context: BrowserContext): Promise<void> {
+  await context.route("**/api/v1/portal/session", async (route) => {
+    if (route.request().method() === "POST") await linkGuardiansFromColumns();
+    await route.fallback();
+  });
+}
 
 export type CspViolation = { directive: string; blocked: string; sample: string; page: string };
 
@@ -59,8 +70,11 @@ export const test = base.extend<Fixtures>({
   browser: [
     async ({ browser }, provide) => {
       const original = browser.newContext.bind(browser);
-      browser.newContext = ((options?: Parameters<typeof original>[0]) =>
-        original({ reducedMotion: "reduce", ...options })) as typeof browser.newContext;
+      browser.newContext = (async (options?: Parameters<typeof original>[0]) => {
+        const made = await original({ reducedMotion: "reduce", ...options });
+        await linkBeforeFamilySignIn(made);
+        return made;
+      }) as typeof browser.newContext;
       await provide(browser);
       browser.newContext = original;
     },
@@ -68,6 +82,7 @@ export const test = base.extend<Fixtures>({
   ],
   context: async ({ context, clientIp }, provide) => {
     await context.setExtraHTTPHeaders({ "x-real-ip": clientIp, "x-test-client-ip": clientIp });
+    await linkBeforeFamilySignIn(context);
     await provide(context);
   },
 });

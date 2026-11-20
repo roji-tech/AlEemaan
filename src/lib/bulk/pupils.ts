@@ -18,6 +18,10 @@ export type PupilRow = {
   guardianName?: string;
   guardianPhone?: string;
   guardianEmail?: string;
+  residence?: "DAY" | "BOARDING";
+  /// A scholarship type of the branch, by name, and (optionally) this pupil's share of it (task 0113 S1); the share comes from the type when it is not given.
+  scholarship?: string;
+  scholarshipPercent?: number;
 };
 
 /// 2014-03-21 or 21/03/2014 (day first, as written in Nigeria; also - and . as separators) → 2014-03-21; null when it is not a real calendar date.
@@ -32,6 +36,29 @@ export function toIsoDate(raw: string): string | null {
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
   return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
+/// Day or Boarding, as a school writes it (task 0113 R1): any case; "boarder" and "boarding" are boarding, "day" and "day student" are day; blank is not set; anything else is left for
+/// the rule to refuse.
+export const toResidence = (v: unknown): unknown => {
+  if (typeof v !== "string") return v;
+  const t = v
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ");
+  if (t === "") return undefined;
+  if (["day", "day student", "day pupil", "dayboy", "daygirl", "day boy", "day girl"].includes(t)) return "DAY";
+  if (["boarding", "boarder", "boarding student", "boarding pupil", "border"].includes(t)) return "BOARDING";
+  return v;
+};
+
+/// "50", "50%" and " 50 % " are 50; blank is not given; anything else is left for the rule to refuse.
+export const toPercent = (v: unknown): unknown => {
+  if (typeof v === "number") return v;
+  if (typeof v !== "string") return v;
+  const t = v.trim().replace(/\s*%$/, "").trim();
+  if (t === "") return undefined;
+  return /^\d+$/.test(t) ? Number(t) : v;
+};
+
 const MIN_YEAR = 1900;
 const dateOfBirth = z.preprocess(
   (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : (toIsoDate(v) ?? v)) : v),
@@ -61,7 +88,7 @@ const admissionNo = z.preprocess(
     .optional(),
 );
 
-export const pupilRowSchema: z.ZodType<PupilRow> = z.object({
+const pupilRowBase = z.object({
   firstName: name,
   middleName: optionalText(60),
   lastName: name,
@@ -73,7 +100,19 @@ export const pupilRowSchema: z.ZodType<PupilRow> = z.object({
   guardianName: optionalText(100),
   guardianPhone: optionalPhone,
   guardianEmail: optionalEmail,
+  residence: z.preprocess(toResidence, z.enum(["DAY", "BOARDING"], { error: "Write Day or Boarding, or leave it empty." }).optional()),
+  scholarship: optionalText(80),
+  scholarshipPercent: z.preprocess(
+    toPercent,
+    z
+      .number({ error: "Write the share as a whole number from 1 to 100." })
+      .int("Write the share as a whole number from 1 to 100.")
+      .min(1, "The share is at least 1%.")
+      .max(100, "The share is at most 100%.")
+      .optional(),
+  ),
 });
+export const pupilRowSchema: z.ZodType<PupilRow> = pupilRowBase;
 
 const columns = (classNames: readonly string[]): BulkColumn[] => [
   { key: "firstName", label: "First name", aliases: ["givenname", "forename"], required: true, help: "2 to 60 characters" },
@@ -134,6 +173,31 @@ const columns = (classNames: readonly string[]): BulkColumn[] => [
     help: "7 to 20 digits; may be left empty",
   },
   { key: "guardianEmail", label: "Guardian email", aliases: ["parentemail"], required: false, help: "May be left empty" },
+  {
+    key: "residence",
+    label: "Day or boarding",
+    aliases: ["dayorboarding", "residence", "boarding", "dayboarding", "boarder"],
+    required: false,
+    help: "Day or Boarding; may be left empty (not set)",
+    options: [
+      { value: "DAY", label: "Day" },
+      { value: "BOARDING", label: "Boarding" },
+    ],
+  },
+  {
+    key: "scholarship",
+    label: "Scholarship",
+    aliases: ["scholarshiptype", "scholarshipname"],
+    required: false,
+    help: "A scholarship type of this branch, by name (set up under Finance > Scholarships); may be left empty. Administrators only: it is financial",
+  },
+  {
+    key: "scholarshipPercent",
+    label: "Scholarship %",
+    aliases: ["scholarshippercent", "scholarshipshare", "scholarshippct"],
+    required: false,
+    help: "1 to 100: this pupil's share; empty takes the type's own share",
+  },
 ];
 
 /// The kind for a branch: its classes become the dropdown of the Class column.

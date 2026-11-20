@@ -4,7 +4,18 @@ import { ok, fail, noStore } from "@/lib/api/envelope";
 import { validateCSRF } from "@/lib/auth/csrf";
 import { getClientIp, refundAttempt, reserveAttempt } from "@/lib/auth/rate-limit";
 import { PORTAL_COOKIE_NAME, setPortalCookie, clearPortalCookie } from "@/lib/portal/auth";
-import { authenticatePortalViaToken, authenticatePortalViaAdmission, hasAnyAccess, portalAccessFor, resolvePortalSessionData, withStandingShown } from "@/lib/portal/service";
+import {
+  FAMILY_SIGNIN_CLOSED,
+  PORTAL_SIGNIN_FAILED,
+  authenticatePortalViaAdmission,
+  hasAnyAccess,
+  portalAccessFor,
+  resolvePortalSessionData,
+  withStandingShown,
+} from "@/lib/portal/service";
+import { doorFor } from "@/lib/portal/door";
+import { classifyHost, readPortalConfig } from "@/lib/portals";
+import { hostFromHeaders } from "@/lib/auth/csrf";
 import { readJsonBody } from "@/lib/api/validate";
 
 // Input is bounded and clean BEFORE anything reaches the database. Found by the bug hunt of 2026-10-19: there was no length limit (a 5 MB admission number went to
@@ -20,10 +31,8 @@ const clean = (max: number) =>
     .refine((value) => !FORBIDDEN.test(value), "invalid characters")
     .refine((value) => (value as string & { isWellFormed?: () => boolean }).isWellFormed?.() ?? true, "invalid characters");
 
-const loginSchema = z.union([
-  z.object({ token: clean(512) }),
-  z.object({ admissionNo: clean(64), secret: clean(254) }), // 254: the longest email address
-]);
+// The admission number and one secret (task 0113: the hand-pasted link token is gone with the old form; nothing in the app ever sent one).
+const loginSchema = z.object({ admissionNo: clean(64), secret: clean(254) }); // 254: the longest email address
 
 // Guessing limits (the portal had none). Reserve-then-refund like the staff sign-in (lib/auth/rate-limit.ts, one window of 5 minutes):
 //   per client           a school gate or a mobile network shares one address, so this is generous;
@@ -59,14 +68,17 @@ export async function POST(req: NextRequest) {
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
-    return noStore(fail("Please provide a valid token or admission number with secret", 400));
+    return noStore(fail("Please provide the admission number and the secret", 400));
   }
+
+  // The address decides who is signing in (task 0113, task 0094 D2): student. is the pupil, parent. a guardian; the school's own address and the staff ones have no family sign-in.
+  const { config } = readPortalConfig();
+  const door = doorFor(classifyHost(hostFromHeaders(req.headers), config));
+  if (door === "NONE") return noStore(fail(PORTAL_SIGNIN_FAILED, 401));
 
   const reserved = [ipKey];
   let result;
-  if ("token" in parsed.data) {
-    result = await authenticatePortalViaToken(parsed.data.token);
-  } else {
+  {
     const pupil = keyOf(parsed.data.admissionNo);
     const pairKey = `${ipKey}:${pupil}`;
     if (!(await reserveAttempt(pairKey, PORTAL_PAIR_LIMIT))) {
@@ -78,9 +90,14 @@ export async function POST(req: NextRequest) {
       return noStore(fail(RATE_LIMITED, 429, "RATE_LIMITED"));
     }
     reserved.push(pupilKey);
-    result = await authenticatePortalViaAdmission(parsed.data.admissionNo, parsed.data.secret);
+    result = await authenticatePortalViaAdmission(parsed.data.admissionNo, parsed.data.secret, door, ipKey);
   }
 
+  // The secret was right but the branch's sign-in is switched off: said plainly (403, like the staff sign-in's closed answer), and not counted as a failed guess.
+  if (result.code === "LOGIN_CLOSED") {
+    for (const key of reserved) await refundAttempt(key);
+    return noStore(fail(result.error ?? FAMILY_SIGNIN_CLOSED, 403, "LOGIN_CLOSED"));
+  }
   if (!result.success || !result.sessionToken) {
     return noStore(fail(result.error || "Authentication failed", 401));
   }
@@ -114,8 +131,11 @@ export async function GET(req: NextRequest) {
   const everyone = await portalAccessFor(data.students, data.session.actor);
   // A pupil whose standing leaves nothing to open (task 0045) is not part of the session; when that is the pupil signed in as, the session is over.
   const reachable = data.students.filter((student) => hasAnyAccess(everyone[student.id]!));
-  if (!reachable.some((student) => student.id === data.session.primaryStudentId)) return noStore(fail("Portal session expired or invalid", 401));
-  const students = everyone[data.session.primaryStudentId]!.siblings ? reachable : reachable.filter((student) => student.id === data.session.primaryStudentId);
+  if (!reachable.some((student) => student.id === data.session.primaryStudentId))
+    return noStore(fail("Portal session expired or invalid", 401));
+  const students = everyone[data.session.primaryStudentId]!.siblings
+    ? reachable
+    : reachable.filter((student) => student.id === data.session.primaryStudentId);
 
   return noStore(
     ok({

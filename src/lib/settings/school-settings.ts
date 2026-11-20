@@ -2,8 +2,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isWebLink } from "@/lib/lms/attachments";
 
-export const schoolSettingsUpdateSchema = z.object({
-  name: z.string().trim().min(2, "School name must be at least 2 characters").max(120),
+/// The six details a school (and, since task 0115, a branch) prints about itself, with their rules: ONE definition, so the school's form and a branch's cannot drift apart.
+export const contactFields = {
   principal: z.string().trim().max(120).nullable().optional(),
   phone: z.string().trim().max(40).nullable().optional(),
   motto: z.string().trim().max(200).nullable().optional(),
@@ -18,6 +18,13 @@ export const schoolSettingsUpdateSchema = z.object({
     .nullable()
     .optional()
     .or(z.literal("")),
+};
+
+export const DEFAULT_SCHOOL_NAME = "Al-Eemaan Schools";
+
+export const schoolSettingsUpdateSchema = z.object({
+  name: z.string().trim().min(2, "School name must be at least 2 characters").max(120),
+  ...contactFields,
 });
 
 export type SchoolSettingsUpdateInput = z.infer<typeof schoolSettingsUpdateSchema>;
@@ -28,7 +35,7 @@ export async function getSchoolSettings() {
     update: {},
     create: {
       id: "global",
-      name: "Al-Eemaan Schools",
+      name: DEFAULT_SCHOOL_NAME,
     },
   });
   return settings;
@@ -50,7 +57,7 @@ export async function updateSchoolSettings(input: SchoolSettingsUpdateInput) {
     create: {
       id: "global",
       ...cleanData,
-      name: cleanData.name || "Al-Eemaan Schools",
+      name: cleanData.name || DEFAULT_SCHOOL_NAME,
     },
   });
 

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { AcademicsSections } from "@/components/academics/AcademicsSections";
 import { isSectionId } from "@/components/academics/sections";
 import { branchAdminMaySuspend } from "@/lib/standing/settings-service";
+import { usesDepartmentsIn } from "@/lib/academics/departments-setting";
 
 export const metadata: Metadata = { title: "Academics" };
 export const dynamic = "force-dynamic";
@@ -26,6 +27,10 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+
+  // Which branches use departments (task 0101 D7; display only: the Departments tab, and the labels and filter on the staff list).
+  const departments = await usesDepartmentsIn(branches.map((b) => b.id));
+  const showDepartments = branches.some((b) => mayAdminister(scope, b.id) || departments[b.id]);
 
   // What this person may do about standing in each branch (display only; the API decides).
   const standing = Object.fromEntries(
@@ -56,9 +61,15 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
         </p>
       ) : (
         <AcademicsSections
-          branches={branches.map((b) => ({ id: b.id, name: b.name, canEdit: mayAdminister(scope, b.id), standing: standing[b.id] }))}
+          branches={branches.map((b) => ({
+            id: b.id,
+            name: b.name,
+            canEdit: mayAdminister(scope, b.id),
+            standing: standing[b.id],
+            departments: departments[b.id] === true,
+          }))}
           isSuperAdmin={isSuperAdmin}
-          initialSection={isSectionId(section) ? section : "classes"}
+          initialSection={isSectionId(section) && (section !== "departments" || showDepartments) ? section : "classes"}
           initialBranchId={one(query.branch)}
           initialQuery={one(query.q)?.slice(0, 100)}
           openNew={one(query.new) === "1" && (section === "sessions" || section === "classes")}

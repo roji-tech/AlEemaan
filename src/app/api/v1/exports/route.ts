@@ -8,6 +8,7 @@ import { withBranch } from "@/lib/auth/with-branch";
 import { refundAttempt, reserveAttempt } from "@/lib/auth/rate-limit";
 import { audit } from "@/lib/academics/structure";
 import { studentListWhere } from "@/lib/students/service";
+import { liveSummaries } from "@/lib/scholarships/service";
 import { readListFilters } from "@/lib/students/list-filters-server";
 import { schoolDay } from "@/lib/students/list-filters";
 import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
@@ -53,6 +54,7 @@ async function pupilRows(body: ExportRequest): Promise<{ values: Record<string, 
     where,
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     select: {
+      id: true,
       firstName: true,
       middleName: true,
       lastName: true,
@@ -62,6 +64,7 @@ async function pupilRows(body: ExportRequest): Promise<{ values: Record<string, 
       guardianName: true,
       guardianPhone: true,
       guardianEmail: true,
+      residence: true,
       enrollments: {
         orderBy: { enrolledAt: "desc" },
         take: 1,
@@ -69,13 +72,24 @@ async function pupilRows(body: ExportRequest): Promise<{ values: Record<string, 
       },
     },
   });
+  // Scholarships (task 0113 S1): the live ones' type names and their shares added up. This export is an administrator's, the only one who may see them.
+  const held = await liveSummaries(rows.map((r) => r.id));
   return {
     values: rows.map((r) => {
       const e = r.enrollments[0];
+      const live = held.get(r.id) ?? [];
       return exportValues.pupils({
         ...r,
         className: e ? (e.classArm?.classGroup.name ?? e.className) : null,
         arm: e ? (e.classArm?.name ?? e.arm) : null,
+        scholarship: live.map((s) => s.typeName).join(", ") || null,
+        scholarshipPercent:
+          live.length > 0
+            ? Math.min(
+                100,
+                live.reduce((n, s) => n + s.percent, 0),
+              )
+            : null,
       });
     }),
   };

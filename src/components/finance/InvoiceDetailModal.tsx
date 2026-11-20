@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
-import { formatNaira, InvoiceStatus } from "@/lib/finance/format";
+import { formatNaira, InvoiceStatus, SETTLED_TEXT, type SettledBy } from "@/lib/finance/format";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { DiscountModal } from "./DiscountModal";
 
@@ -50,6 +50,9 @@ export interface InvoiceDetail {
     mode: string;
     createdAt: string;
   }[];
+  /// Settled with nothing paid because scholarships took the fees off (task 0113 S1).
+  paidByScholarship?: boolean;
+  settledBy?: SettledBy | null;
 }
 
 export interface InvoiceDetailModalProps {
@@ -127,7 +130,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
             <div>
               {isPaid && (
                 <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-ok-fg">
-                  ✓ PAID IN FULL
+                  {invoice.settledBy ? `✓ ${SETTLED_TEXT[invoice.settledBy].toUpperCase()}` : "✓ PAID IN FULL"}
                 </span>
               )}
               {isPartial && (
@@ -211,7 +214,9 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, canManage = true,
                   ))}
                   {invoice.discounts.map((d) => (
                     <tr key={d.id} className="bg-emerald-500/5 text-ok-fg font-medium">
-                      <td className="px-3 py-2">Discount: {d.reason}</td>
+                      <td className="px-3 py-2">
+                        {d.mode === "SCHOLARSHIP" ? "Scholarship" : "Discount"}: {d.reason}
+                      </td>
                       <td className="px-3 py-2 text-right">-{formatNaira(d.amount)}</td>
                     </tr>
                   ))}

@@ -19,6 +19,7 @@ import {
   UserIcon,
   UsersIcon,
 } from "@/components/ui/icons";
+import { LIVE_PUPIL } from "@/lib/drafts/live";
 
 export const metadata: Metadata = { title: "Overview" };
 export const dynamic = "force-dynamic";
@@ -114,7 +115,7 @@ export default async function OverviewPage() {
       select: { id: true, name: true, _count: { select: { memberships: { where: { deactivatedAt: null } } } } },
     }),
     prisma.user.count({ where: { memberships: { some: { deactivatedAt: null, ...inScope } } } }), // active people only
-    prisma.studentRecord.groupBy({ by: ["branchId"], where: { archivedAt: null, ...inScope }, _count: { _all: true } }),
+    prisma.studentRecord.groupBy({ by: ["branchId"], where: { ...LIVE_PUPIL, ...inScope }, _count: { _all: true } }),
     prisma.classGroup.groupBy({ by: ["branchId"], where: { archivedAt: null, ...inScope }, _count: { _all: true } }),
     prisma.subject.groupBy({ by: ["branchId"], where: { archivedAt: null, ...inScope }, _count: { _all: true } }),
     prisma.academicSession.findMany({ where: { status: "ACTIVE", archivedAt: null, ...inScope }, select: { branchId: true, label: true } }),

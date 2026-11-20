@@ -9,6 +9,8 @@ export type BranchChoice = {
   canApprove?: boolean;
   /// What the person may do about standing in this branch (task 0045; display only, the API decides): suspend and lift, and expel, terminate and reinstate.
   standing?: { suspend: boolean; remove: boolean };
+  /// Whether this branch uses departments (task 0101 D7; display only, the API decides): the Departments tab, and the department labels and filter on the staff list.
+  departments?: boolean;
 };
 export type Notice = { variant: "success" | "error"; text: string } | null;
 

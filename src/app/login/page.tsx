@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { PORTAL_COOKIE_NAME } from "@/lib/portal/auth";
+import { resolvePortalSessionData } from "@/lib/portal/service";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { safeReturnTo } from "@/lib/auth/return-to";
@@ -10,6 +12,7 @@ import { classifyHost, PORTAL_COPY, readPortalConfig } from "@/lib/portals";
 import { portalClosedNotice } from "@/lib/auth/login-switch";
 import { LOGIN_CLOSED_MESSAGE } from "@/lib/auth/login-switch-rules";
 import { LoginForm } from "./LoginForm";
+import { FamilySignIn } from "./FamilySignIn";
 
 export const metadata: Metadata = { title: "Sign in" };
 // Depends on the request's cookies and the database — never statically cached.
@@ -39,6 +42,17 @@ export default async function LoginPage({
     // Student and parent sign-in (task 0091): when this portal is a student or a parent portal and the school has not opened it, the page says so. Decided from the host alone, never from
     // anything typed, so it says nothing about any account; the form stays (a person who is also a member of staff still signs in).
     const closedNotice = endedByClosure ? LOGIN_CLOSED_MESSAGE : await portalClosedNotice(info.portal);
+    // The one door (task 0113): student. and parent. show the families' form first, with the e-mail sign-in one click under it.
+    if (info.portal === "student" || info.portal === "parent") {
+      // A family already signed in here goes straight to its workspace. The session is checked as every request checks it (task 0113: a signature alone is not enough; a cookie whose
+      // code was replaced or whose guardian was blocked would send /portal back here, and round again).
+      if (await resolvePortalSessionData((await cookies()).get(PORTAL_COOKIE_NAME)?.value)) redirect("/portal");
+      return (
+        <AuthShell>
+          <FamilySignIn portal={{ id: info.portal, ...PORTAL_COPY[info.portal] }} returnTo={returnTo} closedNotice={closedNotice} />
+        </AuthShell>
+      );
+    }
     return (
       <AuthShell>
         <LoginForm portal={{ id: info.portal, ...PORTAL_COPY[info.portal] }} returnTo={returnTo} closedNotice={closedNotice} />

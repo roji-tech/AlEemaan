@@ -6,6 +6,8 @@ export const SECTIONS = [
   { id: "sessions", label: "Sessions" },
   { id: "grading", label: "Assessment and grading" },
   { id: "staff", label: "Staff" },
+  /// Shown only where a branch uses departments, or to an administrator (who turns them on there): `AcademicsSections` and the page decide (task 0101 D7).
+  { id: "departments", label: "Departments" },
   { id: "promotion", label: "Promotion & rollover" },
 ] as const;
 export type SectionId = (typeof SECTIONS)[number]["id"];

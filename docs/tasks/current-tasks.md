@@ -746,3 +746,9 @@
 - [x] Table, rules, routes, the tab, docs and specs
 - [ ] The run (section 5), merged to `dev`, promoted
 
+## TASK-0115: School details per branch (task 0101 D4, requested 2026-11-18)
+
+[Task file](0101-drafts-unassigned-staff-branch-details-corps-member.md) (D4 as built). A new table `BranchProfile` (migration `20261119170000_branch_profile`, the maintainer's to run) so a branch can have its own principal, phone, motto, address, e-mail and website; what a branch shows is its own value where set, else the school's (`profileFor`). The report card uses it; the school's name stays school-wide. A superadmin edits any branch (Settings > School Profile); an administrator edits only their own branches (Approvals > Report cards).
+
+- [x] Table, migration, `profileFor` and the merge rule, the route, the editor, the report card, specs
+- [ ] The run (section 5), merged to `dev`, promoted

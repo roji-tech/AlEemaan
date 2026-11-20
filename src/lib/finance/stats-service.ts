@@ -1,4 +1,4 @@
-import { InvoiceStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { DiscountWorkflowMode, InvoiceStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   AGEING,
@@ -32,7 +32,7 @@ export async function branchTotals(
 ): Promise<{ totals: Totals; byStatus: ByStatus; ageing: Record<AgeingBucket, number> }> {
   const period = periodId ? { periodId } : {};
   const today = utcDay(now);
-  const [grouped, aged, discounts] = await Promise.all([
+  const [grouped, aged, discounts, scholarships] = await Promise.all([
     prisma.invoice.groupBy({
       by: ["status"],
       where: { branchId, ...period },
@@ -51,7 +51,12 @@ export async function branchTotals(
       WHERE "branchId" = ${branchId} AND status IN ${OWED_SQL} ${periodId ? Prisma.sql`AND "periodId" = ${periodId}` : Prisma.empty}
       GROUP BY 1`),
     prisma.invoiceDiscount.aggregate({
-      where: { branchId, invoice: { ...period, status: { in: LIVE } } },
+      where: { branchId, mode: { not: DiscountWorkflowMode.SCHOLARSHIP }, invoice: { ...period, status: { in: LIVE } } },
+      _sum: { amount: true },
+    }),
+    // Scholarships are their own figure (task 0113 S1); neither they nor discounts are ever part of what was collected (that is payments only).
+    prisma.invoiceDiscount.aggregate({
+      where: { branchId, mode: DiscountWorkflowMode.SCHOLARSHIP, invoice: { ...period, status: { in: LIVE } } },
       _sum: { amount: true },
     }),
   ]);
@@ -71,7 +76,17 @@ export async function branchTotals(
   }
   const ageing = Object.fromEntries(AGEING.map((b) => [b, 0])) as Record<AgeingBucket, number>;
   for (const row of aged) ageing[row.bucket] += kobo(row.owed);
-  return { ...totalsOf({ byStatus, ageing, discountsKobo: kobo(discounts._sum.amount), waived, cancelled }), ageing };
+  return {
+    ...totalsOf({
+      byStatus,
+      ageing,
+      discountsKobo: kobo(discounts._sum.amount),
+      scholarshipsKobo: kobo(scholarships._sum.amount),
+      waived,
+      cancelled,
+    }),
+    ageing,
+  };
 }
 
 export type ClassRow = { name: string; invoices: number; invoicedKobo: number; collectedKobo: number; ratePercent: number };

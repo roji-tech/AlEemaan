@@ -54,30 +54,65 @@ test.beforeEach(async () => {
     data: { branchId: home.id, label: "2026/2027", startDate: new Date("2026-09-01"), endDate: new Date("2027-07-20"), status: "ACTIVE" },
   });
   const period = await db.academicPeriod.create({
-    data: { branchId: home.id, sessionId: session.id, ordinal: 1, label: "1st Term", startDate: new Date("2026-09-01"), endDate: new Date("2026-12-15"), isCurrent: true },
+    data: {
+      branchId: home.id,
+      sessionId: session.id,
+      ordinal: 1,
+      label: "1st Term",
+      startDate: new Date("2026-09-01"),
+      endDate: new Date("2026-12-15"),
+      isCurrent: true,
+    },
   });
   const group = await db.classGroup.create({ data: { branchId: home.id, name: "JSS 1" } });
   const arm = await db.classArm.create({ data: { branchId: home.id, classGroupId: group.id, name: "Gold" } });
   const mk = (admissionNo: string, firstName: string, dateOfBirth: string, phone: string, email: string | null) =>
     db.studentRecord.create({
-      data: { branchId: home.id, firstName, lastName: "Pupil", gender: Gender.FEMALE, dateOfBirth: new Date(dateOfBirth), admissionNo, guardianPhone: phone, guardianEmail: email },
+      data: {
+        branchId: home.id,
+        firstName,
+        lastName: "Pupil",
+        gender: Gender.FEMALE,
+        dateOfBirth: new Date(dateOfBirth),
+        admissionNo,
+        guardianPhone: phone,
+        guardianEmail: email,
+      },
     });
   const s1 = await mk("2026/0001", "Amina", DOB, "+2348011110001", EMAIL);
   const s2 = await mk("2026/0002", "Binta", "2015-02-03", "+2348011110001", EMAIL); // a sibling: the same guardian contact
   const stranger = await mk("2026/0003", "Cara", "2012-01-01", "+2348099990003", null);
   for (const s of [s1, s2, stranger]) {
     await db.studentEnrollment.create({
-      data: { studentId: s.id, branchId: home.id, sessionId: session.id, className: "JSS 1", arm: "Gold", classArmId: arm.id, status: "ACTIVE" },
+      data: {
+        studentId: s.id,
+        branchId: home.id,
+        sessionId: session.id,
+        className: "JSS 1",
+        arm: "Gold",
+        classArmId: arm.id,
+        status: "ACTIVE",
+      },
     });
   }
   await db.invoice.create({
-    data: { branchId: home.id, studentId: s1.id, periodId: period.id, invoiceNo: "INV-2026-0001", totalAmount: 45000, amountPaid: 20000, status: "PARTIALLY_PAID" },
+    data: {
+      branchId: home.id,
+      studentId: s1.id,
+      periodId: period.id,
+      invoiceNo: "INV-2026-0001",
+      totalAmount: 45000,
+      amountPaid: 20000,
+      status: "PARTIALLY_PAID",
+    },
   });
   const subject = await db.subject.create({ data: { branchId: home.id, name: "Civic", code: "CIV" } });
   const assignment = await db.assignment.create({
     data: { branchId: home.id, subjectId: subject.id, title: "Essay", status: "PUBLISHED", dueDate: new Date(Date.now() + 864e5) },
   });
-  const quiz = await db.quiz.create({ data: { branchId: home.id, subjectId: subject.id, title: "Week 1", status: "PUBLISHED", passingScore: 50 } });
+  const quiz = await db.quiz.create({
+    data: { branchId: home.id, subjectId: subject.id, title: "Week 1", status: "PUBLISHED", passingScore: 50 },
+  });
   const q1 = await db.quizQuestion.create({
     data: {
       branchId: home.id,
@@ -96,7 +131,7 @@ test.beforeEach(async () => {
 });
 
 test.describe("who signed in", () => {
-  test("the date of birth is a pupil; a phone number, an e-mail address and a link are a guardian", async () => {
+  test("the date of birth is a pupil; a phone number and an e-mail address are a guardian; a link no longer signs anyone in", async () => {
     const byDob = await signIn(DOB);
     expect(byDob.json.data.actor).toBe("PUPIL");
     expect((await signIn(PHONE)).json.data.actor).toBe("GUARDIAN");
@@ -104,11 +139,18 @@ test.describe("who signed in", () => {
 
     const raw = "magic-link-token-1234567890abcdefghij";
     await db.guardianLinkToken.create({
-      data: { branchId: home.id, studentId: ids.s1, action: "portal_access", tokenHash: crypto.createHash("sha256").update(raw).digest("hex"), expiresAt: new Date(Date.now() + 864e5), channel: "SMS" },
+      data: {
+        branchId: home.id,
+        studentId: ids.s1,
+        action: "portal_access",
+        tokenHash: crypto.createHash("sha256").update(raw).digest("hex"),
+        expiresAt: new Date(Date.now() + 864e5),
+        channel: "SMS",
+      },
     });
     const byLink = await api(`${URL}/session`, { body: { token: raw } });
-    expect(byLink.status, byLink.text).toBe(200);
-    expect(byLink.json.data.actor).toBe("GUARDIAN");
+    // Task 0113: the link sign-in is gone (the one door takes an admission number and a code); a link alone is the same plain 400 as no secret.
+    expect(byLink.status, byLink.text).toBe(400);
   });
 
   test("the session says who it is and what it may do for each pupil; a pupil sees only themselves, a guardian sees every linked child", async () => {
@@ -123,18 +165,15 @@ test.describe("who signed in", () => {
     expect(asGuardian.json.data.access[ids.s2]).toEqual(DEFAULT_PORTAL_ACCESS.guardian);
   });
 
-  test("a cookie signed before the actor existed is a guardian's", async () => {
+  test("a cookie signed before the actor existed is ended, not widened (task 0113 D6: a guardian's reach now comes from their links)", async () => {
     const now = Math.floor(Date.now() / 1000);
-    // signed the way the previous release did: the same secret, a payload with no `actor`
+    // signed the way the previous release did: the same secret, a payload with no `actor` and no guardian
     const legacy = { primaryStudentId: ids.s1, allowedStudentIds: [ids.s1, ids.s2], issuedAt: now, expiresAt: now + 3600 };
     const serialized = Buffer.from(JSON.stringify(legacy)).toString("base64url");
     const token = `${serialized}.${crypto.createHmac("sha256", portalSecret()).update(serialized).digest("base64url")}`;
     const cookie = `${PORTAL_COOKIE_NAME}=${token}`;
-    const session = await api(`${URL}/session`, { cookie });
-    expect(session.status).toBe(200);
-    expect(session.json.data.actor).toBe("GUARDIAN");
-    expect((await api(`${URL}/students/${ids.s1}/invoices`, { cookie })).status).toBe(200);
-    expect((await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, { method: "POST", cookie, body: { content: "x", attachments: [] } })).status).toBe(403);
+    expect((await api(`${URL}/session`, { cookie })).status).toBe(401);
+    expect((await api(`${URL}/students/${ids.s1}/invoices`, { cookie })).status).toBe(401);
   });
 });
 
@@ -171,10 +210,18 @@ test.describe("the defaults, route by route", () => {
     expect(lms.json.data.assignments.map((a: { title: string }) => a.title)).toEqual(["Essay"]);
     expect(lms.json.data.quizzes).toEqual([]);
 
-    const hand = await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, { method: "POST", cookie, body: { content: "I did it for her", attachments: [] } });
+    const hand = await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, {
+      method: "POST",
+      cookie,
+      body: { content: "I did it for her", attachments: [] },
+    });
     expect(hand.status).toBe(403);
     expect(hand.json.error.code).toBe("PORTAL_ACCESS");
-    const attempt = await api(`${URL}/students/${ids.s1}/quizzes/${ids.quiz}/attempt`, { method: "POST", cookie, body: { answers: [{ questionId: ids.q1, answer: "B" }] } });
+    const attempt = await api(`${URL}/students/${ids.s1}/quizzes/${ids.quiz}/attempt`, {
+      method: "POST",
+      cookie,
+      body: { answers: [{ questionId: ids.q1, answer: "B" }] },
+    });
     expect(attempt.status).toBe(403);
     expect(await db.assignmentSubmission.count()).toBe(0);
     expect(await db.quizAttempt.count()).toBe(0);
@@ -182,11 +229,19 @@ test.describe("the defaults, route by route", () => {
 
   test("a pupil hands in work and takes the quiz; the one message is the same for every refusal", async () => {
     const cookie = await pupil();
-    const hand = await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, { method: "POST", cookie, body: { content: "My essay", attachments: [] } });
+    const hand = await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, {
+      method: "POST",
+      cookie,
+      body: { content: "My essay", attachments: [] },
+    });
     expect(hand.status, hand.text).toBe(201);
     const lms = await api(`${URL}/students/${ids.s1}/lms`, { cookie });
     expect(lms.json.data.quizzes).toHaveLength(1);
-    const attempt = await api(`${URL}/students/${ids.s1}/quizzes/${ids.quiz}/attempt`, { method: "POST", cookie, body: { answers: [{ questionId: ids.q1, answer: "B" }] } });
+    const attempt = await api(`${URL}/students/${ids.s1}/quizzes/${ids.quiz}/attempt`, {
+      method: "POST",
+      cookie,
+      body: { answers: [{ questionId: ids.q1, answer: "B" }] },
+    });
     expect(attempt.status, attempt.text).toBe(201);
 
     const refused = [
@@ -233,7 +288,15 @@ test.describe("the setting decides, and it applies at once", () => {
   test("letting a guardian take the quiz opens the hand-in and the quiz for them", async () => {
     await setAccess(withChange((v) => ((v.guardian.submitWork = true), (v.guardian.takeQuizzes = true))));
     const cookie = await guardian();
-    expect((await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, { method: "POST", cookie, body: { content: "x", attachments: [] } })).status).toBe(201);
+    expect(
+      (
+        await api(`${URL}/students/${ids.s1}/assignments/${ids.assignment}/submission`, {
+          method: "POST",
+          cookie,
+          body: { content: "x", attachments: [] },
+        })
+      ).status,
+    ).toBe(201);
     expect((await api(`${URL}/students/${ids.s1}/lms`, { cookie })).json.data.quizzes).toHaveLength(1);
   });
 
@@ -250,7 +313,10 @@ test.describe("the setting decides, and it applies at once", () => {
   });
 
   test("the setting of the pupil's own branch is the one that applies: another branch's setting changes nothing here", async () => {
-    await setAccess(withChange((v) => (v.pupil.invoices = true)), otherBranch.id);
+    await setAccess(
+      withChange((v) => (v.pupil.invoices = true)),
+      otherBranch.id,
+    );
     expect((await api(`${URL}/students/${ids.s1}/invoices`, { cookie: await pupil() })).status).toBe(403);
   });
 
@@ -287,7 +353,10 @@ test.describe("the settings API", () => {
     const narrow = withChange((v) => (v.pupil.invoices = false));
     expect((await setAccess(narrow)).status).toBe(200);
     expect((await setAccess(narrow)).json.data.changed).toBe(false);
-    const rows = await db.settingAudit.findMany({ where: { settingKey: PORTAL_ACCESS_KEY, branchId: home.id }, orderBy: { createdAt: "asc" } });
+    const rows = await db.settingAudit.findMany({
+      where: { settingKey: PORTAL_ACCESS_KEY, branchId: home.id },
+      orderBy: { createdAt: "asc" },
+    });
     expect(rows.map((r) => r.action)).toEqual(["CHANGED_WIDENING", "CHANGED"]);
     expect(rows.every((r) => r.actorUserId === superAdmin.id)).toBe(true);
     expect((rows[0].oldValue as unknown as PortalAccess).pupil.invoices).toBe(false);
@@ -316,7 +385,16 @@ test.describe("the settings API", () => {
     expect((await patch({ branchId: home.id, access: { ...good, admin: good.pupil } })).status).toBe(400);
     expect((await patch({ branchId: home.id, access: { ...good, pupil: { ...good.pupil, invoices: "yes" } } })).status).toBe(400);
     expect((await patch({ branchId: home.id, access: good, extra: 1 })).status).toBe(400);
-    const empty = withChange((v) => Object.assign(v.guardian, { overview: false, results: false, invoices: false, materials: false, submitWork: false, takeQuizzes: false }));
+    const empty = withChange((v) =>
+      Object.assign(v.guardian, {
+        overview: false,
+        results: false,
+        invoices: false,
+        materials: false,
+        submitWork: false,
+        takeQuizzes: false,
+      }),
+    );
     const nothing = await patch({ branchId: home.id, access: empty });
     expect(nothing.status).toBe(400);
     expect(JSON.stringify(nothing.json)).toContain("at least one section");
@@ -329,7 +407,9 @@ test.describe("the settings API", () => {
   });
 
   test("a damaged stored value never breaks the portal: it reads as the default", async () => {
-    await db.settingValue.create({ data: { scope: "BRANCH", branchId: home.id, key: PORTAL_ACCESS_KEY, value: { pupil: "yes", guardian: [1, 2] }, status: "APPROVED" } });
+    await db.settingValue.create({
+      data: { scope: "BRANCH", branchId: home.id, key: PORTAL_ACCESS_KEY, value: { pupil: "yes", guardian: [1, 2] }, status: "APPROVED" },
+    });
     const cookie = await pupil();
     expect((await api(`${URL}/students/${ids.s1}/overview`, { cookie })).status).toBe(200);
     expect((await api(`${URL}/students/${ids.s1}/invoices`, { cookie })).status).toBe(403);
