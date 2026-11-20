@@ -484,3 +484,27 @@ export function GridIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function KeyIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="m10.7 12.3 9.8-9.8" />
+      <path d="m16 7 3 3" />
+      <path d="m14 9 2 2" />
+    </svg>
+  );
+}
+
+export function UnlinkIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      <path d="M8 2v3" />
+      <path d="M2 8h3" />
+      <path d="M16 22v-3" />
+      <path d="M22 16h-3" />
+    </svg>
+  );
+}

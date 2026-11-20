@@ -782,3 +782,7 @@
 ## TASK-0124: How often a fee line is charged (requested 2026-11-20)
 
 [Task file](0124-fee-how-often.md). A fee line is for this term only (as today), every term, or once a year; recurring lines are one row that carries into new terms and sessions until its amount is edited, and "How often" is a column of the fees file. One additive migration, `20261122110000_fee_recurrence`, the maintainer's to run in production after the prod merge.
+
+## TASK-0125: New or Returning for many pupils at once; icons on the rest of the row menus (requested 2026-11-20)
+
+[Task file](0125-bulk-admission-status.md). Students > "New or returning": one action marks every pupil in a class (or all) as Returning, New or worked out automatically, with a count before the change and one audit entry. Task 0122's advice to use the pupil file's column only worked for pupils created in that file. Also icons on every row-menu item that had none. No migration.

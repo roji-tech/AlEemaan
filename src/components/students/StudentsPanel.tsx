@@ -26,6 +26,7 @@ import { StandingHistoryDialog } from "@/components/standing/StandingHistoryDial
 import { KIND_TEXT, kindsFor, prettyDay, type StandingCan, type StandingValue } from "@/components/standing/model";
 import { OwnProgramCard, type OwnProgram } from "@/components/students/OwnProgramCard";
 import { ExportButton } from "@/components/bulk/ExportButton";
+import { BulkAdmissionDialog } from "@/components/finance/BulkAdmissionDialog";
 import { draftPill } from "@/components/academics/StaffDetails";
 import { AGE_MAX, activePupilFilters, pupilFilterQuery, type PupilFilters } from "@/lib/students/list-filters";
 import { PupilGuardiansDialog } from "@/components/guardians/PupilGuardiansDialog";
@@ -100,6 +101,7 @@ export function StudentsPanel({
   const [students, setStudents] = useState<Student[] | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [bulk, setBulk] = useState<{ open: boolean; key: number }>({ open: false, key: 0 });
+  const [admissionOpen, setAdmissionOpen] = useState(false);
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const pupilEntity = useMemo(() => pupilEntityFor(classes.map((c) => c.name)), [classes]);
   const [paging, setPaging] = useState<Paging>({ page: 1, totalPages: 1, total: 0 });
@@ -273,6 +275,9 @@ export function StudentsPanel({
                 </Button>
                 <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
                   Add many
+                </Button>
+                <Button variant="secondary" onClick={() => setAdmissionOpen(true)}>
+                  New or returning
                 </Button>
                 <Button onClick={() => setEditing({ kind: "form", item: null })}>New student</Button>
               </div>
@@ -598,6 +603,15 @@ export function StudentsPanel({
         }}
         onChanged={(text) => setNotice({ variant: "success", text })}
       />
+      {branch.canEdit && (
+        <BulkAdmissionDialog
+          open={admissionOpen}
+          branchId={branchId}
+          classes={classes}
+          onClose={() => setAdmissionOpen(false)}
+          onChanged={(text) => setNotice({ variant: "success", text })}
+        />
+      )}
       <PupilFeeItemsDialog
         branchId={branchId}
         pupil={feeLinesOf}
