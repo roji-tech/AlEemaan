@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { mayAdminister, type AdminScope } from "@/lib/auth/branch-access";
 import { createInvitationIn } from "@/lib/invitations/service";
 import { roleForCategory } from "@/lib/academics/staff";
+import { accountFitsRecord } from "@/lib/academics/staff-accounts";
 
 // Inviting staff to sign in from their records (task 0114, task 0101 D6): one or many records of one branch, each invited at the e-mail address on its record, with the role its kind gives
 // (Teaching -> Teaching staff, Non-teaching -> Non-teaching staff; an administrator is only ever invited by hand). Nobody copies an address from one page to another.
@@ -103,7 +104,8 @@ async function inviteOne(
       select: { userId: true, role: true, staffRecords: { select: { id: true } } },
     });
     if (member) {
-      if (member.role !== role || member.staffRecords.length > 0) return { staffId: id, name, result: "skipped", why: WHY.ALREADY_MEMBER };
+      if (!accountFitsRecord(member.role, role === "TEACHING_STAFF" ? "TEACHING" : "NON_TEACHING") || member.staffRecords.length > 0)
+        return { staffId: id, name, result: "skipped", why: WHY.ALREADY_MEMBER };
       const linked = await tx.staffRecord.updateMany({
         where: { id, branchId, userId: null, archivedAt: null },
         data: { userId: member.userId },

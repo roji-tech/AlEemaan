@@ -41,7 +41,7 @@ import {
 } from "@/components/academics/staff-model";
 import { DepartmentBadges, DepartmentChips } from "@/components/academics/DepartmentChips";
 import { StaffDetailsDialog, corpsPill, draftPill, kindPill } from "@/components/academics/StaffDetails";
-import { StaffInviteDialog, StaffTransferDialog, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
+import { StaffInviteDialog, StaffTransferDialog, UnlistedMembers, invitable, type InvitePerson } from "@/components/academics/StaffAccess";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
 // sign-in account is an existing member it can be linked to. Presentation only: the API decides who may read and change what.
@@ -145,6 +145,8 @@ export function StaffPanel({
   // Task 0111: the filters beyond Show (kind, gender, corps member, sign-in, standing), applied here; and the record whose details are open.
   const [filters, setFilters] = useState<StaffFilters>(NO_STAFF_FILTERS);
   const [viewing, setViewing] = useState<Staff | null>(null);
+  // Bumped on every load, so "Signs in here, not on the staff list yet" reads again after a link or a new record.
+  const [loads, setLoads] = useState(0);
   const can = branch.standing ?? { suspend: false, remove: false };
 
   const load = useCallback(async () => {
@@ -158,6 +160,7 @@ export function StaffPanel({
     if (bad) return setError(say(bad, "Couldn't load this branch."));
     setError(null);
     setStaff(s.data!.staff as Staff[]);
+    setLoads((n) => n + 1);
     setSelected(new Set());
     setClasses(c.data!.classGroups as ClassOption[]);
     setSubjects(sub.data!.subjects as SubjectOption[]);
@@ -337,6 +340,16 @@ export function StaffPanel({
             />
           )}
         </ListToolbar>
+        {branch.canEdit && status === "live" && (
+          <UnlistedMembers
+            branchId={branch.id}
+            version={loads}
+            onAdded={async (text) => {
+              setNotice({ variant: "success", text });
+              await load();
+            }}
+          />
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-fg-muted" aria-live="polite">
             {list === null
