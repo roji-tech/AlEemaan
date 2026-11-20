@@ -41,6 +41,8 @@ export function DepartmentsPanel({
 }) {
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  // Task 0101 F: "heads of department review results first" (a branch switch, off by default; an administrator's).
+  const [headReview, setHeadReview] = useState<boolean | null>(null);
   const [departments, setDepartments] = useState<Department[] | null>(null);
   const [archived, setArchived] = useState(false);
   const [search, setSearch] = useState("");
@@ -65,6 +67,30 @@ export function DepartmentsPanel({
     setDepartments(null);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let live = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the switch is read again when the branch changes
+    setHeadReview(null);
+    void getJson(`/api/v1/settings/results-head-review?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
+      if (live && reply.ok) setHeadReview(reply.data!.enabled as boolean);
+    });
+    return () => {
+      live = false;
+    };
+  }, [branchId]);
+
+  async function turnHeadReview(on: boolean) {
+    const reply = await sendJson("/api/v1/settings/results-head-review", "PUT", { branchId, enabled: on });
+    if (!reply.ok) return setNotice({ variant: "error", text: say(reply, "That didn't work.") });
+    setHeadReview(on);
+    setNotice({
+      variant: "success",
+      text: on
+        ? `Heads of department now review their subjects' results before they can be approved in ${branch.name}.`
+        : `Results in ${branch.name} are approved as before. Reviews already made are kept.`,
+    });
+  }
 
   const done = async (text: string) => {
     setEditing(null);
@@ -153,6 +179,19 @@ export function DepartmentsPanel({
           </div>
         ) : (
           <>
+            {branch.canEdit && enabled === true && headReview !== null && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface-2 px-4 py-3">
+                <p className="min-w-0 text-sm text-fg-2">
+                  <span className="font-semibold text-fg">Heads of department review results first.</span>{" "}
+                  {headReview
+                    ? "On: a submitted result of a subject in a department waits for its head's review before it can be approved. Publishing is unchanged."
+                    : "Off: results are approved as before. Turn it on to have each head review their subjects' results first."}
+                </p>
+                <Button variant={headReview ? "ghost" : "secondary"} onClick={() => void turnHeadReview(!headReview)}>
+                  {headReview ? "Turn off" : "Turn on"}
+                </Button>
+              </div>
+            )}
             <ListToolbar
               searchValue={search}
               onSearch={(v) => (setSearch(v), setPage(1))}

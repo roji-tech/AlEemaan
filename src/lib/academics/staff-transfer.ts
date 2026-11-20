@@ -54,7 +54,8 @@ export async function transferPreview(scope: AdminScope, staffId: string) {
     where: { id: staffId },
     select: { branchId: true, archivedAt: true, _count: { select: { assignments: true, teacherOfArms: true, attendanceGrants: true } } },
   });
-  if (!record || !mayAdminister(scope, record.branchId)) return null;
+  // A record not placed in a branch (task 0101 D3) has nothing to move: no branch administers it, so it is "not found" here like a record of another branch.
+  if (!record || record.branchId === null || !mayAdminister(scope, record.branchId)) return null;
   return { assignments: record._count.assignments, classTeacher: record._count.teacherOfArms, grants: record._count.attendanceGrants };
 }
 
@@ -66,7 +67,8 @@ export async function transferStaff(
 ): Promise<TransferResult> {
   const source = await prisma.staffRecord.findUnique({ where: { id: staffId }, select: { branchId: true } });
   // Not found and not yours answer alike, so the answer never says that a record exists in a branch you do not run.
-  if (!source || !mayAdminister(scope, source.branchId)) return { ok: false, status: 404, message: "Staff record not found." };
+  if (!source || source.branchId === null || !mayAdminister(scope, source.branchId))
+    return { ok: false, status: 404, message: "Staff record not found." };
   if (!mayAdminister(scope, input.toBranchId))
     return { ok: false, status: 403, message: "You can only move or add staff to a branch you administer." };
   if (input.toBranchId === source.branchId) return { ok: false, status: 409, message: "Choose a different branch." };
@@ -80,7 +82,7 @@ export async function transferStaff(
         select: { ...COPY, id: true, branchId: true, userId: true, personId: true, archivedAt: true, standing: true, isDraft: true },
       });
       const target = await tx.branch.findUnique({ where: { id: input.toBranchId }, select: { id: true, name: true } });
-      if (!record || !target) return { ok: false, status: 404, message: "Staff record not found." };
+      if (!record || !target || record.branchId === null) return { ok: false, status: 404, message: "Staff record not found." };
       if (record.archivedAt) return { ok: false, status: 409, message: "Restore this record before moving it." };
       if (record.isDraft)
         return { ok: false, status: 409, message: "Complete this draft before moving it or adding it to another branch." };

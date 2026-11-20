@@ -1,6 +1,7 @@
 "use client";
 
 import { BranchPicker } from "@/components/ui/BranchPicker";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useState, useRef, type KeyboardEvent } from "react";
 import { BroadcastComposer } from "./BroadcastComposer";
 import { DispatchLogsView } from "./DispatchLogsView";
@@ -17,7 +18,7 @@ export interface CommunicationPanelProps {
 type TabType = "broadcast" | "logs" | "templates";
 
 export function CommunicationPanel({ branches, userBranchId }: CommunicationPanelProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(userBranchId || branches[0]?.id || "");
+  const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches, { fallback: userBranchId || branches[0]?.id || "" });
   const [activeTab, setActiveTab] = useState<TabType>("broadcast");
 
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);

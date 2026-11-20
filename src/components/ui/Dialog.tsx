@@ -18,7 +18,9 @@ function TitleText({ text }: { text: string }) {
 
 /// A modal dialog on the native <dialog>: the platform supplies the focus trap, Escape, the inert page behind it, and — on close — focus
 /// back on the control that opened it (initial focus: see the effect below). `open` is the one source of truth; Escape is reported through `onClose` so the owner's state follows.
-/// It does NOT close on a click outside: these dialogs hold a form, and a stray tap must not throw away what someone typed.
+/// A click outside closes it ONLY when it holds nothing to type into (a details view, a history, a confirmation: no input, select or text area; task 0117, the maintainer, 2026-11-20,
+/// "add a useoutsideclick or similar to most popups"); a dialog with a form does not, so a stray tap never throws away what someone typed. Both the press and the release must be on the
+/// backdrop, so selecting text and letting go outside does not close it.
 export function Dialog({
   open,
   onClose,
@@ -42,6 +44,7 @@ export function Dialog({
   confirmClose?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const pressedOnBackdrop = useRef(false);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -80,6 +83,16 @@ export function Dialog({
       }
       onClose={(event) => {
         if (event.target === event.currentTarget) onClose();
+      }}
+      onPointerDown={(event) => {
+        pressedOnBackdrop.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        const pressed = pressedOnBackdrop.current;
+        pressedOnBackdrop.current = false;
+        if (confirmClose || !pressed || event.target !== event.currentTarget) return;
+        if (event.currentTarget.querySelector("input:not([type=hidden]):not([type=button]):not([type=submit]), select, textarea")) return;
+        onClose();
       }}
       className={`fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] ${extraWide ? "max-w-5xl" : wide ? "max-w-3xl" : "max-w-lg"} overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-fg shadow-menu backdrop:bg-black/60`}
     >

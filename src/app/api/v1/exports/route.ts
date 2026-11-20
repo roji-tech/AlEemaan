@@ -114,9 +114,16 @@ async function staffRows(body: ExportRequest) {
       designation: true,
       qualification: true,
       corpsMember: true,
+      departments: {
+        where: { department: { archivedAt: null } },
+        orderBy: { department: { name: "asc" } },
+        select: { department: { select: { name: true } } },
+      },
     },
   });
-  return rows.map((r) => exportValues.staff({ ...r, category: r.category as StaffCategory }));
+  return rows.map(({ departments, ...r }) =>
+    exportValues.staff({ ...r, category: r.category as StaffCategory, departments: departments.map((d) => d.department.name) }),
+  );
 }
 
 async function classRows(body: ExportRequest) {

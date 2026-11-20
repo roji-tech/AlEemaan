@@ -32,6 +32,14 @@ export const POST = withAuth(
             why: "added to staff",
           }),
         );
+        if (done === "draft")
+          return noStore(
+            fail(
+              "A draft staff record holds their e-mail address. Complete the draft, then link their account from Manage.",
+              409,
+              "CONFLICT",
+            ),
+          );
         if (done === "none")
           return noStore(
             fail("They are already on the staff list, or another record of this branch uses their e-mail address.", 409, "CONFLICT"),

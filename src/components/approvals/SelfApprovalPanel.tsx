@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
 // Who may approve their own marks (superadmin only). By default nobody but a superadmin can: an administrator who enters marks needs someone else to approve them.
 // Granting an administrator this exception is a trade-off, said plainly here. A superadmin can also name a reviewer who is asked in their place; the administrator
@@ -21,7 +22,7 @@ type Grant = {
 };
 
 export function SelfApprovalPanel({ branches }: { branches: BranchChoice[] }) {
-  const [branchId, setBranchId] = useState(branches[0].id);
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const [admins, setAdmins] = useState<Person[] | null>(null);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [reviewer, setReviewer] = useState<Record<string, string>>({});

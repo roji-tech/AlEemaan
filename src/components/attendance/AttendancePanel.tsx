@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useNotice } from "@/components/ui/Toaster";
 import { flushSync } from "react-dom";
 import { Alert } from "@/components/ui/Alert";
@@ -41,7 +42,7 @@ export function AttendancePanel({
 }) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [date, setDate] = useState(today);
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [branchId, setBranchId] = useBranchSelection(branches);
   const [className, setClassName] = useState("Primary 1");
   const [arm, setArm] = useState("");
   const [overrides, setOverrides] = useState<OverrideMap>({});
