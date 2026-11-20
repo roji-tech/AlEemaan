@@ -1,6 +1,10 @@
 // Unconfirmed grade scales (task 0116 D15), the pure rule: no database, safe for the browser. The seeded junior scale's cut-offs are a guess (the school's junior card prints grade names and no
 // ranges), so it starts UNCONFIRMED. While it is, entering and approving marks work, but PUBLISHING results graded on it is refused until an administrator confirms the bands.
 
+/// Does an unconfirmed scale stop PUBLISHING? Off for now: the maintainer (2026-11-20) accepted the seeded junior cut-offs as the working defaults ("let's go with your defaults for now"), so an
+/// unconfirmed scale shows its notice and a Confirm button but results graded on it publish. Turn it on to make confirming a hard requirement again (the check in results-workflow.ts is kept).
+export const BLOCK_PUBLISH_ON_UNCONFIRMED = false;
+
 export const UNCONFIRMED_NOTICE = "Please confirm these grade bands: they were set from the card, which prints no ranges";
 export const CONFIRM_WHERE = "Results > Templates (Grade scales) or Academics > Assessment and grading";
 
