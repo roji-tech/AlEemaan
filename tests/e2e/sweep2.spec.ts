@@ -45,7 +45,7 @@ test("staff with no branch: a superadmin adds one under 'Not placed in a branch'
   await form.getByLabel("First name").fill("Zed");
   await form.getByLabel("Last name").fill("Unplaced");
   await expectAccessible(page, "the new staff record form");
-  await form.getByRole("button", { name: "Save", exact: true }).click();
+  await form.getByRole("button", { name: "Add staff record" }).click();
   await expect(page.getByText("Zed Unplaced added.")).toBeVisible();
   const list = page.getByRole("list", { name: "Staff" });
   await expect(list.getByRole("listitem").filter({ hasText: "Zed Unplaced" })).toBeVisible();
@@ -147,9 +147,10 @@ test("the branch you chose is still chosen when you come back to the page (the a
   // Away and back, with no branch in the address: the browser remembers it.
   await page.goto("/dashboard");
   await page.goto("/forms");
-  await expect(
-    page.getByLabel("Branch", { exact: true }).evaluate((el) => (el as HTMLSelectElement).selectedOptions[0].text),
-  ).resolves.toBe(second);
+  // The remembered branch is applied just after hydration (the first paint matches the server's), so read it until it settles rather than once.
+  await expect
+    .poll(() => page.getByLabel("Branch", { exact: true }).evaluate((el) => (el as HTMLSelectElement).selectedOptions[0].text))
+    .toBe(second);
 });
 
 test("a record that is already a draft is edited with Save draft and Complete, not the redundant Save and Save as draft (staff)", async ({
