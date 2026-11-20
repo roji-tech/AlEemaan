@@ -3,7 +3,8 @@ import { Role } from "@prisma/client";
 import { ok, fail } from "@/lib/api/envelope";
 import { withAuth } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
-import { branchIdsFor } from "@/lib/auth/branch-access";
+import { adminScope, branchIdsFor, mayAdminister } from "@/lib/auth/branch-access";
+import { liveSummaries } from "@/lib/scholarships/service";
 import { listStudents, createStudent, studentInputSchema } from "@/lib/students/service";
 import { readListFilters } from "@/lib/students/list-filters-server";
 import { readJsonBody } from "@/lib/api/validate";
@@ -34,8 +35,18 @@ export const GET = withAuth(
       const read = await readListFilters(searchParams, branchId);
       if (!read.ok) return read.response;
 
+      // Scholarships are financial (task 0113 S1): only an administrator of a pupil's branch (or a superadmin) is shown them, and only such a person may filter by them (a teacher doing so
+      // would learn who holds one from which pupils come back).
+      const scope = await adminScope(auth.userId);
+      if (read.filters.scholarship && !(branchId ? mayAdminister(scope, branchId) : scope.superAdmin))
+        return fail("Scholarships are for the branch's administrators.", 403, "FORBIDDEN");
       const result = await listStudents({ visible, branchId, status, standing, q, filters: read.filters, page, limit });
-      return ok(result);
+      const mine = result.students.filter((s) => mayAdminister(scope, s.branchId));
+      const held = mine.length > 0 ? await liveSummaries(mine.map((s) => s.id)) : new Map();
+      return ok({
+        ...result,
+        students: result.students.map((s) => (mayAdminister(scope, s.branchId) ? { ...s, scholarships: held.get(s.id) ?? [] } : s)),
+      });
     } catch (error) {
       console.error("[STUDENTS_GET_ERROR]", error);
       return fail("Unable to list students", 500, "INTERNAL");
@@ -81,6 +92,8 @@ const createInBranch = withBranch<z.infer<typeof studentInputSchema>, { userId: 
         if (result.code === "POSSIBLE_DUPLICATE") {
           return fail(result.error, 409, "POSSIBLE_DUPLICATE", [{ path: "allowDuplicate", message: result.error }]);
         }
+        if (result.code === "GUARDIAN_NOT_FOUND")
+          return fail(result.error, 404, "NOT_FOUND", [{ path: "guardianId", message: result.error }]);
         return fail(result.error, 400, result.code);
       }
 

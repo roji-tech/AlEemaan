@@ -5,6 +5,7 @@ import { APPROVALS_TAB_IDS } from "@/lib/search/tab-ids";
 import type { BranchChoice } from "@/components/academics/common";
 import { RequestsPanel } from "@/components/approvals/RequestsPanel";
 import { LayoutPanel } from "@/components/approvals/LayoutPanel";
+import { BranchProfilePanel } from "@/components/settings/BranchProfilePanel";
 import { VerificationPanel } from "@/components/approvals/VerificationPanel";
 import { SelfApprovalPanel } from "@/components/approvals/SelfApprovalPanel";
 import { EmailChangesPanel } from "@/components/approvals/EmailChangesPanel";
@@ -44,7 +45,13 @@ export function ApprovalsSections({
       <div role="tabpanel" id={panelId("approvals", active)} aria-labelledby={tabId("approvals", active)}>
         {active === "requests" && <RequestsPanel branches={branches} />}
         {active === "email" && <EmailChangesPanel />}
-        {active === "layout" && <LayoutPanel branches={branches} isSuperAdmin={isSuperAdmin} />}
+        {active === "layout" && (
+          <div className="space-y-8">
+            <LayoutPanel branches={branches} isSuperAdmin={isSuperAdmin} />
+            {/* Task 0115: the principal, motto, address and phone the branch's cards print; an administrator edits only the branches they administer. */}
+            {branches.some((b) => b.canEdit) && <BranchProfilePanel branches={branches.filter((b) => b.canEdit)} />}
+          </div>
+        )}
         {active === "verification" && <VerificationPanel branches={branches} isSuperAdmin={isSuperAdmin} />}
         {active === "self" && <SelfApprovalPanel branches={branches} />}
       </div>

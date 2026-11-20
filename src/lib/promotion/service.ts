@@ -10,6 +10,7 @@ import {
   DEFAULT_PASS_MARK,
 } from "./rules";
 import type { PromotionPreviewQuery, ExecutePromotionInput } from "./validation";
+import { NOT_DRAFT } from "@/lib/drafts/live";
 
 /// A request that cannot be a rollover (a session of another branch, a target before the source, an override that names nobody in the class...). The routes answer it with
 /// `status` and the message, which says what to change; it is never a 500.
@@ -136,6 +137,8 @@ export async function previewPromotion(query: PromotionPreviewQuery): Promise<Pr
       sessionId: sourceSessionId,
       status: EnrollmentStatus.ACTIVE,
       classArm: { classGroupId: sourceClassGroupId },
+      // A draft is not promoted (task 0101 D1): complete the record first.
+      student: NOT_DRAFT,
     },
     include: {
       student: {

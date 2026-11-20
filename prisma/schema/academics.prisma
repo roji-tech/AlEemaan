@@ -175,15 +175,19 @@ model ClassArm {
 
 /// A subject taught in one branch. `code` is upper-cased and unique among the branch's live subjects when present (partial index).
 model Subject {
-  id         String    @id @default(cuid())
-  branchId   String
-  name       String
-  code       String?
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now()) @updatedAt
+  id           String    @id @default(cuid())
+  branchId     String
+  name         String
+  code         String?
+  /// The department this subject belongs to, when the branch uses departments (task 0101 D7). At most one; null = in none. Of the same branch (the composite key below). It is NO ACTION,
+  /// not SET NULL, because a composite key would null the branch too; a department is archived and never deleted, so nothing needs it.
+  departmentId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
 
   branch            Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  department        Department?              @relation(fields: [branchId, departmentId], references: [branchId, id], onDelete: NoAction)
   offerings         SubjectOffering[]
   assignments       StaffSubjectAssignment[]
   results           Result[]
@@ -196,6 +200,45 @@ model Subject {
 
   @@unique([branchId, id])
   @@index([branchId])
+  @@index([branchId, departmentId])
+}
+
+/// A department of a branch (task 0101 D7): a named group of staff, teaching or non-teaching (Sciences, Languages, Arabic and Islamic Studies, Bursary). Only used while the branch's setting
+/// `academics.useDepartments` is on. Live names are unique per branch (ignoring case) by a partial index; nothing is deleted, a department is archived.
+model Department {
+  id          String    @id @default(cuid())
+  branchId    String
+  name        String
+  description String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  branch   Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  members  DepartmentMember[]
+  subjects Subject[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+/// One person in one department (task 0101 D7). A person may be in several departments; a department has at most ONE head (a partial unique index on departmentId where isHead). The department and
+/// the staff record are of the same branch: both composite keys carry it. Removed with the department or the staff record.
+model DepartmentMember {
+  id            String   @id @default(cuid())
+  branchId      String
+  departmentId  String
+  staffRecordId String
+  isHead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  branch      Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  department  Department  @relation(fields: [branchId, departmentId], references: [branchId, id], onDelete: Cascade)
+  staffRecord StaffRecord @relation(fields: [branchId, staffRecordId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([departmentId, staffRecordId])
+  @@index([branchId])
+  @@index([staffRecordId])
 }
 
 /// "This class studies this subject." A real DELETE for now because nothing references it; the day a later slice adds a foreign key to it, a test fails and
@@ -342,6 +385,8 @@ model StaffRecord {
   role                  String?
   /// One person's records in several branches share this id (task 0114, task 0101 R1): set when a record is transferred or added to another branch. Null for a person with one record.
   personId              String?
+  /// A draft (task 0101 D1, batch 3a): saved unfinished, shown with a "Draft" badge, and left out of everything that counts or acts on staff (invitations, assignments, class teacher, linking an account, transfer, broadcasts, programs) until it is completed.
+  isDraft               Boolean       @default(false)
   employmentDate        DateTime?     @db.Date
   nextOfKinName         String?
   nextOfKinRelationship String?
@@ -366,10 +411,12 @@ model StaffRecord {
   createdMaterials   LearningMaterial[]
   createdQuizzes     Quiz[]
   invitations        Invitation[]
+  departments        DepartmentMember[]
 
   @@unique([branchId, id])
   @@index([branchId])
   @@index([personId])
+  @@index([branchId, isDraft])
 }
 
 /// "This person teaches this subject to this arm." A real DELETE for now (nothing references it); the day a later slice does, a test fails and forces

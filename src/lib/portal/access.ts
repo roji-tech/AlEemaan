@@ -68,7 +68,8 @@ export function resolvePortalAccess(raw: unknown): PortalAccess {
 }
 
 /// The lower of two practice levels (NONE < SUMMARY < FULL).
-export const lowerLevel = (a: PracticeLevel, b: PracticeLevel): PracticeLevel => (PRACTICE_LEVELS.indexOf(a) <= PRACTICE_LEVELS.indexOf(b) ? a : b);
+export const lowerLevel = (a: PracticeLevel, b: PracticeLevel): PracticeLevel =>
+  PRACTICE_LEVELS.indexOf(a) <= PRACTICE_LEVELS.indexOf(b) ? a : b;
 
 /// The access with a guardian's practice level held to a school-wide ceiling (`bank.parents.view`): the lower of the branch's own level and the ceiling. The pupil's level is
 /// not touched: the ceiling is about what a guardian sees of a child, not about the child's own practice.
@@ -107,7 +108,10 @@ export function portalAccessProblems(value: PortalAccess): PortalAccessProblem[]
       });
     }
     if ((access.submitWork || access.takeQuizzes) && !access.materials) {
-      problems.push({ path: [actor, "materials"], message: `A ${actor} cannot submit work or take a quiz without access to the coursework section.` });
+      problems.push({
+        path: [actor, "materials"],
+        message: `A ${actor} cannot submit work or take a quiz without access to the coursework section.`,
+      });
     }
   }
   return problems;

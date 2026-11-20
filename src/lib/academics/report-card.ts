@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSchoolSettings } from "@/lib/settings/school-settings";
+import { profileFor } from "@/lib/settings/branch-profile";
 import { ConflictError, audit } from "@/lib/academics/structure";
 import { contentHash } from "@/lib/academics/results-workflow";
 import { averageHundredths, percentHundredths, publicName, rankAverages } from "@/lib/academics/report-card-rules";
 import { getVerificationPageConfig } from "@/lib/settings/approvals";
 import { layoutForClass } from "@/lib/results/templates";
+import { NOT_DRAFT } from "@/lib/drafts/live";
 
 // Results, Slice P2c: the REPORT CARD (computed, never stored), the teacher's and principal's remarks, and the public verification of one published result.
 // The caller's authority over the BRANCH was checked by `withBranch` in the route (ADR 0015). Outside staff only ever see PUBLISHED / LOCKED results; an
@@ -131,7 +133,7 @@ export async function getReportCard(branchId: string, studentId: string, periodI
   const avg = averageHundredths(subjects.map((s) => ({ total: s.total, max: s.max })));
   if (first && avg !== null) {
     const pool = await prisma.result.findMany({
-      where: { branchId, periodId, classArmId: first.classArmId, ...(statuses ? { status: statuses } : {}) },
+      where: { branchId, periodId, classArmId: first.classArmId, student: NOT_DRAFT, ...(statuses ? { status: statuses } : {}) },
       select: { studentId: true, total: true, maxScore: true },
     });
     const byStudent = new Map<string, { total: number; max: number }[]>();
@@ -145,14 +147,22 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     summary = { ...summary, average: avg / 100, position: mine?.position ?? null, classSize: mine?.size ?? null };
   }
 
-  const [school, remarks, layout] = await Promise.all([
-    getSchoolSettings(),
+  // The details printed in the header are THIS branch's (task 0115): its own principal, motto, address and phone where it has set them, the school's where it has not. The school's name
+  // stays school-wide.
+  const [profile, remarks, layout] = await Promise.all([
+    profileFor(branchId),
     prisma.reportRemark.findUnique({ where: { studentId_periodId: { studentId, periodId } } }),
     // The look comes from the class's result template (task 0116), else the branch's standard layout.
     layoutForClass(branchId, first?.classArm.classGroup.id ?? null),
   ]);
   return {
-    school: { name: school.name, principal: school.principal, motto: school.motto, address: school.address, phone: school.phone },
+    school: {
+      name: profile.schoolName,
+      principal: profile.values.principal,
+      motto: profile.values.motto,
+      address: profile.values.address,
+      phone: profile.values.phone,
+    },
     branch,
     student: {
       id: student.id,

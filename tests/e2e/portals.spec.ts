@@ -19,8 +19,11 @@ test.beforeAll(async () => {
   await seedInstance();
 });
 
+// On student. and parent. the first form is the families' (admission number and code, task 0113); the e-mail sign-in of an invited account is one click under it.
+const EMAIL_LINK = "I have an account with an e-mail address";
 async function signIn(page: Page, portal: string, email: string, password: string) {
   await page.goto(at(portal, "/login"));
+  if (portal === "student" || portal === "parent") await page.getByRole("button", { name: EMAIL_LINK }).click();
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -64,6 +67,15 @@ for (const [portal, title] of HEADINGS) {
     await page.goto(at(portal, "/login"));
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect(page.locator(`[data-portal="${portal}"]`)).toBeVisible();
+    if (portal === "student" || portal === "parent") {
+      // The families' form first: admission number and code, with the e-mail sign-in one click away.
+      await expect(page.getByLabel("Admission number", { exact: true })).toBeVisible();
+      await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+      await expectAccessible(page, `the ${portal} sign-in (families)`);
+      await page.getByRole("button", { name: EMAIL_LINK }).click();
+      await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+      await expect(page.locator(`[data-portal="${portal}"]`)).toBeVisible();
+    }
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     await expectAccessible(page, `the ${portal} sign-in`);
   });
@@ -83,13 +95,13 @@ test("a parent's right password on admin. is answered like a wrong password: the
 }) => {
   const parent = await createUser({ role: Role.PARENT });
   await signIn(page, "admin", parent.email, DEFAULT_PASSWORD);
-  const wrongPortal = page.getByRole("alert").filter({ hasText: "Invalid email or password" });
+  const wrongPortal = page.getByRole("alert").filter({ hasText: "The email or password you entered is incorrect" });
   await expect(wrongPortal).toBeVisible();
   const words = await wrongPortal.innerText();
   await expect(page).toHaveURL(at("admin", "/login"));
   await page.reload();
   await signIn(page, "admin", parent.email, "not-the-password-1");
-  await expect(page.getByRole("alert").filter({ hasText: "Invalid email or password" })).toHaveText(words);
+  await expect(page.getByRole("alert").filter({ hasText: "The email or password you entered is incorrect" })).toHaveText(words);
   await page.goto(at("admin", "/dashboard"));
   await expect(page).toHaveURL(at("admin", "/login")); // no session was made
   await signIn(page, "parent", parent.email, DEFAULT_PASSWORD); // and on their own portal the same person is in

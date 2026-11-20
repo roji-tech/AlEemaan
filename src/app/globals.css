@@ -326,3 +326,10 @@ body {
     transform: translateX(0);
   }
 }
+
+/* Access slips (task 0113): while a slip sheet is mounted at the end of <body> (components/guardians/AccessSlips.tsx), printing prints the slips alone. */
+@media print {
+  body:has(> [data-slip-sheet]) > :not([data-slip-sheet]) {
+    display: none !important;
+  }
+}

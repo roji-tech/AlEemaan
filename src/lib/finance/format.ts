@@ -42,3 +42,12 @@ export function formatNaira(naira: DecimalLike | null | undefined): string {
     maximumFractionDigits: 2,
   }).format(num);
 }
+
+/// What settled an invoice nobody paid money on (task 0113 S1, widened on 2026-11-19): the words the lists, the detail and the family's Finance tab use. Client-safe; the rule that decides it is
+/// `settledBy` in `lib/scholarships/rules.ts`.
+export type SettledBy = "SCHOLARSHIP" | "WAIVED" | "DISCOUNT";
+export const SETTLED_TEXT: Record<SettledBy, string> = {
+  SCHOLARSHIP: "Paid by scholarship",
+  WAIVED: "Waived",
+  DISCOUNT: "Paid by discount",
+};

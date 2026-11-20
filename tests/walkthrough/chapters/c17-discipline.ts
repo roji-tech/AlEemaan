@@ -247,7 +247,9 @@ export async function c17Discipline(walk: Walk, page: Page): Promise<void> {
       await portalSignOut(walk, page);
       await portalSignIn(walk, page, numbers.ibrahim, pupils.ibrahim.dobShown);
       await expect(
-        page.getByText("Verification failed. Please check the admission number and the date of birth or guardian phone number."),
+        page.getByText(
+          "Verification failed. Please check the admission number and the access code, date of birth or guardian phone number.",
+        ),
       ).toBeVisible();
       await expect(page.getByRole("tablist", { name: "Student Portal Sections" })).toHaveCount(0);
     },

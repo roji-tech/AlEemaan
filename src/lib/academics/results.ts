@@ -6,6 +6,7 @@ import { ConflictError } from "@/lib/academics/structure";
 import { lockScale, lockScheme } from "@/lib/academics/assessment";
 import { gradeFor, toHundredths } from "@/lib/academics/scoring";
 import { templateMarks } from "@/lib/results/templates";
+import { LIVE_PUPIL } from "@/lib/drafts/live";
 
 // Results, Slice P2a: ENTERING them. One row per student x subject x period; the arm, scheme and scale are snapshotted onto it, the first result locks the scheme
 // and the scale, and every entry, edit and removal writes a ResultAudit row in the same transaction. The status machine beyond DRAFT is Slice P2b. The caller's
@@ -102,7 +103,7 @@ async function loadContext(branchId: string, periodId: string, classArmId: strin
 
 export const rosterOf = (branchId: string, sessionId: string, classArmId: string) =>
   prisma.studentEnrollment.findMany({
-    where: { branchId, sessionId, classArmId, status: "ACTIVE", student: { archivedAt: null } },
+    where: { branchId, sessionId, classArmId, status: "ACTIVE", student: LIVE_PUPIL },
     select: { student: { select: { id: true, firstName: true, middleName: true, lastName: true, admissionNo: true } } },
     orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }, { student: { id: "asc" } }],
   });
