@@ -57,14 +57,25 @@ export type PupilFeeItem = {
 export type PupilFeeItems = {
   periodId: string;
   periodLabel: string;
+  periods: { id: string; label: string }[];
+  /// How the fee lines see the pupil now: what was set by hand (null = worked out), and what it comes to for this period.
+  admissionSetting: "NEW" | "RETURNING" | null;
   admission: "NEW" | "RETURNING";
   invoice: { id: string; invoiceNo: string; status: InvoiceStatus; amountPaid: string } | null;
   items: PupilFeeItem[];
 };
 
 /// The lines of the period for this pupil's class (and the whole school), each with whether the pupil is billed it, opted out of it, or it is for another kind of pupil; with the handover record.
-export async function pupilFeeItems(branchId: string, studentId: string, periodId: string): Promise<PupilFeeItems> {
-  const { period, classGroupId, facts } = await pupilFor(branchId, studentId, periodId);
+export async function pupilFeeItems(branchId: string, studentId: string, wanted: string | null): Promise<PupilFeeItems> {
+  // No period named: the branch's current one, else its latest (the screen opens on it and offers the others).
+  const periods = await prisma.academicPeriod.findMany({
+    where: { branchId },
+    select: { id: true, label: true, isCurrent: true, startDate: true, session: { select: { label: true } } },
+    orderBy: [{ startDate: "desc" }, { id: "asc" }],
+  });
+  const periodId = wanted ?? periods.find((p) => p.isCurrent)?.id ?? periods[0]?.id;
+  if (!periodId) throw new FinanceError("This branch has no term yet.", "NOT_FOUND");
+  const { period, student, classGroupId, facts } = await pupilFor(branchId, studentId, periodId);
   const lines = await prisma.feeStructure.findMany({
     where: { branchId, periodId, OR: [{ classGroupId: null }, ...(classGroupId ? [{ classGroupId }] : [])] },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -82,6 +93,8 @@ export async function pupilFeeItems(branchId: string, studentId: string, periodI
   return {
     periodId,
     periodLabel: period.label,
+    periods: periods.map((p) => ({ id: p.id, label: `${p.session.label} ${p.label}` })),
+    admissionSetting: student.feeAdmission,
     admission: facts.admission,
     invoice: invoice
       ? { id: invoice.id, invoiceNo: invoice.invoiceNo, status: invoice.status, amountPaid: invoice.amountPaid.toString() }

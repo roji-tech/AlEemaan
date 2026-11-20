@@ -10,7 +10,7 @@ interface RouteParams {
   params: Promise<{ studentId: string }>;
 }
 
-/// GET /api/v1/finance/students/[studentId]/fee-items?branchId=&periodId= (task 0122)
+/// GET /api/v1/finance/students/[studentId]/fee-items?branchId=&periodId= (task 0122; no periodId = the current term)
 /// The period's fee lines for this pupil's class: each with whether the pupil is billed it, opted out of it, or it is for another kind of pupil, and whether a tracked item was handed over.
 /// An administrator's: fees are financial.
 export const GET = withAuth(
@@ -20,9 +20,9 @@ export const GET = withAuth(
       const q = new URL(req.url).searchParams;
       const branchId = q.get("branchId");
       const periodId = q.get("periodId");
-      if (!branchId || !periodId) return fail("branchId and periodId are required", 400, "VALIDATION");
+      if (!branchId) return fail("branchId is required", 400, "VALIDATION");
       if (!(await canAdminister(auth.userId, branchId))) return fail("Forbidden: you do not administer this branch", 403, "FORBIDDEN");
-      return ok(await pupilFeeItems(branchId, studentId, periodId));
+      return ok(await pupilFeeItems(branchId, studentId, periodId || null));
     } catch (error) {
       const known = feeItemFailure(error);
       if (known) return known;
