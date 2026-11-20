@@ -8,7 +8,6 @@ import {
   planAdd,
   renameClashes,
   renameClashMessage,
-  sameName,
   type AddResult,
   type catalogInput,
   type catalogPatch,

@@ -31,7 +31,7 @@ type Editing = { kind: "entry"; item: CatalogEntry | null } | null;
 export function SubjectCatalogPanel({ branches }: { branches: BranchChoice[] }) {
   const [entries, setEntries] = useState<CatalogEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useNotice();
+  const [, setNotice] = useNotice();
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
   const [state, setState] = useState<"live" | "archived">("live");

@@ -204,6 +204,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
     "gated by withAuthGated (lib/auth/branch-gate): the branch named in the query or body must be the caller's",
   "GET v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
   "PUT v1/settings/enforcement/route.ts": "superadmin only (withAuth superAdmin): the switch is school-wide or per branch by definition",
+  "POST v1/subject-catalog/[id]/branches/route.ts":
+    "superadmin only (withAuth superAdmin): a superadmin reaches every branch; each branch id in the body is checked to exist and is reported as gone when it does not",
   "GET v1/settings/layouts/route.ts": "layout settings resolved by branchId query",
   "GET v1/settings/portal-access/route.ts":
     "superadmin only (withAuth superAdmin): a superadmin reaches every branch; the branch is checked to exist",
