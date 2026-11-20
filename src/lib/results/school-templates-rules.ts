@@ -66,6 +66,8 @@ const layoutOptions = z.strictObject({
   logo: z.boolean().optional(),
   signatureLine: z.boolean().optional(),
   nextTermDate: z.boolean().optional(),
+  classArm: z.boolean().optional(),
+  verifyLinks: z.boolean().optional(),
 });
 
 export const schoolTemplateInput = z.strictObject({

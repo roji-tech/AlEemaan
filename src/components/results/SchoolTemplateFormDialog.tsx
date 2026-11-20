@@ -35,6 +35,8 @@ export function SchoolTemplateFormDialog({
     logo: true,
     signatureLine: true,
     nextTermDate: true,
+    classArm: false,
+    verifyLinks: false,
     ...(template?.layoutOptions ?? {}),
   });
   const [def, setDef] = useState<Definition>(() => JSON.parse(JSON.stringify(template?.definition ?? EMPTY_DEFINITION)) as Definition);

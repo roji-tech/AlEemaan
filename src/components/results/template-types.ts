@@ -55,6 +55,8 @@ export const LAYOUT_OPTION_LABELS: { key: keyof LayoutOptions; label: string }[]
   { key: "logo", label: "School logo" },
   { key: "signatureLine", label: "Signature line" },
   { key: "nextTermDate", label: "Next-term resumption date" },
+  { key: "classArm", label: "Class arm (the A of SSS 1 A)" },
+  { key: "verifyLinks", label: "Verify these results (a link for each subject)" },
 ];
 
 /// A template's look in words.

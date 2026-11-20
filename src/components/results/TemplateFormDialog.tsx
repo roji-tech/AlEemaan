@@ -21,8 +21,8 @@ export type TemplateFormMode = { kind: "new" } | { kind: "edit"; template: Templ
 const NEW_SCHEME = "__new";
 /// What a layout shows when the template names it and says nothing more (the layouts' own defaults).
 const LAYOUT_DEFAULTS: Record<string, Required<LayoutOptions>> = {
-  DEFAULT: { logo: true, signatureLine: true, nextTermDate: true },
-  LEGACY: { logo: true, signatureLine: false, nextTermDate: false },
+  DEFAULT: { logo: true, signatureLine: true, nextTermDate: true, classArm: false, verifyLinks: false },
+  LEGACY: { logo: true, signatureLine: false, nextTermDate: false, classArm: false, verifyLinks: false },
 };
 const optionsFor = (code: string, own: LayoutOptions | null): Required<LayoutOptions> => ({
   ...(LAYOUT_DEFAULTS[code] ?? LAYOUT_DEFAULTS.DEFAULT),
