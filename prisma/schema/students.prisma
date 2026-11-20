@@ -73,6 +73,8 @@ model StudentRecord {
   receivedPrintLogs     QuestionBankPrintLog[] @relation("PrintLogRecipient")
   guardians             StudentGuardian[]
   scholarships          StudentScholarship[]
+  traitRatings          TraitRating[]
+  reportAttendance      ReportAttendance[]
 
   @@unique([branchId, id])
   @@index([branchId])

@@ -752,3 +752,11 @@
 
 - [x] Table, migration, `profileFor` and the merge rule, the route, the editor, the report card, specs
 - [ ] The run (section 5), merged to `dev`, promoted
+
+## TASK-0119: Shared subject catalogue, with tags (requested 2026-11-20)
+
+[Task file](0119-subject-catalogue.md). One subject, many branches without losing the branch-checked keys: a school-wide `SubjectCatalog` (migration `20261120120000_subject_catalog`, the maintainer's to run) and each branch's own `Subject` linked by `catalogId`. A superadmin keeps the catalogue and sees every subject with the branches offering it; a branch administrator takes subjects into their branch; tags group subjects and filter the lists.
+
+- [x] Table, migration with backfill, rules, service, routes, bulk kind, screens, tags, docs, specs written
+- [ ] The run (section 5: the unit project, then the API and browser specs), merged to `dev`, promoted
+

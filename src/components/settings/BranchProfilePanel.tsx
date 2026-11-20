@@ -20,7 +20,7 @@ import {
 } from "@/lib/settings/branch-profile-rules";
 import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
-// School details per branch (task 0115, task 0101 D4): the principal, phone, motto, address, e-mail and website one branch prints. A field left empty uses the school's; a field with a
+// School details per branch (task 0115, task 0101 D4): the school name, principal, phone, motto, address, e-mail and website one branch prints. A field left empty uses the school's; a field with a
 // value is the branch's own, and "Use the school's" takes it back. Presentation only: the API decides who may read and change which branch, and checks every field again.
 
 type Draft = Record<ProfileField, string>;
@@ -28,7 +28,15 @@ type Loaded = { school: ProfileValues; branch: ProfileValues };
 
 const toDraft = (values: ProfileValues): Draft => Object.fromEntries(PROFILE_FIELDS.map((f) => [f, values[f] ?? ""])) as Draft;
 const INPUT_TYPE: Partial<Record<ProfileField, "email" | "url">> = { email: "email", website: "url" };
-const MAX: Record<ProfileField, number> = { principal: 120, phone: 40, motto: 200, address: 300, email: 254, website: 2048 };
+const MAX: Record<ProfileField, number> = {
+  schoolName: 120,
+  principal: 120,
+  phone: 40,
+  motto: 200,
+  address: 300,
+  email: 254,
+  website: 2048,
+};
 const INFO: Partial<Record<ProfileField, "settings.principal" | "settings.motto">> = {
   principal: "settings.principal",
   motto: "settings.motto",
@@ -125,6 +133,7 @@ export function BranchProfileEditor({ branchId, branchName }: { branchId: string
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
       </div>
+      {field("schoolName")}
       <div className="grid gap-4 sm:grid-cols-2">
         {field("principal")}
         {field("phone")}
@@ -157,7 +166,7 @@ export function BranchProfilePanel({ branches }: { branches: { id: string; name:
           Details printed on {branch.name}&apos;s report cards
         </h2>
         <p className="mt-1 text-sm text-fg-muted">
-          The principal, motto, address and phone in the card&apos;s header. Leave a field empty to use the school&apos;s.
+          The name, principal, motto, address and phone in the card&apos;s header. Leave a field empty to use the school&apos;s.
         </p>
       </div>
       {branches.length > 1 && (

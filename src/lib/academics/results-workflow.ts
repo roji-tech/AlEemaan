@@ -1,3 +1,4 @@
+import { BLOCK_PUBLISH_ON_UNCONFIRMED, unconfirmedPublishMessage } from "@/lib/results/scale-confirmation";
 import crypto from "node:crypto";
 import { Prisma, Role, SettingStatus, type ResultStatus } from "@prisma/client";
 import { z } from "zod";
@@ -172,6 +173,17 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
       if (pendingApprovals.length > 0 || pendingDrafts.length > 0) {
         throw new ConflictError("Results under pending or rejected assessment schemes cannot be published until the scheme is approved.");
       }
+    }
+
+    // Guard (task 0116 D15): results graded on a grade scale whose bands were never confirmed cannot be published, WHEN BLOCK_PUBLISH_ON_UNCONFIRMED is on (it is off for now: the maintainer accepted
+    // the seeded junior cut-offs on 2026-11-20; the notice and the Confirm button remain). Entering and approving always work. Checked here, in the transaction, so no screen can bypass it.
+    if (BLOCK_PUBLISH_ON_UNCONFIRMED && input.action === "publish") {
+      const unconfirmed = await tx.gradeScale.findMany({
+        where: { id: { in: [...new Set(results.map((r) => r.scaleId))] }, unconfirmed: true },
+        select: { name: true, version: true, unconfirmed: true },
+      });
+      const message = unconfirmedPublishMessage(unconfirmed);
+      if (message) throw new ConflictError(message);
     }
 
     const now = new Date();

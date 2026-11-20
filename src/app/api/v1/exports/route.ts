@@ -157,9 +157,9 @@ async function subjectRows(body: ExportRequest) {
     },
     orderBy: [{ name: "asc" }, { id: "asc" }],
     take: EXPORT_MAX_ROWS + 1,
-    select: { name: true, code: true },
+    select: { name: true, code: true, catalog: { select: { tags: true } } },
   });
-  return rows.map((r) => exportValues.subjects(r));
+  return rows.map((r) => exportValues.subjects({ name: r.name, code: r.code, tags: r.catalog?.tags }));
 }
 
 export const POST = withAuth(

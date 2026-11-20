@@ -5,6 +5,7 @@ import { EntryPanel } from "@/components/results/EntryPanel";
 import { DepartmentReviewPanel } from "@/components/results/DepartmentReviewPanel";
 import { ReviewPanel } from "@/components/results/ReviewPanel";
 import { CardsPanel } from "@/components/results/CardsPanel";
+import { TemplatesPanel } from "@/components/results/TemplatesPanel";
 import type { BranchChoice } from "@/components/academics/common";
 import { useBranchSelection } from "@/components/ui/useBranchSelection";
 
@@ -12,14 +13,16 @@ import { useBranchSelection } from "@/components/ui/useBranchSelection";
 // section is mounted. Review is for administrators and for approvers (task 0039); a teacher sees Enter marks and Report cards. Presentation only - the results APIs decide
 // who may do what.
 export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[]; isAdmin: boolean }) {
+  const adminBranches = branches.filter((b) => b.canEdit);
   const sections = [
     { id: "enter", label: "Enter marks" },
     ...(isAdmin || branches.some((b) => b.canApprove) ? [{ id: "review", label: "Review" }] : []),
     ...(branches.some((b) => b.headReview) ? [{ id: "department", label: "Department review" }] : []),
     { id: "cards", label: "Report cards" },
+    // Which result template each class uses (task 0116): administrators of at least one branch.
+    ...(adminBranches.length > 0 ? [{ id: "templates", label: "Templates" }] : []),
   ];
   const [active, setActive] = useState(sections[0].id);
-  const adminBranches = branches.filter((b) => b.canEdit);
   const [selectedBranchId, setSelectedBranchId] = useBranchSelection(branches, { fallback: (adminBranches[0] ?? branches[0]).id });
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -80,6 +83,7 @@ export function ResultsSections({ branches, isAdmin }: { branches: BranchChoice[
           <DepartmentReviewPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />
         )}
         {active === "cards" && <CardsPanel branches={branches} selectedBranchId={selectedBranchId} onSelectBranch={setSelectedBranchId} />}
+        {active === "templates" && <TemplatesPanel branches={adminBranches} initialBranchId={selectedBranchId} />}
       </div>
     </div>
   );

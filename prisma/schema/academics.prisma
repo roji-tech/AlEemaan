@@ -54,13 +54,15 @@ model AcademicPeriod {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  session       AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  results       Result[]
-  remarks       ReportRemark[]
-  feeStructures FeeStructure[]
-  invoices      Invoice[]
-  breaks        AcademicBreak[]
+  branch           Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session          AcademicSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results          Result[]
+  remarks          ReportRemark[]
+  feeStructures    FeeStructure[]
+  invoices         Invoice[]
+  breaks           AcademicBreak[]
+  traitRatings     TraitRating[]
+  reportAttendance ReportAttendance[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
@@ -113,12 +115,14 @@ model ClassGroup {
   offerings              SubjectOffering[]
   schemes                AssessmentScheme[]
   schemeScopes           AssessmentSchemeScope[]
+  resultTemplateClasses  ResultTemplateClass[]
   feeStructures          FeeStructure[]
   lmsAssignments         Assignment[]
   learningMaterials      LearningMaterial[]
   quizzes                Quiz[]
   sourcePromotionBatches PromotionBatch[]        @relation("SourceClassBatches")
   targetPromotionBatches PromotionBatch[]        @relation("TargetClassBatches")
+  classGradeScale        ClassGradeScale?
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -181,12 +185,17 @@ model Subject {
   /// The department this subject belongs to, when the branch uses departments (task 0101 D7). At most one; null = in none. Of the same branch (the composite key below). It is NO ACTION,
   /// not SET NULL, because a composite key would null the branch too; a department is archived and never deleted, so nothing needs it.
   departmentId String?
+  /// The school-wide catalogue entry this branch subject is an instance of (task 0119), or null. The row stays the BRANCH's own (every result, offering and assignment points at it with the
+  /// branch-checked key); the link only says "this is the same subject as in the other branches". NO ACTION: a catalogue entry is archived, never deleted. One live subject per branch per
+  /// entry (a partial unique index in the migration SQL).
+  catalogId    String?
   archivedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
   branch            Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   department        Department?              @relation(fields: [branchId, departmentId], references: [branchId, id], onDelete: NoAction)
+  catalog           SubjectCatalog?          @relation(fields: [catalogId], references: [id], onDelete: NoAction)
   offerings         SubjectOffering[]
   assignments       StaffSubjectAssignment[]
   results           Result[]
@@ -200,6 +209,23 @@ model Subject {
   @@unique([branchId, id])
   @@index([branchId])
   @@index([branchId, departmentId])
+  @@index([catalogId])
+}
+
+/// A subject of the SCHOOL, not of one branch (task 0119): the list a superadmin keeps once, and each branch takes the ones it teaches (a branch's own `Subject` row linked by `catalogId`).
+/// Live names are unique ignoring case and live codes are unique when present (partial indexes in the migration SQL). Nothing is deleted: an entry is archived.
+model SubjectCatalog {
+  id         String    @id @default(cuid())
+  name       String
+  code       String?
+  /// Labels only (Pre-school, Basic, Arabic, Core...): lower-case, trimmed, no repeats, at most 10 of 30 characters (the application normalises; a CHECK in the migration bounds the count). They
+  /// give no access and change no result. A branch subject shows its entry's tags through `catalogId`. Only a superadmin edits them.
+  tags       String[]  @default([])
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  subjects Subject[]
 }
 
 /// A department of a branch (task 0101 D7): a named group of staff, teaching or non-teaching (Sciences, Languages, Arabic and Islamic Studies, Bursary). Only used while the branch's setting
@@ -287,6 +313,7 @@ model AssessmentScheme {
   components AssessmentComponent[]
   results    Result[]
   scopes     AssessmentSchemeScope[]
+  templates  ResultTemplate[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -313,6 +340,9 @@ model GradeScale {
   branchId     String
   name         String
   isDefault    Boolean   @default(false)
+  /// True for a scale whose bands were GUESSED, not printed on the school's card (the seeded junior scale, task 0116 D15). While true, results graded on it cannot be published; an administrator
+  /// confirms the bands, or edits and saves them (a new version if results used it), and it clears.
+  unconfirmed  Boolean   @default(false)
   version      Int       @default(1)
   lockedAt     DateTime?
   supersedesId String?
@@ -320,11 +350,13 @@ model GradeScale {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
-  branch     Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  supersedes GradeScale?  @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
-  successors GradeScale[] @relation("ScaleVersions")
-  bands      GradeBand[]
-  results    Result[]
+  branch         Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supersedes     GradeScale?       @relation("ScaleVersions", fields: [branchId, supersedesId], references: [branchId, id], onDelete: NoAction)
+  successors     GradeScale[]      @relation("ScaleVersions")
+  bands          GradeBand[]
+  results        Result[]
+  templates      ResultTemplate[]
+  classOverrides ClassGradeScale[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -591,4 +623,154 @@ model ReportRemark {
 
   @@unique([studentId, periodId])
   @@index([branchId, periodId])
+}
+
+/// A result template (task 0116): a named bundle of a look (layout), a marks structure (scheme) and a grade scale, assigned to classes of ONE branch. A class is in at most one
+/// template (ResultTemplateClass is unique on branch + class); a class in none uses the branch's default template. Null layout, scheme or scale means "as the branch does today":
+/// the branch's standard layout (Approvals > Report cards), its own class scheme or default scheme, and its default grade scale. A live name is unique per branch and exactly one live
+/// template per branch is the default: both are partial unique indexes written in the migration (Prisma cannot express a WHERE).
+model ResultTemplate {
+  id            String    @id @default(cuid())
+  branchId      String
+  name          String
+  description   String?
+  /// "DEFAULT" or "LEGACY" (a ReportCardLayout code; no foreign key, the layouts are created the first time anyone asks). Null = the branch's standard layout.
+  layoutCode    String?
+  layoutOptions Json?
+  schemeId      String?
+  gradeScaleId  String?
+  isDefault     Boolean   @default(false)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  branch      Branch                     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  scheme      AssessmentScheme?          @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+  gradeScale  GradeScale?                @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
+  classes     ResultTemplateClass[]
+  traitGroups ResultTemplateTraitGroup[]
+  traits      ResultTemplateTrait[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+}
+
+model ResultTemplateClass {
+  id           String   @id @default(cuid())
+  branchId     String
+  templateId   String
+  classGroupId String
+  createdAt    DateTime @default(now())
+
+  branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template   ResultTemplate @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+  classGroup ClassGroup     @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, classGroupId])
+  @@index([templateId])
+}
+
+/// A group of traits on a template's report card (task 0116): "Psychomotor skill", "Affective domain", "Character development", "Practical skills". `showSign` adds the SIGN column the
+/// secondary cards print beside the rating. Seeded per branch from the school's four cards (lib/results/seed-templates.ts) and editable.
+model ResultTemplateTraitGroup {
+  id         String   @id @default(cuid())
+  branchId   String
+  templateId String
+  title      String
+  sortOrder  Int      @default(0)
+  showSign   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  branch   Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template ResultTemplate        @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+  traits   ResultTemplateTrait[]
+
+  @@unique([branchId, id])
+  @@index([templateId])
+}
+
+/// One trait of a template (Punctuality, Games, ...), rated 1 to 5 for each pupil each term (TraitRating). A trait is archived, never deleted, so a past card still shows it.
+model ResultTemplateTrait {
+  id         String    @id @default(cuid())
+  branchId   String
+  templateId String
+  groupId    String
+  name       String
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  branch   Branch                   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template ResultTemplate           @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+  group    ResultTemplateTraitGroup @relation(fields: [branchId, groupId], references: [branchId, id], onDelete: Cascade)
+  ratings  TraitRating[]
+
+  @@unique([branchId, id])
+  @@index([templateId])
+  @@index([groupId])
+}
+
+/// A pupil's rating (1 to 5, a CHECK in the migration) of one trait for one term, entered by the class teacher or an administrator and editable until the pupil's results for the term are
+/// published, as the remarks are.
+model TraitRating {
+  id              String   @id @default(cuid())
+  branchId        String
+  studentId       String
+  periodId        String
+  traitId         String
+  rating          Int
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  branch    Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord       @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  period    AcademicPeriod      @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  trait     ResultTemplateTrait @relation(fields: [branchId, traitId], references: [branchId, id], onDelete: NoAction)
+  updatedBy User                @relation("TraitRatingsUpdated", fields: [updatedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, periodId, traitId])
+  @@index([branchId, periodId])
+}
+
+/// Attendance numbers a person ENTERED for a pupil's term, overriding what the register gives (task 0116): times the school opened, times present, times absent. A null number means
+/// "use the register's count"; nothing is invented when there is no register either (the card shows a dash).
+model ReportAttendance {
+  id              String   @id @default(cuid())
+  branchId        String
+  studentId       String
+  periodId        String
+  timesOpen       Int?
+  timesPresent    Int?
+  timesAbsent     Int?
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  branch    Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   StudentRecord  @relation(fields: [branchId, studentId], references: [branchId, id], onDelete: NoAction)
+  period    AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: NoAction)
+  updatedBy User           @relation("ReportAttendanceUpdated", fields: [updatedByUserId], references: [id], onDelete: NoAction)
+
+  @@unique([studentId, periodId])
+  @@index([branchId, periodId])
+}
+
+/// A class's own grade scale (task 0116, the maintainer 2026-11-20: "make the scale editable per class per branch"): it wins over the class's result template's scale and the branch's default.
+/// A table of its own, not a column of ResultTemplateClass, so a class that is in no template (it uses the default one) can have its own scale too. One row per class; a row means "this class
+/// grades on this scale"; no row means "follow the template, then the branch default". Same branch by composite keys; the scale is never deleted, so NoAction.
+model ClassGradeScale {
+  id           String   @id @default(cuid())
+  branchId     String
+  classGroupId String
+  gradeScaleId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: Cascade)
+  gradeScale GradeScale @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
+
+  @@unique([branchId, classGroupId])
+  @@index([gradeScaleId])
 }

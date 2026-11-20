@@ -47,6 +47,8 @@ model Branch {
   reportRemarks           ReportRemark[]
   assessmentComps         AssessmentComponent[]
   gradeScales             GradeScale[]
+  resultTemplates         ResultTemplate[]
+  resultTemplateClasses   ResultTemplateClass[]
   gradeBands              GradeBand[]
   settingValues           SettingValue[]
   settingApprovals        SettingApproval[]
@@ -95,7 +97,12 @@ model Branch {
   formMarkingAudits       FormMarkingAudit[]
   questionBankPrintLogs   QuestionBankPrintLog[]
 
-  createdAt DateTime @default(now())
+  createdAt                 DateTime                   @default(now())
+  resultTemplateTraitGroups ResultTemplateTraitGroup[]
+  resultTemplateTraits      ResultTemplateTrait[]
+  traitRatings              TraitRating[]
+  reportAttendance          ReportAttendance[]
+  classGradeScales          ClassGradeScale[]
 }
 
 enum Role {

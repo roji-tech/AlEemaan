@@ -69,7 +69,11 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
             departments: departments[b.id] === true,
           }))}
           isSuperAdmin={isSuperAdmin}
-          initialSection={isSectionId(section) && (section !== "departments" || showDepartments) ? section : "classes"}
+          initialSection={
+            isSectionId(section) && (section !== "departments" || showDepartments) && (section !== "catalogue" || isSuperAdmin)
+              ? section
+              : "classes"
+          }
           initialBranchId={one(query.branch)}
           initialQuery={one(query.q)?.slice(0, 100)}
           openNew={one(query.new) === "1" && (section === "sessions" || section === "classes")}

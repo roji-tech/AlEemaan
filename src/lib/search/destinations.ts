@@ -106,6 +106,18 @@ const ACADEMICS = tabs("/academics", "Academics", "page", [
     keywords: ["subject", "course", "curriculum"],
   },
   {
+    id: "catalogue",
+    title: "Subject catalogue",
+    summary:
+      "The school's own list of subjects, with the branches that offer each and its tags; add subjects to branches or import the list.",
+    keywords: ["subject catalogue", "all subjects", "tags", "add subject to branches", "import subjects", "subjects of every branch"],
+    steps: [
+      "Open Academics, then Subject catalogue.",
+      "Add a subject, or Import subjects from a file.",
+      "Choose subjects, then Add chosen to branches.",
+    ],
+  },
+  {
     id: "sessions",
     title: "Sessions",
     summary: "The school years of a branch, each with its terms, breaks and the current term.",
@@ -135,7 +147,7 @@ const ACADEMICS = tabs("/academics", "Academics", "page", [
     summary: "Move pupils up to the next class and start the next year.",
     keywords: ["promote", "rollover", "next class", "graduate", "end of year", "repeat"],
   },
-]).map((d) => ({ ...d, only: "admin" as const }));
+]).map((d) => ({ ...d, only: d.id === "/academics#catalogue" ? ("superadmin" as const) : ("admin" as const) }));
 
 const APPROVALS = tabs("/approvals", "Approvals", "page", [
   {
@@ -349,8 +361,19 @@ const PAGES: Destination[] = [
     href: "/results",
     page: "/results",
     trail: ["Results"],
-    summary: "Enter marks, see results and report cards.",
-    keywords: ["marks", "scores", "grades", "report card", "broadsheet", "enter scores"],
+    summary: "Enter marks, see results and report cards. Administrators choose which result template each class uses under Templates.",
+    keywords: [
+      "marks",
+      "scores",
+      "grades",
+      "report card",
+      "broadsheet",
+      "enter scores",
+      "result template",
+      "templates",
+      "which template",
+      "classes use",
+    ],
     group: "page",
   },
   {

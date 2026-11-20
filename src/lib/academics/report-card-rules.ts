@@ -33,3 +33,19 @@ export function publicName(firstName: string, lastName: string): string {
   const initial = Array.from(lastName.trim())[0]?.toUpperCase() ?? "";
   return initial ? `${first} ${initial}.` : first;
 }
+
+/// The card's subjects in the order they were ADDED to the pupil's class (task 0116, found in the preview of 2026-11-20: they were alphabetical, so a pre-school card began with Arabic),
+/// then by name for subjects added together or not offered to the class any more (those last). `added` maps a subject id to when it was offered to the class (milliseconds). A manual
+/// per-class order is a follow-up.
+export function orderBySubjectAdded<T extends { subjectId: string; subject: { name: string } }>(
+  rows: readonly T[],
+  added: ReadonlyMap<string, number>,
+): T[] {
+  const key = (r: T) => added.get(r.subjectId) ?? Number.POSITIVE_INFINITY;
+  return [...rows].sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return a.subject.name.localeCompare(b.subject.name, "en", { sensitivity: "base" });
+  });
+}

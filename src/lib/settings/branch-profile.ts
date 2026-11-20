@@ -15,6 +15,9 @@ import {
 
 type Row = Partial<Record<ProfileField, string | null>> | null | undefined;
 
+/// The school-wide row keeps its name in `name`; for a branch's own `schoolName` to fall back to it, it is read as the school's `schoolName`.
+const withName = (school: { name: string } | null | undefined): Row => (school ? { ...school, schoolName: school.name } : school);
+
 const valuesOf = (row: Row): ProfileValues => {
   const values = {} as ProfileValues;
   for (const field of PROFILE_FIELDS) values[field] = setValue(row?.[field]);
@@ -29,7 +32,8 @@ export async function profileFor(branchId: string): Promise<EffectiveProfile & {
     prisma.schoolSettings.findUnique({ where: { id: "global" } }),
     prisma.branchProfile.findUnique({ where: { branchId } }),
   ]);
-  return { schoolName: school?.name ?? DEFAULT_SCHOOL_NAME, ...mergeProfile(school, own) };
+  const merged = mergeProfile(withName(school), own);
+  return { ...merged, schoolName: merged.values.schoolName ?? DEFAULT_SCHOOL_NAME };
 }
 
 export type BranchProfileView = {
@@ -46,7 +50,7 @@ export async function branchProfileView(branchId: string): Promise<BranchProfile
     prisma.schoolSettings.findUnique({ where: { id: "global" } }),
     prisma.branchProfile.findUnique({ where: { branchId } }),
   ]);
-  return { school: valuesOf(school), branch: valuesOf(own), effective: mergeProfile(school, own) };
+  return { school: valuesOf(withName(school)), branch: valuesOf(own), effective: mergeProfile(withName(school), own) };
 }
 
 // The same rules as the school's own form (`contactFields`), except that blank or only spaces clears the branch's value (null) instead of being refused: "Using the school's" again.
@@ -55,6 +59,7 @@ const clearable = <T extends z.ZodType>(field: T) =>
 
 export const branchProfilePatchSchema = z.strictObject({
   branchId: z.string().trim().min(1).max(64),
+  schoolName: clearable(z.string().trim().min(2, "School name must be at least 2 characters").max(120).nullable().optional()),
   principal: clearable(contactFields.principal),
   phone: clearable(contactFields.phone),
   motto: clearable(contactFields.motto),

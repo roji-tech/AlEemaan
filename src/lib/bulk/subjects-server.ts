@@ -1,6 +1,7 @@
 import type { Problem } from "./types";
 import { SUBJECT_TAKEN } from "@/lib/academics/structure-rules";
 import { subjectEntity, type SubjectRow } from "./subjects";
+import { catalogIdForName } from "@/lib/academics/subject-catalog-link";
 import type { ServerKind } from "./server";
 
 // The server half of the subject kind (task 0084): what only the database knows (a LIVE subject of the branch already has the name, ignoring capitals, or the code: the same two unique
@@ -27,8 +28,10 @@ export const subjectKind: ServerKind<SubjectRow, SubjectBulkCtx> = {
   },
   async save(tx, rows, ctx, actorUserId) {
     for (const { row } of rows) {
+      // Linked to the catalogue entry of the same name when there is one (task 0119); never creates an entry.
+      const catalogId = await catalogIdForName(tx, ctx.branchId, row.name);
       const created = await tx.subject.create({
-        data: { branchId: ctx.branchId, name: row.name, code: row.code ?? null },
+        data: { branchId: ctx.branchId, name: row.name, code: row.code ?? null, catalogId },
         select: { id: true, name: true, code: true },
       });
       await tx.auditLog.create({
@@ -37,7 +40,7 @@ export const subjectKind: ServerKind<SubjectRow, SubjectBulkCtx> = {
           action: "SUBJECT_CREATED",
           targetType: "Subject",
           targetId: created.id,
-          afterValue: { name: created.name, code: created.code, branchId: ctx.branchId },
+          afterValue: { name: created.name, code: created.code, branchId: ctx.branchId, ...(catalogId ? { catalogId } : {}) },
         },
       });
     }
