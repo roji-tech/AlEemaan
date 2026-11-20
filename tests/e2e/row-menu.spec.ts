@@ -28,8 +28,11 @@ async function listIsUsable(menu: Locator) {
   return menu.evaluate((ul) => {
     const box = ul.getBoundingClientRect();
     const onScreen = box.left >= 0 && box.right <= window.innerWidth && box.top >= 0 && box.bottom <= window.innerHeight;
+    // The list scrolls inside itself once it is longer than its cap (task 0122 added Fee lines and Access codes), so each button is scrolled into view before it is tested: what matters is that
+    // nothing from another row is drawn over it when it is reached.
     const covered = [...ul.querySelectorAll("button")]
       .filter((button) => {
+        button.scrollIntoView({ block: "nearest" });
         const r = button.getBoundingClientRect();
         const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         return !(top && button.contains(top));
