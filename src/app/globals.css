@@ -278,6 +278,8 @@ body {
   }
   html,
   body {
+    /* A light colour scheme too: with `color-scheme: dark` the browser paints the sheet's margins dark even when the page's own background is white. */
+    color-scheme: light !important;
     background: #ffffff !important;
     color: #000000 !important;
     -webkit-print-color-adjust: exact;
