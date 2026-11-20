@@ -13,6 +13,14 @@ test.beforeAll(async () => {
   home = await seedInstance();
   other = await db.branch.findFirstOrThrow({ where: { id: { not: home.id } }, orderBy: { name: "asc" } });
 });
+// The classes this file makes are not left for the next spec file in the run (the Academics browser spec expects an empty list).
+test.afterAll(async () => {
+  await db.subjectOffering.deleteMany();
+  await db.studentEnrollment.updateMany({ data: { classArmId: null } });
+  await db.classArm.deleteMany();
+  await db.classGroup.deleteMany();
+  await db.subject.deleteMany();
+});
 test.beforeEach(async () => {
   await db.subjectOffering.deleteMany();
   await db.studentEnrollment.updateMany({ data: { classArmId: null } });
