@@ -163,4 +163,45 @@ test.describe("search and staff", () => {
     expect((actionLook({ id: "invite" }).icon as { type?: { name?: string } }).type?.name).toBe("MailIcon");
     expect((actionLook({ id: "transfer" }).icon as { type?: { name?: string } }).type?.name).toBe("BuildingIcon");
   });
+  test("menu looks: every row-menu action that had no icon has one (pupils, staff, templates, requests, invitations)", () => {
+    const name = (id: string) => (actionLook({ id }).icon as { type?: { name?: string } } | null)?.type?.name;
+    expect(
+      Object.fromEntries(
+        [
+          "guardians",
+          "scholarships",
+          "fee-lines",
+          "access-codes",
+          "superadmin",
+          "duplicate",
+          "detach",
+          "default",
+          "template",
+          "place",
+          "open",
+          "reject",
+          "resend",
+          "send",
+        ].map((id) => [id, name(id)]),
+      ),
+    ).toEqual({
+      guardians: "UsersIcon",
+      scholarships: "GraduationCapIcon",
+      "fee-lines": "ReceiptIcon",
+      "access-codes": "KeyIcon",
+      superadmin: "ShieldCheckIcon",
+      duplicate: "CopyIcon",
+      detach: "UnlinkIcon",
+      default: "CheckCircleIcon",
+      template: "LayersIcon",
+      place: "BuildingIcon",
+      open: "CornerDownRightIcon",
+      reject: "XIcon",
+      resend: "MailIcon",
+      send: "MailIcon",
+    });
+    // The ones that already had one are unchanged.
+    expect(name("expel")).toBe("LogOutIcon");
+    expect(name("history")).toBe("ClockIcon");
+  });
 });
