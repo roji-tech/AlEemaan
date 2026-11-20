@@ -19,6 +19,14 @@ import { TemplateFormDialog, type TemplateFormMode } from "@/components/results/
 import { lookText, moveLines, type TemplateView, type TemplatesData } from "@/components/results/template-types";
 import { SCALE_SOURCE_TEXT } from "@/lib/results/templates-rules";
 import { UNCONFIRMED_NOTICE } from "@/lib/results/scale-confirmation";
+import type { RowState } from "@/lib/results/school-templates-rules";
+
+const SCHOOL_TONE: Record<RowState, string> = {
+  "up-to-date": TONE.ok.chip,
+  behind: TONE.warn.chip,
+  customised: TONE.info.chip,
+  "customised-behind": TONE.warn.chip,
+};
 
 // Results > Templates (task 0116): the branch's result templates, each a look + a marks structure + a grade scale with the classes that use it, and a coverage list of every class with the
 // template it uses. Any number of templates; a class is in one; a class nobody placed uses the default. Presentation only: the template APIs decide who may do what.
@@ -31,6 +39,7 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
   const [form, setForm] = useState<TemplateFormMode | null>(null);
   const [classesOf, setClassesOf] = useState<TemplateView | null>(null);
   const [makeDefault, setMakeDefault] = useState<TemplateView | null>(null);
+  const [detach, setDetach] = useState<TemplateView | null>(null);
   const [move, setMove] = useState<{ classGroupId: string; target: string | null; lines: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -112,6 +121,17 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
           ...(t.isDefault
             ? []
             : [{ id: "default", label: "Make the default", ariaLabel: `Make ${t.name} the default`, onSelect: () => setMakeDefault(t) }]),
+          // Task 0120: stop following the school template (the row becomes the branch's own).
+          ...(t.school
+            ? [
+                {
+                  id: "detach",
+                  label: "Detach from the school template",
+                  ariaLabel: `Detach ${t.name} from the school template`,
+                  onSelect: () => setDetach(t),
+                },
+              ]
+            : []),
           ...(t.isDefault
             ? []
             : [
@@ -177,11 +197,28 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
                         {t.archived && (
                           <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${TONE.neutral.chip}`}>Archived</span>
                         )}
+                        {t.school && (
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-xs font-medium ${SCHOOL_TONE[t.school.state]}`}
+                            title={`From the school template ${t.school.name}, version ${t.school.version}`}
+                          >
+                            School template · {t.school.label}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <ActionsMenu name={t.name} actions={actionsFor(t)} />
                   </div>
                   {t.description && <p className="text-sm text-fg-muted">{t.description}</p>}
+                  {t.school && (
+                    <p className="text-xs text-fg-muted">
+                      From the school template {t.school.name} (version {t.school.rowVersion ?? 0}
+                      {(t.school.rowVersion ?? 0) < t.school.version ? `; the school has version ${t.school.version}` : ""}).
+                      {t.school.state === "customised" || t.school.state === "customised-behind"
+                        ? " Changed in this branch: a school update skips it unless the superadmin replaces local changes."
+                        : ""}
+                    </p>
+                  )}
                   <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                     <dt className="text-fg-muted">Look</dt>
                     <dd className="text-fg">{lookText(t, data.choices.layouts)}</dd>
@@ -319,6 +356,28 @@ export function TemplatesPanel({ branches, initialBranchId }: { branches: Branch
             }}
           >
             Make the default
+          </Button>
+        </div>
+      </Dialog>
+      <Dialog
+        open={detach !== null}
+        onClose={() => setDetach(null)}
+        title={`Detach ${detach?.name ?? ""} from the school template`}
+        description="It becomes an ordinary template of this branch: nothing is copied or removed, its classes, marks and grade scale stay as they are, and later changes to the school template no longer reach it. You cannot follow it again from here."
+      >
+        <div className="mt-4 flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={() => setDetach(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              const t = detach;
+              setDetach(null);
+              if (t) await act(`/api/v1/results/templates/${t.id}/detach`, `${t.name} no longer follows the school template.`);
+            }}
+          >
+            Detach
           </Button>
         </div>
       </Dialog>

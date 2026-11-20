@@ -1,3 +1,4 @@
+import { markCustomised } from "@/lib/results/school-template-marks";
 import type { LayoutCode } from "@/lib/results/templates-rules";
 import { Prisma, PupilNameFormat, SettingScope, SettingStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -52,6 +53,7 @@ export async function applyTemplateLayoutValue(
     where: { id: templateId, branchId },
     data: { layoutCode: value.layoutCode, layoutOptions: value.layoutCode && value.options ? value.options : Prisma.DbNull },
   });
+  await markCustomised(tx, { id: templateId, branchId }); // a row that follows a school template now says "Customised here" (task 0120)
 }
 
 /// `branchId` null is the school-wide configuration. `findFirst` + create/update because a unique index over a nullable column does not stop two NULL rows.

@@ -630,29 +630,57 @@ model ReportRemark {
 /// the branch's standard layout (Approvals > Report cards), its own class scheme or default scheme, and its default grade scale. A live name is unique per branch and exactly one live
 /// template per branch is the default: both are partial unique indexes written in the migration (Prisma cannot express a WHERE).
 model ResultTemplate {
+  id                    String    @id @default(cuid())
+  branchId              String
+  name                  String
+  description           String?
+  /// "DEFAULT" or "LEGACY" (a ReportCardLayout code; no foreign key, the layouts are created the first time anyone asks). Null = the branch's standard layout.
+  layoutCode            String?
+  layoutOptions         Json?
+  schemeId              String?
+  gradeScaleId          String?
+  isDefault             Boolean   @default(false)
+  /// The school-wide template this row follows (task 0120), or null for a template of the branch's own. The row keeps ALL its branch-checked keys; the master only says what to copy into it.
+  schoolTemplateId      String?
+  /// The master's version this row was last brought up to (null when it follows none). Behind = lower than the master's version.
+  schoolTemplateVersion Int?
+  /// Set when someone in the branch changed the look, the marks scheme, the grade scale or the name of a row that follows a school template after it was synced ("Customised here"). A sync skips
+  /// such a row unless the superadmin chooses to replace the local changes.
+  localEditedAt         DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  branch         Branch                     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  schoolTemplate SchoolResultTemplate?      @relation(fields: [schoolTemplateId], references: [id], onDelete: NoAction)
+  scheme         AssessmentScheme?          @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
+  gradeScale     GradeScale?                @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
+  classes        ResultTemplateClass[]
+  traitGroups    ResultTemplateTraitGroup[]
+  traits         ResultTemplateTrait[]
+
+  @@unique([branchId, id])
+  @@index([branchId])
+  @@index([schoolTemplateId])
+}
+
+/// A school-wide result template (task 0120): the MASTER the branches' own ResultTemplate rows follow. It holds the look and a `definition` (the marks scheme, the grade scale with its bands and
+/// whether they are unconfirmed, and the trait groups and traits, each with a stable key) as validated JSON (lib/results/school-templates-rules.ts). Only a superadmin changes it, and a change bumps
+/// `version`; the branches' rows are brought up to it by "Update branches", never silently. Archived, never deleted: rows follow it. A live name is unique, ignoring case (a partial index in the
+/// migration SQL).
+model SchoolResultTemplate {
   id            String    @id @default(cuid())
-  branchId      String
   name          String
   description   String?
-  /// "DEFAULT" or "LEGACY" (a ReportCardLayout code; no foreign key, the layouts are created the first time anyone asks). Null = the branch's standard layout.
   layoutCode    String?
   layoutOptions Json?
-  schemeId      String?
-  gradeScaleId  String?
-  isDefault     Boolean   @default(false)
+  definition    Json
+  version       Int       @default(1)
   archivedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
-  branch      Branch                     @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  scheme      AssessmentScheme?          @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
-  gradeScale  GradeScale?                @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
-  classes     ResultTemplateClass[]
-  traitGroups ResultTemplateTraitGroup[]
-  traits      ResultTemplateTrait[]
-
-  @@unique([branchId, id])
-  @@index([branchId])
+  rows ResultTemplate[]
 }
 
 model ResultTemplateClass {
@@ -679,6 +707,8 @@ model ResultTemplateTraitGroup {
   title      String
   sortOrder  Int      @default(0)
   showSign   Boolean  @default(false)
+  /// The stable key of this group in the school template it follows (task 0120); null for a group of the branch's own. Sync matches on it, so a rename never orphans ratings.
+  schoolKey  String?
   createdAt  DateTime @default(now())
 
   branch   Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
@@ -697,6 +727,8 @@ model ResultTemplateTrait {
   groupId    String
   name       String
   sortOrder  Int       @default(0)
+  /// The stable key of this trait inside its group in the school template it follows (task 0120); null for a trait of the branch's own.
+  schoolKey  String?
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
 
