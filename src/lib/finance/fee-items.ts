@@ -23,7 +23,7 @@ async function pupilFor(branchId: string, studentId: string, periodId: string) {
   if (!period) throw new FinanceError("Period not found", "NOT_FOUND");
   const student = await prisma.studentRecord.findFirst({
     where: { branchId, id: studentId },
-    select: { id: true, gender: true, residence: true },
+    select: { id: true, gender: true, residence: true, feeAdmission: true },
   });
   if (!student) throw new FinanceError("Pupil not found", "NOT_FOUND");
   const enrollment = await prisma.studentEnrollment.findFirst({
@@ -37,7 +37,7 @@ async function pupilFor(branchId: string, studentId: string, periodId: string) {
     period,
     student,
     classGroupId: enrollment?.classArm?.classGroupId ?? null,
-    facts: { admission: admissionFor(earlier > 0), gender: student.gender, residence: student.residence },
+    facts: { admission: student.feeAdmission ?? admissionFor(earlier > 0), gender: student.gender, residence: student.residence },
   };
 }
 
@@ -302,4 +302,31 @@ export async function handoverList(
   });
   rows.sort((a, b) => (a.className ?? "").localeCompare(b.className ?? "", "en", { numeric: true }) || a.name.localeCompare(b.name, "en"));
   return { line: { id: line.id, name: line.name }, rows };
+}
+
+/// Set how the fee lines see a pupil: NEW or RETURNING, or null to work it out from the enrolments again. Affects invoices still to be made; one that exists is not changed (opt out of the
+/// lines that should not be there). Audited.
+export async function setFeeAdmission(
+  branchId: string,
+  studentId: string,
+  admission: "NEW" | "RETURNING" | null,
+  actorUserId: string,
+): Promise<{ admission: "NEW" | "RETURNING" | null }> {
+  const student = await prisma.studentRecord.findFirst({ where: { branchId, id: studentId }, select: { id: true, feeAdmission: true } });
+  if (!student) throw new FinanceError("Pupil not found", "NOT_FOUND");
+  if (student.feeAdmission === admission) return { admission };
+  await prisma.$transaction([
+    prisma.studentRecord.update({ where: { id: studentId }, data: { feeAdmission: admission } }),
+    prisma.auditLog.create({
+      data: {
+        actorUserId,
+        action: "STUDENT_FEE_ADMISSION_SET",
+        targetType: "StudentRecord",
+        targetId: studentId,
+        beforeValue: { admission: student.feeAdmission },
+        afterValue: { admission },
+      },
+    }),
+  ]);
+  return { admission };
 }

@@ -9,6 +9,9 @@ ADD COLUMN     "optional" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "scholarshipCovers" BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN     "trackHandover" BOOLEAN NOT NULL DEFAULT false;
 
+-- AlterTable
+ALTER TABLE "StudentRecord" ADD COLUMN     "feeAdmission" "FeeAdmission";
+
 -- CreateTable
 CREATE TABLE "StudentFeeOptOut" (
     "id" TEXT NOT NULL,

@@ -204,6 +204,39 @@ test.describe("who is billed what", () => {
   });
 });
 
+test.describe("new or returning, set by hand", () => {
+  test("a pupil loaded this year has no earlier enrolment and looks new; marking them returning gives the returning bill, and clearing it goes back to working it out", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const teacher = await asRole(Role.TEACHING_STAFF);
+    const away = await asRole(Role.ADMIN, [other.id]);
+    const w = await world();
+    const loaded = await w.enrol("Loaded", { gender: Gender.MALE }); // enrolled only this session: worked out as NEW
+    const url = `/api/v1/finance/students/${loaded.id}/admission-status?branchId=${home.id}`;
+    expect((await api(url, { method: "PUT", cookie: teacher.cookie, body: { admission: "RETURNING" } })).status).toBe(403);
+    expect((await api(url, { method: "PUT", cookie: away.cookie, body: { admission: "RETURNING" } })).status).toBe(403);
+    expect((await api(url, { method: "PUT", cookie: admin.cookie, body: { admission: "SOMETIMES" } })).status).toBe(400);
+    expect(dto(await api(ITEMS(loaded.id, w.period.id), { cookie: admin.cookie })).admission).toBe("NEW");
+    const set = await api(url, { method: "PUT", cookie: admin.cookie, body: { admission: "RETURNING" } });
+    expect(set.status, set.text).toBe(200);
+    expect(dto(await api(ITEMS(loaded.id, w.period.id), { cookie: admin.cookie })).admission).toBe("RETURNING");
+    await generate(admin.cookie, w.period.id);
+    expect((await invoiceOf(loaded.id)).totalAmount.toString()).toBe("47000");
+    // Back to automatic: new again for the next run (the invoice that exists is not changed).
+    await api(url, { method: "PUT", cookie: admin.cookie, body: { admission: null } });
+    expect(dto(await api(ITEMS(loaded.id, w.period.id), { cookie: admin.cookie })).admission).toBe("NEW");
+    expect((await invoiceOf(loaded.id)).totalAmount.toString()).toBe("47000");
+    expect(await db.auditLog.count({ where: { action: "STUDENT_FEE_ADMISSION_SET", targetId: loaded.id } })).toBe(2);
+    // An override of NEW beats an earlier enrolment too.
+    const old = await w.enrol("Old", { gender: Gender.FEMALE, returning: true });
+    await api(`/api/v1/finance/students/${old.id}/admission-status?branchId=${home.id}`, {
+      method: "PUT",
+      cookie: admin.cookie,
+      body: { admission: "NEW" },
+    });
+    expect(dto(await api(ITEMS(old.id, w.period.id), { cookie: admin.cookie })).admission).toBe("NEW");
+  });
+});
+
 test.describe("opting out of an optional line", () => {
   test("before the run: the pupil's invoice leaves the line out; the others are unchanged", async () => {
     const admin = await asRole(Role.ADMIN);

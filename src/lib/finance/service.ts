@@ -275,7 +275,7 @@ export async function generateInvoices(
           residence: f.audienceResidence,
         })),
         {
-          admission: admissionFor(returning.has(enrollment.studentId)),
+          admission: enrollment.student.feeAdmission ?? admissionFor(returning.has(enrollment.studentId)),
           gender: enrollment.student.gender,
           residence: enrollment.student.residence,
         },
