@@ -2,6 +2,7 @@ import "@/lib/zod-csp";
 import { z } from "zod";
 import { inviteEmail, inviteRole, ROLE_VALUES } from "@/lib/invitations/rules";
 import { ROLE_LABELS } from "@/lib/roles";
+import { optionalText } from "./fields";
 import type { BulkColumn, BulkEntity } from "./types";
 
 // The invitation kind of the bulk entry (task 0084), client-safe: one address and one role per row. The branch is chosen once for the whole file (it is not a column), so a file
@@ -33,7 +34,7 @@ const toRole = (v: unknown): unknown => (typeof v === "string" ? (WORDS[letters(
 export const invitationRowSchema: z.ZodType<InvitationRow> = z.object({
   email: inviteEmail,
   role: z.preprocess(toRole, inviteRole),
-  department: z.string().trim().max(80, "Use at most 80 characters.").optional(),
+  department: optionalText(80),
 });
 
 const columns = (allowed: readonly RoleValue[]): BulkColumn[] => [
