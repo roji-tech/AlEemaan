@@ -31,7 +31,7 @@ test.describe("the portal's report card is the school's report card", () => {
     // the school, not the branch
     expect(card.school).toEqual(SCHOOL);
     // the class group AND the arm
-    expect(card.class).toEqual({ group: w.group.name, arm: "A" });
+    expect(card.class).toEqual({ group: w.group.name, arm: "A", gradeLabel: null });
     // the parts, the summary with a position, the legend and the remarks
     expect(card.subjects[0].parts).toEqual([
       { name: "Test 1", max: 20, score: 15 },

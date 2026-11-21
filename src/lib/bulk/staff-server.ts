@@ -1,5 +1,5 @@
 import type { Problem } from "./types";
-import { EMAIL_TAKEN } from "@/lib/academics/staff";
+import { EMAIL_TAKEN, UNPLACED_EMAIL_TAKEN } from "@/lib/academics/staff";
 import { usesDepartments } from "@/lib/academics/departments-setting";
 import { staffEntity, type StaffRow } from "./staff";
 import type { ServerKind } from "./server";
@@ -95,6 +95,60 @@ export const staffKind: ServerKind<StaffRow, StaffBulkCtx> = {
           },
         });
       }
+    }
+  },
+};
+
+/// Staff with no branch yet, in bulk (task 0126, the follow-up of task 0101 D3): a superadmin's file. The same columns as the branch file (the department column is not offered: there is no
+/// branch to hold departments), every record saved with no branch, none creating a sign-in. The one thing only the database knows: a live unplaced record already uses the address.
+export type UnplacedStaffCtx = { asDraft?: boolean };
+
+export const unplacedStaffKind: ServerKind<StaffRow, UnplacedStaffCtx> = {
+  entity: staffEntity,
+  auditAction: "STAFF_UNPLACED_BULK_IMPORTED",
+  auditDetail: (ctx) => ({ branchId: null, asDraft: ctx.asDraft === true }),
+  async check(db, rows) {
+    const found = new Map<number, Problem[]>();
+    const emails = rows.flatMap((r) => (r.row.email ? [r.row.email] : []));
+    if (emails.length === 0) return found;
+    // The partial index StaffRecord_email_unplaced: unique among live unplaced records, case-insensitively.
+    const taken = await db.staffRecord.findMany({
+      where: { branchId: null, archivedAt: null, email: { in: emails, mode: "insensitive" } },
+      select: { email: true },
+    });
+    const used = new Set(taken.map((t) => t.email?.toLowerCase()));
+    for (const r of rows)
+      if (r.row.email && used.has(r.row.email.toLowerCase())) found.set(r.line, [{ column: "email", message: UNPLACED_EMAIL_TAKEN }]);
+    return found;
+  },
+  async save(tx, rows, ctx, actorUserId) {
+    for (const { row } of rows) {
+      const created = await tx.staffRecord.create({
+        data: {
+          branchId: null,
+          category: row.category,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          phone: row.phone ?? null,
+          email: row.email ?? null,
+          title: row.title ?? null,
+          gender: row.gender ?? null,
+          designation: row.designation ?? null,
+          qualification: row.qualification ?? null,
+          corpsMember: row.corpsMember ?? false,
+          isDraft: ctx.asDraft === true,
+        },
+        select: { id: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "STAFF_CREATED",
+          targetType: "StaffRecord",
+          targetId: created.id,
+          afterValue: { category: row.category, branchId: null, ...(ctx.asDraft ? { isDraft: true } : {}) },
+        },
+      });
     }
   },
 };

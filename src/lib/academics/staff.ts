@@ -246,6 +246,27 @@ export async function listUnplaced(opts: { status?: "live" | "archived" | "all";
   return rows.map((row) => toStaff(row));
 }
 
+/// The unplaced records an export writes (task 0126): the ids named on the screen ("shown"), or every live one (the archived too when asked), at most `take`, as the import template's columns.
+export async function unplacedStaffForExport(opts: { ids: string[] | null; includeArchived: boolean }, take: number) {
+  return prisma.staffRecord.findMany({
+    where: { branchId: null, ...(opts.ids ? { id: { in: opts.ids } } : opts.includeArchived ? {} : { archivedAt: null }) },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
+    take,
+    select: {
+      category: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      email: true,
+      title: true,
+      gender: true,
+      designation: true,
+      qualification: true,
+      corpsMember: true,
+    },
+  });
+}
+
 /// Is this record not placed in a branch? `null` for no such record.
 export async function isUnplaced(id: string): Promise<boolean | null> {
   const row = await prisma.staffRecord.findUnique({ where: { id }, select: { branchId: true } });

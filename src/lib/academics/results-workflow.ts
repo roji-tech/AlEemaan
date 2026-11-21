@@ -1,3 +1,5 @@
+import { templateForClass } from "@/lib/results/templates";
+import { usesHeadReview } from "@/lib/academics/head-review-setting";
 import { BLOCK_PUBLISH_ON_UNCONFIRMED, unconfirmedPublishMessage } from "@/lib/results/scale-confirmation";
 import crypto from "node:crypto";
 import { Prisma, Role, SettingStatus, type ResultStatus } from "@prisma/client";
@@ -220,6 +222,34 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
         },
       });
     }
+    // Which template each class's cards used for the term (task 0126): written by the first publish, so a class moved to another template later still prints this term as it did. An unlock that
+    // leaves nothing of the class published for the term lets it follow the class again.
+    if (input.action === "publish" || input.action === "unlock") {
+      const arms = await tx.classArm.findMany({
+        where: { id: { in: [...new Set(results.map((r) => r.classArmId))] } },
+        select: { id: true, classGroupId: true },
+      });
+      const groupOf = new Map(arms.map((a) => [a.id, a.classGroupId]));
+      const pairs = new Map<string, { periodId: string; classGroupId: string }>();
+      for (const r of results) {
+        const classGroupId = groupOf.get(r.classArmId);
+        if (classGroupId) pairs.set(`${r.periodId}|${classGroupId}`, { periodId: r.periodId, classGroupId });
+      }
+      for (const { periodId, classGroupId } of pairs.values()) {
+        if (input.action === "publish") {
+          const template = await templateForClass(branchId, classGroupId);
+          await tx.resultTemplateUse.createMany({
+            data: [{ branchId, periodId, classGroupId, templateId: template.id }],
+            skipDuplicates: true,
+          });
+        } else {
+          const stillOut = await tx.result.count({
+            where: { branchId, periodId, classArm: { classGroupId }, status: { in: ["PUBLISHED", "LOCKED"] } },
+          });
+          if (stillOut === 0) await tx.resultTemplateUse.deleteMany({ where: { branchId, periodId, classGroupId } });
+        }
+      }
+    }
     // A result sent back to DRAFT can change again, so a department review of it no longer stands (task 0101 F).
     if (input.action === "return") await clearReviews(tx, branchId, ids);
     return { action: input.action, count: results.length, status: rule.to };
@@ -255,9 +285,17 @@ export const queueQuery = z.object({ branchId: z.string().min(1), periodId: z.st
 export async function reviewQueue(branchId: string, periodId: string, scope?: ApproverScope) {
   // An approver sees the arms their scope reaches (a general scope: all of them); an administrator passes no scope and sees everything.
   const armFilter = scope && !scope.general ? { classArmId: { in: [...scope.armIds] } } : {};
+  const reviewing = await usesHeadReview(branchId);
   const rows = await prisma.result.findMany({
     where: { branchId, periodId, ...armFilter },
-    select: { id: true, classArmId: true, subjectId: true, status: true },
+    select: {
+      id: true,
+      classArmId: true,
+      subjectId: true,
+      status: true,
+      // Task 0126: a branch that asks for the head of department's review shows which submitted results still wait for it (approve refuses them).
+      ...(reviewing ? { subject: { select: { departmentId: true } }, departmentReview: { select: { id: true } } } : {}),
+    },
     orderBy: { id: "asc" },
   });
   const [arms, subjects] = await Promise.all([
@@ -281,6 +319,8 @@ export async function reviewQueue(branchId: string, periodId: string, scope?: Ap
       subjectName: string;
       counts: Record<string, number>;
       ids: Record<string, string[]>;
+      /// Submitted results of a department's subject with no review yet (task 0126); 0 where the branch does not ask for reviews.
+      awaitingDepartment: number;
     }
   >();
   for (const g of rows) {
@@ -292,7 +332,10 @@ export async function reviewQueue(branchId: string, periodId: string, scope?: Ap
       subjectName: subjectName.get(g.subjectId) ?? "",
       counts: {},
       ids: {},
+      awaitingDepartment: 0,
     };
+    const waiting = g as typeof g & { subject?: { departmentId: string | null }; departmentReview?: { id: string } | null };
+    if (reviewing && g.status === "SUBMITTED" && waiting.subject?.departmentId && !waiting.departmentReview) entry.awaitingDepartment += 1;
     entry.counts[g.status] = (entry.counts[g.status] ?? 0) + 1;
     (entry.ids[g.status] ??= []).push(g.id);
     byKey.set(key, entry);

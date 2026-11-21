@@ -36,13 +36,19 @@ export function publicName(firstName: string, lastName: string): string {
 
 /// The card's subjects in the order they were ADDED to the pupil's class (task 0116, found in the preview of 2026-11-20: they were alphabetical, so a pre-school card began with Arabic),
 /// then by name for subjects added together or not offered to the class any more (those last). `added` maps a subject id to when it was offered to the class (milliseconds). A manual
-/// per-class order is a follow-up.
+/// per-class order (task 0126) goes first when the school has set one.
 export function orderBySubjectAdded<T extends { subjectId: string; subject: { name: string } }>(
   rows: readonly T[],
   added: ReadonlyMap<string, number>,
+  /// The place the school gave a subject in this class (task 0126): subjects with one come first, in that order; the rest follow in the order they were added.
+  position: ReadonlyMap<string, number> = new Map(),
 ): T[] {
+  const placed = (r: T) => position.get(r.subjectId) ?? Number.POSITIVE_INFINITY;
   const key = (r: T) => added.get(r.subjectId) ?? Number.POSITIVE_INFINITY;
   return [...rows].sort((a, b) => {
+    const pa = placed(a);
+    const pb = placed(b);
+    if (pa !== pb) return pa < pb ? -1 : 1;
     const ka = key(a);
     const kb = key(b);
     if (ka !== kb) return ka < kb ? -1 : 1;

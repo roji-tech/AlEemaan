@@ -98,7 +98,7 @@ test.describe("the card", () => {
       classSize: 3,
     }); // and the next is skipped
     expect(amina.legend.map((l: { letter: string }) => l.letter)).toEqual(["F", "C", "A"]);
-    expect(amina.class).toEqual({ group: w.group.name, arm: "A" });
+    expect(amina.class).toEqual({ group: w.group.name, arm: "A", gradeLabel: null });
     expect(amina.allPublished).toBe(true);
 
     // a second subject, entered but NOT published: staff do not see it; an administrator's preview does

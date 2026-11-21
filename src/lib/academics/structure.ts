@@ -98,7 +98,8 @@ export async function listClassGroups(branchId: string, includeArchived = false)
           classTeacher: { select: { id: true, title: true, firstName: true, lastName: true } },
         },
       },
-      offerings: { select: { subjectId: true } },
+      // In the class's own order (task 0126): placed by hand first, then the order they were added in.
+      offerings: { select: { subjectId: true }, orderBy: [{ sortOrder: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }] },
     },
   });
   return rows.map((g) => ({
@@ -290,7 +291,7 @@ export async function updateSubject(actorUserId: string, id: string, patch: z.in
   }
 }
 
-/// Replaces the set of subjects a class studies. Only live subjects of the SAME branch may be named; anything else is a refusal naming nothing.
+/// Replaces the set of subjects a class studies; the order of `subjectIds` is the order the report card prints them in (task 0126). Only live subjects of the SAME branch may be named; anything else is a refusal naming nothing.
 export async function setOfferings(actorUserId: string, classGroupId: string, subjectIds: string[]) {
   const group = await prisma.classGroup.findUnique({ where: { id: classGroupId } });
   if (!group) return null;
@@ -304,9 +305,11 @@ export async function setOfferings(actorUserId: string, classGroupId: string, su
   await prisma.$transaction([
     prisma.subjectOffering.deleteMany({ where: { classGroupId, subjectId: { notIn: wanted } } }),
     prisma.subjectOffering.createMany({
-      data: wanted.map((subjectId) => ({ branchId: group.branchId, classGroupId, subjectId })),
+      data: wanted.map((subjectId, sortOrder) => ({ branchId: group.branchId, classGroupId, subjectId, sortOrder })),
       skipDuplicates: true,
     }),
+    // The order of the list is the class's order on the report card (task 0126), so a subject that was already there takes its new place too.
+    ...wanted.map((subjectId, sortOrder) => prisma.subjectOffering.updateMany({ where: { classGroupId, subjectId }, data: { sortOrder } })),
   ]);
   await audit(
     actorUserId,

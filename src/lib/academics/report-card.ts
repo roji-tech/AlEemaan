@@ -103,10 +103,14 @@ export async function getReportCard(branchId: string, studentId: string, periodI
   const offered = first
     ? await prisma.subjectOffering.findMany({
         where: { branchId, classGroupId: first.classArm.classGroup.id },
-        select: { subjectId: true, createdAt: true },
+        select: { subjectId: true, createdAt: true, sortOrder: true },
       })
     : [];
-  const ordered = orderBySubjectAdded(rows, new Map(offered.map((o) => [o.subjectId, o.createdAt.getTime()])));
+  const ordered = orderBySubjectAdded(
+    rows,
+    new Map(offered.map((o) => [o.subjectId, o.createdAt.getTime()])),
+    new Map(offered.flatMap((o) => (o.sortOrder === null ? [] : [[o.subjectId, o.sortOrder] as [string, number]]))),
+  );
   const subjects = ordered.map((r) => ({
     subjectId: r.subjectId,
     name: r.subject.name,
@@ -209,7 +213,7 @@ export async function getReportCard(branchId: string, studentId: string, periodI
     profileFor(branchId),
     prisma.reportRemark.findUnique({ where: { studentId_periodId: { studentId, periodId } } }),
     // The look comes from the class's result template (task 0116), else the branch's standard layout.
-    layoutForClass(branchId, first?.classArm.classGroup.id ?? enrolled?.classGroup.id ?? null),
+    layoutForClass(branchId, first?.classArm.classGroup.id ?? enrolled?.classGroup.id ?? null, periodId),
   ]);
   return {
     school: {

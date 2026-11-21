@@ -123,7 +123,7 @@ async function attendanceView(branchId: string, studentId: string, period: { id:
 
 /// The pupil's template, its live trait groups and their ratings for the term: what the card prints and what the entry screen asks.
 async function traitView(branchId: string, studentId: string, periodId: string, classGroupId: string | null) {
-  const template = await templateForClass(branchId, classGroupId);
+  const template = await templateForClass(branchId, classGroupId, periodId);
   const groups = await prisma.resultTemplateTraitGroup.findMany({
     where: { branchId, templateId: template.id },
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
@@ -214,7 +214,7 @@ async function guard(actor: Actor, branchId: string, studentId: string, periodId
 /// Saves ratings: each `{ traitId, rating }` sets it, a null rating clears it. All or nothing. The traits must be live traits of the pupil's own template.
 export async function saveRatings(actor: Actor, branchId: string, studentId: string, input: z.infer<typeof ratingsInput>) {
   const { classGroupId } = await guard(actor, branchId, studentId, input.periodId);
-  const template = await templateForClass(branchId, classGroupId);
+  const template = await templateForClass(branchId, classGroupId, input.periodId);
   const traits = await prisma.resultTemplateTrait.findMany({
     where: { branchId, templateId: template.id, archivedAt: null },
     select: { id: true },

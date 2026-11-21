@@ -24,7 +24,8 @@ export function generateReportCardHtml(card: Card, origin: string): string {
 
   const legendText = card.legend.map((l) => `${escapeHtml(l.letter)} (${l.min}–${l.max}) ${escapeHtml(l.remark)}`).join(" · ");
 
-  const verificationItems = card.subjects
+  // Shown only when the template or the branch layout says exactly true, as on the screen (task 0121): silence hides it.
+  const verificationItems = (card.layout?.options?.verifyLinks === true ? card.subjects : [])
     .filter((sub) => sub.verificationToken)
     .map(
       (sub) =>
@@ -207,7 +208,7 @@ export function generateReportCardHtml(card: Card, origin: string): string {
       </div>
       <div>
         <dt>Class &amp; Arm</dt>
-        <dd>${card.class ? escapeHtml(classText(card.class, true)) : "—"}</dd>
+        <dd>${card.class ? escapeHtml(classText(card.class, card.layout?.options?.classArm === true)) : "—"}</dd>
       </div>
       <div>
         <dt>Gender</dt>
