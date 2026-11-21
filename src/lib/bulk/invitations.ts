@@ -2,12 +2,14 @@ import "@/lib/zod-csp";
 import { z } from "zod";
 import { inviteEmail, inviteRole, ROLE_VALUES } from "@/lib/invitations/rules";
 import { ROLE_LABELS } from "@/lib/roles";
+import { optionalText } from "./fields";
 import type { BulkColumn, BulkEntity } from "./types";
 
 // The invitation kind of the bulk entry (task 0084), client-safe: one address and one role per row. The branch is chosen once for the whole file (it is not a column), so a file
 // never decides what authority the person inviting has. The server half is `invitations-server.ts`.
 
-export type InvitationRow = { email: string; role: z.infer<typeof inviteRole> };
+/// `department` (task 0127): the department the person joins when they accept; staff roles only, and only where the branch uses departments (the server says so on the row).
+export type InvitationRow = { email: string; role: z.infer<typeof inviteRole>; department?: string };
 type RoleValue = (typeof ROLE_VALUES)[number];
 
 const letters = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
@@ -32,6 +34,7 @@ const toRole = (v: unknown): unknown => (typeof v === "string" ? (WORDS[letters(
 export const invitationRowSchema: z.ZodType<InvitationRow> = z.object({
   email: inviteEmail,
   role: z.preprocess(toRole, inviteRole),
+  department: optionalText(80),
 });
 
 const columns = (allowed: readonly RoleValue[]): BulkColumn[] => [
@@ -43,6 +46,13 @@ const columns = (allowed: readonly RoleValue[]): BulkColumn[] => [
     required: true,
     help: "Teaching staff, Non-teaching staff, Student or Parent (Administrator for a superadmin)",
     options: allowed.map((value) => ({ value, label: ROLE_LABELS[value] })),
+  },
+  {
+    key: "department",
+    label: "Department",
+    aliases: ["dept"],
+    required: false,
+    help: "Optional, staff only: a department of the branch the person joins when they accept (ignored while the branch does not use departments)",
   },
 ];
 

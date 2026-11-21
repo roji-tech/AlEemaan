@@ -1,4 +1,5 @@
 import { templateForClass } from "@/lib/results/templates";
+import { snapshotTemplate } from "@/lib/results/template-snapshot";
 import { usesHeadReview } from "@/lib/academics/head-review-setting";
 import { BLOCK_PUBLISH_ON_UNCONFIRMED, unconfirmedPublishMessage } from "@/lib/results/scale-confirmation";
 import crypto from "node:crypto";
@@ -237,11 +238,19 @@ export async function transitionResults(actorUserId: string, role: Role, branchI
       }
       for (const { periodId, classGroupId } of pairs.values()) {
         if (input.action === "publish") {
-          const template = await templateForClass(branchId, classGroupId);
-          await tx.resultTemplateUse.createMany({
-            data: [{ branchId, periodId, classGroupId, templateId: template.id }],
-            skipDuplicates: true,
+          // Only the first publish records it, with what the template looks like now (task 0127); later ones leave it as it was.
+          const recorded = await tx.resultTemplateUse.findUnique({
+            where: { branchId_periodId_classGroupId: { branchId, periodId, classGroupId } },
+            select: { id: true },
           });
+          if (!recorded) {
+            const template = await templateForClass(branchId, classGroupId);
+            const snapshot = await snapshotTemplate(branchId, template.id, classGroupId);
+            await tx.resultTemplateUse.createMany({
+              data: [{ branchId, periodId, classGroupId, templateId: template.id, snapshot: snapshot as unknown as Prisma.InputJsonValue }],
+              skipDuplicates: true,
+            });
+          }
         } else {
           const stillOut = await tx.result.count({
             where: { branchId, periodId, classArm: { classGroupId }, status: { in: ["PUBLISHED", "LOCKED"] } },

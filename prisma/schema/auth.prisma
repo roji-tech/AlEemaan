@@ -35,6 +35,8 @@ model User {
   /// A person with school-wide authority: administers every branch (a plain ADMIN membership administers only its own branch). A flag on the
   /// person, not a role — roles are per branch (ADR 0007). Granted/revoked only by a superadmin, or by `pnpm superadmin:make` (plan S1–S6).
   isSuperAdmin  Boolean   @default(false)
+  /// The branch this person last chose on a page with a branch picker (task 0127): remembered for the PERSON, on every browser, not for one browser. A plain id, never trusted: a page uses it only when it is one of the branches that person may see.
+  lastBranchId  String?
 
   sessions                Session[]
   resetTokens             PasswordResetToken[]

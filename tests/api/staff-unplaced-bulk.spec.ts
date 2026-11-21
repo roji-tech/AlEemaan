@@ -127,3 +127,51 @@ test.describe("export", () => {
     expect((await api(EXPORT, { method: "POST", cookie: su.cookie, body: { scope: "all", extra: 1 } })).status).toBe(400);
   });
 });
+
+test.describe("completing a draft that has no branch (task 0127)", () => {
+  const COMPLETE = (id: string) => `/api/v1/staff/unplaced/${id}/complete`;
+  const draft = (extra: Record<string, unknown> = {}) =>
+    db.staffRecord.create({ data: { branchId: null, category: "TEACHING", firstName: "Dee", lastName: "Raft", isDraft: true, ...extra } });
+
+  test("a superadmin completes it when it has what a finished record needs; otherwise 409 lists what is missing and nothing changes; audited once", async () => {
+    const su = await asSuper();
+    const incomplete = await draft();
+    const refused = await api(COMPLETE(incomplete.id), { method: "POST", cookie: su.cookie });
+    expect(refused.status).toBe(409);
+    expect(refused.json.error.code).toBe("INCOMPLETE");
+    expect((await db.staffRecord.findUniqueOrThrow({ where: { id: incomplete.id } })).isDraft).toBe(true);
+
+    const ready = await draft({ gender: "FEMALE", email: "dee.raft@example.test" });
+    const done = await api(COMPLETE(ready.id), { method: "POST", cookie: su.cookie });
+    expect(done.status, done.text).toBe(200);
+    expect((await db.staffRecord.findUniqueOrThrow({ where: { id: ready.id } })).isDraft).toBe(false);
+    expect(await db.auditLog.count({ where: { action: "STAFF_COMPLETED", targetId: ready.id } })).toBe(1);
+    // Again: returned as it is, no second audit entry.
+    expect((await api(COMPLETE(ready.id), { method: "POST", cookie: su.cookie })).status).toBe(200);
+    expect(await db.auditLog.count({ where: { action: "STAFF_COMPLETED", targetId: ready.id } })).toBe(1);
+  });
+
+  test("who may: signed out 401; a branch administrator and a teacher get the same 404 as an unknown id; a placed record is a 404 here", async () => {
+    const su = await asSuper();
+    const ready = await draft({ gender: "FEMALE", email: "x.y@example.test" });
+    expect((await api(COMPLETE(ready.id), { method: "POST" })).status).toBe(401);
+    expect((await api(COMPLETE(ready.id), { method: "POST", cookie: (await asUser({ role: Role.ADMIN })).cookie })).status).toBe(404);
+    expect((await api(COMPLETE(ready.id), { method: "POST", cookie: (await asUser({ role: Role.TEACHING_STAFF })).cookie })).status).toBe(
+      403,
+    );
+    expect((await api(COMPLETE("nope"), { method: "POST", cookie: su.cookie })).status).toBe(404);
+    const placed = await db.staffRecord.create({
+      data: {
+        branchId: home.id,
+        category: "TEACHING",
+        firstName: "Placed",
+        lastName: "Draft",
+        isDraft: true,
+        gender: "MALE",
+        email: "p@example.test",
+      },
+    });
+    expect((await api(COMPLETE(placed.id), { method: "POST", cookie: su.cookie })).status).toBe(404);
+    expect((await db.staffRecord.findUniqueOrThrow({ where: { id: placed.id } })).isDraft).toBe(true);
+  });
+});

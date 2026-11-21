@@ -133,7 +133,7 @@ test("Add to department: tick people in the staff list and put them in a departm
   expect(await db.departmentMember.count({ where: { isHead: false } })).toBe(2);
 });
 
-test("the branch you chose is still chosen when you come back to the page (the address, then the browser's memory)", async ({
+test("the branch you chose is still chosen when you come back to the page (the address, then the person's memory)", async ({
   page,
   isMobile,
 }) => {
@@ -144,7 +144,7 @@ test("the branch you chose is still chosen when you come back to the page (the a
   const second = await choice.evaluate((el) => (el as HTMLSelectElement).options[1].text);
   await choice.selectOption({ label: second });
   await expect(page).toHaveURL(/branch=/);
-  // Away and back, with no branch in the address: the browser remembers it.
+  // Away and back, with no branch in the address: it is remembered for the person (task 0127).
   await page.goto("/dashboard");
   await page.goto("/forms");
   // The remembered branch is applied just after hydration (the first paint matches the server's), so read it until it settles rather than once.
