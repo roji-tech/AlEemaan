@@ -150,6 +150,31 @@ test.describe("classes, arms and subjects", () => {
     ).toEqual(["Mathematics"]);
   });
 
+  test("the order a class's subjects are saved in is kept, and a reorder moves them (task 0126)", async () => {
+    const { cookie } = await asRole(Role.ADMIN);
+    const jss = await group(cookie);
+    const make = async (name: string) =>
+      (await api("/api/v1/academics/subjects", { method: "POST", cookie, body: { branchId: home.id, name } })).json.data.subject
+        .id as string;
+    const [a, b, c] = [await make("Arabic"), await make("Biology"), await make("Chemistry")];
+    const put = (subjectIds: string[]) => api(`${GROUPS}/${jss.id}/subjects`, { method: "PUT", cookie, body: { subjectIds } });
+    const listed = async () => (await api(`${GROUPS}?branchId=${home.id}`, { cookie })).json.data.classGroups[0].subjectIds as string[];
+    expect((await put([c, a, b])).status).toBe(200);
+    expect(await listed()).toEqual([c, a, b]);
+    // The same set in another order is a reorder: nothing added, nothing removed, new places.
+    expect((await put([b, c, a])).status).toBe(200);
+    expect(await listed()).toEqual([b, c, a]);
+    expect(await db.subjectOffering.count({ where: { classGroupId: jss.id } })).toBe(3);
+    expect(
+      (await db.subjectOffering.findMany({ where: { classGroupId: jss.id }, orderBy: { sortOrder: "asc" } })).map((o) => o.subjectId),
+    ).toEqual([b, c, a]);
+    // Leaving one out keeps the rest in place; adding one puts it where the list says.
+    expect((await put([c, b])).status).toBe(200);
+    expect(await listed()).toEqual([c, b]);
+    expect((await put([c, a, b])).status).toBe(200);
+    expect(await listed()).toEqual([c, a, b]);
+  });
+
   test("a strict body: unknown keys are a 400, never passed on", async () => {
     const { cookie } = await asRole(Role.ADMIN);
     expect((await api(GROUPS, { method: "POST", cookie, body: { branchId: home.id, name: "X", archivedAt: "2020-01-01" } })).status).toBe(

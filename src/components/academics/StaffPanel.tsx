@@ -238,10 +238,11 @@ export function StaffPanel({
     void load();
   }, [load]);
 
-  // The departments of one real branch (not "all", not "not placed"): only an administrator of it needs them (the bulk file and the selection bar).
+  // The departments of one real branch (not "all", not "not placed"): an administrator needs them for the bulk file and the selection bar, a head of department for the selection bar (task 0126). The answer
+  // marks which of them the person may manage, so for anyone else nothing is offered.
   const realBranch = branchId !== ALL_BRANCHES && branchId !== UNPLACED;
   useEffect(() => {
-    if (!realBranch || !branch.canEdit) return;
+    if (!realBranch) return;
     let live = true;
     void getJson(`/api/v1/academics/departments?branchId=${encodeURIComponent(branchId)}`).then((reply) => {
       if (!live || !reply.ok) return;
@@ -255,7 +256,7 @@ export function StaffPanel({
     return () => {
       live = false;
     };
-  }, [branchId, realBranch, branch.canEdit]);
+  }, [branchId, realBranch]);
 
   const done = async (text: string) => {
     setEditing(null);
@@ -301,6 +302,10 @@ export function StaffPanel({
   const list = staff === null ? null : filterStaff(staff, filters);
   const shown = paginate(list ?? [], page, layout.size);
   const canInvite = branch.canEdit && !viewUnplaced;
+  // A head of department who is not an administrator of the branch may tick people to add them to the department they head (task 0126); the invitation buttons stay an administrator's.
+  const mayGroup = realBranch && deptInfo?.branchId === branchId && deptInfo.enabled && deptInfo.items.some((d) => d.canManage);
+  const headOnly = mayGroup && !canInvite;
+  const tickable = (p: Staff) => (canInvite && invitable(p)) || (headOnly && !p.archived && !p.isDraft);
   const invitableShown = (list ?? []).filter(invitable);
   const toggle = (id: string, on: boolean) =>
     setSelected((all) => {
@@ -347,11 +352,9 @@ export function StaffPanel({
             </h2>
             {branch.canEdit && (
               <div className="flex flex-wrap gap-2">
-                {!viewUnplaced && (
-                  <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
-                    Add many
-                  </Button>
-                )}
+                <Button variant="secondary" onClick={() => setBulk((b) => ({ open: true, key: b.key + 1 }))}>
+                  Add many
+                </Button>
                 <Button onClick={() => setEditing({ kind: "record", item: null })}>New staff record</Button>
               </div>
             )}
@@ -383,11 +386,12 @@ export function StaffPanel({
           onClear={clearFilters}
           trailing={
             <>
-              {branch.canEdit && !viewUnplaced && (
+              {branch.canEdit && (
                 <ExportButton
                   kind="staff"
                   branchId={branch.id}
                   branchName={branch.name}
+                  unplaced={viewUnplaced}
                   shownCount={list === null ? null : list.length}
                   shown={() => ({ ids: (list ?? []).map((p) => p.id) })}
                 />
@@ -474,7 +478,7 @@ export function StaffPanel({
             </Button>
           )}
         </div>
-        {canInvite && selected.size > 0 && (
+        {(canInvite || headOnly) && selected.size > 0 && (
           <div
             role="region"
             aria-label="Selected staff"
@@ -499,10 +503,12 @@ export function StaffPanel({
                   Add to department
                 </Button>
               )}
-              <Button onClick={() => setInviting((staff ?? []).filter((p) => selected.has(p.id)).map(asInvitee))}>
-                <MailIcon className="h-4 w-4" aria-hidden="true" />
-                Invite to sign in
-              </Button>
+              {canInvite && (
+                <Button onClick={() => setInviting((staff ?? []).filter((p) => selected.has(p.id)).map(asInvitee))}>
+                  <MailIcon className="h-4 w-4" aria-hidden="true" />
+                  Invite to sign in
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -727,9 +733,13 @@ export function StaffPanel({
                   <div className="mt-2 border-t border-line pt-4">
                     <div className="flex w-full items-center justify-between text-[13px]">
                       <div className="flex items-center gap-2">
-                        {canInvite && invitable(p) ? (
+                        {tickable(p) ? (
                           <CheckboxField
-                            label={<span className="sr-only">Select {who} to invite</span>}
+                            label={
+                              <span className="sr-only">
+                                Select {who} to {headOnly ? "add to a department" : "invite"}
+                              </span>
+                            }
                             checked={selected.has(p.id)}
                             onChange={(e) => toggle(p.id, e.target.checked)}
                             className="-my-2 -ml-1 gap-0"
@@ -830,9 +840,9 @@ export function StaffPanel({
                 actions={buttons}
                 menu={{ name: who, actions: more }}
                 below={
-                  canInvite && invitable(p) ? (
+                  tickable(p) ? (
                     <CheckboxField
-                      label={`Select ${who} to invite`}
+                      label={`Select ${who} to ${headOnly ? "add to a department" : "invite"}`}
                       checked={selected.has(p.id)}
                       onChange={(e) => toggle(p.id, e.target.checked)}
                       className="relative z-10"
@@ -973,7 +983,7 @@ export function StaffPanel({
       />
       {branch.canEdit && (
         <BulkImportDialog
-          branchName={branch.name}
+          branchName={viewUnplaced ? undefined : branch.name}
           branchChoices={branches.filter((b) => b.canEdit)}
           branchId={branchId}
           onBranchChange={(id) => {
@@ -987,9 +997,13 @@ export function StaffPanel({
           onClose={() => setBulk((b) => ({ ...b, open: false }))}
           entity={staffEntityFor(deptInfo?.branchId === branchId && deptInfo.enabled ? deptInfo.items.map((d) => d.name) : null)}
           title="Add staff in bulk"
-          description={`Into ${branch.name}. Nothing is saved until you press Save, and a record never creates a sign-in.`}
-          endpoint="/api/v1/staff/import"
-          context={{ branchId, asDraft }}
+          description={
+            viewUnplaced
+              ? "With no branch yet; you place each person in a branch later. Nothing is saved until you press Save, and a record never creates a sign-in."
+              : `Into ${branch.name}. Nothing is saved until you press Save, and a record never creates a sign-in.`
+          }
+          endpoint={viewUnplaced ? "/api/v1/staff/unplaced/import" : "/api/v1/staff/import"}
+          context={viewUnplaced ? { asDraft } : { branchId, asDraft }}
           contextControl={(locked) => (
             <CheckboxField
               label="Save these as drafts (kept unfinished: left out of invitations, assignments and counts until each is completed)"

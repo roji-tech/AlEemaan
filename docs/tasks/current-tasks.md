@@ -786,3 +786,7 @@
 ## TASK-0125: New or Returning for many pupils at once; icons on the rest of the row menus (requested 2026-11-20)
 
 [Task file](0125-bulk-admission-status.md). Students > "New or returning": one action marks every pupil in a class (or all) as Returning, New or worked out automatically, with a count before the change and one audit entry. Task 0122's advice to use the pupil file's column only worked for pupils created in that file. Also icons on every row-menu item that had none. No migration.
+
+## TASK-0126: The follow-ups: card download options, subject order, template record, department review, unplaced staff in bulk (requested 2026-11-21)
+
+[Task file](0126-followups-batch.md). The downloaded card follows the arm and verify options; a class's subjects have a manual order on the report card; a class's template is recorded per term when its results are published; the Review tab shows what waits for the department review; staff with no branch can be added from a file and exported; a head of department can add ticked people to their department. One additive migration, `20261122120000_subject_order_template_use`, the maintainer's to run in production after the prod merge.

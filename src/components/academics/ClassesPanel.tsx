@@ -806,6 +806,14 @@ function OfferingsDialog({
   const [chosen, setChosen] = useState<string[]>(classGroup?.subjectIds ?? []);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const subjectNameOf = (id: string) => subjects.find((x) => x.id === id)?.name ?? "";
+  // The order of this list is the order the report card prints the class's subjects in (task 0126).
+  const move = (index: number, by: -1 | 1) =>
+    setChosen((all) => {
+      const next = [...all];
+      [next[index], next[index + by]] = [next[index + by], next[index]];
+      return next;
+    });
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!classGroup || pending) return;
@@ -835,6 +843,40 @@ function OfferingsDialog({
                 />
               ))}
             </fieldset>
+          )}
+          {chosen.length > 1 && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold tracking-wide text-fg-2 uppercase">Order on the report card</p>
+              <ol aria-label="Order on the report card" className="divide-y divide-line rounded-xl border border-line">
+                {chosen.map((id, i) => (
+                  <li key={id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                    <span className="min-w-0 break-words">
+                      {i + 1}. {subjectNameOf(id)}
+                    </span>
+                    <span className="flex shrink-0 gap-1">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={pending || i === 0}
+                        aria-label={`Move ${subjectNameOf(id)} up`}
+                        onClick={() => move(i, -1)}
+                      >
+                        Up
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={pending || i === chosen.length - 1}
+                        aria-label={`Move ${subjectNameOf(id)} down`}
+                        onClick={() => move(i, 1)}
+                      >
+                        Down
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
           {problem && <Alert variant="error">{problem}</Alert>}
           <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
