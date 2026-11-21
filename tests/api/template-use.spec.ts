@@ -120,3 +120,59 @@ test("a term nothing was published in follows the class; another term's record d
   expect(await layoutOf(t.admin.cookie, t.w, t.w.period.id)).toBe("SENIOR");
   expect(await layoutOf(t.admin.cookie, t.w, second.id)).toBe("BASIC");
 });
+
+test("editing the template after a term was published does not change that term: its look and its trait groups stay as they were (task 0127); a term published after the edit takes the edit", async () => {
+  const t = await setUp();
+  const second = await db.academicPeriod.create({
+    data: {
+      branchId: home.id,
+      sessionId: t.w.session.id,
+      ordinal: 2,
+      label: "2nd Term",
+      startDate: new Date("2027-01-05"),
+      isCurrent: false,
+    },
+  });
+  const cardOf = async (periodId: string) =>
+    (await api(`/api/v1/students/${t.w.student.id}/report-card?periodId=${periodId}&preview=true`, { cookie: t.admin.cookie })).json.data
+      .card as {
+      layout: { options: Record<string, boolean> };
+      traits: { title: string; traits: { id: string; name: string }[] }[];
+    };
+  const before = await cardOf(t.w.period.id);
+  const names = before.traits.flatMap((g) => g.traits.map((x) => x.name));
+  expect(names.length).toBeGreaterThan(2);
+  expect((await go(t.admin.cookie, "publish", [t.result.id])).status).toBe(200);
+  expect((await uses())[0].snapshot).not.toBeNull();
+
+  // Edit the template: a new look, a trait renamed, a trait archived, a whole new group.
+  const first = before.traits[0].traits[0];
+  const second2 = before.traits[0].traits[1];
+  await db.resultTemplate.update({
+    where: { id: t.senior.id },
+    data: { layoutOptions: { logo: false, signatureLine: false, classArm: true } },
+  });
+  await db.resultTemplateTrait.update({ where: { id: first.id }, data: { name: "Renamed after publishing" } });
+  await db.resultTemplateTrait.update({ where: { id: second2.id }, data: { archivedAt: new Date() } });
+  const group = await db.resultTemplateTraitGroup.create({
+    data: { branchId: home.id, templateId: t.senior.id, title: "Added after publishing", sortOrder: 99 },
+  });
+  await db.resultTemplateTrait.create({
+    data: { branchId: home.id, templateId: t.senior.id, groupId: group.id, name: "New trait", sortOrder: 0 },
+  });
+
+  // The published term is exactly what it was.
+  const after = await cardOf(t.w.period.id);
+  expect(after.layout.options).toEqual(before.layout.options);
+  expect(after.traits).toEqual(before.traits);
+  const sheet = await api(`/api/v1/students/${t.w.student.id}/report-traits?periodId=${t.w.period.id}`, { cookie: t.admin.cookie });
+  expect(sheet.json.data.sheet.groups.flatMap((g: { traits: { name: string }[] }) => g.traits.map((x) => x.name))).toEqual(names);
+
+  // A term nothing was published in follows the template as it is now.
+  const live = await cardOf(second.id);
+  expect(live.layout.options).toMatchObject({ logo: false, classArm: true });
+  const liveNames = live.traits.flatMap((g) => g.traits.map((x) => x.name));
+  expect(liveNames).toContain("Renamed after publishing");
+  expect(liveNames).toContain("New trait");
+  expect(liveNames).not.toContain(second2.name);
+});

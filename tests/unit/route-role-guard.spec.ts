@@ -42,6 +42,7 @@ const ALLOWED: Record<string, string> = {
   "POST v1/auth/mfa/disable/route.ts": OWN,
   "POST v1/auth/mfa/recovery-codes/route.ts": OWN,
   "PATCH v1/account/profile/route.ts": OWN,
+  "PUT v1/account/branch/route.ts": OWN,
   "GET v1/settings/school/route.ts": CONTENT,
   "GET v1/academics/sessions/route.ts": CONTENT,
   "GET v1/academics/sessions/[id]/route.ts": CONTENT,
@@ -321,6 +322,8 @@ const BRANCH_CHECKED_ELSEWHERE: Record<string, string> = {
 /// join this list without someone writing why; the aim is for it to shrink.
 const STRUCTURE = /withBranch[(<]/;
 const NOT_WRAPPED: Record<string, string> = {
+  "PUT v1/account/branch/route.ts":
+    "the caller's own preference (which branch their pages open on), not an action on a branch: the handler stores it only for a branch the caller holds an active membership in (a superadmin: any) and answers 404 otherwise",
   "POST v1/subject-catalog/[id]/branches/route.ts":
     "superadmin only (withAuth superAdmin): acts on SEVERAL branches at once, each named in the body and checked to exist; no one branch to resolve a grant for",
   "POST v1/school-templates/[id]/branches/route.ts":

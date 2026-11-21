@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ConflictError, ForbiddenError } from "@/lib/academics/structure";
 import { LIVE_STAFF } from "@/lib/drafts/live";
-import { templateForClass } from "@/lib/results/templates";
+import { recordedUse, templateForClass } from "@/lib/results/templates";
 import {
   ATTENDANCE_MESSAGES,
   MAX_DAYS,
@@ -123,29 +123,33 @@ async function attendanceView(branchId: string, studentId: string, period: { id:
 
 /// The pupil's template, its live trait groups and their ratings for the term: what the card prints and what the entry screen asks.
 async function traitView(branchId: string, studentId: string, periodId: string, classGroupId: string | null) {
-  const template = await templateForClass(branchId, classGroupId, periodId);
-  const groups = await prisma.resultTemplateTraitGroup.findMany({
-    where: { branchId, templateId: template.id },
-    orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-    select: {
-      id: true,
-      title: true,
-      showSign: true,
-      traits: { where: { archivedAt: null }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } },
-    },
-  });
+  const used = await recordedUse(branchId, classGroupId, periodId);
+  const template = used?.template ?? (await templateForClass(branchId, classGroupId));
+  // A published term shows the trait groups it had when it was published (task 0127); otherwise the template's live ones.
+  const groups = used?.snapshot
+    ? used.snapshot.groups
+    : (
+        await prisma.resultTemplateTraitGroup.findMany({
+          where: { branchId, templateId: template.id },
+          orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+          select: {
+            id: true,
+            title: true,
+            showSign: true,
+            traits: { where: { archivedAt: null }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } },
+          },
+        })
+      ).filter((g) => g.traits.length > 0);
   const ratings = await prisma.traitRating.findMany({ where: { branchId, studentId, periodId }, select: { traitId: true, rating: true } });
   const byTrait = new Map(ratings.map((r) => [r.traitId, r.rating]));
   return {
     template: { id: template.id, name: template.name, layoutCode: template.layoutCode },
-    groups: groups
-      .filter((g) => g.traits.length > 0)
-      .map((g) => ({
-        id: g.id,
-        title: g.title,
-        showSign: g.showSign,
-        traits: g.traits.map((t) => ({ id: t.id, name: t.name, rating: byTrait.get(t.id) ?? null })),
-      })),
+    groups: groups.map((g) => ({
+      id: g.id,
+      title: g.title,
+      showSign: g.showSign,
+      traits: g.traits.map((t) => ({ id: t.id, name: t.name, rating: byTrait.get(t.id) ?? null })),
+    })),
   };
 }
 
