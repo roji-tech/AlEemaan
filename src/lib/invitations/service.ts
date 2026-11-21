@@ -1,3 +1,4 @@
+import { usesDepartments } from "@/lib/academics/departments-setting";
 import { Prisma, type Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { brand } from "@/lib/brand";
@@ -114,7 +115,7 @@ async function membershipRefusal(
 async function writeInvitation(
   tx: Prisma.TransactionClient,
   actorUserId: string,
-  input: { email: string; role: Role; branchId: string; staffRecordId?: string },
+  input: { email: string; role: Role; branchId: string; staffRecordId?: string; departmentId?: string },
   now: Date,
 ): Promise<{ invitation: PublicInvitation; token: string }> {
   const earlier = await tx.invitation.findMany({
@@ -146,6 +147,7 @@ async function writeInvitation(
       sentAt: now,
       expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
       ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+      ...(input.departmentId ? { departmentId: input.departmentId } : {}),
     },
     select: PUBLIC_SELECT,
   });
@@ -160,6 +162,7 @@ async function writeInvitation(
         role: input.role,
         branchId: input.branchId,
         ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+        ...(input.departmentId ? { departmentId: input.departmentId } : {}),
       },
     },
   });
@@ -187,7 +190,7 @@ export async function createInvitationIn(
   tx: Prisma.TransactionClient,
   actorUserId: string,
   /// `staffRecordId`: the staff record the invitation is sent from (task 0114); accepting links the new account to it. The caller has checked that it is a record of `branchId`.
-  input: { email: string; role: Role; branchId: string; staffRecordId?: string },
+  input: { email: string; role: Role; branchId: string; staffRecordId?: string; departmentId?: string },
   scope: AdminScope,
 ): Promise<CreateInvitationResult> {
   await lockAddress(tx, input.email);
@@ -325,7 +328,7 @@ export type SaveDraftResult = { ok: true; invitation: PublicInvitation; created:
 export async function saveDraftIn(
   tx: Prisma.TransactionClient,
   actorUserId: string,
-  input: { email: string; role: Role; branchId: string; staffRecordId?: string },
+  input: { email: string; role: Role; branchId: string; staffRecordId?: string; departmentId?: string },
   scope: AdminScope,
 ): Promise<SaveDraftResult> {
   await lockAddress(tx, input.email);
@@ -342,7 +345,12 @@ export async function saveDraftIn(
   if (open) {
     const updated = await tx.invitation.update({
       where: { id: open.id },
-      data: { role: input.role, invitedById: actorUserId, staffRecordId: input.staffRecordId ?? null },
+      data: {
+        role: input.role,
+        invitedById: actorUserId,
+        staffRecordId: input.staffRecordId ?? null,
+        departmentId: input.departmentId ?? null,
+      },
       select: PUBLIC_SELECT,
     });
     await tx.auditLog.create({
@@ -363,6 +371,7 @@ export async function saveDraftIn(
       branchId: input.branchId,
       invitedById: actorUserId,
       ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+      ...(input.departmentId ? { departmentId: input.departmentId } : {}),
     },
     select: PUBLIC_SELECT,
   });
@@ -377,6 +386,7 @@ export async function saveDraftIn(
         role: input.role,
         branchId: input.branchId,
         ...(input.staffRecordId ? { staffRecordId: input.staffRecordId } : {}),
+        ...(input.departmentId ? { departmentId: input.departmentId } : {}),
       },
     },
   });
@@ -754,6 +764,31 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
           actorUserId: userId,
           why: `invitation ${found.id}`,
         });
+      }
+      // A department named on the invitation (task 0127): the person joins it as a member, never as its head, when the branch still uses departments, the department is still live and the person
+      // has a staff record in the branch (a staff role always gets one above). Anything else leaves the membership as it was.
+      if (found.departmentId && found.role !== "STUDENT" && found.role !== "PARENT" && (await usesDepartments(found.branchId))) {
+        const department = await tx.department.findFirst({
+          where: { id: found.departmentId, branchId: found.branchId, archivedAt: null },
+          select: { id: true },
+        });
+        const record = await tx.staffRecord.findFirst({ where: { branchId: found.branchId, userId }, select: { id: true } });
+        if (department && record) {
+          const added = await tx.departmentMember.createMany({
+            data: [{ branchId: found.branchId, departmentId: department.id, staffRecordId: record.id, isHead: false }],
+            skipDuplicates: true,
+          });
+          if (added.count === 1)
+            await tx.auditLog.create({
+              data: {
+                actorUserId: userId,
+                action: "DEPARTMENT_MEMBER_ADDED",
+                targetType: "Department",
+                targetId: department.id,
+                afterValue: { staffRecordId: record.id, byInvitation: found.id },
+              },
+            });
+        }
       }
       await tx.auditLog.create({
         data: {

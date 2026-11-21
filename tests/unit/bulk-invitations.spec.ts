@@ -36,6 +36,8 @@ const SAMPLES: Record<string, { pass: string[]; fail: string[] }> = {
     ],
     fail: ["", "Janitor", "x"],
   },
+  // Task 0127: optional, free text matched to a department of the branch by the server.
+  department: { pass: ["", "Sciences", " sciences "], fail: ["x".repeat(81)] },
 };
 test("every column has samples; each passing value passes and each failing value is a problem on that column", () => {
   expect(Object.keys(SAMPLES).sort()).toEqual(invitationEntity.columns.map((c) => c.key).sort());
@@ -91,4 +93,12 @@ test("every dropdown label of every kind is accepted by that kind's own rules, s
       }
     }
   }
+});
+
+test("the Department column is optional: a blank cell leaves no department on the row, a name is kept trimmed (task 0127)", () => {
+  const out = validateRows(invitationEntity, [
+    row(2, { email: "d1@x.com", department: "" }),
+    row(3, { email: "d2@x.com", department: "  Sciences " }),
+  ]);
+  expect(out.ok.map((o) => o.row.department)).toEqual([undefined, "Sciences"]);
 });

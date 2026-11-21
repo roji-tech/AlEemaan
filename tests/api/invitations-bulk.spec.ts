@@ -2,7 +2,7 @@ import "../support/env";
 import { test, expect } from "@playwright/test";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
-import { waitForMail } from "../support/outbox";
+import { tokenFrom, waitForMail } from "../support/outbox";
 
 // Bulk invitations over real HTTP (task 0084): a dry run that writes nothing and says what a save would replace, a save that is all or nothing, the same authority as one invitation
 // (a branch administrator never invites an administrator), the e-mails sent after the save, and its own limits.
@@ -170,4 +170,66 @@ test("limits: at most 200 rows, and a body that is not exactly the shape is refu
   const next = await send(cookie, [row(2, unique("over"))], { dryRun: false });
   expect([next.status, next.json.error.code]).toEqual([429, "RATE_LIMITED"]);
   expect((await send(cookie, [row(2, unique("dry"))])).status).toBe(200);
+});
+
+test.describe("the Department column (task 0127)", () => {
+  const turnOn = (enabled = true) =>
+    db.settingValue.upsert({
+      where: { scope_branchId_key: { scope: "BRANCH", branchId: home.id, key: "academics.useDepartments" } },
+      create: { scope: "BRANCH", branchId: home.id, key: "academics.useDepartments", value: enabled, status: "APPROVED" },
+      update: { value: enabled },
+    });
+  const withDepartment = (line: number, email: string, department: string, role = "Teaching staff") => ({
+    line,
+    values: { email, role, department },
+  });
+
+  test("a staff row names a department by its name (any capitals); the invitation carries it and accepting puts the person in it as a member, never its head", async () => {
+    const { cookie } = await asSuperAdmin();
+    await turnOn();
+    const sciences = await db.department.create({ data: { branchId: home.id, name: "Sciences" } });
+    const email = unique("dept");
+    const saved = await send(cookie, [withDepartment(2, email, "sCiEnCeS")], { dryRun: false });
+    expect(saved.status, saved.text).toBe(201);
+    expect((await invitations())[0].departmentId).toBe(sciences.id);
+
+    const mail = await waitForMail(email);
+    const accepted = await api("/api/v1/invitations/accept", {
+      body: { token: tokenFrom(mail[0]), name: "Dept Person", password: "a-fresh-unseen-passphrase-3" },
+    });
+    expect(accepted.status, accepted.text).toBe(200);
+    const user = await db.user.findUniqueOrThrow({ where: { email } });
+    const members = await db.departmentMember.findMany({ where: { departmentId: sciences.id }, include: { staffRecord: true } });
+    expect(members.map((m) => [m.staffRecord.userId, m.isHead])).toEqual([[user.id, false]]);
+    expect(await db.auditLog.count({ where: { action: "DEPARTMENT_MEMBER_ADDED", targetId: sciences.id } })).toBe(1);
+  });
+
+  test("problems on the row: an unknown department, a department for a student or a parent; nothing is saved", async () => {
+    const { cookie } = await asSuperAdmin();
+    await turnOn();
+    await db.department.create({ data: { branchId: home.id, name: "Sciences" } });
+    const res = await send(
+      cookie,
+      [withDepartment(2, unique("a"), "Cooking"), withDepartment(3, unique("b"), "Sciences", "Student"), row(4, unique("c"))],
+      {
+        dryRun: false,
+      },
+    );
+    expect(res.status).toBe(422);
+    const verdicts = res.json.data.verdicts as { line: number; status: string; problems: { column: string; message: string }[] }[];
+    expect(verdicts.find((v) => v.line === 2)?.problems[0]).toMatchObject({ column: "department" });
+    expect(verdicts.find((v) => v.line === 3)?.problems[0].message).toMatch(/for staff/);
+    expect(verdicts.find((v) => v.line === 4)?.status).toBe("ready");
+    expect(await invitations()).toHaveLength(0);
+  });
+
+  test("while the branch does not use departments the column is ignored and the review says so; the invitation has no department", async () => {
+    const { cookie } = await asSuperAdmin();
+    await db.department.create({ data: { branchId: home.id, name: "Sciences" } });
+    const dry = await send(cookie, [withDepartment(2, unique("a"), "Sciences")]);
+    expect(dry.status).toBe(200);
+    expect(JSON.stringify(dry.json.data.verdicts)).toContain("does not use departments");
+    expect((await send(cookie, [withDepartment(2, unique("b"), "Sciences")], { dryRun: false })).status).toBe(201);
+    expect((await invitations())[0].departmentId).toBeNull();
+  });
 });

@@ -33,6 +33,7 @@ set-up and public verification. The libraries they use are mostly in `src/lib/au
 | Method | Route | File | Who | Description |
 | --- | --- | --- | --- | --- |
 | PATCH | `/api/v1/account/profile` | `account/profile/route.ts` | Signed in (own account) | Edits the caller's display name: `{ name }`, normalised and checked by `checkName` (at most 100 characters, no control or bidirectional-override characters; 400 `VALIDATION` otherwise). 10 changes per account per window, every attempt counted. Audits `PROFILE_UPDATED` (before and after) only when the stored name actually changed; returns `{ user }`. |
+| PUT | `/api/v1/account/branch` | `account/branch/route.ts` | Signed in, the caller's own record only (task 0127): `{ branchId }`, the branch they last chose on a page with a picker, kept on `User.lastBranchId` so it follows them to any browser. Only a branch they belong to (an active membership), or any for a superadmin; else 404. 120 per 5 minutes. |
 
 ## `src/lib/invitations/`
 

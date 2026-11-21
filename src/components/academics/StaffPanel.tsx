@@ -266,9 +266,9 @@ export function StaffPanel({
   /// Task 0101 D1: finish a draft, or put a record back to unfinished. The server decides (what is missing; what a draft may not hold) and says so.
   async function setDraft(person: Staff, draft: boolean) {
     const who = `${person.firstName} ${person.lastName}`;
-    const reply = draft
-      ? await sendJson(`/api/v1/staff/${person.id}`, "PATCH", { isDraft: true })
-      : await sendJson(`/api/v1/staff/${person.id}/complete`, "POST");
+    // A record with no branch is changed through its own routes (task 0127).
+    const base = person.branchId === null ? `/api/v1/staff/unplaced/${person.id}` : `/api/v1/staff/${person.id}`;
+    const reply = draft ? await sendJson(base, "PATCH", { isDraft: true }) : await sendJson(`${base}/complete`, "POST");
     setNotice(
       reply.ok
         ? { variant: "success", text: draft ? `${who} is now a draft.` : `${who} is complete: no longer a draft.` }
@@ -554,6 +554,10 @@ export function StaffPanel({
             }
             const more = viewUnplaced
               ? [
+                  // Finish a draft, or put a record back to unfinished (task 0127).
+                  p.isDraft
+                    ? { id: "complete", label: "Complete", ariaLabel: `Complete ${who}`, onSelect: () => void setDraft(p, false) }
+                    : { id: "draft", label: "Mark as draft", ariaLabel: `Mark ${who} as a draft`, onSelect: () => void setDraft(p, true) },
                   // A record with no branch has no standing, sign-in, subjects or history: the only other thing a superadmin does to it is delete it (nothing can point at it).
                   {
                     id: "delete",
@@ -1085,7 +1089,7 @@ function RecordDialog({
         ? await sendJson("/api/v1/staff/unplaced", "POST", body)
         : await sendJson("/api/v1/staff", "POST", { branchId, ...body });
     if (reply.ok && complete && item) {
-      const done = await sendJson(`/api/v1/staff/${item.id}/complete`, "POST");
+      const done = await sendJson(`/api/v1/staff/${item.branchId === null ? "unplaced/" : ""}${item.id}/complete`, "POST");
       setPending(false);
       // Saved, but still a draft: the form stays open and says what is missing.
       if (!done.ok) return setProblem(say(done, "It could not be completed."));
@@ -1236,15 +1240,13 @@ function RecordDialog({
             </Button>
             {item?.isDraft ? (
               <>
-                {/* Already a draft: "Save" and "Save as draft" would be the same thing, so it is Save draft (stays a draft) and Complete (runs the check). A record with no branch cannot be completed yet. */}
+                {/* Already a draft: "Save" and "Save as draft" would be the same thing, so it is Save draft (stays a draft) and Complete (runs the check). A record with no branch is completed through its own route (task 0127). */}
                 <Button type="submit" variant="secondary" disabled={pending}>
                   Save draft
                 </Button>
-                {item.branchId !== null && (
-                  <Button loading={pending} onClick={() => void save(false, true)}>
-                    Complete
-                  </Button>
-                )}
+                <Button loading={pending} onClick={() => void save(false, true)}>
+                  Complete
+                </Button>
               </>
             ) : (
               <>
