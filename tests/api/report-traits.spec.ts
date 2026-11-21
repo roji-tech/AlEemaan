@@ -474,7 +474,7 @@ test.describe("the card", () => {
     const c = (await card(t.admin.cookie, t.w)).json.data.card;
     expect(c.subjects).toEqual([]);
     expect(c.layout).toMatchObject({ code: "PRESCHOOL" });
-    expect(c.class).toEqual({ group: t.w.group.name, arm: "A" });
+    expect(c.class).toEqual({ group: t.w.group.name, arm: "A", gradeLabel: null });
     expect(c.traits.map((g: { title: string }) => g.title)).toEqual(["Psychomotor skill", "Affective domain"]);
     expect(c.traits[1].traits).toHaveLength(13);
     expect(c.dates.termStarts).toBe("2026-09-01");

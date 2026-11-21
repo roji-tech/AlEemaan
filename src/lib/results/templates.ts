@@ -78,7 +78,15 @@ export async function ensureDefaultTemplate(branchId: string, db: Tx = prisma) {
 // ---- resolving what a class uses ----
 
 /// The template a class uses: the one it is placed in, else the branch's default.
-export async function templateForClass(branchId: string, classGroupId: string | null) {
+export async function templateForClass(branchId: string, classGroupId: string | null, periodId?: string | null) {
+  // A term whose results the class had published keeps the template it used then (task 0126), even when the class has been moved since.
+  if (classGroupId && periodId) {
+    const used = await prisma.resultTemplateUse.findUnique({
+      where: { branchId_periodId_classGroupId: { branchId, periodId, classGroupId } },
+      include: { template: true },
+    });
+    if (used) return used.template;
+  }
   if (classGroupId) {
     const placed = await prisma.resultTemplate.findFirst({
       where: { branchId, archivedAt: null, classes: { some: { classGroupId } } },
@@ -152,8 +160,8 @@ export async function templateMarks(branchId: string, classGroupId: string, need
 }
 
 /// The report card's look for a class: its template's layout, else the branch's standard layout. Same shape as `getBranchReportCardLayout`.
-export async function layoutForClass(branchId: string, classGroupId: string | null) {
-  const template = await templateForClass(branchId, classGroupId);
+export async function layoutForClass(branchId: string, classGroupId: string | null, periodId?: string | null) {
+  const template = await templateForClass(branchId, classGroupId, periodId);
   if (!template.layoutCode) return getBranchReportCardLayout(branchId);
   await ensureDefaultReportCardLayouts();
   const layout = await prisma.reportCardLayout.findUnique({ where: { code: template.layoutCode } });

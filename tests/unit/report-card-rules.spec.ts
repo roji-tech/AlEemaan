@@ -110,6 +110,34 @@ test.describe("orderBySubjectAdded", () => {
     expect(orderBySubjectAdded(rows, added).map((r) => r.subject.name)).toEqual(["Biology", "Zoology", "Chemistry", "Gone"]);
   });
 
+  test("a place the school gave a subject in the class (task 0126) goes first; the rest follow in the order added, then by name", () => {
+    const rows = [row("a", "Arabic"), row("e", "English"), row("m", "Mathematics"), row("g", "Gone"), row("s", "Science")];
+    const added = new Map([
+      ["a", 1],
+      ["e", 2],
+      ["m", 3],
+      ["s", 4],
+    ]);
+    const position = new Map([
+      ["s", 0],
+      ["m", 1],
+    ]);
+    expect(orderBySubjectAdded(rows, added, position).map((r) => r.subject.name)).toEqual([
+      "Science",
+      "Mathematics",
+      "Arabic",
+      "English",
+      "Gone",
+    ]);
+    expect(orderBySubjectAdded(rows, added, new Map()).map((r) => r.subject.name)).toEqual([
+      "Arabic",
+      "English",
+      "Mathematics",
+      "Science",
+      "Gone",
+    ]);
+  });
+
   test("does not change its input", () => {
     const rows = [row("b", "B"), row("a", "A")];
     orderBySubjectAdded(rows, new Map());

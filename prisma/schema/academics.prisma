@@ -54,8 +54,8 @@ model AcademicPeriod {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  branch           Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  session          AcademicSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  branch           Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  session          AcademicSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   results          Result[]
   remarks          ReportRemark[]
   feeStructures    FeeStructure[]
@@ -63,6 +63,7 @@ model AcademicPeriod {
   breaks           AcademicBreak[]
   traitRatings     TraitRating[]
   reportAttendance ReportAttendance[]
+  templateUses     ResultTemplateUse[]
 
   @@unique([sessionId, ordinal])
   @@unique([branchId, id])
@@ -118,6 +119,7 @@ model ClassGroup {
   schemes                AssessmentScheme[]
   schemeScopes           AssessmentSchemeScope[]
   resultTemplateClasses  ResultTemplateClass[]
+  resultTemplateUses     ResultTemplateUse[]
   feeStructures          FeeStructure[]
   lmsAssignments         Assignment[]
   learningMaterials      LearningMaterial[]
@@ -277,6 +279,8 @@ model SubjectOffering {
   classGroupId String
   subjectId    String
   createdAt    DateTime @default(now())
+  /// The place of this subject in the class's own order on the report card (task 0126): set from the order the subjects are saved in; null = never ordered by hand, so the order they were added in.
+  sortOrder    Int?
 
   branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
   classGroup ClassGroup @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: NoAction)
@@ -658,6 +662,7 @@ model ResultTemplate {
   scheme         AssessmentScheme?          @relation(fields: [branchId, schemeId], references: [branchId, id], onDelete: NoAction)
   gradeScale     GradeScale?                @relation(fields: [branchId, gradeScaleId], references: [branchId, id], onDelete: NoAction)
   classes        ResultTemplateClass[]
+  uses           ResultTemplateUse[]
   traitGroups    ResultTemplateTraitGroup[]
   traits         ResultTemplateTrait[]
 
@@ -697,6 +702,25 @@ model ResultTemplateClass {
   classGroup ClassGroup     @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: Cascade)
 
   @@unique([branchId, classGroupId])
+  @@index([templateId])
+}
+
+/// Which template a class's report cards used for a term (task 0126): written by the first publish of that class's results for the period, so moving the class to another template later does not
+/// change how that term prints. Cleared when an unlock leaves nothing of the class published for the period. A template that is deleted takes its rows, and the term then follows the class again.
+model ResultTemplateUse {
+  id           String   @id @default(cuid())
+  branchId     String
+  periodId     String
+  classGroupId String
+  templateId   String
+  createdAt    DateTime @default(now())
+
+  branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  period     AcademicPeriod @relation(fields: [branchId, periodId], references: [branchId, id], onDelete: Cascade)
+  classGroup ClassGroup     @relation(fields: [branchId, classGroupId], references: [branchId, id], onDelete: Cascade)
+  template   ResultTemplate @relation(fields: [branchId, templateId], references: [branchId, id], onDelete: Cascade)
+
+  @@unique([branchId, periodId, classGroupId])
   @@index([templateId])
 }
 

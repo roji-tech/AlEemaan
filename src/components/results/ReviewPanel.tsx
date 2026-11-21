@@ -20,6 +20,8 @@ type Group = {
   subjectName: string;
   counts: Record<string, number>;
   ids: Record<string, string[]>;
+  /// Submitted results still waiting for the head of department's review (task 0126); 0 where the branch does not ask for it.
+  awaitingDepartment?: number;
 };
 type Term = { id: string; label: string; session: string; isCurrent: boolean };
 const ORDER = ["DRAFT", "SUBMITTED", "APPROVED", "PUBLISHED", "LOCKED"] as const;
@@ -185,6 +187,11 @@ export function ReviewPanel({
                       {LABEL[s]} · {g.counts[s]}
                     </li>
                   ))}
+                  {(g.awaitingDepartment ?? 0) > 0 && (
+                    <li className="rounded-full bg-amber-500/10 px-3 py-1 text-sm text-amber-700 dark:text-amber-400">
+                      {g.awaitingDepartment} waiting for the department review
+                    </li>
+                  )}
                 </ul>
                 <div className="mt-3 space-y-2">
                   {ORDER.filter((s) => g.counts[s] && actionsFor(s).length > 0).map((s) => (
@@ -196,7 +203,12 @@ export function ReviewPanel({
                         <Button
                           key={a.action}
                           variant={a.variant}
-                          disabled={pending}
+                          disabled={pending || (a.action === "approve" && (g.awaitingDepartment ?? 0) > 0)}
+                          title={
+                            a.action === "approve" && (g.awaitingDepartment ?? 0) > 0
+                              ? "Waiting for the head of department's review"
+                              : undefined
+                          }
                           aria-label={`${a.label.replace("…", "")} ${g.counts[s]} ${LABEL[s].toLowerCase()} results of ${g.armName} ${g.subjectName}`}
                           onClick={() => (a.action === "unlock" ? setUnlocking({ group: g, status: s }) : run(g, s, a.action))}
                         >

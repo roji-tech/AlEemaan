@@ -49,6 +49,7 @@ model Branch {
   gradeScales             GradeScale[]
   resultTemplates         ResultTemplate[]
   resultTemplateClasses   ResultTemplateClass[]
+  resultTemplateUses      ResultTemplateUse[]
   gradeBands              GradeBand[]
   settingValues           SettingValue[]
   settingApprovals        SettingApproval[]

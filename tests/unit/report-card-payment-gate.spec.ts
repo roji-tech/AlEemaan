@@ -80,8 +80,30 @@ test.describe("generateReportCardHtml", () => {
     expect(html).toContain("English Studies");
     expect(html).toContain("1st");
     expect(html).toContain("of 30");
-    expect(html).toContain("https://school.aleemaan.edu.ng/verify/token_abc_123_456_7890");
     expect(html).toContain("window.print()");
+  });
+
+  // Task 0121 / 0126: the downloaded card follows the same two options as the screen: the arm and the verify block are shown only on exactly true.
+  test("the arm and the verification links are left out unless the layout says true", () => {
+    const url = "https://school.aleemaan.edu.ng/verify/token_abc_123_456_7890";
+    const off = generateReportCardHtml(mockCard, "https://school.aleemaan.edu.ng");
+    expect(off).not.toContain(url);
+    expect(off).not.toContain("Public Verification Records");
+    expect(off).toContain("<dd>JSS 2</dd>");
+    for (const options of [{ verifyLinks: false, classArm: false }, { verifyLinks: "yes" as unknown as boolean }]) {
+      const html = generateReportCardHtml(
+        { ...mockCard, layout: { code: "STANDARD", options } as Card["layout"] },
+        "https://school.aleemaan.edu.ng",
+      );
+      expect(html).not.toContain(url);
+    }
+    const on = generateReportCardHtml(
+      { ...mockCard, layout: { code: "STANDARD", options: { verifyLinks: true, classArm: true } } as Card["layout"] },
+      "https://school.aleemaan.edu.ng",
+    );
+    expect(on).toContain(url);
+    expect(on).toContain("Public Verification Records");
+    expect(on).toContain("<dd>JSS 2 A</dd>");
   });
 
   test("escapes malicious scripts in student name or subject name", () => {
