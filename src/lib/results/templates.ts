@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ConflictError } from "@/lib/academics/structure";
+import { readSnapshot } from "@/lib/results/template-snapshot-rules";
 import { ensureDefaultReportCardLayouts, getBranchReportCardLayout } from "@/lib/settings/approvals";
 import { createScheme, schemeInput } from "@/lib/academics/assessment";
 import { ensureReportTemplates } from "@/lib/results/seed-branch";
@@ -77,16 +78,21 @@ export async function ensureDefaultTemplate(branchId: string, db: Tx = prisma) {
 
 // ---- resolving what a class uses ----
 
+/// The template a class's cards used for a term, with what it looked like then (task 0126, 0127): recorded when the class's results were first published. Null when nothing was recorded.
+export async function recordedUse(branchId: string, classGroupId: string | null, periodId?: string | null) {
+  if (!classGroupId || !periodId) return null;
+  const used = await prisma.resultTemplateUse.findUnique({
+    where: { branchId_periodId_classGroupId: { branchId, periodId, classGroupId } },
+    include: { template: true },
+  });
+  return used ? { template: used.template, snapshot: readSnapshot(used.snapshot) } : null;
+}
+
 /// The template a class uses: the one it is placed in, else the branch's default.
 export async function templateForClass(branchId: string, classGroupId: string | null, periodId?: string | null) {
   // A term whose results the class had published keeps the template it used then (task 0126), even when the class has been moved since.
-  if (classGroupId && periodId) {
-    const used = await prisma.resultTemplateUse.findUnique({
-      where: { branchId_periodId_classGroupId: { branchId, periodId, classGroupId } },
-      include: { template: true },
-    });
-    if (used) return used.template;
-  }
+  const used = await recordedUse(branchId, classGroupId, periodId);
+  if (used) return used.template;
   if (classGroupId) {
     const placed = await prisma.resultTemplate.findFirst({
       where: { branchId, archivedAt: null, classes: { some: { classGroupId } } },
@@ -161,7 +167,10 @@ export async function templateMarks(branchId: string, classGroupId: string, need
 
 /// The report card's look for a class: its template's layout, else the branch's standard layout. Same shape as `getBranchReportCardLayout`.
 export async function layoutForClass(branchId: string, classGroupId: string | null, periodId?: string | null) {
-  const template = await templateForClass(branchId, classGroupId, periodId);
+  // A published term prints with the look it had when it was published, whatever the template was edited to since (task 0127).
+  const used = await recordedUse(branchId, classGroupId, periodId);
+  if (used?.snapshot?.layout) return used.snapshot.layout;
+  const template = used?.template ?? (await templateForClass(branchId, classGroupId));
   if (!template.layoutCode) return getBranchReportCardLayout(branchId);
   await ensureDefaultReportCardLayouts();
   const layout = await prisma.reportCardLayout.findUnique({ where: { code: template.layoutCode } });

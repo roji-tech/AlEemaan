@@ -89,3 +89,29 @@ test("a superadmin adds staff with no branch from a file and exports them", asyn
   expect((await download).suggestedFilename()).toMatch(/^staff-not-placed-in-a-branch-.*\.csv$/);
   expect(await db.auditLog.count({ where: { action: "EXPORT_CREATED", targetId: "unplaced" } })).toBe(1);
 });
+
+test("the branch a person chose is remembered for the person, not the browser: another browser of the same account opens on it (task 0127)", async ({
+  page,
+  browser,
+  isMobile,
+}) => {
+  test.skip(isMobile, "the same behaviour as on a desktop; the phone only moves the picker");
+  await seedInstance();
+  const admin = await createUser({ role: Role.ADMIN, name: "Memory Boss" });
+  await signInThroughUi(page, admin);
+  await page.goto("/forms");
+  const choice = page.getByLabel("Branch", { exact: true });
+  const second = await choice.evaluate((el) => (el as HTMLSelectElement).options[1].text);
+  await choice.selectOption({ label: second });
+  await expect.poll(async () => (await db.user.findUniqueOrThrow({ where: { id: admin.id } })).lastBranchId).not.toBeNull();
+
+  // A different browser, the same account: it opens on that branch with nothing in the address.
+  const other = await browser.newContext();
+  const page2 = await other.newPage();
+  await signInThroughUi(page2, admin);
+  await page2.goto("/forms");
+  await expect
+    .poll(() => page2.getByLabel("Branch", { exact: true }).evaluate((el) => (el as HTMLSelectElement).selectedOptions[0].text))
+    .toBe(second);
+  await other.close();
+});

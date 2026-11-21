@@ -184,6 +184,8 @@ model Invitation {
   acceptedById  String?
   /// The staff record this invitation was sent from (task 0114, task 0101 D6): accepting it links the new account to that record. Null for an invitation typed by hand.
   staffRecordId String?
+  /// The department the person joins when they accept (task 0127, a column of the bulk invitation file); staff roles only. Null = none. Archived departments are never deleted, so no row is left dangling.
+  departmentId  String?
   createdAt     DateTime  @default(now())
   /// When the link was sent (task 0101 D2). Null = a draft: nothing was e-mailed and there is no link yet. A link made before drafts existed has it set to when it was created.
   sentAt        DateTime?
@@ -196,6 +198,7 @@ model Invitation {
   invitedBy   User?        @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: SetNull)
   acceptedBy  User?        @relation("InvitationsAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
   staffRecord StaffRecord? @relation(fields: [staffRecordId], references: [id], onDelete: SetNull)
+  department  Department?  @relation(fields: [branchId, departmentId], references: [branchId, id], onDelete: NoAction)
 
   @@index([email])
   @@index([staffRecordId])

@@ -6,8 +6,6 @@ export const BRANCH_PARAM = "branch";
 export const ALL_BRANCHES = "all";
 /// The reserved value for staff records that are not placed in a branch yet (task 0101 D3): offered only to a superadmin, only where a page lists staff, never remembered.
 export const UNPLACED = "unplaced";
-/// Where the browser remembers the last branch the person chose (one value for the whole app: the branches are the same on every page).
-export const BRANCH_MEMORY_KEY = "aleemaan:branch";
 
 type Choices = {
   /// The branch ids this page may show (what the page was given), in its own order.
@@ -22,7 +20,7 @@ type Choices = {
   address?: string | null;
   /// A link's branch handed to the page by the server (the same `?branch=`, or a deep link from search).
   initial?: string | null;
-  /// What this browser last used.
+  /// What this person last used (kept on their own record, task 0127).
   remembered?: string | null;
   /// The branch to use when nothing above is usable (the first, or the person's own).
   fallback: string;

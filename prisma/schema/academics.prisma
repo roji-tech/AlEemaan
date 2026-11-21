@@ -247,6 +247,7 @@ model Department {
   members       DepartmentMember[]
   subjects      Subject[]
   resultReviews ResultDepartmentReview[]
+  invitations   Invitation[]
 
   @@unique([branchId, id])
   @@index([branchId])
@@ -713,6 +714,8 @@ model ResultTemplateUse {
   periodId     String
   classGroupId String
   templateId   String
+  /// The template's look and trait groups as they were when this was recorded (task 0127), so editing the template later does not change this term. Null = follow the live template.
+  snapshot     Json?
   createdAt    DateTime @default(now())
 
   branch     Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)

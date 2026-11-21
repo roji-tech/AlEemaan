@@ -790,3 +790,7 @@
 ## TASK-0126: The follow-ups: card download options, subject order, template record, department review, unplaced staff in bulk (requested 2026-11-21)
 
 [Task file](0126-followups-batch.md). The downloaded card follows the arm and verify options; a class's subjects have a manual order on the report card; a class's template is recorded per term when its results are published; the Review tab shows what waits for the department review; staff with no branch can be added from a file and exported; a head of department can add ticked people to their department. One additive migration, `20261122120000_subject_order_template_use`, the maintainer's to run in production after the prod merge.
+
+## TASK-0127: Template versions, Complete for an unplaced draft, Department in the invitation file, the remembered branch per person (requested 2026-11-21)
+
+[Task file](0127-followups-2.md). A published term keeps the template's look and trait groups as they were; an unplaced draft can be completed; the bulk invitation file has a Department column (staff roles) that puts the person in it on accepting; the last branch a person chose is kept on their record and follows them to any browser. One additive migration, `20261122130000_template_snapshot_invitation_department`, the maintainer's to run in production after the prod merge.
