@@ -38,7 +38,7 @@ test("staff with no branch: a superadmin adds one under 'Not placed in a branch'
   await page.goto("/academics?tab=staff&branch=unplaced");
   await expect(page.getByTestId("current-branch")).toHaveText("Not placed in a branch");
   await expect(page.getByText(/People added without a branch/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add many" })).toHaveCount(0); // a file needs a branch
+  await expect(page.getByRole("button", { name: "Add many" })).toBeVisible(); // a superadmin's file with no branch (task 0126)
 
   await page.getByRole("button", { name: "New staff record" }).click();
   const form = dialog(page);

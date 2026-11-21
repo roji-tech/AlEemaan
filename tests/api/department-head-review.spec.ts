@@ -121,6 +121,27 @@ test.describe("approving while the switch is on", () => {
     expect((await go(admin.cookie, "approve", ids)).status).toBe(200);
   });
 
+  test("the Review tab's queue says which submitted results still wait for the department review, and only while the switch is on (task 0126)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const w = await resultsWorld(home.id);
+    const sciences = await department();
+    await inDepartment(w, sciences.id);
+    const ids = await enterAndSubmit(w, await teacher(w));
+    const queue = async () =>
+      (await api(`/api/v1/academics/results/queue?branchId=${home.id}&periodId=${w.period.id}`, { cookie: admin.cookie })).json.data
+        .queue as { awaitingDepartment: number; counts: Record<string, number> }[];
+    // Off: nothing waits for a review, whatever the department.
+    expect((await queue())[0]).toMatchObject({ awaitingDepartment: 0, counts: { SUBMITTED: 1 } });
+    await turnOn(admin.cookie);
+    expect((await queue())[0].awaitingDepartment).toBe(1);
+    // Once the head has passed it, it no longer waits; a subject in no department never did.
+    const h = await head(sciences.id);
+    expect((await review(h.cookie, "pass", ids)).status).toBe(200);
+    expect((await queue())[0].awaitingDepartment).toBe(0);
+    await inDepartment(w, null);
+    expect((await queue())[0].awaitingDepartment).toBe(0);
+  });
+
   test("the head passes; then an administrator approves and publishes as usual; the head can approve or publish nothing", async () => {
     const admin = await asRole(Role.ADMIN);
     await turnOn(admin.cookie);

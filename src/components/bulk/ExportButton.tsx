@@ -22,6 +22,7 @@ export function ExportButton({
   branchName,
   shownCount,
   shown,
+  unplaced = false,
 }: {
   kind: ExportKind;
   branchId: string;
@@ -30,6 +31,8 @@ export function ExportButton({
   shownCount: number | null;
   /// What "the ones shown" means for this list: the pupils' search and filters, or the ids of the records on screen.
   shown: () => Shown;
+  /// The staff with no branch yet (task 0126, a superadmin's): another route, no branch in the request.
+  unplaced?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<"shown" | "all">("shown");
@@ -45,8 +48,10 @@ export function ExportButton({
     setBusy(true);
     setError(null);
     setDone(null);
-    const body: ExportRequest = { kind, branchId, scope, ...(scope === "all" ? { includeArchived: archived } : shown()) };
-    const reply = await sendJson("/api/v1/exports", "POST", body);
+    const rest = scope === "all" ? { includeArchived: archived } : shown();
+    const reply = unplaced
+      ? await sendJson("/api/v1/staff/unplaced/export", "POST", { scope, ...rest })
+      : await sendJson("/api/v1/exports", "POST", { kind, branchId, scope, ...rest } satisfies ExportRequest);
     if (!reply.ok) {
       setBusy(false);
       return setError(reply.message ?? "The export could not be made.");
@@ -81,7 +86,7 @@ export function ExportButton({
         open={open}
         onClose={() => setOpen(false)}
         title={`Export ${noun}`}
-        description={`From ${branchName}, with the same columns as the import template.`}
+        description={`From ${unplaced ? "the staff not placed in a branch" : branchName}, with the same columns as the import template.`}
       >
         <div className="mt-4 space-y-5">
           <fieldset className="space-y-2">
