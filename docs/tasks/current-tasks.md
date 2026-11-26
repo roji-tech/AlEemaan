@@ -794,3 +794,7 @@
 ## TASK-0127: Template versions, Complete for an unplaced draft, Department in the invitation file, the remembered branch per person (requested 2026-11-21)
 
 [Task file](0127-followups-2.md). A published term keeps the template's look and trait groups as they were; an unplaced draft can be completed; the bulk invitation file has a Department column (staff roles) that puts the person in it on accepting; the last branch a person chose is kept on their record and follows them to any browser. One additive migration, `20261122130000_template_snapshot_invitation_department`, the maintainer's to run in production after the prod merge.
+
+## TASK-0128: Restore archived schemes and scales, edit the school-wide default, make the school-wide scheme usable (requested 2026-11-26)
+
+[Task file](0128-scheme-restore-and-school-wide.md). Archived schemes and grade scales can be shown and restored; the school-wide default scheme can be edited; a branch with no scheme of its own copies the school-wide one with one click (marks entry never read it, which is why the maintainer still got "Set up an assessment scheme"); a scheme connected to nothing can be deleted for good. No migration.

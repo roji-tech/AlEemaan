@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { resultsWorld } from "../support/results-world";
-import { signInThroughUi } from "./helpers";
+import { openTab, signInThroughUi } from "./helpers";
 
 // The scheme levels in a real browser (Slice UI1): a superadmin writes the school-wide default, an administrator gives one class its own scheme, and a teacher
 // writes a scheme for their subject with a reason, uses it while it waits, and an administrator approves it under Approvals. Axe (WCAG 2.2 A/AA) in both themes.
@@ -39,7 +39,7 @@ for (const theme of ["dark", "light"] as const) {
     await db.membership.create({ data: { userId: sup.id, branchId: branch.id, role: Role.ADMIN } });
     await signInThroughUi(page, sup);
     await page.goto("/academics");
-    await page.getByRole("tab", { name: "Assessment and grading" }).click();
+    await openTab(page, "Assessment and grading"); // a tap before the page's scripts run is lost on the phone; openTab taps again until the tab holds
     await expect(page.getByRole("heading", { level: 2, name: "Scheme levels" })).toBeVisible();
     await page.getByLabel("Branch").last().selectOption({ label: "Secondary (English)" });
     await expectAccessible(page, `scheme levels (${theme})`);
@@ -55,7 +55,7 @@ for (const theme of ["dark", "light"] as const) {
     await dialog(page).getByLabel("Exam marks").fill("70");
     await expectAccessible(page, `school-wide scheme dialog (${theme})`);
     await dialog(page)
-      .getByLabel(/Make it the default/)
+      .getByLabel(/This is the school-wide default scheme/)
       .check();
     await dialog(page).getByRole("button", { name: "Save scheme" }).click();
     await expect(page.getByText("Saved.")).toBeVisible();
