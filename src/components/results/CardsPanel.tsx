@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { CheckboxField } from "@/components/ui/CheckboxField";
+import { SwitchField } from "@/components/ui/SwitchField";
 import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
@@ -156,7 +156,7 @@ export function CardsPanel({
           />
         </div>
         {branch.canEdit && (
-          <CheckboxField
+          <SwitchField
             label="Preview with results that are not published yet"
             checked={preview}
             onChange={(e) => setPreview(e.target.checked)}

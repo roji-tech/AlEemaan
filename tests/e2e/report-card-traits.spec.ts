@@ -72,7 +72,7 @@ async function openCard(page: Page, w: Awaited<ReturnType<typeof resultsWorld>>,
     await tab.click();
     await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
   }).toPass({ timeout: 10_000 });
-  if (preview) await page.getByRole("checkbox", { name: "Preview with results that are not published yet" }).check();
+  if (preview) await page.getByRole("switch", { name: "Preview with results that are not published yet" }).check();
   await page.getByLabel("Class").selectOption({ label: `${w.group.name} A` });
   await page.getByLabel("Student").selectOption({ label: `${w.student.firstName} ${w.student.lastName}` });
   const card = page.getByRole("article", { name: `Report card for ${w.student.firstName} ${w.student.lastName}` });
