@@ -1,3 +1,4 @@
+import { armLabel } from "@/lib/academics/class-label";
 import { z } from "zod";
 import { Role, StaffCategory } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -81,7 +82,7 @@ async function pupilRows(body: ExportRequest): Promise<{ values: Record<string, 
       return exportValues.pupils({
         ...r,
         className: e ? (e.classArm?.classGroup.name ?? e.className) : null,
-        arm: e ? (e.classArm?.name ?? e.arm) : null,
+        arm: e ? armLabel(e.classArm?.name ?? e.arm) || null : null,
         scholarship: live.map((s) => s.typeName).join(", ") || null,
         scholarshipPercent:
           live.length > 0
@@ -149,7 +150,7 @@ async function classRows(body: ExportRequest) {
     exportValues.classes({
       name: r.name,
       gradeLabel: r.gradeLabel,
-      arms: r.arms.map((a) => a.name),
+      arms: r.arms.map((a) => armLabel(a.name)).filter(Boolean), // not the hidden default arm of a class without arms (task 0133)
       subjects: r.offerings.map((o) => o.subject.name),
     }),
   );

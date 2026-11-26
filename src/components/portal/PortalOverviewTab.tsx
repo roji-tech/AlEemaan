@@ -1,5 +1,6 @@
 "use client";
 
+import { classLabel } from "@/lib/academics/class-label";
 import React from "react";
 import type { PortalStudentRecord } from "./PortalLoginCard";
 
@@ -61,10 +62,8 @@ export function PortalOverviewTab({ overview, onNavigateTab, tabs }: PortalOverv
             <p className="text-sm text-fg-muted mt-1">
               {enrollment ? (
                 <>
-                  <span className="font-medium text-fg">
-                    {enrollment.className} {enrollment.arm || ""}
-                  </span>{" "}
-                  · {enrollment.session.label} Session
+                  <span className="font-medium text-fg">{classLabel(enrollment.className, enrollment.arm)}</span> ·{" "}
+                  {enrollment.session.label} Session
                 </>
               ) : (
                 "Enrollment record pending"
@@ -75,22 +74,22 @@ export function PortalOverviewTab({ overview, onNavigateTab, tabs }: PortalOverv
 
         <div className="flex items-center gap-2.5 w-full md:w-auto">
           {tabs.includes("results") && (
-          <button
-            type="button"
-            onClick={() => onNavigateTab("results")}
-            className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-brand-strong hover:bg-brand-strong-hover text-white text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
-          >
-            View Report Card
-          </button>
+            <button
+              type="button"
+              onClick={() => onNavigateTab("results")}
+              className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-brand-strong hover:bg-brand-strong-hover text-white text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              View Report Card
+            </button>
           )}
           {tabs.includes("finance") && (
-          <button
-            type="button"
-            onClick={() => onNavigateTab("finance")}
-            className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-surface-2 hover:bg-line border border-line text-fg text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
-          >
-            Fees & Billing
-          </button>
+            <button
+              type="button"
+              onClick={() => onNavigateTab("finance")}
+              className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-surface-2 hover:bg-line border border-line text-fg text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              Fees & Billing
+            </button>
           )}
         </div>
       </div>
@@ -124,28 +123,27 @@ export function PortalOverviewTab({ overview, onNavigateTab, tabs }: PortalOverv
 
         {/* Finance KPI: only when the server sent it */}
         {finance && (
-        <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between text-fg-muted text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>School Fee Balance</span>
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                finance.outstandingBalance === 0 ? "bg-ok-bg text-ok-fg" : "bg-danger-bg text-danger-text"
-              }`}
-            >
-              {finance.outstandingBalance === 0 ? "Clear" : "Balance Due"}
-            </span>
+          <div className="bg-surface border border-line rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between text-fg-muted text-xs font-semibold uppercase tracking-wider mb-2">
+              <span>School Fee Balance</span>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                  finance.outstandingBalance === 0 ? "bg-ok-bg text-ok-fg" : "bg-danger-bg text-danger-text"
+                }`}
+              >
+                {finance.outstandingBalance === 0 ? "Clear" : "Balance Due"}
+              </span>
+            </div>
+            <div className="text-2xl font-black text-fg mt-1">₦{finance.outstandingBalance.toLocaleString()}</div>
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-line text-xs text-fg-muted">
+              <span>
+                Paid: <strong className="text-fg">₦{finance.totalPaid.toLocaleString()}</strong>
+              </span>
+              <span>
+                Total: <strong className="text-fg">₦{finance.totalInvoiced.toLocaleString()}</strong>
+              </span>
+            </div>
           </div>
-          <div className="text-2xl font-black text-fg mt-1">₦{finance.outstandingBalance.toLocaleString()}</div>
-          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-line text-xs text-fg-muted">
-            <span>
-              Paid: <strong className="text-fg">₦{finance.totalPaid.toLocaleString()}</strong>
-            </span>
-            <span>
-              Total: <strong className="text-fg">₦{finance.totalInvoiced.toLocaleString()}</strong>
-            </span>
-          </div>
-        </div>
-
         )}
 
         {/* Academic Session KPI */}
@@ -154,22 +152,20 @@ export function PortalOverviewTab({ overview, onNavigateTab, tabs }: PortalOverv
             <span>Academic Standing</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-info-bg text-info-fg">Active Term</span>
           </div>
-          <div className="text-lg font-bold text-fg mt-1">
-            {enrollment?.className || "Class"} {enrollment?.arm || ""}
-          </div>
+          <div className="text-lg font-bold text-fg mt-1">{classLabel(enrollment?.className || "Class", enrollment?.arm)}</div>
           <p className="text-xs text-fg-muted mt-1">Branch: {student.branch.name}</p>
           <div className="mt-3 pt-3 border-t border-line text-xs text-fg-muted flex items-center justify-between">
             <span>
               Guardian: <strong className="text-fg">{student.guardianName || "N/A"}</strong>
             </span>
             {tabs.includes("lms") && (
-            <button
-              type="button"
-              onClick={() => onNavigateTab("lms")}
-              className="text-xs font-semibold text-brand-fg hover:underline cursor-pointer"
-            >
-              LMS Homework →
-            </button>
+              <button
+                type="button"
+                onClick={() => onNavigateTab("lms")}
+                className="text-xs font-semibold text-brand-fg hover:underline cursor-pointer"
+              >
+                LMS Homework →
+              </button>
             )}
           </div>
         </div>

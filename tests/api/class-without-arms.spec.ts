@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { api, cookieHeader, loginAs } from "../support/http";
 
-// Task 0132 over real HTTP: a class can be used without arms. It gets ONE flagged default arm ("Main") that holds its pupils, marks and attendance; the list says which arm it is so the Classes tab
+// Task 0132 over real HTTP: a class can be used without arms. It gets ONE flagged default arm (named "_", task 0133) that holds its pupils, marks and attendance; the list says which arm it is so the Classes tab
 // can leave it out; repeating is safe; a class that already has arms, an archived class and an unknown class are refused; and only an administrator of the class's branch may do it.
 
 let home: { id: string };
@@ -31,12 +31,12 @@ test.describe("using a class without arms", () => {
     const g = await group("Beginner");
     const res = await post(admin.cookie, g.id);
     expect(res.status, res.text).toBe(200);
-    expect(res.json.data.arm).toMatchObject({ name: "Main", isDefault: true, classGroupId: g.id, branchId: home.id });
+    expect(res.json.data.arm).toMatchObject({ name: "_", isDefault: true, classGroupId: g.id, branchId: home.id });
 
     const list = await api(`/api/v1/academics/class-groups?branchId=${home.id}`, { cookie: admin.cookie });
     const row = list.json.data.classGroups.find((c: { id: string }) => c.id === g.id);
     expect(row.arms).toHaveLength(1);
-    expect(row.arms[0]).toMatchObject({ name: "Main", isDefault: true });
+    expect(row.arms[0]).toMatchObject({ name: "_", isDefault: true });
 
     const again = await post(admin.cookie, g.id);
     expect(again.status).toBe(200);
@@ -65,6 +65,61 @@ test.describe("using a class without arms", () => {
 
     const both = await post(admin.cookie, g.id); // default plus a real arm: no longer "without arms"
     expect(both.status).toBe(409);
+  });
+
+  test("the name _ is kept for the default arm: an ordinary arm cannot take it, and the default arm cannot be renamed (task 0133)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const g = await group("Primary");
+    const taken = await api("/api/v1/academics/arms", { method: "POST", cookie: admin.cookie, body: { classGroupId: g.id, name: "_" } });
+    expect(taken.status).toBeGreaterThanOrEqual(400);
+    expect(taken.status).toBeLessThan(500);
+    expect(await db.classArm.count({ where: { classGroupId: g.id } })).toBe(0);
+    const made = await post(admin.cookie, g.id);
+    const armId = made.json.data.arm.id as string;
+    const renamed = await api(`/api/v1/academics/arms/${armId}`, { method: "PATCH", cookie: admin.cookie, body: { name: "Gold" } });
+    expect(renamed.status).toBe(409);
+    expect((await db.classArm.findUniqueOrThrow({ where: { id: armId } })).name).toBe("_");
+    const real = await api("/api/v1/academics/arms", { method: "POST", cookie: admin.cookie, body: { classGroupId: g.id, name: "Main" } });
+    expect(real.status, "an ordinary arm may now be called Main").toBe(201);
+    const rename = await api(`/api/v1/academics/arms/${real.json.data.arm.id}`, {
+      method: "PATCH",
+      cookie: admin.cookie,
+      body: { name: "_" },
+    });
+    expect(rename.status).toBeGreaterThanOrEqual(400);
+    expect(rename.status).toBeLessThan(500);
+  });
+
+  test("a pupil placed in the class with no arm named goes into its default arm, and reads as just the class (task 0133)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const g = await group("Nursery");
+    const made = await post(admin.cookie, g.id);
+    const session = await db.academicSession.create({
+      data: { branchId: home.id, label: "2031/2032", startDate: new Date("2031-09-01"), endDate: new Date("2032-07-01"), status: "ACTIVE" },
+    });
+    const res = await api("/api/v1/students", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: {
+        branchId: home.id,
+        firstName: "Noarm",
+        lastName: "Pupil",
+        gender: "FEMALE",
+        dateOfBirth: "2020-03-03",
+        className: "Nursery",
+        allowDuplicate: true,
+      },
+    });
+    expect(res.status, res.text).toBe(201);
+    const enrolment = await db.studentEnrollment.findFirstOrThrow({ where: { student: { lastName: "Pupil" }, sessionId: session.id } });
+    expect(enrolment.classArmId).toBe(made.json.data.arm.id);
+    expect(enrolment.arm).toBeNull();
+    const list = await api(`/api/v1/students?branchId=${home.id}&q=Noarm`, { cookie: admin.cookie });
+    expect(list.status, list.text).toBe(200);
+    const row = (list.json.data.items ?? list.json.data.students ?? list.json.data).find(
+      (s: { firstName: string }) => s.firstName === "Noarm",
+    );
+    expect(row.currentClass).toBe("Nursery");
   });
 
   test("an archived class and an unknown class are refused", async () => {

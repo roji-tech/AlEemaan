@@ -1,5 +1,6 @@
 "use client";
 
+import { armLabel } from "@/lib/academics/class-label";
 import { useId } from "react";
 import { PromotionDecision } from "@prisma/client";
 import type { PromotionPreviewResponse, StudentPreviewRow } from "@/lib/promotion/service";
@@ -177,7 +178,7 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
                       </div>
                       <div className="text-xs text-fg-muted">{student.admissionNo}</div>
                     </td>
-                    <td className="px-4 py-3 text-fg-muted">{student.currentArmName || "—"}</td>
+                    <td className="px-4 py-3 text-fg-muted">{armLabel(student.currentArmName) || "—"}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex flex-wrap justify-center gap-1.5">
                         {preview.academicPeriods.map((period) => {
@@ -261,7 +262,7 @@ export function PromotionPreviewTable({ preview, overrides, onOverrideChange, on
                           >
                             {preview.targetArms.map((arm) => (
                               <option key={arm.id} value={arm.id}>
-                                {arm.name}
+                                {armLabel(arm) || "Whole class"}
                               </option>
                             ))}
                           </select>

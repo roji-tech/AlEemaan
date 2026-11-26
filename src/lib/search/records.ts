@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { adminScope, branchIdsFor } from "@/lib/auth/branch-access";
@@ -121,7 +122,7 @@ export async function searchRecords(userId: string, q: string): Promise<RecordHi
   return [
     ...pupils.map((p) => {
       const e = p.enrollments[0];
-      const cls = e ? `${e.className}${e.arm ? ` ${e.arm}` : ""}` : "No class yet";
+      const cls = e ? classLabel(e.className, e.arm) : "No class yet";
       return {
         kind: "pupil" as const,
         id: p.id,

@@ -1,4 +1,5 @@
 import { EnrollmentStatus, SessionStatus } from "@prisma/client";
+import { armLabel, isHiddenArm } from "@/lib/academics/class-label";
 import { generateAdmissionNo, lockStudents } from "@/lib/students/service";
 import { adminScope } from "@/lib/auth/branch-access";
 import { applyMainGuardianFields } from "@/lib/guardians/service";
@@ -24,7 +25,7 @@ async function loadStructure(db: Tx, branchId: string) {
     db.classGroup.findMany({ where: { branchId, archivedAt: null }, select: { name: true } }),
     db.classArm.findMany({
       where: { branchId, archivedAt: null, classGroup: { archivedAt: null } },
-      select: { id: true, name: true, classGroup: { select: { name: true } } },
+      select: { id: true, name: true, isDefault: true, classGroup: { select: { name: true } } },
     }),
     db.academicSession.findFirst({ where: { branchId, status: SessionStatus.ACTIVE, archivedAt: null }, select: { id: true } }),
   ]);
@@ -46,12 +47,13 @@ function place(s: Structure, className: string, arm: string | undefined): Placem
   if (!group) return { ok: false, problem: { column: "className", message: `There is no class called "${className}" in this branch.` } };
   const arms = s.arms.filter((a) => same(a.classGroup.name, group));
   if (arm) {
-    const hit = arms.find((a) => same(a.name, arm));
+    const hit = arms.find((a) => !isHiddenArm(a) && same(a.name, arm));
     return hit
       ? { ok: true, arm: { id: hit.id, name: hit.name, viaMain: false } }
       : { ok: false, problem: { column: "arm", message: `${group} has no arm called "${arm}".` } };
   }
-  const main = arms.find((a) => same(a.name, "Main"));
+  // No arm written: the class's hidden default arm (task 0133), else the legacy arm called "Main".
+  const main = arms.find((a) => a.isDefault) ?? arms.find((a) => same(a.name, "Main"));
   if (main) return { ok: true, arm: { id: main.id, name: main.name, viaMain: true } };
   if (arms.length === 1) return { ok: true, arm: { id: arms[0].id, name: arms[0].name, viaMain: false } };
   if (arms.length === 0)
@@ -62,7 +64,16 @@ function place(s: Structure, className: string, arm: string | undefined): Placem
         message: `${group} has no arms yet, so a pupil can't be placed in it. Add an arm on the Academics page.`,
       },
     };
-  return { ok: false, problem: { column: "arm", message: `Say which arm of ${group}: ${arms.map((a) => a.name).join(", ")}.` } };
+  return {
+    ok: false,
+    problem: {
+      column: "arm",
+      message: `Say which arm of ${group}: ${arms
+        .map((a) => armLabel(a))
+        .filter(Boolean)
+        .join(", ")}.`,
+    },
+  };
 }
 
 /// Two pupils with the same name are the same pupil unless both have a date of birth and the dates differ: a missing date of birth cannot tell two people apart (a file loaded twice must
@@ -224,7 +235,7 @@ export const pupilKind: ServerKind<PupilRow, PupilBulkCtx> = {
             branchId: ctx.branchId,
             sessionId: structure.sessionId!,
             className: group,
-            arm: placed.arm.viaMain ? null : placed.arm.name,
+            arm: placed.arm.viaMain || isHiddenArm(placed.arm.name) ? null : placed.arm.name,
             classArmId: placed.arm.id,
             status: EnrollmentStatus.ACTIVE,
           },

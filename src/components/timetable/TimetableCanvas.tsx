@@ -1,5 +1,6 @@
 "use client";
 
+import { armLabel } from "@/lib/academics/class-label";
 import { useState } from "react";
 import { getDayName, getShortDayName, findSlotClashes, type TimetableSlotInput } from "@/lib/timetable/rules";
 import { SlotEditModal, type SlotDto } from "./SlotEditModal";
@@ -16,6 +17,9 @@ export interface TimetableCanvasProps {
 }
 
 export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers, readOnly = false, onRefresh }: TimetableCanvasProps) {
+  // The arm of a slot as the picker writes it (the class and its arm; just the class for a class without arms), not its stored name.
+  const armOf = (arm?: { id: string; name: string } | null) =>
+    arm ? (classArms.find((a) => a.id === arm.id)?.name ?? armLabel(arm)) : undefined;
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedArmId, setSelectedArmId] = useState<string>("ALL");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ALL");
@@ -228,7 +232,7 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
                           </div>
 
                           <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] text-fg-muted">
-                            <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">{slot.classArm?.name ?? "Arm"}</span>
+                            <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">{armOf(slot.classArm) ?? "Arm"}</span>
                             {slot.staffRecord && (
                               <span className="rounded-md bg-surface px-1.5 py-0.5 border border-line">
                                 👤 {slot.staffRecord.firstName} {slot.staffRecord.lastName}
@@ -280,7 +284,7 @@ export function TimetableCanvas({ branchId, slots, classArms, subjects, teachers
                         {slot.startTime} – {slot.endTime}
                       </td>
                       <td className="px-4 py-3">{slot.periodNumber ? `P${slot.periodNumber}` : "—"}</td>
-                      <td className="px-4 py-3">{slot.classArm?.name ?? "—"}</td>
+                      <td className="px-4 py-3">{armOf(slot.classArm) ?? "—"}</td>
                       <td className="px-4 py-3 font-semibold">{slot.subject?.name ?? "—"}</td>
                       <td className="px-4 py-3">{slot.staffRecord ? `${slot.staffRecord.firstName} ${slot.staffRecord.lastName}` : "—"}</td>
                       <td className="px-4 py-3">{slot.room ?? "—"}</td>

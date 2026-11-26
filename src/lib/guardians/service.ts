@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { GuardianRelationship, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { AdminScope } from "@/lib/auth/branch-access";
@@ -292,7 +293,7 @@ type ChildRow = Prisma.StudentGuardianGetPayload<{ select: typeof childSelect }>
 
 const classOf = (row: ChildRow) => {
   const e = row.student.enrollments[0];
-  return e ? `${e.className}${e.arm ? ` ${e.arm}` : ""}` : null;
+  return e ? classLabel(e.className, e.arm) : null;
 };
 
 export type GuardianCard = {
