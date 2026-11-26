@@ -355,6 +355,51 @@ export async function restoreScheme(actorUserId: string, id: string) {
   }
 }
 
+/// Makes a live scheme the branch's default (task 0131): the one marks entry uses for a class that has no scheme of its own and whose result template names none. A branch has exactly one live
+/// default (the database index holds it), so the choice is a swap under the scheme lock: the scheme that was the default stops being it (it becomes one that only a result template can name, which is
+/// what `hosted` means) and this one becomes it, in one transaction. Nothing is deleted or archived and no result changes: results keep the scheme they were entered with. Refused (409, in words) for
+/// an archived scheme, a scheme made for one class, a school-wide scheme (it is changed under Scheme levels and copied into a branch), and one that was replaced by a newer version. Safe to repeat.
+export async function makeSchemeDefault(actorUserId: string, id: string) {
+  const owner = await prisma.assessmentScheme.findUnique({ where: { id }, select: { branchId: true } });
+  if (!owner) return null;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await lockKey(tx, "assessment-scheme", owner.branchId);
+      const target = await tx.assessmentScheme.findUnique({ where: { id }, include: SCHEME_INCLUDE });
+      if (!target) return null;
+      if (target.archivedAt) throw new ConflictError("That scheme is archived. Restore it first.");
+      if (target.classGroupId) throw new ConflictError("That scheme was made for one class, so it cannot be the branch default.");
+      if (await tx.assessmentSchemeScope.count({ where: { schemeId: id } }))
+        throw new ConflictError(
+          'That is a school-wide or a teacher\'s own scheme. To use the school-wide scheme in this branch, use "Use the school-wide scheme".',
+        );
+      if (await tx.assessmentScheme.count({ where: { supersedesId: id } }))
+        throw new ConflictError("A newer version replaced that scheme. Use the newer one.");
+      if (!target.hosted) return toScheme(target); // already the default: nothing to do
+      const previous = await tx.assessmentScheme.findFirst({
+        where: { branchId: owner.branchId, classGroupId: null, archivedAt: null, hosted: false },
+        select: { id: true, name: true },
+      });
+      if (previous) await tx.assessmentScheme.update({ where: { id: previous.id }, data: { hosted: true } });
+      await tx.assessmentScheme.update({ where: { id }, data: { hosted: false } });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "ASSESSMENT_SCHEME_MADE_DEFAULT",
+          targetType: "AssessmentScheme",
+          targetId: id,
+          beforeValue: { defaultSchemeId: previous?.id ?? null, defaultSchemeName: previous?.name ?? null },
+          afterValue: { defaultSchemeId: id, defaultSchemeName: target.name },
+        },
+      });
+      return toScheme(await tx.assessmentScheme.findUniqueOrThrow({ where: { id }, include: SCHEME_INCLUDE }));
+    });
+  } catch (error) {
+    if (isUnique(error)) throw new ConflictError("This branch already has a default scheme. Reload and try again.");
+    throw error;
+  }
+}
+
 /// Deletes a scheme for good, but only one that is connected to nothing (task 0128): no mark was ever entered against it (it was never locked and no result names it), no report-card template uses
 /// it, it is not a school-wide or a teacher's own scheme (those have a level row), no teacher draft was approved into it, and it is not part of a version history (an earlier or later version
 /// exists). Anything else is archived, never deleted: a printed card must always be able to say which scheme made its marks. Its own parts go with it. Checked under the same lock as every scheme

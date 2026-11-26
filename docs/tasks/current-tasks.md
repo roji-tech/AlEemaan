@@ -806,3 +806,7 @@
 ## TASK-0130: The Branches page shows admins and members per branch (requested 2026-11-26)
 
 [Task file](0130-branch-admin-counts.md). Each branch reads "N admins · M members". No migration.
+
+## TASK-0131: Make default for assessment schemes (requested 2026-11-26)
+
+[Task file](0131-make-scheme-default.md). A scheme that is not the branch default can be made the default; the old default is kept. No migration.

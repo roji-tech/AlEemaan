@@ -63,6 +63,7 @@ test("a restore that cannot happen says why on screen and changes nothing", asyn
   await db.assessmentScheme.create({ data: { branchId: branch.id, name: "New default", totalMax: 100, examMax: 60 } });
   await signInThroughUi(page, sup);
   await page.goto(`/academics?tab=grading&branch=${branch.id}`);
+  await expect(page.getByRole("button", { name: "New scheme" })).toBeVisible(); // the page's scripts are running: a switch flipped earlier can be lost
   await page.getByLabel("Show archived schemes and grade scales").check();
   await page.getByRole("button", { name: "Restore Old default" }).click();
   await expect(page.getByText(/already has a default scheme/)).toBeVisible();
@@ -178,4 +179,31 @@ test("a scheme connected to nothing is deleted after a confirmation; one in use 
   expect(await db.assessmentComponent.count({ where: { schemeId: unused.id } })).toBe(0);
   expect(await db.assessmentScheme.count({ where: { id: used.id } })).toBe(1);
   expect(await db.auditLog.count({ where: { action: "ASSESSMENT_SCHEME_DELETED", targetId: unused.id } })).toBe(1);
+});
+
+test("Make default swaps the branch default after a confirmation that names both schemes", async ({ page }) => {
+  const { branch, sup } = await setUp();
+  const current = await db.assessmentScheme.create({ data: { branchId: branch.id, name: "Current default", totalMax: 100, examMax: 60 } });
+  const other = await db.assessmentScheme.create({
+    data: { branchId: branch.id, name: "Template scheme", totalMax: 100, examMax: 60, hosted: true },
+  });
+  await signInThroughUi(page, sup);
+  await page.goto(`/academics?tab=grading&branch=${branch.id}`);
+  await expect(page.getByRole("heading", { level: 2, name: "Assessment schemes" })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "Current default" }).first()).toContainText("Default");
+  await expect(page.getByRole("button", { name: "Make Current default the branch default" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Make Template scheme the branch default" }).click();
+  await expect(dialog(page).getByRole("heading", { name: "Make Template scheme the branch default?" })).toBeVisible();
+  await expect(dialog(page)).toContainText("Current default stops being the default");
+  await expectAccessible(page, "the make-default confirmation");
+  await dialog(page).getByRole("button", { name: "Cancel" }).click();
+  expect((await db.assessmentScheme.findUniqueOrThrow({ where: { id: other.id } })).hosted).toBe(true);
+
+  await page.getByRole("button", { name: "Make Template scheme the branch default" }).click();
+  await dialog(page).getByRole("button", { name: "Make default" }).click();
+  await expect(page.getByText("Template scheme is now the branch default.")).toBeVisible();
+  expect((await db.assessmentScheme.findUniqueOrThrow({ where: { id: other.id } })).hosted).toBe(false);
+  expect((await db.assessmentScheme.findUniqueOrThrow({ where: { id: current.id } })).hosted).toBe(true);
+  await expect(page.getByRole("button", { name: "Make Current default the branch default" })).toBeVisible(); // the swap shows
 });
