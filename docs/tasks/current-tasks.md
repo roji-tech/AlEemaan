@@ -802,3 +802,7 @@
 ## TASK-0129: Each section of Assessment and grading folds (requested 2026-11-26)
 
 [Task file](0129-collapsible-grading-sections.md). Assessment schemes, Grade scales and Scheme levels each fold away and open again on their heading, by mouse or keyboard, independently, remembered in the browser. UI only, no migration.
+
+## TASK-0130: The Branches page shows admins and members per branch (requested 2026-11-26)
+
+[Task file](0130-branch-admin-counts.md). Each branch reads "N admins · M members". No migration.
