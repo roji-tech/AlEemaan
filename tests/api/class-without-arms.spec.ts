@@ -4,7 +4,7 @@ import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db
 import { api, cookieHeader, loginAs } from "../support/http";
 
 // Task 0132 over real HTTP: a class can be used without arms. It gets ONE flagged default arm (named "_", task 0133) that holds its pupils, marks and attendance; the list says which arm it is so the Classes tab
-// can leave it out; repeating is safe; a class that already has arms, an archived class and an unknown class are refused; and only an administrator of the class's branch may do it.
+// can leave it out; repeating is safe; a class with one arm is converted and one with two or more is refused, an archived class and an unknown class are refused; and only an administrator of the class's branch may do it.
 
 let home: { id: string };
 let other: { id: string };
@@ -47,7 +47,7 @@ test.describe("using a class without arms", () => {
     expect(log[0].actorUserId).toBe(admin.user.id);
   });
 
-  test("a real arm can be added later; the default arm stays; a class that already has arms is refused", async () => {
+  test("a real arm can be added later; the default arm stays; a class that has two or more arms is refused", async () => {
     const admin = await asRole(Role.ADMIN);
     const g = await group("Intermediate");
     await post(admin.cookie, g.id);
@@ -56,12 +56,18 @@ test.describe("using a class without arms", () => {
     expect(await db.classArm.count({ where: { classGroupId: g.id, archivedAt: null } })).toBe(2);
     expect(added.json.data.arm.isDefault).toBe(false);
 
+    // a class with two or more arms is refused (a class with exactly one is converted instead, task 0135)
     const armed = await group("Advanced");
-    await db.classArm.create({ data: { branchId: home.id, classGroupId: armed.id, name: "C" } });
+    await db.classArm.createMany({
+      data: [
+        { branchId: home.id, classGroupId: armed.id, name: "C" },
+        { branchId: home.id, classGroupId: armed.id, name: "D" },
+      ],
+    });
     const refused = await post(admin.cookie, armed.id);
     expect(refused.status).toBe(409);
-    expect(refused.json.error.message).toMatch(/already has arms/);
-    expect(await db.classArm.count({ where: { classGroupId: armed.id } })).toBe(1);
+    expect(refused.json.error.message).toMatch(/has 2 arms/);
+    expect(await db.classArm.count({ where: { classGroupId: armed.id } })).toBe(2);
 
     const both = await post(admin.cookie, g.id); // default plus a real arm: no longer "without arms"
     expect(both.status).toBe(409);
@@ -120,6 +126,186 @@ test.describe("using a class without arms", () => {
       (s: { firstName: string }) => s.firstName === "Noarm",
     );
     expect(row.currentClass).toBe("Nursery");
+  });
+
+  test("a class used without arms has a class teacher, kept on its default arm: set over HTTP, the teacher then takes its register (task 0134)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const teacher = await asRole(Role.TEACHING_STAFF);
+    const staff = await db.staffRecord.create({
+      data: { branchId: home.id, userId: teacher.user.id, category: "TEACHING", firstName: "Class", lastName: "Teacher" },
+    });
+    const g = await group("Reception");
+    const armId = (await post(admin.cookie, g.id)).json.data.arm.id as string;
+    const arms = (cookie: string | undefined) => api(`/api/v1/academics/attendance/arms?branchId=${home.id}`, { cookie });
+    expect((await arms(teacher.cookie)).json.data).toEqual([]); // before: nothing
+
+    const set = await api(`/api/v1/academics/arms/${armId}/class-teacher`, {
+      method: "PATCH",
+      cookie: admin.cookie,
+      body: { branchId: home.id, staffRecordId: staff.id },
+    });
+    expect(set.status, set.text).toBe(200);
+    expect((await db.classArm.findUniqueOrThrow({ where: { id: armId } })).classTeacherId).toBe(staff.id);
+    const mine = (await arms(teacher.cookie)).json.data as { id: string; grantType: string; classGroupName: string }[];
+    expect(mine.map((a) => [a.id, a.grantType, a.classGroupName])).toEqual([[armId, "CLASS_TEACHER", "Reception"]]);
+
+    // the list the Classes tab reads carries the teacher on the hidden arm
+    const list = await api(`/api/v1/academics/class-groups?branchId=${home.id}`, { cookie: admin.cookie });
+    const row = (
+      list.json.data.classGroups as { id: string; arms: { isDefault: boolean; classTeacher: { name: string } | null }[] }[]
+    ).find((c) => c.id === g.id)!;
+    expect(row.arms[0]).toMatchObject({ isDefault: true, classTeacher: { name: "Class Teacher" } });
+
+    // and it can be taken away again
+    const cleared = await api(`/api/v1/academics/arms/${armId}/class-teacher`, {
+      method: "PATCH",
+      cookie: admin.cookie,
+      body: { branchId: home.id, staffRecordId: null },
+    });
+    expect(cleared.status).toBe(200);
+    expect((await arms(teacher.cookie)).json.data).toEqual([]);
+  });
+
+  test("a class is made without arms in one step (withoutArms: true); without the flag it has no arm (task 0135)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const plain = await api("/api/v1/academics/class-groups", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id, name: "Plain" },
+    });
+    expect(plain.status, plain.text).toBe(201);
+    expect(await db.classArm.count({ where: { classGroupId: plain.json.data.classGroup.id } })).toBe(0);
+    const res = await api("/api/v1/academics/class-groups", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id, name: "Whole", withoutArms: true },
+    });
+    expect(res.status, res.text).toBe(201);
+    const arms = await db.classArm.findMany({ where: { classGroupId: res.json.data.classGroup.id } });
+    expect(arms.map((a) => [a.name, a.isDefault])).toEqual([["_", true]]);
+    const log = await db.auditLog.findMany({ where: { action: "CLASS_ARM_DEFAULT_CREATED", targetId: arms[0].id } });
+    expect(log).toHaveLength(1);
+    const dup = await api("/api/v1/academics/class-groups", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { branchId: home.id, name: "Whole", withoutArms: true },
+    });
+    expect(dup.status).toBe(409); // a taken name still refuses, and leaves no stray arm
+    expect(await db.classArm.count({ where: { branchId: home.id, name: "_" } })).toBe(1);
+  });
+
+  test("a class with ONE arm is converted: the arm becomes the default one, pupils, class teacher and marks stay; two arms are refused (task 0135)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const g = await group("Advanced");
+    const arm = await db.classArm.create({ data: { branchId: home.id, classGroupId: g.id, name: "C", capacity: 40 } });
+    const staff = await db.staffRecord.create({ data: { branchId: home.id, category: "TEACHING", firstName: "Aliyu", lastName: "Imam" } });
+    await db.classArm.update({ where: { id: arm.id }, data: { classTeacherId: staff.id } });
+    const session = await db.academicSession.create({
+      data: { branchId: home.id, label: "2031/2032", startDate: new Date("2031-09-01"), endDate: new Date("2032-07-01"), status: "ACTIVE" },
+    });
+    const made = await api("/api/v1/students", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: {
+        branchId: home.id,
+        firstName: "Moved",
+        lastName: "Pupil",
+        gender: "MALE",
+        dateOfBirth: "2018-03-03",
+        className: "Advanced",
+        arm: "C",
+        allowDuplicate: true,
+      },
+    });
+    expect(made.status, made.text).toBe(201);
+    const before = await db.studentEnrollment.findFirstOrThrow({ where: { sessionId: session.id, student: { lastName: "Pupil" } } });
+    expect([before.arm, before.classArmId]).toEqual(["C", arm.id]);
+
+    const res = await post(admin.cookie, g.id);
+    expect(res.status, res.text).toBe(200);
+    expect(res.json.data.arm.id).toBe(arm.id); // the SAME arm
+    const after = await db.classArm.findUniqueOrThrow({ where: { id: arm.id } });
+    expect([after.name, after.isDefault, after.capacity, after.classTeacherId]).toEqual(["_", true, null, staff.id]);
+    const enrolment = await db.studentEnrollment.findUniqueOrThrow({ where: { id: before.id } });
+    expect([enrolment.arm, enrolment.classArmId]).toEqual([null, arm.id]); // still in the same arm; its name is no longer written on the enrolment
+    const log = await db.auditLog.findMany({ where: { action: "CLASS_ARM_MADE_DEFAULT", targetId: arm.id } });
+    expect(log).toHaveLength(1);
+    expect(log[0].beforeValue).toMatchObject({ name: "C", capacity: 40 });
+    expect((await post(admin.cookie, g.id)).status).toBe(200); // repeating is safe
+    expect(await db.classArm.count({ where: { classGroupId: g.id } })).toBe(1);
+
+    const two = await group("Twin");
+    await db.classArm.createMany({
+      data: [
+        { branchId: home.id, classGroupId: two.id, name: "A" },
+        { branchId: home.id, classGroupId: two.id, name: "B" },
+      ],
+    });
+    const refused = await post(admin.cookie, two.id);
+    expect(refused.status).toBe(409);
+    expect(refused.json.error.message).toMatch(/2 arms/);
+    expect((await db.classArm.findMany({ where: { classGroupId: two.id } })).every((a) => !a.isDefault)).toBe(true);
+  });
+
+  test("a class nothing is connected to can be deleted, with its arms and subject list; one with pupils cannot (task 0135)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const del = (cookie: string | undefined, id: string) => api(`/api/v1/academics/class-groups/${id}`, { method: "DELETE", cookie });
+    const subject = await db.subject.create({ data: { branchId: home.id, name: "Quran" } });
+    const fresh = await group("TEST");
+    await post(admin.cookie, fresh.id);
+    await db.subjectOffering.create({ data: { branchId: home.id, classGroupId: fresh.id, subjectId: subject.id } });
+    const res = await del(admin.cookie, fresh.id);
+    expect(res.status, res.text).toBe(200);
+    expect(await db.classGroup.count({ where: { id: fresh.id } })).toBe(0);
+    expect(await db.classArm.count({ where: { classGroupId: fresh.id } })).toBe(0);
+    expect(await db.subject.count({ where: { id: subject.id } })).toBe(1); // the subject itself stays
+    const log = await db.auditLog.findMany({ where: { action: "CLASS_GROUP_DELETED", targetId: fresh.id } });
+    expect(log).toHaveLength(1);
+    expect(log[0].actorUserId).toBe(admin.user.id);
+    expect(log[0].beforeValue).toMatchObject({ name: "TEST", arms: ["_"], subjects: 1 });
+    expect((await del(admin.cookie, fresh.id)).status).toBe(404); // gone
+
+    // a class with real arms and nothing in them goes too
+    const armed = await group("Spare");
+    await db.classArm.create({ data: { branchId: home.id, classGroupId: armed.id, name: "A" } });
+    expect((await del(admin.cookie, armed.id)).status).toBe(200);
+
+    // a class with a pupil is refused and nothing changes
+    const busy = await group("Busy");
+    await post(admin.cookie, busy.id);
+    await db.academicSession.create({
+      data: { branchId: home.id, label: "2031/2032", startDate: new Date("2031-09-01"), endDate: new Date("2032-07-01"), status: "ACTIVE" },
+    });
+    const made = await api("/api/v1/students", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: {
+        branchId: home.id,
+        firstName: "Here",
+        lastName: "Stays",
+        gender: "FEMALE",
+        dateOfBirth: "2018-03-03",
+        className: "Busy",
+        allowDuplicate: true,
+      },
+    });
+    expect(made.status, made.text).toBe(201);
+    const refused = await del(admin.cookie, busy.id);
+    expect(refused.status).toBe(409);
+    expect(refused.json.error.message).toMatch(/Busy is connected to pupils/);
+    expect(await db.classGroup.count({ where: { id: busy.id } })).toBe(1);
+    expect(await db.classArm.count({ where: { classGroupId: busy.id } })).toBe(1);
+    expect(await db.auditLog.count({ where: { action: "CLASS_GROUP_DELETED", targetId: busy.id } })).toBe(0);
+  });
+
+  test("who may delete a class: signed out 401; a teacher 403; another branch's administrator the same 404 as an unknown class (task 0135)", async () => {
+    const g = await group("Guarded");
+    const del = (cookie: string | undefined, id: string) => api(`/api/v1/academics/class-groups/${id}`, { method: "DELETE", cookie });
+    expect((await del(undefined, g.id)).status).toBe(401);
+    expect((await del((await asRole(Role.TEACHING_STAFF)).cookie, g.id)).status).toBe(403);
+    expect((await del((await asRole(Role.ADMIN, other.id)).cookie, g.id)).status).toBe(404);
+    expect((await del((await asRole(Role.ADMIN)).cookie, "nope")).status).toBe(404);
+    expect(await db.classGroup.count({ where: { id: g.id } })).toBe(1);
   });
 
   test("an archived class and an unknown class are refused", async () => {

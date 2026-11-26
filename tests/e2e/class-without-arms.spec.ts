@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { Role, createUser, db, resetDatabase, seedInstance } from "../support/db";
 import { clickAction, signInThroughUi } from "./helpers";
+import { INFO_TIPS } from "@/components/ui/info-tips";
 
 // Task 0132 on screen (Academics > Classes): a class with no arms offers "Use without arms"; afterwards it shows "none needed" and no arm chip, and Add arm still works (the default arm then shows beside the
 // new one, so nobody's pupils vanish). Desktop and phone, axe.
@@ -50,4 +51,76 @@ test("a class with no arms is used without arms: nothing to name, nothing shown 
   await expect(arms.getByRole("listitem")).toHaveCount(2);
   await expect(arms).toContainText("Whole class");
   await expect(arms).not.toContainText("_");
+});
+
+test("a new class can be made without arms from the dialog's switch (task 0135)", async ({ page }) => {
+  const branch = await seedInstance();
+  const sup = await createUser({ role: Role.ADMIN, superAdmin: true, name: "Arm Boss" });
+  await signInThroughUi(page, sup);
+  await page.goto(`/academics?tab=classes&branch=${branch.id}`);
+  await page.getByRole("button", { name: "New class" }).click();
+  const dialog = page.getByRole("dialog", { name: "New class" });
+  await dialog.getByLabel("Class name").fill("Whole School");
+  await expectAccessible(page, "the new class dialog with the no-arms switch");
+  // the explanation is the info icon beside the switch (not text under it)
+  await dialog.locator('[data-info-tip="classes.noArms"]').click();
+  await expect(page.getByRole("tooltip")).toHaveText(INFO_TIPS["classes.noArms"]);
+  await expect(page.getByRole("tooltip")).toContainText("like JSS 2 rather than JSS 2A and JSS 2B");
+  await page.keyboard.press("Escape"); // the tip closes first, the dialog stays
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("switch", { name: "This class has no arms" }).click();
+  await expect(dialog.getByRole("switch", { name: "This class has no arms" })).toBeChecked();
+  await dialog.getByRole("button", { name: "Create class" }).click();
+  await expect(page.getByText("Whole School created.")).toBeVisible();
+  const row = page.getByRole("listitem").filter({ hasText: "Whole School" }).first();
+  await expect(row).toContainText("none needed");
+  await expect(row.getByRole("list", { name: "Arms of Whole School" })).toHaveCount(0);
+  expect((await db.classArm.findFirstOrThrow({ where: { classGroup: { name: "Whole School" } } })).isDefault).toBe(true);
+
+  // without the switch the class has no arm yet and offers "Use without arms"
+  await page.getByRole("button", { name: "New class" }).click();
+  await page.getByRole("dialog", { name: "New class" }).getByLabel("Class name").fill("Plain Class");
+  await page.getByRole("dialog", { name: "New class" }).getByRole("button", { name: "Create class" }).click();
+  await expect(page.getByText("Plain Class created.")).toBeVisible();
+  expect(await db.classArm.count({ where: { classGroup: { name: "Plain Class" } } })).toBe(0);
+});
+
+test("a class that has one arm is converted to no arms after a confirmation, and keeps its class teacher (task 0135)", async ({ page }) => {
+  const branch = await seedInstance();
+  const sup = await createUser({ role: Role.ADMIN, superAdmin: true, name: "Arm Boss" });
+  const group = await db.classGroup.create({ data: { branchId: branch.id, name: "Advanced" } });
+  const staff = await db.staffRecord.create({ data: { branchId: branch.id, category: "TEACHING", firstName: "Aliyu", lastName: "Imam" } });
+  const arm = await db.classArm.create({ data: { branchId: branch.id, classGroupId: group.id, name: "C", classTeacherId: staff.id } });
+  await signInThroughUi(page, sup);
+  await page.goto(`/academics?tab=classes&branch=${branch.id}`);
+  const row = page.getByRole("listitem").filter({ hasText: "Advanced" }).first();
+  await expect(row.getByRole("list", { name: "Arms of Advanced" })).toContainText("C");
+  await clickAction(row, "Use Advanced without arms");
+  const dialog = page.getByRole("dialog", { name: "Use Advanced without arms?" });
+  await expect(dialog).toContainText("stay exactly where they are");
+  await expectAccessible(page, "the convert to no arms dialog");
+  await dialog.getByRole("button", { name: "Use without arms" }).click();
+  await expect(page.getByText("Advanced is now used without arms")).toBeVisible();
+  await expect(row).toContainText("none needed");
+  await expect(row.getByRole("list", { name: "Arms of Advanced" })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "Class teacher of Advanced: Aliyu Imam. Change" })).toBeVisible();
+  const after = await db.classArm.findUniqueOrThrow({ where: { id: arm.id } });
+  expect([after.name, after.isDefault, after.classTeacherId]).toEqual(["_", true, staff.id]);
+});
+
+test("a class nothing is connected to is deleted from its menu after a confirmation (task 0135)", async ({ page }) => {
+  const branch = await seedInstance();
+  const sup = await createUser({ role: Role.ADMIN, superAdmin: true, name: "Arm Boss" });
+  const group = await db.classGroup.create({ data: { branchId: branch.id, name: "TEST" } });
+  await db.classArm.create({ data: { branchId: branch.id, classGroupId: group.id, name: "_", isDefault: true } });
+  await signInThroughUi(page, sup);
+  await page.goto(`/academics?tab=classes&branch=${branch.id}`);
+  const row = page.getByRole("listitem").filter({ hasText: "TEST" }).first();
+  await clickAction(row, "Delete TEST");
+  const dialog = page.getByRole("dialog", { name: "Delete TEST?" });
+  await expectAccessible(page, "the delete class dialog");
+  await dialog.getByRole("button", { name: "Delete TEST for good" }).click();
+  await expect(page.getByText("TEST deleted.")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "TEST" })).toHaveCount(0);
+  expect(await db.classGroup.count({ where: { id: group.id } })).toBe(0);
 });

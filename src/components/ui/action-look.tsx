@@ -14,6 +14,7 @@ import {
   GraduationCapIcon,
   KeyIcon,
   LayersIcon,
+  LayersOffIcon,
   LogOutIcon,
   MailIcon,
   PencilIcon,
@@ -73,6 +74,8 @@ const RULES: readonly { test: RegExp; look: () => Look }[] = [
   { test: /^default/, look: () => ({ tone: "ok", icon: <CheckCircleIcon className={ICON} /> }) },
   { test: /^(re)?send/, look: () => ({ tone: "ok", icon: <MailIcon className={ICON} /> }) },
   { test: /^place/, look: () => ({ tone: "brand", icon: <BuildingIcon className={ICON} /> }) },
+  // Task 0132: a class used without arms is the arms icon crossed out.
+  { test: /^noarms/, look: () => ({ tone: "info", icon: <LayersOffIcon className={ICON} /> }) },
   { test: /^template/, look: () => ({ tone: "brand", icon: <LayersIcon className={ICON} /> }) },
   { test: /^open/, look: () => ({ tone: "neutral", icon: <CornerDownRightIcon className={ICON} /> }) },
   { test: /edit|rename|change|dates|update|profile/, look: () => ({ tone: "info", icon: <PencilIcon className={ICON} /> }) },

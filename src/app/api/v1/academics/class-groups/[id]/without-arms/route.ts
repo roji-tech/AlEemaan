@@ -1,5 +1,5 @@
 // POST /api/v1/academics/class-groups/[id]/without-arms   (task 0132) lets a class work with no arms of its own: it gets one flagged default arm ("Main") that holds its pupils, marks and attendance and that
-// the Classes tab does not show as an arm. Administrators of the class's branch; another branch's class is the same 404 as an unknown id. Safe to repeat. 409 for an archived class or one that already has arms.
+// the Classes tab does not show as an arm. Administrators of the class's branch; another branch's class is the same 404 as an unknown id. Safe to repeat. A class with exactly ONE live arm is converted (task 0135: that arm becomes the default arm); 409 for an archived class or one with two or more arms.
 import { Role } from "@prisma/client";
 import { ok } from "@/lib/api/envelope";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";

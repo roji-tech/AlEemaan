@@ -29,6 +29,8 @@ export const classGroupInput = z.strictObject({
   name,
   sortOrder: z.number().int().min(0).max(999).optional(),
   gradeLabel: gradeLabel.optional(),
+  /// Make the class used without arms (task 0135): it gets its hidden default arm in the same step.
+  withoutArms: z.boolean().optional(),
 });
 export const classGroupPatch = z
   .strictObject({
@@ -135,15 +137,27 @@ export async function countUnmatchedEnrolments(branchId: string): Promise<number
 
 export async function createClassGroup(actorUserId: string, input: z.infer<typeof classGroupInput>) {
   try {
-    const created = await prisma.classGroup.create({
-      data: { branchId: input.branchId, name: input.name, sortOrder: input.sortOrder ?? 0, gradeLabel: input.gradeLabel ?? null },
+    return await prisma.$transaction(async (tx) => {
+      const created = await tx.classGroup.create({
+        data: { branchId: input.branchId, name: input.name, sortOrder: input.sortOrder ?? 0, gradeLabel: input.gradeLabel ?? null },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "CLASS_GROUP_CREATED",
+          targetType: "ClassGroup",
+          targetId: created.id,
+          afterValue: {
+            name: created.name,
+            branchId: created.branchId,
+            gradeLabel: created.gradeLabel,
+            withoutArms: input.withoutArms === true,
+          },
+        },
+      });
+      if (input.withoutArms) await createDefaultArm(tx, actorUserId, created);
+      return created;
     });
-    await audit(actorUserId, "CLASS_GROUP_CREATED", "ClassGroup", created.id, {
-      name: created.name,
-      branchId: created.branchId,
-      gradeLabel: created.gradeLabel,
-    });
-    return created;
   } catch (error) {
     return duplicate(error, CLASS_TAKEN);
   }
@@ -195,34 +209,138 @@ export async function createArm(actorUserId: string, input: z.infer<typeof armIn
   }
 }
 
-/// Lets a class work with no arms of its own (task 0132): pupils, marks, attendance and the timetable are all kept per arm, so the class gets ONE flagged default arm (named "_", task 0133) that no screen shows. Refused (409) for an archived class and for a class that already has live arms (add pupils to those, or archive them first). Safe to repeat: a class that already
-/// has its default arm gets that one back, unchanged. Audited CLASS_ARM_DEFAULT_CREATED. Returns null for an unknown class.
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/// The hidden default arm of a class (task 0132), made inside the caller's transaction, audited CLASS_ARM_DEFAULT_CREATED.
+async function createDefaultArm(tx: Tx, actorUserId: string, group: { id: string; branchId: string }) {
+  const created = await tx.classArm.create({
+    data: { branchId: group.branchId, classGroupId: group.id, name: DEFAULT_ARM_NAME, isDefault: true },
+  });
+  await tx.auditLog.create({
+    data: {
+      actorUserId,
+      action: "CLASS_ARM_DEFAULT_CREATED",
+      targetType: "ClassArm",
+      targetId: created.id,
+      afterValue: { classGroupId: group.id, branchId: group.branchId, name: created.name },
+    },
+  });
+  return created;
+}
+
+/// Lets a class work with no arms of its own (task 0132): pupils, marks, attendance and the timetable are all kept per arm, so the class gets ONE flagged default arm (named "_", task 0133)
+/// that no screen shows. A class that has exactly ONE live arm (task 0135) is converted instead: that arm becomes the default arm, so its pupils, marks, register, timetable and class teacher
+/// stay exactly where they are; only its name stops being shown (the arm text kept on its enrolments is cleared, its capacity dropped, audited CLASS_ARM_MADE_DEFAULT). Refused (409) for an
+/// archived class and for a class with two or more live arms (the pupils of the others would have nowhere to go: move them into one arm first). Safe to repeat: a class that already has only
+/// its default arm gets that one back, unchanged. Audited CLASS_ARM_DEFAULT_CREATED. Returns null for an unknown class.
 export async function classWithoutArms(actorUserId: string, classGroupId: string) {
   try {
     return await prisma.$transaction(async (tx) => {
       const group = await tx.classGroup.findUnique({ where: { id: classGroupId } });
       if (!group) return null;
       if (group.archivedAt) throw new ConflictError("That class is archived. Restore it first.");
-      const live = await tx.classArm.findMany({ where: { classGroupId, archivedAt: null }, select: { id: true, isDefault: true } });
-      const existing = live.find((a) => a.isDefault);
-      if (existing && live.length === 1) return tx.classArm.findUniqueOrThrow({ where: { id: existing.id } });
-      if (live.length > 0) throw new ConflictError("This class already has arms. Put its pupils in those, or archive them first.");
-      const created = await tx.classArm.create({
-        data: { branchId: group.branchId, classGroupId, name: DEFAULT_ARM_NAME, isDefault: true },
+      const live = await tx.classArm.findMany({
+        where: { classGroupId, archivedAt: null },
+        select: { id: true, name: true, isDefault: true, capacity: true },
       });
+      if (live.length === 1 && live[0].isDefault) return tx.classArm.findUniqueOrThrow({ where: { id: live[0].id } });
+      if (live.length === 0) return createDefaultArm(tx, actorUserId, group);
+      if (live.length > 1)
+        throw new ConflictError(
+          `This class has ${live.length} arms. To use it without arms, first move the pupils of all but one arm into that arm, archive the others, then try again.`,
+        );
+      const [only] = live; // one live arm that is an ordinary arm: it becomes the class's own group
+      const converted = await tx.classArm.update({
+        where: { id: only.id },
+        data: { isDefault: true, name: DEFAULT_ARM_NAME, capacity: null },
+      });
+      const cleared = await tx.studentEnrollment.updateMany({ where: { classArmId: only.id, arm: { not: null } }, data: { arm: null } });
       await tx.auditLog.create({
         data: {
           actorUserId,
-          action: "CLASS_ARM_DEFAULT_CREATED",
+          action: "CLASS_ARM_MADE_DEFAULT",
           targetType: "ClassArm",
-          targetId: created.id,
-          afterValue: { classGroupId, branchId: group.branchId, name: created.name },
+          targetId: only.id,
+          beforeValue: { name: only.name, capacity: only.capacity },
+          afterValue: { classGroupId, branchId: group.branchId, name: converted.name, enrolmentsCleared: cleared.count },
         },
       });
-      return created;
+      return converted;
     });
   } catch (error) {
     return duplicate(error, "This class already has an arm with that name. Archive it first.");
+  }
+}
+
+/// Deletes a class nothing is connected to (task 0135), such as one just made. Refused (409, with what it is connected to) when it has pupils (now or in an earlier session, by arm or by the class
+/// name written on the enrolment), marks, staff subject assignments, register permissions, timetable slots, announcements to its arms, promotion batches, fee lines, result approval scopes, a
+/// scheme of its own, a frozen result-template use, or learning material, assignments or quizzes. What belongs to the class itself goes with it: its arms (the hidden default arm included, and any
+/// arm's class teacher), its subject list, its result-template choice and its grade-scale choice. Hard delete, audited CLASS_GROUP_DELETED; archive instead to keep a class. Returns null for an
+/// unknown class.
+export async function deleteClassGroup(actorUserId: string, id: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const group = await tx.classGroup.findUnique({
+        where: { id },
+        include: { arms: { select: { id: true, name: true } }, offerings: { select: { subjectId: true } } },
+      });
+      if (!group) return null;
+      const branchId = group.branchId;
+      const armIds = group.arms.map((a) => a.id);
+      const inArms = { branchId, classArmId: { in: armIds } };
+      const inClass = { branchId, classGroupId: id };
+      const connected: [string, number][] = await Promise.all([
+        tx.studentEnrollment
+          .count({ where: { branchId, OR: [{ classArmId: { in: armIds } }, { className: { equals: group.name, mode: "insensitive" } }] } })
+          .then((n): [string, number] => ["pupils", n]),
+        tx.result.count({ where: inArms }).then((n): [string, number] => ["marks", n]),
+        tx.staffSubjectAssignment.count({ where: inArms }).then((n): [string, number] => ["teachers' subject assignments", n]),
+        tx.attendanceGrant.count({ where: inArms }).then((n): [string, number] => ["register permissions", n]),
+        tx.timetableSlot.count({ where: inArms }).then((n): [string, number] => ["timetable slots", n]),
+        tx.announcement.count({ where: { classArmId: { in: armIds } } }).then((n): [string, number] => ["announcements", n]),
+        tx.promotionBatch
+          .count({ where: { branchId, OR: [{ sourceClassGroupId: id }, { targetClassGroupId: id }] } })
+          .then((n): [string, number] => ["promotion records", n]),
+        tx.feeStructure.count({ where: inClass }).then((n): [string, number] => ["fee lines", n]),
+        tx.resultApprovalScope.count({ where: inClass }).then((n): [string, number] => ["result approval scopes", n]),
+        tx.assessmentScheme.count({ where: inClass }).then((n): [string, number] => ["a scheme of its own", n]),
+        tx.assessmentSchemeScope.count({ where: { classGroupId: id } }).then((n): [string, number] => ["a scheme of its own", n]),
+        tx.resultTemplateUse.count({ where: inClass }).then((n): [string, number] => ["report cards", n]),
+        tx.assignment
+          .count({ where: { branchId, OR: [{ classGroupId: id }, { classArmId: { in: armIds } }] } })
+          .then((n): [string, number] => ["assignments", n]),
+        tx.learningMaterial.count({ where: inClass }).then((n): [string, number] => ["learning materials", n]),
+        tx.quiz.count({ where: inClass }).then((n): [string, number] => ["quizzes", n]),
+      ]);
+      const used = [...new Set(connected.filter(([, n]) => n > 0).map(([what]) => what))];
+      if (used.length > 0)
+        throw new ConflictError(
+          `${group.name} is connected to ${used.join(", ")}, so it cannot be deleted. Archive it to take it out of use.`,
+        );
+      await tx.subjectOffering.deleteMany({ where: inClass });
+      await tx.classArm.deleteMany({ where: { classGroupId: id } });
+      await tx.classGroup.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "CLASS_GROUP_DELETED",
+          targetType: "ClassGroup",
+          targetId: id,
+          beforeValue: {
+            name: group.name,
+            branchId,
+            gradeLabel: group.gradeLabel,
+            arms: group.arms.map((a) => a.name),
+            subjects: group.offerings.length,
+          },
+        },
+      });
+      return { id, name: group.name };
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003")
+      throw new ConflictError("This class is still used by other records, so it cannot be deleted. Archive it to take it out of use.");
+    throw error;
   }
 }
 
