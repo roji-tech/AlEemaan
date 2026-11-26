@@ -308,6 +308,88 @@ test.describe("using a class without arms", () => {
     expect(await db.classGroup.count({ where: { id: g.id } })).toBe(1);
   });
 
+  test("an arm nothing is connected to can be deleted, with its class teacher link; one with a pupil or a timetable slot cannot (task 0136)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const del = (cookie: string | undefined, id: string) => api(`/api/v1/academics/arms/${id}`, { method: "DELETE", cookie });
+    const g = await group("Nursery 1");
+    const a = await db.classArm.create({ data: { branchId: home.id, classGroupId: g.id, name: "A" } });
+    const b = await db.classArm.create({ data: { branchId: home.id, classGroupId: g.id, name: "B" } });
+    const staff = await db.staffRecord.create({
+      data: { branchId: home.id, category: "TEACHING", firstName: "Tola", lastName: "Teacher" },
+    });
+    await db.classArm.update({ where: { id: b.id }, data: { classTeacherId: staff.id } });
+
+    const res = await del(admin.cookie, b.id);
+    expect(res.status, res.text).toBe(200);
+    expect(await db.classArm.count({ where: { id: b.id } })).toBe(0);
+    expect(await db.classArm.count({ where: { id: a.id } })).toBe(1); // the sister arm stays
+    expect(await db.staffRecord.count({ where: { id: staff.id } })).toBe(1); // the teacher's record stays
+    const log = await db.auditLog.findMany({ where: { action: "CLASS_ARM_DELETED", targetId: b.id } });
+    expect(log).toHaveLength(1);
+    expect(log[0].actorUserId).toBe(admin.user.id);
+    expect(log[0].beforeValue).toMatchObject({ name: "B", class: "Nursery 1", hadClassTeacher: true });
+    expect((await del(admin.cookie, b.id)).status).toBe(404); // gone
+
+    // a pupil in the arm, by placement
+    await db.academicSession.create({
+      data: { branchId: home.id, label: "2031/2032", startDate: new Date("2031-09-01"), endDate: new Date("2032-07-01"), status: "ACTIVE" },
+    });
+    const made = await api("/api/v1/students", {
+      method: "POST",
+      cookie: admin.cookie,
+      body: {
+        branchId: home.id,
+        firstName: "Here",
+        lastName: "Stays",
+        gender: "FEMALE",
+        dateOfBirth: "2018-03-03",
+        className: "Nursery 1",
+        arm: "A",
+        allowDuplicate: true,
+      },
+    });
+    expect(made.status, made.text).toBe(201);
+    const refused = await del(admin.cookie, a.id);
+    expect(refused.status).toBe(409);
+    expect(refused.json.error.message).toMatch(/A is connected to pupils/);
+    expect(await db.classArm.count({ where: { id: a.id } })).toBe(1);
+
+    // a timetable slot in an otherwise empty arm
+    const c = await db.classArm.create({ data: { branchId: home.id, classGroupId: g.id, name: "C" } });
+    const subject = await db.subject.create({ data: { branchId: home.id, name: "Maths" } });
+    await db.timetableSlot.create({
+      data: {
+        branchId: home.id,
+        classArmId: c.id,
+        subjectId: subject.id,
+        staffRecordId: staff.id,
+        dayOfWeek: 1,
+        startTime: "08:00",
+        endTime: "08:40",
+      },
+    });
+    const slot = await del(admin.cookie, c.id);
+    expect(slot.status).toBe(409);
+    expect(slot.json.error.message).toMatch(/timetable slots/);
+    expect(await db.classArm.count({ where: { id: c.id } })).toBe(1);
+    expect(await db.auditLog.count({ where: { action: "CLASS_ARM_DELETED", targetId: a.id } })).toBe(0);
+  });
+
+  test("a class's hidden default arm can be deleted while empty (the class then has no arms again); who may delete an arm (task 0136)", async () => {
+    const admin = await asRole(Role.ADMIN);
+    const del = (cookie: string | undefined, id: string) => api(`/api/v1/academics/arms/${id}`, { method: "DELETE", cookie });
+    const g = await group("Whole");
+    const armId = (await post(admin.cookie, g.id)).json.data.arm.id as string;
+    expect((await del(undefined, armId)).status).toBe(401);
+    expect((await del((await asRole(Role.TEACHING_STAFF)).cookie, armId)).status).toBe(403);
+    expect((await del((await asRole(Role.ADMIN, other.id)).cookie, armId)).status).toBe(404);
+    expect((await del((await asRole(Role.ADMIN)).cookie, "nope")).status).toBe(404);
+    expect(await db.classArm.count({ where: { id: armId } })).toBe(1);
+    expect((await del(admin.cookie, armId)).status).toBe(200);
+    expect(await db.classArm.count({ where: { classGroupId: g.id } })).toBe(0);
+    expect((await post(admin.cookie, g.id)).status).toBe(200); // and "Use without arms" works again
+  });
+
   test("an archived class and an unknown class are refused", async () => {
     const admin = await asRole(Role.ADMIN);
     const archived = await group("Old class", { archivedAt: new Date() });

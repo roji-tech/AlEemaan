@@ -124,3 +124,27 @@ test("a class nothing is connected to is deleted from its menu after a confirmat
   await expect(page.getByRole("listitem").filter({ hasText: "TEST" })).toHaveCount(0);
   expect(await db.classGroup.count({ where: { id: group.id } })).toBe(0);
 });
+
+test("an empty arm is deleted from its Edit dialog after a confirmation (task 0136)", async ({ page }) => {
+  const branch = await seedInstance();
+  const sup = await createUser({ role: Role.ADMIN, superAdmin: true, name: "Arm Boss" });
+  const group = await db.classGroup.create({ data: { branchId: branch.id, name: "Nursery 1" } });
+  const arms = await Promise.all(
+    ["A", "B"].map((name) => db.classArm.create({ data: { branchId: branch.id, classGroupId: group.id, name } })),
+  );
+  await signInThroughUi(page, sup);
+  await page.goto(`/academics?tab=classes&branch=${branch.id}`);
+  const row = page.getByRole("listitem").filter({ hasText: "Nursery 1" }).first();
+  await row.getByRole("button", { name: "Edit arm B of Nursery 1" }).click();
+  const edit = page.getByRole("dialog", { name: "Edit arm B" });
+  await expectAccessible(page, "the edit arm dialog with Delete");
+  await edit.getByRole("button", { name: "Delete" }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete B of Nursery 1?" });
+  await expectAccessible(page, "the delete arm dialog");
+  await dialog.getByRole("button", { name: "Delete Nursery 1 B for good" }).click();
+  await expect(page.getByText("Nursery 1 B deleted.")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Edit arm B of Nursery 1" })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "Edit arm A of Nursery 1" })).toBeVisible();
+  expect(await db.classArm.count({ where: { id: arms[1].id } })).toBe(0);
+  expect(await db.classArm.count({ where: { id: arms[0].id } })).toBe(1);
+});
