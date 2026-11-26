@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Button } from "@/components/ui/Button";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
@@ -65,49 +66,102 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
   };
 
   return (
-    <section aria-labelledby="levels-heading" className="space-y-6">
-      <div>
-        <h2 id="levels-heading" className="text-lg font-semibold tracking-tight text-fg">
-          Scheme levels
-        </h2>
-        <p className="mt-1 text-sm text-fg-muted">
+    <>
+      <CollapsibleSection id="grading-levels" title="Scheme levels" bodyClassName="mt-1 space-y-6">
+        <p className="text-sm text-fg-muted">
           Marks use the most specific scheme that applies: a class&apos;s own, then its result template&apos;s, then the branch default
           above. The school-wide scheme is not read by marks directly (every branch keeps its own copy): a branch with no scheme of its own
           copies it with &quot;Use the school-wide scheme&quot; under Assessment schemes.
         </p>
-      </div>
-      <div aria-live="polite" className="empty:hidden">
-        {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
-        {error && <Alert variant="error">{error}</Alert>}
-      </div>
-      {isSuperAdmin && (
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-semibold text-fg">School-wide default</h3>
-            <Button onClick={() => setEditing({ kind: "global", row: null })}>New school-wide scheme</Button>
+        <div aria-live="polite" className="empty:hidden">
+          {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
+          {error && <Alert variant="error">{error}</Alert>}
+        </div>
+        {isSuperAdmin && (
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-semibold text-fg">School-wide default</h3>
+              <Button onClick={() => setEditing({ kind: "global", row: null })}>New school-wide scheme</Button>
+            </div>
+            {globals.length === 0 ? (
+              <p className="mt-2 rounded-2xl border border-dashed border-line-strong p-5 text-center text-sm text-fg-muted">
+                No school-wide scheme yet.
+              </p>
+            ) : (
+              <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface">
+                {globals.map((g) => (
+                  <li key={g.scopeId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-fg">
+                        {g.scheme.name} {g.isDefault && <span className="ml-2 text-xs text-ok-fg">Default</span>}
+                        {g.scheme.locked && <span className="ml-2 text-xs text-fg-muted">Locked</span>}
+                      </p>
+                      <p className="text-sm text-fg-muted">{describe(g.scheme)}</p>
+                    </div>
+                    {!g.scheme.locked && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => setEditing({ kind: "global", row: g })}
+                        aria-label={`Edit the school-wide scheme ${g.scheme.name}`}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {globals.length === 0 ? (
+        )}
+        <div>
+          <h3 className="font-semibold text-fg">A scheme for one class</h3>
+          {branches.length > 1 && (
+            <div className="mt-2 max-w-sm">
+              <label htmlFor="levels-branch" className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
+                Branch
+              </label>
+              <select
+                id="levels-branch"
+                value={branchId}
+                onChange={(e) => {
+                  setGroups(null);
+                  setBranchId(e.target.value);
+                }}
+                className="min-h-11 w-full rounded-xl border border-line bg-field px-4 text-sm text-fg"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {groups === null ? (
+            <p className="mt-2 text-sm text-fg-muted" aria-busy="true">
+              Loading…
+            </p>
+          ) : groups.length === 0 ? (
             <p className="mt-2 rounded-2xl border border-dashed border-line-strong p-5 text-center text-sm text-fg-muted">
-              No school-wide scheme yet.
+              No classes in {branch.name} yet.
             </p>
           ) : (
             <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface">
-              {globals.map((g) => (
-                <li key={g.scopeId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              {groups.map((g) => (
+                <li key={g.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div className="min-w-0">
-                    <p className="font-semibold text-fg">
-                      {g.scheme.name} {g.isDefault && <span className="ml-2 text-xs text-ok-fg">Default</span>}
-                      {g.scheme.locked && <span className="ml-2 text-xs text-fg-muted">Locked</span>}
+                    <p className="font-semibold text-fg">{g.name}</p>
+                    <p className="text-sm text-fg-muted">
+                      {g.scheme ? `${g.scheme.name}: ${describe(g.scheme)}` : "Uses the branch default"}
                     </p>
-                    <p className="text-sm text-fg-muted">{describe(g.scheme)}</p>
                   </div>
-                  {!g.scheme.locked && (
+                  {branch.canEdit && (
                     <Button
                       variant="secondary"
-                      onClick={() => setEditing({ kind: "global", row: g })}
-                      aria-label={`Edit the school-wide scheme ${g.scheme.name}`}
+                      onClick={() => setEditing({ kind: "group", group: g, scheme: g.scheme })}
+                      aria-label={`${g.scheme ? "Change" : "Set"} the scheme for ${g.name}`}
                     >
-                      Edit
+                      {g.scheme ? "Change" : "Set a scheme"}
                     </Button>
                   )}
                 </li>
@@ -115,63 +169,7 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
             </ul>
           )}
         </div>
-      )}
-      <div>
-        <h3 className="font-semibold text-fg">A scheme for one class</h3>
-        {branches.length > 1 && (
-          <div className="mt-2 max-w-sm">
-            <label htmlFor="levels-branch" className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
-              Branch
-            </label>
-            <select
-              id="levels-branch"
-              value={branchId}
-              onChange={(e) => {
-                setGroups(null);
-                setBranchId(e.target.value);
-              }}
-              className="min-h-11 w-full rounded-xl border border-line bg-field px-4 text-sm text-fg"
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {groups === null ? (
-          <p className="mt-2 text-sm text-fg-muted" aria-busy="true">
-            Loading…
-          </p>
-        ) : groups.length === 0 ? (
-          <p className="mt-2 rounded-2xl border border-dashed border-line-strong p-5 text-center text-sm text-fg-muted">
-            No classes in {branch.name} yet.
-          </p>
-        ) : (
-          <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface">
-            {groups.map((g) => (
-              <li key={g.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="font-semibold text-fg">{g.name}</p>
-                  <p className="text-sm text-fg-muted">
-                    {g.scheme ? `${g.scheme.name}: ${describe(g.scheme)}` : "Uses the branch default"}
-                  </p>
-                </div>
-                {branch.canEdit && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => setEditing({ kind: "group", group: g, scheme: g.scheme })}
-                    aria-label={`${g.scheme ? "Change" : "Set"} the scheme for ${g.name}`}
-                  >
-                    {g.scheme ? "Change" : "Set a scheme"}
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      </CollapsibleSection>
       <SchemeForm
         key={
           editing?.kind === "group"
@@ -207,6 +205,6 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
         onSubmit={submit}
         onDone={done}
       />
-    </section>
+    </>
   );
 }
