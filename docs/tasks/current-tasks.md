@@ -818,3 +818,11 @@
 ## TASK-0133: One way to write a class and its arm (requested 2026-11-26)
 
 [Task file](0133-class-label-helper.md). `classLabel` / `armLabel` (`lib/academics/class-label.ts`) write a class and its arm everywhere and hide the default arm of a class without arms; that arm is renamed `_` and ordinary arms may not use it. ONE small migration (`20261126210000_default_arm_name`) for the maintainer, after `20261126180000_class_default_arm`.
+
+## TASK-0134: A class used without arms has a class teacher (requested 2026-11-26)
+
+[Task file](0134-class-teacher-without-arms.md). The Classes tab shows "Set class teacher" on the row of a class used without arms (kept on its hidden default arm), so its register is open to the class teacher. No migration.
+
+## TASK-0135: No-arms switch, convert a one-arm class to no arms, delete an unused class (requested 2026-11-26)
+
+[Task file](0135-arms-switch-convert-delete-class.md). New class dialog switch "This class has no arms" (`withoutArms`); "Use without arms" converts a class with one arm (arm kept, name hidden); `DELETE /class-groups/[id]` for a class nothing is connected to. No migration.

@@ -14,7 +14,7 @@ The maintainer (2026-11-26) asked for the hidden default arm of a class without 
 7. Guard: `tests/unit/class-label-guard.spec.ts` fails when a file joins a class and an arm by hand.
 
 ## Not done (said plainly)
-- A class without arms has no way yet to set a class teacher (the arm is hidden), so its attendance is open to administrators and explicit grants only.
+- (Done in task 0134.) A class without arms had no way to set a class teacher (the arm is hidden).
 - Wording on a few screens still says "arm" for a class without arms ("Say which arm of …" never appears for them; the Academics help text is unchanged).
 
 ## Tests
