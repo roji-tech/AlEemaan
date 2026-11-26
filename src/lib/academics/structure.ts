@@ -114,6 +114,7 @@ export async function listClassGroups(branchId: string, includeArchived = false)
       id: a.id,
       name: a.name,
       capacity: a.capacity,
+      isDefault: a.isDefault,
       archivedAt: a.archivedAt,
       enrolments: a._count.enrollments,
       classTeacher: a.classTeacher
@@ -190,6 +191,41 @@ export async function createArm(actorUserId: string, input: z.infer<typeof armIn
     return created;
   } catch (error) {
     return duplicate(error, "This class already has an arm with that name.");
+  }
+}
+
+/// The name of the arm a class gets when it is used without arms (task 0132).
+export const DEFAULT_ARM_NAME = "Main";
+
+/// Lets a class work with no arms of its own (task 0132): pupils, marks, attendance and the timetable are all kept per arm, so the class gets ONE flagged default arm ("Main") that the Classes
+/// tab does not show as an arm. Refused (409) for an archived class and for a class that already has live arms (add pupils to those, or archive them first). Safe to repeat: a class that already
+/// has its default arm gets that one back, unchanged. Audited CLASS_ARM_DEFAULT_CREATED. Returns null for an unknown class.
+export async function classWithoutArms(actorUserId: string, classGroupId: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const group = await tx.classGroup.findUnique({ where: { id: classGroupId } });
+      if (!group) return null;
+      if (group.archivedAt) throw new ConflictError("That class is archived. Restore it first.");
+      const live = await tx.classArm.findMany({ where: { classGroupId, archivedAt: null }, select: { id: true, isDefault: true } });
+      const existing = live.find((a) => a.isDefault);
+      if (existing && live.length === 1) return tx.classArm.findUniqueOrThrow({ where: { id: existing.id } });
+      if (live.length > 0) throw new ConflictError("This class already has arms. Put its pupils in those, or archive them first.");
+      const created = await tx.classArm.create({
+        data: { branchId: group.branchId, classGroupId, name: DEFAULT_ARM_NAME, isDefault: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "CLASS_ARM_DEFAULT_CREATED",
+          targetType: "ClassArm",
+          targetId: created.id,
+          afterValue: { classGroupId, branchId: group.branchId, name: created.name },
+        },
+      });
+      return created;
+    });
+  } catch (error) {
+    return duplicate(error, "This class already has an arm called Main. Rename or archive it first.");
   }
 }
 
