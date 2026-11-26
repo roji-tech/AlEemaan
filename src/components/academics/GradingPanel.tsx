@@ -71,6 +71,10 @@ export function GradingPanel({ branches, betweenSections }: { branches: BranchCh
   const [deleting, setDeleting] = useState<Scheme | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  // A scheme asked to become the branch default (task 0131), confirmed in a dialog because it changes which scheme marks use for every class that has none of its own.
+  const [defaulting, setDefaulting] = useState<Scheme | null>(null);
+  const [defaultError, setDefaultError] = useState<string | null>(null);
+  const [defaultPending, setDefaultPending] = useState(false);
 
   const load = useCallback(async () => {
     const q = `?branchId=${encodeURIComponent(branchId)}`;
@@ -113,6 +117,20 @@ export function GradingPanel({ branches, betweenSections }: { branches: BranchCh
     setNotice(null);
     setDeleteError(null);
     setDeleting(x);
+  }
+  const isBranchDefault = (x: Scheme) => !x.archived && !x.hosted && !x.classGroupId;
+  const canMakeDefault = (x: Scheme) => !x.archived && x.hosted === true && !x.classGroupId && !replacedSchemes.has(x.id);
+  async function confirmMakeDefault() {
+    if (!defaulting) return;
+    setDefaultPending(true);
+    setDefaultError(null);
+    const reply = await sendJson(`${SCHEMES}/${defaulting.id}/make-default`, "POST");
+    setDefaultPending(false);
+    if (!reply.ok) return setDefaultError(say(reply, "That didn't work."));
+    const name = defaulting.name;
+    setDefaulting(null);
+    setNotice({ variant: "success", text: `${name} is now the branch default.` });
+    await load();
   }
   async function confirmDelete() {
     if (!deleting) return;
@@ -201,6 +219,9 @@ export function GradingPanel({ branches, betweenSections }: { branches: BranchCh
                     {s.archived && (
                       <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Archived</span>
                     )}
+                    {isBranchDefault(s) && (
+                      <span className="ml-2 rounded-full bg-ok-bg px-2 py-0.5 text-xs font-semibold text-ok-fg">Default</span>
+                    )}
                   </p>
                   {branch.canEdit && s.archived && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -228,6 +249,19 @@ export function GradingPanel({ branches, betweenSections }: { branches: BranchCh
                       >
                         Archive
                       </Button>
+                      {canMakeDefault(s) && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setNotice(null);
+                            setDefaultError(null);
+                            setDefaulting(s);
+                          }}
+                          aria-label={`Make ${s.name} the branch default`}
+                        >
+                          Make default
+                        </Button>
+                      )}
                       {canDelete(s) && <DeleteButton name={s.name} onDelete={() => askDelete(s)} />}
                     </div>
                   )}
@@ -236,7 +270,7 @@ export function GradingPanel({ branches, betweenSections }: { branches: BranchCh
                   {s.classGroupName
                     ? `For ${s.classGroupName}`
                     : s.hosted
-                      ? "Made for a template or the school-wide scheme"
+                      ? "Not the branch default (a result template or the school-wide level uses it)"
                       : "Branch default"}{" "}
                   · out of {fmt(s.totalMax)}
                 </p>
@@ -406,6 +440,31 @@ export function GradingPanel({ branches, betweenSections }: { branches: BranchCh
             aria-label={deleting ? `Delete ${deleting.name} for good` : "Delete"}
           >
             {deletePending ? "Deleting…" : "Delete for good"}
+          </Button>
+        </div>
+      </Dialog>
+      <Dialog
+        open={defaulting !== null}
+        onClose={() => (defaultPending ? undefined : setDefaulting(null))}
+        title={defaulting ? `Make ${defaulting.name} the branch default?` : "Make default"}
+        description="The default is the scheme marks use for a class that has no scheme of its own and whose result template names none."
+      >
+        <p className="text-sm text-fg-2">
+          {(() => {
+            const current = (schemes ?? []).find(isBranchDefault);
+            return current
+              ? `${current.name} stops being the default (it is kept, and a result template can still use it). `
+              : "This branch has no default scheme yet. ";
+          })()}
+          Results already entered keep the scheme they were entered with.
+        </p>
+        {defaultError && <Alert variant="error">{defaultError}</Alert>}
+        <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={() => setDefaulting(null)} disabled={defaultPending}>
+            Cancel
+          </Button>
+          <Button onClick={confirmMakeDefault} loading={defaultPending}>
+            {defaultPending ? "Working…" : "Make default"}
           </Button>
         </div>
       </Dialog>
