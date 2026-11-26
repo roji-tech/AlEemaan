@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { Prisma, Role, type StaffCategory } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -147,7 +148,7 @@ function toStaff(row: Row, alsoIn: { branchId: string; branchName: string }[] = 
     inviteDraft: !row.userId && !!invitation && invitation.expiresAt === null,
     assignmentCount: row._count.assignments,
     /// "JSS 1 A": the arms this person is class teacher of.
-    classTeacherOf: row.teacherOfArms.map((a) => ({ armId: a.id, label: `${a.classGroup.name} ${a.name}` })),
+    classTeacherOf: row.teacherOfArms.map((a) => ({ armId: a.id, label: classLabel(a.classGroup.name, a) })),
     personId: row.personId,
     alsoIn,
     /// The departments the person is in, with whether they are its head (task 0101 D7). Always sent; the screen shows them only while the branch uses departments.

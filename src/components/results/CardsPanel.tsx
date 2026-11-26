@@ -11,12 +11,13 @@ import { say, type BranchChoice } from "@/components/academics/common";
 import { ReportCard, type Card } from "@/components/results/ReportCard";
 import { TraitsDialog } from "@/components/results/TraitsDialog";
 import { downloadReportCardHtml } from "@/lib/academics/report-card-export";
+import { classLabel } from "@/lib/academics/class-label";
 
 // Report cards (Slice P2d, over P2c): pick a term, a class arm and a student, read the card, print it. Administrators may preview with unpublished results and write
 // the two remarks (frozen by the server once a result is published). Everything outside the card itself is hidden when printing.
 
 type Term = { id: string; label: string; session: string; isCurrent: boolean };
-type Group = { id: string; name: string; arms: { id: string; name: string }[] };
+type Group = { id: string; name: string; arms: { id: string; name: string; isDefault?: boolean }[] };
 type Student = { id: string; name: string; admissionNo: string };
 
 export function CardsPanel({
@@ -110,7 +111,7 @@ export function CardsPanel({
     void loadCard();
   }, [loadCard]);
 
-  const armOptions = groups.flatMap((g) => g.arms.map((a) => ({ value: a.id, label: `${g.name} ${a.name}` })));
+  const armOptions = groups.flatMap((g) => g.arms.map((a) => ({ value: a.id, label: classLabel(g.name, a) })));
   const published = card?.subjects.some((s) => s.status === "PUBLISHED" || s.status === "LOCKED") ?? false;
 
   return (

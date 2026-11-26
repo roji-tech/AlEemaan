@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { LIVE_PUPIL } from "@/lib/drafts/live";
 import { SessionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -155,7 +156,7 @@ const slipOf = (p: {
     studentId: p.id,
     name: `${p.firstName} ${p.lastName}`,
     admissionNo: p.admissionNo,
-    className: e ? `${e.className}${e.arm ? ` ${e.arm}` : ""}` : null,
+    className: e ? classLabel(e.className, e.arm) : null,
     branchName: p.branch.name,
   };
 };

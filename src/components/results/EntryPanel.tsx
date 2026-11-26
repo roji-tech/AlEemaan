@@ -8,6 +8,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say, type BranchChoice } from "@/components/academics/common";
 import { TeacherSchemePanel } from "@/components/results/TeacherSchemePanel";
+import { classLabel } from "@/lib/academics/class-label";
 
 // Enter marks (Slice P2d, over the P2a/P2b APIs): the grid for one subject in one arm and term. The total and letter beside each row are computed here from the
 // scheme and scale FOR DISPLAY while the teacher types; the server recomputes everything on save and is the truth. Rows past DRAFT are read-only with their status.
@@ -255,7 +256,7 @@ export function EntryPanel({
       {sheet && (
         <section aria-labelledby="grid-heading">
           <h2 id="grid-heading" className="text-lg font-semibold tracking-tight text-fg">
-            {sheet.classArm.classGroupName} {sheet.classArm.name} · {sheet.subject.name}
+            {classLabel(sheet.classArm.classGroupName, sheet.classArm.name)} · {sheet.subject.name}
           </h2>
           <p className="mt-1 text-sm text-fg-muted">
             {sheet.scheme.name}: {sheet.scheme.components.map((c) => `${c.name} ${fmt(c.max)}`).join(", ")}, exam{" "}

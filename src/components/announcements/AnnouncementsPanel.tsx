@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AnnouncementsFeed } from "./AnnouncementsFeed";
 import type { AnnouncementItem } from "./AnnouncementComposerModal";
+import { classLabel } from "@/lib/academics/class-label";
 
 export interface AnnouncementsPanelProps {
   branches: { id: string; name: string }[];
@@ -35,8 +36,8 @@ export function AnnouncementsPanel({ branches, isSuperAdmin, canCreate, userBran
         if (armsRes.ok) {
           const armsJson = await armsRes.json();
           // GET /academics/arms does not exist (it left the audience list empty): the arms come with their class from the class-groups list.
-          const groups: { name: string; arms: { id: string; name: string }[] }[] = armsJson.data?.classGroups ?? [];
-          setClassArms(groups.flatMap((g) => g.arms.map((a) => ({ id: a.id, name: `${g.name} ${a.name}` }))));
+          const groups: { name: string; arms: { id: string; name: string; isDefault?: boolean }[] }[] = armsJson.data?.classGroups ?? [];
+          setClassArms(groups.flatMap((g) => g.arms.map((a) => ({ id: a.id, name: classLabel(g.name, a) }))));
         }
       }
     } catch (err: unknown) {

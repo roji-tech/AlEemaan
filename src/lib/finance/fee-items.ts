@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { FinanceError } from "@/lib/finance/service";
@@ -336,7 +337,7 @@ export async function handoverList(
       studentId: i.studentId,
       name: `${i.student.firstName} ${i.student.lastName}`.trim(),
       admissionNo: i.student.admissionNo ?? null,
-      className: e ? `${e.className}${e.arm ? ` ${e.arm}` : ""}` : null,
+      className: e ? classLabel(e.className, e.arm) : null,
       invoiceStatus: i.status,
       amountPaid: i.amountPaid.toString(),
       totalAmount: i.totalAmount.toString(),

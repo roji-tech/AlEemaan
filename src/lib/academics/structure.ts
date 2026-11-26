@@ -2,7 +2,8 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
-import { CLASS_TAKEN, SUBJECT_TAKEN, structureName, subjectCode } from "@/lib/academics/structure-rules";
+import { DEFAULT_ARM_NAME } from "@/lib/academics/class-label";
+import { CLASS_TAKEN, SUBJECT_TAKEN, armName, structureName, subjectCode } from "@/lib/academics/structure-rules";
 import { NOT_DRAFT } from "@/lib/drafts/live";
 import { catalogIdForName } from "@/lib/academics/subject-catalog-link";
 
@@ -39,12 +40,12 @@ export const classGroupPatch = z
   .refine((v) => Object.keys(v).length > 0, "Nothing to change.");
 export const armInput = z.strictObject({
   classGroupId: z.string().min(1),
-  name,
+  name: armName,
   capacity: z.number().int().min(1).max(500).nullable().optional(),
 });
 export const armPatch = z
   .strictObject({
-    name: name.optional(),
+    name: armName.optional(),
     capacity: z.number().int().min(1).max(500).nullable().optional(),
     archived: z.boolean().optional(),
   })
@@ -194,11 +195,7 @@ export async function createArm(actorUserId: string, input: z.infer<typeof armIn
   }
 }
 
-/// The name of the arm a class gets when it is used without arms (task 0132).
-export const DEFAULT_ARM_NAME = "Main";
-
-/// Lets a class work with no arms of its own (task 0132): pupils, marks, attendance and the timetable are all kept per arm, so the class gets ONE flagged default arm ("Main") that the Classes
-/// tab does not show as an arm. Refused (409) for an archived class and for a class that already has live arms (add pupils to those, or archive them first). Safe to repeat: a class that already
+/// Lets a class work with no arms of its own (task 0132): pupils, marks, attendance and the timetable are all kept per arm, so the class gets ONE flagged default arm (named "_", task 0133) that no screen shows. Refused (409) for an archived class and for a class that already has live arms (add pupils to those, or archive them first). Safe to repeat: a class that already
 /// has its default arm gets that one back, unchanged. Audited CLASS_ARM_DEFAULT_CREATED. Returns null for an unknown class.
 export async function classWithoutArms(actorUserId: string, classGroupId: string) {
   try {
@@ -225,13 +222,15 @@ export async function classWithoutArms(actorUserId: string, classGroupId: string
       return created;
     });
   } catch (error) {
-    return duplicate(error, "This class already has an arm called Main. Rename or archive it first.");
+    return duplicate(error, "This class already has an arm with that name. Archive it first.");
   }
 }
 
 export async function updateArm(actorUserId: string, id: string, patch: z.infer<typeof armPatch>) {
   const before = await prisma.classArm.findUnique({ where: { id } });
   if (!before) return null;
+  if (before.isDefault && patch.name !== undefined && patch.name !== before.name)
+    throw new ConflictError("This is the class's own group, not an arm you named, so it cannot be renamed. Add an arm instead.");
   try {
     const updated = await prisma.classArm.update({
       where: { id },
@@ -369,13 +368,15 @@ export async function resolveArmId(
 ): Promise<string | null> {
   const group = (className ?? "").trim();
   if (!group) return null;
+  const wanted = (arm ?? "").trim();
+  const inClass = { branchId, archivedAt: null, classGroup: { name: { equals: group, mode: "insensitive" as const }, archivedAt: null } };
+  // No arm named: the class's hidden default arm (task 0133) if it has one, else the legacy arm called "Main".
+  if (!wanted) {
+    const dflt = await db.classArm.findFirst({ where: { ...inClass, isDefault: true }, select: { id: true } });
+    if (dflt) return dflt.id;
+  }
   const found = await db.classArm.findFirst({
-    where: {
-      branchId,
-      archivedAt: null,
-      name: { equals: (arm ?? "").trim() || "Main", mode: "insensitive" },
-      classGroup: { name: { equals: group, mode: "insensitive" }, archivedAt: null },
-    },
+    where: { ...inClass, name: { equals: wanted || "Main", mode: "insensitive" } },
     select: { id: true },
   });
   return found?.id ?? null;

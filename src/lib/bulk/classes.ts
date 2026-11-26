@@ -1,6 +1,6 @@
 import "@/lib/zod-csp";
 import { z } from "zod";
-import { structureName } from "@/lib/academics/structure-rules";
+import { armName, structureName } from "@/lib/academics/structure-rules";
 import { listItems, optionalText, repeatedItems } from "./fields";
 import type { BulkColumn, BulkEntity } from "./types";
 
@@ -43,11 +43,11 @@ export const classColumns: BulkColumn[] = [
   },
 ];
 
-const listOf = (what: string, max: number) =>
+const listOf = (what: string, max: number, item: z.ZodType<string> = structureName) =>
   z.preprocess(
     listItems,
     z
-      .array(structureName, { error: "Write the names separated by commas." })
+      .array(item, { error: "Write the names separated by commas." })
       .max(max, `Use at most ${max}.`)
       .superRefine((items, ctx) => {
         const twice = repeatedItems(items);
@@ -59,7 +59,7 @@ const listOf = (what: string, max: number) =>
 export const classRowSchema: z.ZodType<ClassRow> = z.object({
   name: structureName,
   gradeLabel: optionalText(30),
-  arms: listOf("the arms", MAX_ARMS).default([]),
+  arms: listOf("the arms", MAX_ARMS, armName).default([]),
   subjects: listOf("the subjects", MAX_SUBJECTS_PER_CLASS).default([]),
 }) as unknown as z.ZodType<ClassRow>;
 
