@@ -4,6 +4,7 @@ import { armInput, armPatch } from "@/lib/academics/structure";
 import { armName } from "@/lib/academics/structure-rules";
 import { classRowSchema } from "@/lib/bulk/classes";
 import { classText } from "@/lib/academics/report-card-rules";
+import { actionLook } from "@/components/ui/action-look";
 
 // Task 0133: a class and its arm are written ONE way, and the hidden default arm of a class without arms never shows.
 
@@ -59,4 +60,12 @@ test("an ordinary arm cannot take the reserved name", () => {
   const bulk = classRowSchema.safeParse({ name: "Basic 1", arms: "A, _", subjects: "" });
   expect(bulk.success).toBe(false);
   expect(classRowSchema.safeParse({ name: "Basic 1", arms: "A, B", subjects: "" }).success).toBe(true);
+});
+
+test('the Classes row\'s "Use without arms" action has its own icon and tone (every other action of that row has one too)', () => {
+  expect(actionLook({ id: "noarms" })).toMatchObject({ tone: "info" });
+  expect(actionLook({ id: "noarms" }).icon).not.toBeNull();
+  for (const id of ["arm", "noarms", "subjects", "template", "edit", "archive", "delete"]) {
+    expect(actionLook({ id }).icon, `the "${id}" action of a class row has an icon`).not.toBeNull();
+  }
 });
