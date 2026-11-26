@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/academics/sessions";
-import { DEFAULT_ARM_NAME } from "@/lib/academics/class-label";
+import { DEFAULT_ARM_NAME, armLabel } from "@/lib/academics/class-label";
 import { CLASS_TAKEN, SUBJECT_TAKEN, armName, structureName, subjectCode } from "@/lib/academics/structure-rules";
 import { NOT_DRAFT } from "@/lib/drafts/live";
 import { catalogIdForName } from "@/lib/academics/subject-catalog-link";
@@ -369,6 +369,65 @@ export async function updateArm(actorUserId: string, id: string, patch: z.infer<
     return updated;
   } catch (error) {
     return duplicate(error, "This class already has an arm with that name.");
+  }
+}
+
+/// Deletes an arm nothing is connected to (task 0136), such as one added by mistake. Refused (409, naming what) when it has pupils (placed in it, or carrying its name on an enrolment of its class,
+/// in any session), marks, staff subject assignments, register permissions, timetable slots, announcements to it, or assignments. Its class teacher goes with it (the person's record stays).
+/// Hard delete, audited CLASS_ARM_DELETED; archive an arm to keep one that has history. Deleting a class's last arm leaves the class with no arms. Returns null for an unknown arm.
+export async function deleteArm(actorUserId: string, id: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const arm = await tx.classArm.findUnique({ where: { id }, include: { classGroup: { select: { name: true } } } });
+      if (!arm) return null;
+      const branchId = arm.branchId;
+      const inArm = { branchId, classArmId: id };
+      const connected: [string, number][] = await Promise.all([
+        tx.studentEnrollment
+          .count({
+            where: {
+              branchId,
+              OR: [
+                { classArmId: id },
+                { className: { equals: arm.classGroup.name, mode: "insensitive" }, arm: { equals: arm.name, mode: "insensitive" } },
+              ],
+            },
+          })
+          .then((n): [string, number] => ["pupils", n]),
+        tx.result.count({ where: inArm }).then((n): [string, number] => ["marks", n]),
+        tx.staffSubjectAssignment.count({ where: inArm }).then((n): [string, number] => ["teachers' subject assignments", n]),
+        tx.attendanceGrant.count({ where: inArm }).then((n): [string, number] => ["register permissions", n]),
+        tx.timetableSlot.count({ where: inArm }).then((n): [string, number] => ["timetable slots", n]),
+        tx.announcement.count({ where: { classArmId: id } }).then((n): [string, number] => ["announcements", n]),
+        tx.assignment.count({ where: inArm }).then((n): [string, number] => ["assignments", n]),
+      ]);
+      const used = connected.filter(([, n]) => n > 0).map(([what]) => what);
+      if (used.length > 0)
+        throw new ConflictError(
+          `${armLabel(arm) || arm.classGroup.name} is connected to ${used.join(", ")}, so it cannot be deleted. Archive it to take it out of use.`,
+        );
+      await tx.classArm.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "CLASS_ARM_DELETED",
+          targetType: "ClassArm",
+          targetId: id,
+          beforeValue: {
+            name: arm.name,
+            classGroupId: arm.classGroupId,
+            class: arm.classGroup.name,
+            isDefault: arm.isDefault,
+            hadClassTeacher: arm.classTeacherId !== null,
+          },
+        },
+      });
+      return { id, name: arm.name, classGroupId: arm.classGroupId };
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003")
+      throw new ConflictError("This arm is still used by other records, so it cannot be deleted. Archive it to take it out of use.");
+    throw error;
   }
 }
 
