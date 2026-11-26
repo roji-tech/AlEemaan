@@ -51,7 +51,7 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
         title="Academics"
         description={
           isAdmin
-            ? "Classes, subjects, how marks are built and graded, and the staff of each branch. Nothing here is ever deleted - old items are archived."
+            ? "Classes, subjects, how marks are built and graded, and the staff of each branch. Nothing in use is ever deleted - old items are archived, and a scheme connected to nothing can be deleted."
             : "Classes, subjects, grading and staff of your branches. Only an administrator of a branch can change them."
         }
       />
