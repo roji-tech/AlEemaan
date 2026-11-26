@@ -62,7 +62,8 @@ for (const theme of ["dark", "light"] as const) {
     if (theme === "light") await page.context().addCookies([{ name: "theme", value: "light", url: baseURL! }]);
     await openSection(page, "Assessment and grading");
     await expect(page.getByRole("heading", { level: 2, name: "Assessment schemes" })).toBeVisible();
-    await expect(page.getByText("No assessment schemes yet.")).toBeVisible();
+    // The Classes tab seeds the branch's report-card templates (and the schemes they own) the first time anyone opens it, so the list is not empty from the second test on: wait for the list to load.
+    await expect(page.getByRole("button", { name: "New scheme" })).toBeVisible();
     await expectAccessible(page, `grading section (${theme})`);
 
     await page.getByRole("button", { name: "New scheme" }).click();

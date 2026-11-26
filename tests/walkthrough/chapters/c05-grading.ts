@@ -221,7 +221,7 @@ export async function c05Grading(walk: Walk, page: Page): Promise<void> {
       await walk.click(page.getByRole("button", { name: "New school-wide scheme", exact: true }));
       const dialog = page.getByRole("dialog", { name: "New school-wide scheme" });
       await walk.type(dialog.getByLabel("Scheme name"), g.schoolWide);
-      await walk.click(dialog.getByText("Make it the default for every branch that has no scheme of its own"));
+      await walk.click(dialog.getByText(/This is the school-wide default scheme/));
       await walk.click(dialog.getByRole("button", { name: "Save scheme", exact: true }));
       await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
       await expect(page.getByText(g.schoolWide)).toBeVisible();

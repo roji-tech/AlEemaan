@@ -21,7 +21,14 @@ export type SchemeBody = {
   isDefault?: boolean;
   submitForApproval?: boolean;
 };
-export type SchemeInitial = { name: string; examMax: number; components: { name: string; maxScore: number }[]; reason?: string };
+export type SchemeInitial = {
+  name: string;
+  examMax: number;
+  components: { name: string; maxScore: number }[];
+  reason?: string;
+  /// Editing a school-wide scheme (task 0128): whether it is the default now.
+  isDefault?: boolean;
+};
 
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
@@ -59,7 +66,7 @@ export function SchemeForm({
   const [exam, setExam] = useState(initial ? String(initial.examMax) : "60");
   const [reason, setReason] = useState(initial?.reason ?? "");
   const [shared, setShared] = useState(false);
-  const [makeDefault, setMakeDefault] = useState(false);
+  const [makeDefault, setMakeDefault] = useState(initial?.isDefault ?? false);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const total =
@@ -161,7 +168,7 @@ export function SchemeForm({
           {askDefault && (
             <label className="flex items-center gap-2 text-sm text-fg">
               <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} disabled={pending} />
-              Make it the default for every branch that has no scheme of its own
+              This is the school-wide default scheme (the one a branch copies with &quot;Use the school-wide scheme&quot;)
             </label>
           )}
           {problem && <Alert variant="error">{problem}</Alert>}

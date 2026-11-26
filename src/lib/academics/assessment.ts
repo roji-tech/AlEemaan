@@ -80,6 +80,8 @@ const toScheme = (r: SchemeRow) => ({
   branchId: r.branchId,
   classGroupId: r.classGroupId,
   classGroupName: r.classGroup?.name ?? null,
+  /// Made for a result template or the school-wide scheme, not a branch or class scheme (task 0128).
+  hosted: r.hosted,
   name: r.name,
   totalMax: num(r.totalMax),
   examMax: num(r.examMax),
@@ -296,6 +298,154 @@ export async function archiveScheme(actorUserId: string, id: string) {
   return toScheme(await prisma.assessmentScheme.findUniqueOrThrow({ where: { id }, include: SCHEME_INCLUDE }));
 }
 
+/// Brings an archived scheme back (task 0128). Safe to repeat. Refused, in words, when it cannot be live again: a newer version replaced it (the newer one is the live one), another live scheme
+/// has its name, another live scheme already holds its place (the branch default, or that class's scheme), or its class is archived. Checked under the same lock as every scheme write.
+export async function restoreScheme(actorUserId: string, id: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const current = await tx.assessmentScheme.findUnique({ where: { id }, include: SCHEME_INCLUDE });
+      if (!current) return null;
+      if (!current.archivedAt) return toScheme(current);
+      await lockKey(tx, "assessment-scheme", current.branchId);
+      const replacedBy = await tx.assessmentScheme.findFirst({ where: { supersedesId: id }, select: { version: true } });
+      if (replacedBy)
+        throw new ConflictError(
+          `A newer version (version ${replacedBy.version}) replaced this scheme, so it cannot come back. Use the newer one.`,
+        );
+      if (
+        current.classGroupId &&
+        !(await tx.classGroup.findFirst({ where: { id: current.classGroupId, archivedAt: null }, select: { id: true } }))
+      )
+        throw new ConflictError("That scheme belongs to a class that is archived. Restore the class first.");
+      if (
+        await tx.assessmentScheme.findFirst({
+          where: { branchId: current.branchId, name: current.name, archivedAt: null },
+          select: { id: true },
+        })
+      )
+        throw new ConflictError(`Another live scheme is already called "${current.name}". Archive or rename it first.`);
+      if (
+        !current.hosted &&
+        (await tx.assessmentScheme.findFirst({
+          where: { branchId: current.branchId, classGroupId: current.classGroupId, archivedAt: null, hosted: false },
+          select: { id: true },
+        }))
+      )
+        throw new ConflictError(
+          current.classGroupId
+            ? "That class already has a live scheme. Archive it first to bring this one back."
+            : "This branch already has a default scheme. Archive it first to bring this one back.",
+        );
+      await tx.assessmentScheme.update({ where: { id }, data: { archivedAt: null } });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "ASSESSMENT_SCHEME_RESTORED",
+          targetType: "AssessmentScheme",
+          targetId: id,
+          beforeValue: { archived: true },
+          afterValue: { archived: false },
+        },
+      });
+      return toScheme(await tx.assessmentScheme.findUniqueOrThrow({ where: { id }, include: SCHEME_INCLUDE }));
+    });
+  } catch (error) {
+    if (isUnique(error)) throw new ConflictError("Another live scheme already holds this name or place. Reload and try again.");
+    throw error;
+  }
+}
+
+/// Deletes a scheme for good, but only one that is connected to nothing (task 0128): no mark was ever entered against it (it was never locked and no result names it), no report-card template uses
+/// it, it is not a school-wide or a teacher's own scheme (those have a level row), no teacher draft was approved into it, and it is not part of a version history (an earlier or later version
+/// exists). Anything else is archived, never deleted: a printed card must always be able to say which scheme made its marks. Its own parts go with it. Checked under the same lock as every scheme
+/// write, and the database refuses the delete if a result slipped in meanwhile (the foreign key), so a used scheme can never be removed. Returns null for an unknown id.
+export async function deleteScheme(actorUserId: string, id: string) {
+  const owner = await prisma.assessmentScheme.findUnique({ where: { id }, select: { branchId: true } });
+  if (!owner) return null;
+  const refused = "Marks already use this scheme, so it cannot be deleted. Archive it instead.";
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await lockKey(tx, "assessment-scheme", owner.branchId);
+      const current = await tx.assessmentScheme.findUnique({
+        where: { id },
+        include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }, classGroup: { select: { name: true } } },
+      });
+      if (!current) return null; // deleted by someone else a moment ago: the same answer as an unknown id
+      if (current.lockedAt || (await tx.result.count({ where: { schemeId: id } })) > 0) throw new ConflictError(refused);
+      if (await tx.resultTemplate.count({ where: { schemeId: id } }))
+        throw new ConflictError("A report-card template uses this scheme, so it cannot be deleted. Archive it instead.");
+      if (current.supersedesId || (await tx.assessmentScheme.count({ where: { supersedesId: id } })))
+        throw new ConflictError("This scheme is part of a version history, so it cannot be deleted. Archive it instead.");
+      if (
+        (await tx.assessmentSchemeScope.count({ where: { schemeId: id } })) ||
+        (await tx.assessmentSchemeDraft.count({ where: { approvedSchemeId: id } }))
+      )
+        throw new ConflictError(
+          "This is a school-wide or a teacher's own scheme, so it cannot be deleted here. Archive it, or change it under Scheme levels.",
+        );
+      await tx.assessmentComponent.deleteMany({ where: { schemeId: id } });
+      // `lockedAt: null` again in the delete itself: a result entered an instant ago locks the scheme first, and this then removes nothing.
+      const removed = await tx.assessmentScheme.deleteMany({ where: { id, lockedAt: null } });
+      if (removed.count !== 1) throw new ConflictError(refused);
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "ASSESSMENT_SCHEME_DELETED",
+          targetType: "AssessmentScheme",
+          targetId: id,
+          beforeValue: {
+            branchId: current.branchId,
+            name: current.name,
+            version: current.version,
+            classGroupId: current.classGroupId,
+            archived: current.archivedAt !== null,
+            examMax: Number(current.examMax),
+            components: current.components.map((c) => ({ name: c.name, maxScore: Number(c.maxScore) })),
+          },
+          afterValue: { deleted: true },
+        },
+      });
+      return { deleted: true as const, name: current.name, classGroupName: current.classGroup?.name ?? null };
+    });
+  } catch (error) {
+    // P2003: a result (or anything else) references the scheme after all; the transaction rolled back, so nothing was removed.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") throw new ConflictError(refused);
+    throw error;
+  }
+}
+
+/// A branch's default scheme made from the school-wide default (task 0128). A scheme is owned by one branch (every result names its branch's scheme), so the school-wide scheme is never read by
+/// marks entry directly: this COPIES it into the branch, where it is an ordinary default that can be edited or versioned like any other. Refused when the branch already has a default or the school has
+/// no default scheme. The copy takes the school-wide scheme's name, or "<name> (branch default)" when a live scheme of the branch already has it (the school-wide scheme is hosted by one branch).
+export async function copySchoolWideScheme(actorUserId: string, branchId: string) {
+  const source = await prisma.assessmentSchemeScope.findFirst({
+    where: { level: "GLOBAL", isDefault: true, scheme: { archivedAt: null } },
+    include: { scheme: { include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } } } },
+  });
+  if (!source)
+    throw new ConflictError(
+      "There is no school-wide default scheme yet. A superadmin sets one in Academics, Assessment and grading, Scheme levels, or you can make this branch's own scheme.",
+    );
+  const taken = async (name: string) =>
+    (await prisma.assessmentScheme.findFirst({ where: { branchId, name, archivedAt: null }, select: { id: true } })) !== null;
+  const base = clean(source.scheme.name);
+  const name = (await taken(base)) ? `${base} (branch default)`.slice(0, 60) : base;
+  if (name !== base && (await taken(name))) throw new ConflictError(`This branch already has a scheme called "${name}". Rename it first.`);
+  const created = await createScheme(actorUserId, {
+    branchId,
+    classGroupId: null,
+    name,
+    totalMax: num(source.scheme.totalMax),
+    examMax: num(source.scheme.examMax),
+    components: source.scheme.components.map((c) => ({ name: c.name, maxScore: num(c.maxScore) })),
+  });
+  await audit(actorUserId, "ASSESSMENT_SCHEME_COPIED_FROM_SCHOOL_WIDE", "AssessmentScheme", created.id, {
+    branchId,
+    from: source.scheme.id,
+  });
+  return created;
+}
+
 /// Called (inside the caller's transaction) the first time a result references a scheme (Slice P2). Idempotent; true when THIS call locked it.
 export async function lockScheme(tx: Prisma.TransactionClient, id: string): Promise<boolean> {
   return (await tx.assessmentScheme.updateMany({ where: { id, lockedAt: null }, data: { lockedAt: new Date() } })).count === 1;
@@ -506,6 +656,42 @@ export async function archiveScale(actorUserId: string, id: string) {
   await prisma.gradeScale.update({ where: { id }, data: { archivedAt: new Date() } });
   await audit(actorUserId, "GRADE_SCALE_ARCHIVED", "GradeScale", id, { archived: true }, { archived: false });
   return toScale(await prisma.gradeScale.findUniqueOrThrow({ where: { id }, include: SCALE_INCLUDE }));
+}
+
+/// Brings an archived grade scale back (task 0128), never as the default (the branch keeps the one it has). Safe to repeat. Refused when a newer version replaced it, or another live scale has its name.
+export async function restoreScale(actorUserId: string, id: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const current = await tx.gradeScale.findUnique({ where: { id }, include: SCALE_INCLUDE });
+      if (!current) return null;
+      if (!current.archivedAt) return toScale(current);
+      await lockKey(tx, "grade-scale", current.branchId);
+      const replacedBy = await tx.gradeScale.findFirst({ where: { supersedesId: id }, select: { version: true } });
+      if (replacedBy)
+        throw new ConflictError(
+          `A newer version (version ${replacedBy.version}) replaced this grade scale, so it cannot come back. Use the newer one.`,
+        );
+      if (
+        await tx.gradeScale.findFirst({ where: { branchId: current.branchId, name: current.name, archivedAt: null }, select: { id: true } })
+      )
+        throw new ConflictError(`Another live grade scale is already called "${current.name}". Archive or rename it first.`);
+      await tx.gradeScale.update({ where: { id }, data: { archivedAt: null, isDefault: false } });
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          action: "GRADE_SCALE_RESTORED",
+          targetType: "GradeScale",
+          targetId: id,
+          beforeValue: { archived: true },
+          afterValue: { archived: false },
+        },
+      });
+      return toScale(await tx.gradeScale.findUniqueOrThrow({ where: { id }, include: SCALE_INCLUDE }));
+    });
+  } catch (error) {
+    if (isUnique(error)) throw new ConflictError("Another live grade scale already holds this name. Reload and try again.");
+    throw error;
+  }
 }
 
 export async function lockScale(tx: Prisma.TransactionClient, id: string): Promise<boolean> {
