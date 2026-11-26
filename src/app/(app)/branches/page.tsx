@@ -38,11 +38,24 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true, code: true, _count: { select: { memberships: { where: { deactivatedAt: null } } } } },
   });
+  // Active administrators per branch (task 0130): the page shows "N admins · M members". Deactivated people are in neither count.
+  const adminRows = await prisma.membership.groupBy({
+    by: ["branchId"],
+    where: { role: "ADMIN", deactivatedAt: null },
+    _count: { _all: true },
+  });
+  const admins = new Map(adminRows.map((r) => [r.branchId, r._count._all]));
   const { deleted } = await searchParams; // set by the single-branch page after a deletion, so this page can say so; it is only ever shown as text
 
   return (
     <BranchesView
-      branches={branches.map((b) => ({ id: b.id, name: b.name, code: b.code, members: b._count.memberships }))}
+      branches={branches.map((b) => ({
+        id: b.id,
+        name: b.name,
+        code: b.code,
+        members: b._count.memberships,
+        admins: admins.get(b.id) ?? 0,
+      }))}
       deletedName={typeof deleted === "string" ? deleted.slice(0, 100) : null}
     />
   );
