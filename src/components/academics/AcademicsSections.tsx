@@ -81,10 +81,7 @@ export function AcademicsSections({
           />
         )}
         {active === "grading" && (
-          <div className="space-y-10">
-            <GradingPanel branches={branches} />
-            <SchemeLevelsPanel branches={branches} isSuperAdmin={isSuperAdmin} />
-          </div>
+          <GradingPanel branches={branches} betweenSections={<SchemeLevelsPanel branches={branches} isSuperAdmin={isSuperAdmin} />} />
         )}
         {active === "departments" && (
           <DepartmentsPanel

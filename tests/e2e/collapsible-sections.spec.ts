@@ -36,9 +36,32 @@ test("each section folds and unfolds, by mouse and keyboard, independently, and 
     await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
     await expect(toggle(page, title)).toHaveAttribute("aria-expanded", "true");
   }
+  // the order down the page: Assessment schemes, Scheme levels, Grade scales last
+  const tops = await Promise.all(
+    ["Assessment schemes", "Scheme levels", "Grade scales"].map(
+      async (title) => (await page.getByRole("heading", { level: 2, name: title }).boundingBox())!.y,
+    ),
+  );
+  expect(tops[0]).toBeLessThan(tops[1]);
+  expect(tops[1]).toBeLessThan(tops[2]);
   await expect(page.getByRole("button", { name: "New scheme" })).toBeVisible();
   await expect(page.getByRole("button", { name: "New grade scale" })).toBeVisible();
   await expect(page.getByRole("button", { name: "New school-wide scheme" })).toBeVisible();
+
+  // the two parts inside Scheme levels are sections of their own: School-wide default folds and opens; A scheme for one class stays folded for the rest of the test
+  for (const title of ["School-wide default", "A scheme for one class"]) {
+    await expect(page.getByRole("heading", { level: 3, name: title })).toBeVisible();
+    await expect(toggle(page, title)).toHaveAttribute("aria-expanded", "true");
+  }
+  await toggle(page, "School-wide default").click();
+  await expect(page.getByRole("button", { name: "New school-wide scheme" })).toBeHidden();
+  await toggle(page, "School-wide default").click();
+  await expect(page.getByRole("button", { name: "New school-wide scheme" })).toBeVisible();
+  await toggle(page, "A scheme for one class").click();
+  await expect(toggle(page, "A scheme for one class")).toHaveAttribute("aria-expanded", "false");
+  const classBody = await toggle(page, "A scheme for one class").getAttribute("aria-controls");
+  await expect(page.locator(`[id="${classBody}"]`)).toBeHidden();
+  await expect(page.getByRole("button", { name: "New school-wide scheme" })).toBeVisible(); // the other part is untouched
 
   // a dialog still opens from an open section
   await page.getByRole("button", { name: "New scheme" }).click();
@@ -75,9 +98,13 @@ test("each section folds and unfolds, by mouse and keyboard, independently, and 
   await expect(toggle(page, "Grade scales")).toHaveAttribute("aria-expanded", "true");
   await expectAccessible(page, "the grading tab with two sections folded");
 
-  // open them again: the buttons come back
+  // open them again: the buttons come back, and the part inside Scheme levels that was folded is still folded
   await toggle(page, "Assessment schemes").click();
   await toggle(page, "Scheme levels").click();
+  await expect(toggle(page, "A scheme for one class")).toHaveAttribute("aria-expanded", "false");
+  await expect(toggle(page, "School-wide default")).toHaveAttribute("aria-expanded", "true");
+  await toggle(page, "A scheme for one class").click();
+  await expect(toggle(page, "A scheme for one class")).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "New scheme" })).toBeVisible();
   await expect(page.getByRole("button", { name: "New school-wide scheme" })).toBeVisible();
   await expectAccessible(page, "the grading tab with every section open");
