@@ -810,3 +810,7 @@
 ## TASK-0131: Make default for assessment schemes (requested 2026-11-26)
 
 [Task file](0131-make-scheme-default.md). A scheme that is not the branch default can be made the default; the old default is kept. No migration.
+
+## TASK-0132: Classes can be used without arms (requested 2026-11-26)
+
+[Task file](0132-class-without-arms.md). A class with no arms can be used as one group: it gets a hidden default arm so pupils, marks and attendance work. ONE migration (`20261126180000_class_default_arm`) for the maintainer.

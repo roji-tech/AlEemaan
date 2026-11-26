@@ -34,6 +34,8 @@ type Arm = {
   id: string;
   name: string;
   capacity: number | null;
+  /// The arm of a class used without arms (task 0132): left out of the arm list while it is the class's only arm.
+  isDefault?: boolean;
   archivedAt: string | null;
   enrolments: number;
   classTeacher: { id: string; name: string } | null;
@@ -138,6 +140,15 @@ export function ClassesPanel({
     setNotice(
       reply.ok
         ? { variant: "success", text: `${what} ${archived ? "archived" : "restored"}.` }
+        : { variant: "error", text: say(reply, "That didn't work.") },
+    );
+    await load();
+  }
+  async function switchToNoArms(g: ClassGroup) {
+    const reply = await sendJson(`/api/v1/academics/class-groups/${g.id}/without-arms`, "POST");
+    setNotice(
+      reply.ok
+        ? { variant: "success", text: `${g.name} is now used without arms: its pupils go straight into the class.` }
         : { variant: "error", text: say(reply, "That didn't work.") },
     );
     await load();
@@ -265,6 +276,9 @@ export function ClassesPanel({
           >
             {classPage.rows.map((g) => {
               const pupils = g.arms.reduce((n, a) => n + a.enrolments, 0);
+              // A class used without arms has only its hidden default arm: shown as "no arms needed", not as an arm.
+              const withoutArms = g.arms.length > 0 && g.arms.every((a) => a.isDefault);
+              const shownArms = withoutArms ? [] : g.arms;
               const names = g.subjectIds.map(subjectName).filter(Boolean);
               return (
                 <Item
@@ -278,8 +292,8 @@ export function ClassesPanel({
                   factsStyle="stats"
                   facts={[
                     {
-                      label: g.arms.length === 1 ? "arm" : "arms",
-                      value: g.arms.length,
+                      label: withoutArms || g.arms.length !== 1 ? "arms" : "arm",
+                      value: withoutArms ? "none needed" : g.arms.length,
                       tone: "info",
                       icon: <LayersIcon className="h-4 w-4" />,
                     },
@@ -300,6 +314,16 @@ export function ClassesPanel({
                             ariaLabel: `Add an arm to ${g.name}`,
                             onClick: () => setEditing({ kind: "arm", classGroup: g, item: null }),
                           },
+                          ...(g.arms.length === 0
+                            ? [
+                                {
+                                  id: "noarms",
+                                  label: "Use without arms",
+                                  ariaLabel: `Use ${g.name} without arms`,
+                                  onClick: () => void switchToNoArms(g),
+                                },
+                              ]
+                            : []),
                           {
                             id: "subjects",
                             label: "Subjects",
@@ -329,9 +353,9 @@ export function ClassesPanel({
                       : undefined
                   }
                   below={
-                    g.arms.length > 0 ? (
+                    shownArms.length > 0 ? (
                       <ul aria-label={`Arms of ${g.name}`} className="flex flex-wrap gap-2">
-                        {g.arms.map((a) => {
+                        {shownArms.map((a) => {
                           const label = `${a.name}${a.capacity ? ` · cap ${a.capacity}` : ""} · ${a.enrolments}`;
                           return (
                             <li key={a.id}>
