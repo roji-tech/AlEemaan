@@ -13,9 +13,9 @@ import { useCollectionView } from "@/components/ui/useCollectionView";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { BuildingIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { BranchDeleteDialog, BranchRenameDialog, type BranchRef } from "@/components/branches/BranchDialogs";
-import { memberLabel } from "@/lib/branches/labels";
+import { peopleLabel } from "@/lib/branches/labels";
 
-export type BranchRow = { id: string; name: string; code: string; members: number };
+export type BranchRow = { id: string; name: string; code: string; members: number; admins: number };
 
 const NAME_MAX = 100; // mirrors the API's `createBranchSchema`
 
@@ -199,7 +199,7 @@ export function BranchesView({ branches, deletedName = null }: { branches: Branc
                   </ItemTile>
                 }
                 title={branch.name}
-                subtitle={memberLabel(branch.members)}
+                subtitle={peopleLabel(branch.admins, branch.members)}
                 facts={[{ label: "Code", value: branch.code }]}
                 href={`/branches/${branch.id}`}
                 hrefLabel={`${branch.name}, open`}

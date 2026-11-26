@@ -110,3 +110,12 @@ test.describe("sentText", () => {
     expect(sentText({ status: "pending", createdAt: base.createdAt })).toMatch(/^Sent 20 Nov 2026,/);
   });
 });
+
+test.describe("peopleLabel", () => {
+  test("admins and members, always as numbers, singular for one", async () => {
+    const { peopleLabel } = await import("@/lib/branches/labels");
+    expect(peopleLabel(0, 0)).toBe("0 admins · 0 members");
+    expect(peopleLabel(1, 1)).toBe("1 admin · 1 member");
+    expect(peopleLabel(2, 12)).toBe("2 admins · 12 members");
+  });
+});

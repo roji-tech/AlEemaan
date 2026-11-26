@@ -95,7 +95,7 @@ test("branches: a list or a grid, remembered, with the link, the count and both 
         await expect(page.getByRole("button", { name: `Rename ${name}` })).toBeVisible();
         await expect(page.getByRole("button", { name: `Delete ${name}` })).toBeVisible();
         await page.keyboard.press("Escape");
-        await expect(card().getByText("No members yet")).toBeVisible();
+        await expect(card().getByText("0 admins · 0 members")).toBeVisible();
         expect(await sideways(page), `${choice} at ${width}px`).toBeLessThanOrEqual(0);
       }
     }

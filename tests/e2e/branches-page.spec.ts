@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "../support/fixtures";
 import { BRANCH_NAMES, Role, createUser, db, seedInstance } from "../support/db";
-import { memberLabel } from "@/lib/branches/labels";
+import { peopleLabel } from "@/lib/branches/labels";
 import { signInThroughUi } from "./helpers";
 
 // The Branches page: the list with real member counts, and "New branch" wired to the existing
@@ -41,11 +41,13 @@ const postsTo = (page: Page) => {
 test.describe("the list", () => {
   test("shows every branch with its real member count", async ({ page }) => {
     await openBranches(page);
-    const branches = await db.branch.findMany({ include: { _count: { select: { memberships: true } } } });
+    const branches = await db.branch.findMany();
     expect(branches.length).toBeGreaterThanOrEqual(BRANCH_NAMES.length);
     for (const name of BRANCH_NAMES) {
-      const expected = branches.find((b) => b.name === name)!._count.memberships;
-      await expect(rowFor(page, name)).toContainText(memberLabel(expected));
+      const id = branches.find((b) => b.name === name)!.id;
+      const members = await db.membership.count({ where: { branchId: id, deactivatedAt: null } });
+      const admins = await db.membership.count({ where: { branchId: id, deactivatedAt: null, role: Role.ADMIN } });
+      await expect(rowFor(page, name)).toContainText(peopleLabel(admins, members));
     }
   });
 
@@ -55,18 +57,25 @@ test.describe("the list", () => {
     const branch = await db.branch.create({ data: { name } });
 
     await page.reload();
-    await expect(rowFor(page, name)).toContainText("No members yet");
+    await expect(rowFor(page, name)).toContainText("0 admins · 0 members");
 
     const first = await createUser();
     await db.membership.create({ data: { userId: first.id, branchId: branch.id, role: Role.STUDENT } });
     await page.reload();
-    await expect(rowFor(page, name)).toContainText("1 member");
+    await expect(rowFor(page, name)).toContainText("0 admins · 1 member");
     await expect(rowFor(page, name)).not.toContainText("1 members");
 
     const second = await createUser();
     await db.membership.create({ data: { userId: second.id, branchId: branch.id, role: Role.PARENT } });
     await page.reload();
-    await expect(rowFor(page, name)).toContainText("2 members");
+    await expect(rowFor(page, name)).toContainText("0 admins · 2 members");
+
+    const boss = await createUser({ superAdmin: false });
+    await db.membership.create({ data: { userId: boss.id, branchId: branch.id, role: Role.ADMIN } });
+    const gone = await createUser({ superAdmin: false });
+    await db.membership.create({ data: { userId: gone.id, branchId: branch.id, role: Role.ADMIN, deactivatedAt: new Date() } });
+    await page.reload();
+    await expect(rowFor(page, name)).toContainText("1 admin · 3 members"); // singular, administrators count as members, a deactivated one counts in neither
   });
 });
 
@@ -84,7 +93,7 @@ test.describe("creating a branch", () => {
     await createButton(page).click();
 
     await expect(page.getByRole("status")).toContainText(`“${name}” was created.`);
-    await expect(rowFor(page, name)).toContainText("No members yet");
+    await expect(rowFor(page, name)).toContainText("0 admins · 0 members");
     await expect(nameField(page)).toHaveCount(0); // the form closed
     await expect(newBranchButton(page)).toBeFocused();
     await expect(newBranchButton(page)).toHaveAttribute("aria-expanded", "false");
