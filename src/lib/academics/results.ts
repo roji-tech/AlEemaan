@@ -90,8 +90,9 @@ async function loadContext(branchId: string, periodId: string, classArmId: strin
       where: { branchId, classGroupId: null, archivedAt: null, hosted: false },
       include: { components: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
     }));
-  if (!scheme) throw new ConflictError(
-      "Set up an assessment scheme for this branch first (Academics, Assessment and grading). The school-wide scheme is not used automatically: use \"Use the school-wide scheme\" there to copy it into this branch.",
+  if (!scheme)
+    throw new ConflictError(
+      'Set up an assessment scheme for this branch first (Academics, Assessment and grading). The school-wide scheme is not used automatically: use "Use the school-wide scheme" there to copy it into this branch.',
     );
   const scale =
     fromTemplate.scale ??
