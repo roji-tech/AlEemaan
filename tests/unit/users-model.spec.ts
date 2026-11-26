@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { displayName, expiryText } from "@/components/users/model";
+import { displayName, expiryText, sentText } from "@/components/users/model";
 import { escapeLike } from "@/lib/members/service";
 import { INVITATION_TTL_MS, hashInvitationToken, isInvitationToken, newInvitationToken } from "@/lib/invitations/token";
 import { invitationStatus, isLiveInvitation } from "@/lib/invitations/status";
@@ -98,5 +98,15 @@ test.describe("invitation tokens and status", () => {
       { acceptedAt: null, revokedAt: past, expiresAt: future },
     ])
       expect(isLiveInvitation(times, now)).toBe(false);
+  });
+});
+
+test.describe("sentText", () => {
+  const base = { createdAt: "2026-11-20T09:00:00.000Z", sentAt: "2026-11-26T14:20:00.000Z" };
+  test("a sent invitation says when it was sent, a draft when it was saved, an old row falls back to its creation time", () => {
+    expect(sentText({ status: "pending", ...base })).toMatch(/^Sent 26 Nov 2026, \d{2}:\d{2}$/);
+    expect(sentText({ status: "expired", ...base })).toMatch(/^Sent 26 Nov 2026,/);
+    expect(sentText({ status: "draft", ...base, sentAt: null })).toMatch(/^Saved 20 Nov 2026,/);
+    expect(sentText({ status: "pending", createdAt: base.createdAt })).toMatch(/^Sent 20 Nov 2026,/);
   });
 });

@@ -76,3 +76,13 @@ export function expiryText(expiresAt: string | null, now: number = Date.now()): 
   }
   return "Expires in under a minute";
 }
+
+/// "Sent 26 Nov 2026, 14:20" for a sent invitation, "Saved 26 Nov 2026, 14:20" for a draft (shown in the viewer's own time zone). `sentAt` can be missing on a row from before it was recorded:
+/// the creation time is the same moment for those.
+export function sentText(i: Pick<Invitation, "status" | "createdAt" | "sentAt">): string {
+  const when = new Date((i.status === "draft" ? i.createdAt : (i.sentAt ?? i.createdAt)) as string).toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+  return `${i.status === "draft" ? "Saved" : "Sent"} ${when}`;
+}

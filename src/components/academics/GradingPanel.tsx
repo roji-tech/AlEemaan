@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { CheckboxField } from "@/components/ui/CheckboxField";
+import { SwitchField } from "@/components/ui/SwitchField";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Dialog } from "@/components/ui/Dialog";
 import { InfoTip } from "@/components/ui/InfoTip";
@@ -53,7 +53,9 @@ const SCHEMES = "/api/v1/academics/assessment-schemes";
 const SCALES = "/api/v1/academics/grade-scales";
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 
-export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
+/// `betweenSections` is shown after the Assessment schemes section and before the Grade scales section, so the tab reads: Assessment schemes, Scheme levels, Grade scales (the maintainer, 2026-11-26:
+/// "make Grade scales the last"). The scheme-levels panel is its own component with its own state; the page passes it here to sit in that place.
+export function GradingPanel({ branches, betweenSections }: { branches: BranchChoice[]; betweenSections?: ReactNode }) {
   const [branchId, setBranchId] = useBranchSelection(branches);
   const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const [schemes, setSchemes] = useState<Scheme[] | null>(null);
@@ -147,7 +149,7 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
       </div>
-      <CheckboxField
+      <SwitchField
         label="Show archived schemes and grade scales"
         checked={showArchived}
         onChange={(e) => {
@@ -251,6 +253,8 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
           </ul>
         )}
       </CollapsibleSection>
+
+      {betweenSections}
 
       <CollapsibleSection
         id="grading-scales"
