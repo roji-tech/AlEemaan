@@ -5,6 +5,7 @@ import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
@@ -26,6 +27,10 @@ type Scheme = {
   examMax: number;
   version: number;
   locked: boolean;
+  /// Made for a result template or the school-wide scheme, not a branch or class scheme (task 0128).
+  hosted?: boolean;
+  archived?: boolean;
+  supersedesId?: string | null;
   components: Component[];
 };
 export type Band = { min: number; max: number; letter: string; remark: string };
@@ -36,6 +41,8 @@ export type Scale = {
   version: number;
   locked: boolean;
   unconfirmed?: boolean;
+  archived?: boolean;
+  supersedesId?: string | null;
   bands: Band[];
 };
 type ClassOption = { id: string; name: string };
@@ -55,10 +62,21 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(null);
+  // Archived schemes and scales are listed only when asked (task 0128), each with Restore.
+  const [showArchived, setShowArchived] = useState(false);
+  // A scheme asked to be deleted for good (task 0128), confirmed in a dialog; the server says why when something holds it.
+  const [deleting, setDeleting] = useState<Scheme | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   const load = useCallback(async () => {
     const q = `?branchId=${encodeURIComponent(branchId)}`;
-    const [a, b, c] = await Promise.all([getJson(SCHEMES + q), getJson(SCALES + q), getJson(`/api/v1/academics/class-groups${q}`)]);
+    const withArchived = showArchived ? `${q}&includeArchived=true` : q;
+    const [a, b, c] = await Promise.all([
+      getJson(SCHEMES + withArchived),
+      getJson(SCALES + withArchived),
+      getJson(`/api/v1/academics/class-groups${q}`),
+    ]);
     const bad = [a, b, c].find((r) => !r.ok);
     if (bad) return setError(say(bad, "Couldn't load this branch."));
     setError(null);
@@ -66,7 +84,7 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
     setScales(b.data!.scales as Scale[]);
     setTemplate(b.data!.template as Band[]);
     setClasses((c.data!.classGroups as ClassOption[]).map((g) => ({ id: g.id, name: g.name })));
-  }, [branchId]);
+  }, [branchId, showArchived]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading data on a branch change is exactly what this effect is for
@@ -80,11 +98,36 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
     setNotice({ variant: "success", text });
     await load();
   };
-  async function act(path: string, text: string) {
-    const reply = await sendJson(path, "POST");
+  async function act(path: string, text: string, body?: unknown) {
+    const reply = await sendJson(path, "POST", body);
     setNotice(reply.ok ? { variant: "success", text } : { variant: "error", text: say(reply, "That didn't work.") });
     await load();
   }
+
+  // Offered on a scheme that looks unconnected: not used by marks (locked), not made for a template or the school-wide level, not in a version history. The server decides, and says why when it refuses.
+  const canDelete = (x: Scheme) => !x.locked && !x.hosted && !x.supersedesId && !replacedSchemes.has(x.id);
+  function askDelete(x: Scheme) {
+    setNotice(null);
+    setDeleteError(null);
+    setDeleting(x);
+  }
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeletePending(true);
+    setDeleteError(null);
+    const reply = await sendJson(`${SCHEMES}/${deleting.id}`, "DELETE");
+    setDeletePending(false);
+    if (!reply.ok) return setDeleteError(say(reply, "That didn't work."));
+    const gone = deleting.name;
+    setDeleting(null);
+    setNotice({ variant: "success", text: `${gone} deleted.` });
+    await load();
+  }
+
+  // A newer version replaced these (so they cannot come back), and whether the branch has a default scheme of its own (task 0128).
+  const replacedSchemes = new Set((schemes ?? []).flatMap((x) => (x.supersedesId ? [x.supersedesId] : [])));
+  const replacedScales = new Set((scales ?? []).flatMap((x) => (x.supersedesId ? [x.supersedesId] : [])));
+  const noBranchDefault = schemes !== null && !schemes.some((x) => !x.archived && !x.hosted && x.classGroupId === null);
 
   return (
     <div className="space-y-8">
@@ -103,6 +146,15 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
         {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
       </div>
+      <CheckboxField
+        label="Show archived schemes and grade scales"
+        checked={showArchived}
+        onChange={(e) => {
+          setSchemes(null);
+          setScales(null);
+          setShowArchived(e.target.checked);
+        }}
+      />
 
       <section aria-labelledby="schemes-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,7 +164,19 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
             </h2>
             <InfoTip tip="academics.schemes" />
           </div>
-          {branch.canEdit && <Button onClick={() => setEditing({ kind: "scheme", item: null })}>New scheme</Button>}
+          {branch.canEdit && (
+            <div className="flex flex-wrap gap-2">
+              {noBranchDefault && (
+                <Button
+                  variant="secondary"
+                  onClick={() => act(`${SCHEMES}/from-school-wide`, "The school-wide scheme is now this branch's default.", { branchId })}
+                >
+                  Use the school-wide scheme
+                </Button>
+              )}
+              <Button onClick={() => setEditing({ kind: "scheme", item: null })}>New scheme</Button>
+            </div>
+          )}
         </div>
         <p className="mt-1 text-sm text-fg-muted">
           How a mark is built: continuous-assessment parts plus the exam. A scheme for one class wins over the branch default.
@@ -133,8 +197,21 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
                   <p className="font-semibold text-fg">
                     {s.name} <span className="text-sm font-normal text-fg-muted">· version {s.version}</span>
                     {s.locked && <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Locked</span>}
+                    {s.archived && (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Archived</span>
+                    )}
                   </p>
-                  {branch.canEdit && (
+                  {branch.canEdit && s.archived && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RestoreButton
+                        name={s.name}
+                        replaced={replacedSchemes.has(s.id)}
+                        onRestore={() => act(`${SCHEMES}/${s.id}/restore`, `${s.name} restored.`)}
+                      />
+                      {canDelete(s) && <DeleteButton name={s.name} onDelete={() => askDelete(s)} />}
+                    </div>
+                  )}
+                  {branch.canEdit && !s.archived && (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         variant="secondary"
@@ -150,11 +227,17 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
                       >
                         Archive
                       </Button>
+                      {canDelete(s) && <DeleteButton name={s.name} onDelete={() => askDelete(s)} />}
                     </div>
                   )}
                 </div>
                 <p className="mt-1 text-sm text-fg-muted">
-                  {s.classGroupName ? `For ${s.classGroupName}` : "Branch default"} · out of {fmt(s.totalMax)}
+                  {s.classGroupName
+                    ? `For ${s.classGroupName}`
+                    : s.hosted
+                      ? "Made for a template or the school-wide scheme"
+                      : "Branch default"}{" "}
+                  · out of {fmt(s.totalMax)}
                 </p>
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {s.components.map((c) => (
@@ -200,11 +283,21 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
                       <span className="ml-2 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-fg">Default</span>
                     )}
                     {s.locked && <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Locked</span>}
+                    {s.archived && (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Archived</span>
+                    )}
                     {s.unconfirmed && (
                       <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-fg-2">Unconfirmed</span>
                     )}
                   </p>
-                  {branch.canEdit && (
+                  {branch.canEdit && s.archived && (
+                    <RestoreButton
+                      name={s.name}
+                      replaced={replacedScales.has(s.id)}
+                      onRestore={() => act(`${SCALES}/${s.id}/restore`, `${s.name} restored.`)}
+                    />
+                  )}
+                  {branch.canEdit && !s.archived && (
                     <div className="flex flex-wrap gap-2">
                       {!s.isDefault && (
                         <Button
@@ -234,7 +327,7 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
                     </div>
                   )}
                 </div>
-                {s.unconfirmed && (
+                {s.unconfirmed && !s.archived && (
                   <Alert variant="warning">
                     <span className="block">{UNCONFIRMED_NOTICE}.</span>
                     <span className="mt-1 block text-xs">
@@ -296,6 +389,27 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
         )}
       </section>
 
+      <Dialog
+        open={deleting !== null}
+        onClose={() => (deletePending ? undefined : setDeleting(null))}
+        title={deleting ? `Delete ${deleting.name}?` : "Delete scheme"}
+        description="This removes the scheme for good. Nothing uses it, so no marks are affected. To keep it for later, archive it instead."
+      >
+        {deleteError && <Alert variant="error">{deleteError}</Alert>}
+        <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={() => setDeleting(null)} disabled={deletePending}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={confirmDelete}
+            loading={deletePending}
+            aria-label={deleting ? `Delete ${deleting.name} for good` : "Delete"}
+          >
+            {deletePending ? "Deleting…" : "Delete for good"}
+          </Button>
+        </div>
+      </Dialog>
       <SchemeDialog
         key={editing?.kind === "scheme" ? (editing.item?.id ?? "new") : "none"}
         item={editing?.kind === "scheme" ? editing.item : null}
@@ -612,5 +726,23 @@ export function ScaleDialog({
         </form>
       )}
     </Dialog>
+  );
+}
+
+/// "Restore" for an archived scheme or grade scale (task 0128). One that a newer version replaced cannot come back: it says so instead (the newer version is the live one).
+function DeleteButton({ name, onDelete }: { name: string; onDelete: () => void }) {
+  return (
+    <Button variant="ghost" onClick={onDelete} aria-label={`Delete ${name}`}>
+      Delete
+    </Button>
+  );
+}
+
+function RestoreButton({ name, replaced, onRestore }: { name: string; replaced: boolean; onRestore: () => void }) {
+  if (replaced) return <p className="text-sm text-fg-muted">Replaced by a newer version</p>;
+  return (
+    <Button variant="secondary" onClick={onRestore} aria-label={`Restore ${name}`}>
+      Restore
+    </Button>
   );
 }

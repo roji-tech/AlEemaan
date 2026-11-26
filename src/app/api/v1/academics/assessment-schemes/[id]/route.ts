@@ -4,13 +4,14 @@ import { ok } from "@/lib/api/envelope";
 import { validate, type Parsed } from "@/lib/api/validate";
 import { withAuth, type AuthContext } from "@/lib/auth/with-auth";
 import { withBranch } from "@/lib/auth/with-branch";
-import { schemeBranchId, schemePatch, updateScheme, getScheme } from "@/lib/academics/assessment";
+import { schemeBranchId, schemePatch, updateScheme, getScheme, deleteScheme } from "@/lib/academics/assessment";
 import { READ_ROLES, notFound, structureCall } from "@/lib/academics/structure-http";
 
 type Context = { params: Promise<{ id: string }> };
 
 // GET   /api/v1/academics/assessment-schemes/[id]   one scheme with its components and the canonical snapshot (JSON + SHA-256). Any staff role in its branch.
 // PATCH /api/v1/academics/assessment-schemes/[id]   edit IN PLACE, only while no result uses it (409 otherwise: make a new version). Administrators of its branch.
+// DELETE /api/v1/academics/assessment-schemes/[id]  delete for good a scheme connected to nothing (task 0128): 409 with the reason when marks, a template, a school-wide or teacher level or a version history hold it. Administrators of its branch.
 // Another branch's scheme is the same 404 as an unknown id.
 export const GET = withAuth<Context>(
   withBranch<undefined, AuthContext, Context>(
@@ -35,6 +36,18 @@ export const PATCH = withAuth<Context>(
           return result ? ok(result) : notFound("Scheme");
         }),
     ),
+  ),
+  { roles: [Role.ADMIN] },
+);
+
+export const DELETE = withAuth<Context>(
+  withBranch<undefined, AuthContext, Context>(
+    { of: async (_i, _r, ctx) => schemeBranchId((await ctx.params).id), as: "administer", refuse: () => notFound("Scheme") },
+    async (_req, auth, ctx) =>
+      structureCall("SCHEME_DELETE", async () => {
+        const result = await deleteScheme(auth.userId, (await ctx.params).id);
+        return result ? ok(result) : notFound("Scheme");
+      }),
   ),
   { roles: [Role.ADMIN] },
 );

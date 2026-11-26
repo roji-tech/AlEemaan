@@ -15,10 +15,11 @@ import { useBranchSelection } from "@/components/ui/useBranchSelection";
 type Scheme = { id: string; name: string; totalMax: number; examMax: number; components: { name: string; maxScore: number }[] };
 type GlobalRow = { scopeId: string; isDefault: boolean; scheme: Scheme & { locked: boolean; archived: boolean } };
 type Group = { id: string; name: string };
-type Editing = { kind: "global" } | { kind: "group"; group: Group; scheme: Scheme | null } | null;
+type Editing = { kind: "global"; row: GlobalRow | null } | { kind: "group"; group: Group; scheme: Scheme | null } | null;
 
 const describe = (s: Scheme) => `${s.components.map((c) => `${c.name} ${c.maxScore}`).join(" + ")} + Exam ${s.examMax} = ${s.totalMax}`;
 const toInitial = (s: Scheme | null): SchemeInitial | null => (s ? { name: s.name, examMax: s.examMax, components: s.components } : null);
+const toGlobalInitial = (g: GlobalRow): SchemeInitial => ({ ...toInitial(g.scheme)!, isDefault: g.isDefault });
 
 export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: BranchChoice[]; isSuperAdmin: boolean }) {
   const adminBranches = branches.filter((b) => b.canEdit);
@@ -52,7 +53,10 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
     await load();
   };
   const submit = (body: SchemeBody) => {
-    if (editing?.kind === "global") return sendJson("/api/v1/academics/schemes/global", "POST", body);
+    if (editing?.kind === "global")
+      return editing.row
+        ? sendJson(`/api/v1/academics/schemes/global/${editing.row.scopeId}`, "PATCH", body)
+        : sendJson("/api/v1/academics/schemes/global", "POST", body);
     if (editing?.kind === "group") {
       const path = `/api/v1/academics/schemes/class-group/${editing.group.id}`;
       return editing.scheme ? sendJson(path, "PATCH", body) : sendJson(path, "POST", body);
@@ -67,8 +71,9 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
           Scheme levels
         </h2>
         <p className="mt-1 text-sm text-fg-muted">
-          Marks use the most specific scheme that applies: a teacher&apos;s own for the subject, then the class&apos;s, then the branch
-          default above, then the school-wide one.
+          Marks use the most specific scheme that applies: a class&apos;s own, then its result template&apos;s, then the branch default
+          above. The school-wide scheme is not read by marks directly (every branch keeps its own copy): a branch with no scheme of its own
+          copies it with &quot;Use the school-wide scheme&quot; under Assessment schemes.
         </p>
       </div>
       <div aria-live="polite" className="empty:hidden">
@@ -79,7 +84,7 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-semibold text-fg">School-wide default</h3>
-            <Button onClick={() => setEditing({ kind: "global" })}>New school-wide scheme</Button>
+            <Button onClick={() => setEditing({ kind: "global", row: null })}>New school-wide scheme</Button>
           </div>
           {globals.length === 0 ? (
             <p className="mt-2 rounded-2xl border border-dashed border-line-strong p-5 text-center text-sm text-fg-muted">
@@ -88,11 +93,23 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
           ) : (
             <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface">
               {globals.map((g) => (
-                <li key={g.scopeId} className="p-4">
-                  <p className="font-semibold text-fg">
-                    {g.scheme.name} {g.isDefault && <span className="ml-2 text-xs text-ok-fg">Default</span>}
-                  </p>
-                  <p className="text-sm text-fg-muted">{describe(g.scheme)}</p>
+                <li key={g.scopeId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-fg">
+                      {g.scheme.name} {g.isDefault && <span className="ml-2 text-xs text-ok-fg">Default</span>}
+                      {g.scheme.locked && <span className="ml-2 text-xs text-fg-muted">Locked</span>}
+                    </p>
+                    <p className="text-sm text-fg-muted">{describe(g.scheme)}</p>
+                  </div>
+                  {!g.scheme.locked && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setEditing({ kind: "global", row: g })}
+                      aria-label={`Edit the school-wide scheme ${g.scheme.name}`}
+                    >
+                      Edit
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -156,17 +173,35 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
         )}
       </div>
       <SchemeForm
-        key={editing?.kind === "group" ? `g-${editing.group.id}` : editing?.kind === "global" ? "global" : "none"}
+        key={
+          editing?.kind === "group"
+            ? `g-${editing.group.id}`
+            : editing?.kind === "global"
+              ? `global-${editing.row?.scopeId ?? "new"}`
+              : "none"
+        }
         open={editing !== null}
         title={
-          editing?.kind === "global" ? "New school-wide scheme" : editing?.kind === "group" ? `Scheme for ${editing.group.name}` : "Scheme"
+          editing?.kind === "global"
+            ? editing.row
+              ? `Edit ${editing.row.scheme.name}`
+              : "New school-wide scheme"
+            : editing?.kind === "group"
+              ? `Scheme for ${editing.group.name}`
+              : "Scheme"
         }
         description={
           editing?.kind === "group"
             ? `Applies to every subject of ${editing.group.name} in ${branch.name} that has no scheme of its own.`
             : undefined
         }
-        initial={editing?.kind === "group" ? toInitial(editing.scheme) : null}
+        initial={
+          editing?.kind === "group"
+            ? toInitial(editing.scheme)
+            : editing?.kind === "global" && editing.row
+              ? toGlobalInitial(editing.row)
+              : null
+        }
         askDefault={editing?.kind === "global"}
         onClose={() => setEditing(null)}
         onSubmit={submit}
