@@ -1,3 +1,4 @@
+import { armLabel } from "@/lib/academics/class-label";
 import { prisma as db } from "@/lib/db";
 import { EnrollmentStatus, PromotionDecision, DecisionMode, PromotionBatchStatus, ResultStatus } from "@prisma/client";
 import {
@@ -457,13 +458,13 @@ export async function executePromotion(input: ExecutePromotionInput, actorId: st
               branchId,
               sessionId: targetSessionId,
               className: targetClassGroup.name,
-              arm: targetArm?.name || student.currentArmName,
+              arm: armLabel(targetArm?.name || student.currentArmName) || null,
               classArmId: targetArm?.id || null,
               status: EnrollmentStatus.ACTIVE,
             },
             update: {
               className: targetClassGroup.name,
-              arm: targetArm?.name || student.currentArmName,
+              arm: armLabel(targetArm?.name || student.currentArmName) || null,
               classArmId: targetArm?.id || null,
               status: EnrollmentStatus.ACTIVE,
             },

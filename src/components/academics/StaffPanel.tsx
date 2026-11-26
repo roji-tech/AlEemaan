@@ -53,6 +53,7 @@ import {
   invitable,
   type InvitePerson,
 } from "@/components/academics/StaffAccess";
+import { classLabel } from "@/lib/academics/class-label";
 
 // The branch's staff and who teaches what (Slice P1d, over the P1c API). A record is how the branch knows a person - including someone who never signs in; a
 // sign-in account is an existing member it can be linked to. Presentation only: the API decides who may read and change what.
@@ -96,7 +97,7 @@ type Staff = {
 };
 type Assignment = { id: string; subjectId: string; subjectName: string; classArmId: string; armName: string; classGroupName: string };
 type Linkable = { userId: string; name: string | null; email: string | null };
-type ClassOption = { id: string; name: string; subjectIds: string[]; arms: { id: string; name: string }[] };
+type ClassOption = { id: string; name: string; subjectIds: string[]; arms: { id: string; name: string; isDefault?: boolean }[] };
 type SubjectOption = { id: string; name: string };
 type Editing = { kind: "record"; item: Staff | null } | { kind: "manage"; item: Staff } | null;
 
@@ -1335,7 +1336,7 @@ function ManageDialog({
     .flatMap((c) => c.arms.map((a) => ({ ...a, className: c.name, subjectIds: c.subjectIds })))
     .find((a) => a.id === armId);
   const offered = subjects.filter((s) => arm?.subjectIds.includes(s.id));
-  const armOptions = classes.flatMap((c) => c.arms.map((a) => ({ value: a.id, label: `${c.name} ${a.name}` })));
+  const armOptions = classes.flatMap((c) => c.arms.map((a) => ({ value: a.id, label: classLabel(c.name, a) })));
 
   return (
     <Dialog
@@ -1442,13 +1443,13 @@ function ManageDialog({
                 {assignments.map((a) => (
                   <li key={a.id} className="flex items-center justify-between gap-3 p-3">
                     <span className="text-sm text-fg">
-                      {a.subjectName} · {a.classGroupName} {a.armName}
+                      {a.subjectName} · {classLabel(a.classGroupName, a.armName)}
                     </span>
                     {canEdit && (
                       <Button
                         variant="ghost"
                         disabled={pending}
-                        aria-label={`Remove ${a.subjectName} in ${a.classGroupName} ${a.armName}`}
+                        aria-label={`Remove ${a.subjectName} in ${classLabel(a.classGroupName, a.armName)}`}
                         onClick={() =>
                           run(() => sendJson(`/api/v1/staff/${person.id}/assignments/${a.id}`, "DELETE"), "Assignment removed.")
                         }

@@ -814,3 +814,7 @@
 ## TASK-0132: Classes can be used without arms (requested 2026-11-26)
 
 [Task file](0132-class-without-arms.md). A class with no arms can be used as one group: it gets a hidden default arm so pupils, marks and attendance work. ONE migration (`20261126180000_class_default_arm`) for the maintainer.
+
+## TASK-0133: One way to write a class and its arm (requested 2026-11-26)
+
+[Task file](0133-class-label-helper.md). `classLabel` / `armLabel` (`lib/academics/class-label.ts`) write a class and its arm everywhere and hide the default arm of a class without arms; that arm is renamed `_` and ordinary arms may not use it. ONE small migration (`20261126210000_default_arm_name`) for the maintainer, after `20261126180000_class_default_arm`.

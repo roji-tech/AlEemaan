@@ -1,10 +1,13 @@
 import "@/lib/zod-csp";
 import { z } from "zod";
+import { DEFAULT_ARM_NAME } from "@/lib/academics/class-label";
 
 // The field rules of classes, arms and subjects, CLIENT-SAFE (no database): the single forms' routes (`structure.ts`) and the bulk entry (`lib/bulk/classes.ts`, `subjects.ts`) both use
 // these, so a name is refused in the same words wherever it is typed (task 0084, the same way `staff-rules.ts` does it for staff).
 
 export const structureName = z.string().trim().min(1, "Give a name.").max(60, "Use at most 60 characters.");
+/// An arm's name: any class name, except the one the hidden default arm is stored under (task 0133), so a real arm can never be mistaken for it.
+export const armName = structureName.refine((v) => v !== DEFAULT_ARM_NAME, "That name is kept for the system. Use another.");
 export const subjectCode = z
   .string()
   .trim()

@@ -1,5 +1,6 @@
 "use client";
 
+import { armLabel } from "@/lib/academics/class-label";
 import { useState } from "react";
 import { AnnouncementStatus } from "@prisma/client";
 import { AnnouncementComposerModal, type AnnouncementItem } from "./AnnouncementComposerModal";
@@ -190,7 +191,7 @@ export function AnnouncementsFeed({
                         <>
                           <span>•</span>
                           <span className="rounded-md bg-field border border-line px-1.5 py-0.5 text-[10px] text-fg-muted">
-                            Class: {ann.classArm.name}
+                            Class: {classArms.find((a) => a.id === ann.classArm?.id)?.name ?? armLabel(ann.classArm)}
                           </span>
                         </>
                       )}

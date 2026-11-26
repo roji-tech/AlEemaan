@@ -5,6 +5,7 @@ import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useState, useEffect, useCallback } from "react";
 import { TimetableCanvas } from "./TimetableCanvas";
 import type { SlotDto } from "./SlotEditModal";
+import { classLabel } from "@/lib/academics/class-label";
 
 export interface TimetablePanelProps {
   branches: { id: string; name: string }[];
@@ -43,8 +44,8 @@ export function TimetablePanel({ branches, isAdmin }: TimetablePanelProps) {
         // There is no list-arms route (GET /academics/arms does not exist, so this used to leave the list empty and no period could ever be scheduled):
         // the arms come with their class from the class-groups list.
         const d = await armsRes.json();
-        const groups: { name: string; arms: { id: string; name: string }[] }[] = d.data?.classGroups ?? [];
-        setClassArms(groups.flatMap((g) => g.arms.map((a) => ({ id: a.id, name: `${g.name} ${a.name}` }))));
+        const groups: { name: string; arms: { id: string; name: string; isDefault?: boolean }[] }[] = d.data?.classGroups ?? [];
+        setClassArms(groups.flatMap((g) => g.arms.map((a) => ({ id: a.id, name: classLabel(g.name, a) }))));
       }
       if (subsRes.ok) {
         const d = await subsRes.json();

@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { templateForClass } from "@/lib/results/templates";
 import { snapshotTemplate } from "@/lib/results/template-snapshot";
 import { usesHeadReview } from "@/lib/academics/head-review-setting";
@@ -317,7 +318,7 @@ export async function reviewQueue(branchId: string, periodId: string, scope?: Ap
       select: { id: true, name: true },
     }),
   ]);
-  const armName = new Map(arms.map((a) => [a.id, `${a.classGroup.name} ${a.name}`]));
+  const armName = new Map(arms.map((a) => [a.id, classLabel(a.classGroup.name, a)]));
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
   const byKey = new Map<
     string,

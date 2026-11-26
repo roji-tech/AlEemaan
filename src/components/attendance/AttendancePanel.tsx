@@ -1,5 +1,6 @@
 "use client";
 
+import { armLabel, classLabel } from "@/lib/academics/class-label";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useBranchSelection } from "@/components/ui/useBranchSelection";
 import { useNotice } from "@/components/ui/Toaster";
@@ -70,7 +71,7 @@ export function AttendancePanel({
             if (prev) return prev;
             const first = armsList[0];
             setClassName(first.classGroupName);
-            setArm(first.name);
+            setArm(armLabel(first));
             return first.id;
           });
         }
@@ -283,7 +284,7 @@ export function AttendancePanel({
                   const found = authorizedArms.find((a) => a.id === armId);
                   if (found) {
                     setClassName(found.classGroupName);
-                    setArm(found.name);
+                    setArm(armLabel(found));
                     setOverrides({});
                   }
                 }}
@@ -292,7 +293,7 @@ export function AttendancePanel({
                 <option value="">Custom input below…</option>
                 {authorizedArms.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.classGroupName} {a.name} (
+                    {classLabel(a.classGroupName, a)} (
                     {a.grantType === "CLASS_TEACHER" ? "Class Teacher" : a.grantType === "EXPLICIT_GRANT" ? "Granted" : "Admin"})
                   </option>
                 ))}

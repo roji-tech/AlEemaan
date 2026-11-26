@@ -1,5 +1,6 @@
 "use client";
 
+import { classLabel } from "@/lib/academics/class-label";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getJson } from "@/components/auth/postJson";
@@ -85,9 +86,7 @@ export function StudentLookupTool() {
               <>
                 <div>
                   <span className="text-fg-muted block">Class & Arm:</span>
-                  <span className="font-semibold text-fg">
-                    {activeEnrollment.className || "—"} {activeEnrollment.arm || ""}
-                  </span>
+                  <span className="font-semibold text-fg">{classLabel(activeEnrollment.className, activeEnrollment.arm) || "—"}</span>
                 </div>
                 <div>
                   <span className="text-fg-muted block">Session:</span>

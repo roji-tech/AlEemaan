@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSchoolSettings } from "@/lib/settings/school-settings";
@@ -298,7 +299,7 @@ export async function verifyToken(token: string) {
     genuine: intact,
     school: school.name,
     branch: r.branch.name,
-    className: `${r.classArm.classGroup.name} ${r.classArm.name}`,
+    className: classLabel(r.classArm.classGroup.name, r.classArm),
     period: `${r.period.label}, ${r.period.session.label}`,
     publishedAt: r.publishedAt.toISOString(),
   };

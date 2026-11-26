@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { Prisma, Role } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -323,7 +324,7 @@ export async function entryOptions(userId: string, role: Role, branchId: string)
     pairs = offerings.flatMap((o) =>
       o.classGroup.arms.map((a) => ({
         classArmId: a.id,
-        armName: `${o.classGroup.name} ${a.name}`,
+        armName: classLabel(o.classGroup.name, a),
         subjectId: o.subject.id,
         subjectName: o.subject.name,
       })),
@@ -343,7 +344,7 @@ export async function entryOptions(userId: string, role: Role, branchId: string)
     });
     pairs = mine.map((m) => ({
       classArmId: m.classArm.id,
-      armName: `${m.classArm.classGroup.name} ${m.classArm.name}`,
+      armName: classLabel(m.classArm.classGroup.name, m.classArm),
       subjectId: m.subject.id,
       subjectName: m.subject.name,
     }));

@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { z } from "zod";
 import { resolveArmId } from "@/lib/academics/structure";
 import { prisma } from "@/lib/db";
@@ -763,7 +764,7 @@ export async function listStudents(args: StudentListFilters & { page?: number; l
           })
         : [],
       residence: s.residence,
-      currentClass: s.enrollments[0] ? `${s.enrollments[0].className}${s.enrollments[0].arm ? ` ${s.enrollments[0].arm}` : ""}` : null,
+      currentClass: s.enrollments[0] ? classLabel(s.enrollments[0].className, s.enrollments[0].arm) : null,
       sessionLabel: s.enrollments[0]?.session.label ?? null,
     })),
     pagination: {

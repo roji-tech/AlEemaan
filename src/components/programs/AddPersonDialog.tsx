@@ -11,6 +11,7 @@ import { NETWORK_ERROR, getJson, problemFor, sendJson, type Reply } from "@/comp
 import { say } from "@/components/academics/common";
 import type { ProgramDetail } from "@/components/programs/model";
 import { SKIP_TEXT } from "@/components/programs/people-model";
+import { classLabel } from "@/lib/academics/class-label";
 
 // Adding people to a program (task 0043, slice P2): a pupil or a member of staff (the school's record is LINKED, never typed again), a whole class of pupils (it says who would be
 // added and who skipped before anything happens), or a new person (an adult, a guardian or a child). The server decides who may add whom; this only asks and shows what it says.
@@ -220,7 +221,9 @@ function WholeClass({
     if (!reply.ok) return setError(reply.status === 0 ? NETWORK_ERROR : say(reply, "That didn't work."));
     const result = reply.data as unknown as Plan;
     if (!confirm) return setPlan(result);
-    onAdded(`${result.added} ${result.added === 1 ? "pupil was" : "pupils were"} added from ${result.arm.className} ${result.arm.name}.`);
+    onAdded(
+      `${result.added} ${result.added === 1 ? "pupil was" : "pupils were"} added from ${classLabel(result.arm.className, result.arm.name)}.`,
+    );
     onClose();
   }
 

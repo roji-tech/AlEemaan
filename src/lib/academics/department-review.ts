@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { Prisma, Role, StandingState, type ResultStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -130,7 +131,7 @@ export async function reviewQueue(userId: string, role: Role, branchId: string, 
         departmentId,
         departmentName: r.subject.department?.name ?? "",
         classArmId: r.classArmId,
-        armName: `${r.classArm.classGroup.name} ${r.classArm.name}`,
+        armName: classLabel(r.classArm.classGroup.name, r.classArm),
         subjectId: r.subjectId,
         subjectName: r.subject.name,
         waiting: [],

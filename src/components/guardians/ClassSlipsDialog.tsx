@@ -7,12 +7,13 @@ import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { GENERIC_ERROR, getJson, sendJson } from "@/components/auth/postJson";
 import { SlipCard, SlipSheet, type AccessSlip, type SignIn } from "./AccessSlips";
+import { armLabel, classLabel } from "@/lib/academics/class-label";
 
 // "Print access slips" for a class (task 0113 D8; task 0094 3a: "Print access codes for this class"): choose the class (and an arm), what to make, see how many pupils it replaces, confirm,
 // and print. New pupil codes for every pupil; a code for each pupil's main guardian who has none (one per guardian across the sheet, so brothers and sisters share it; one who already has a
 // code keeps it). At most 100 pupils at a time. The codes are shown once.
 
-type ClassOption = { id: string; name: string; arms: { id: string; name: string }[] };
+type ClassOption = { id: string; name: string; arms: { id: string; name: string; isDefault?: boolean }[] };
 type Which = "both" | "pupil" | "guardian";
 
 export function ClassSlipsDialog({
@@ -70,7 +71,7 @@ export function ClassSlipsDialog({
     );
   }
 
-  const className = chosen ? `${chosen.name}${classArmId ? ` ${chosen.arms.find((a) => a.id === classArmId)?.name ?? ""}` : ""}` : "";
+  const className = chosen ? classLabel(chosen.name, classArmId ? chosen.arms.find((a) => a.id === classArmId) : null) : "";
   const whatText = which === "both" ? "pupil and guardian codes" : which === "pupil" ? "pupil codes" : "guardian codes";
 
   return (
@@ -100,7 +101,10 @@ export function ClassSlipsDialog({
                 label="Arm"
                 value={classArmId}
                 onChange={(e) => (setClassArmId(e.target.value), setCount(null))}
-                options={[{ value: "", label: "Every arm" }, ...(chosen?.arms ?? []).map((a) => ({ value: a.id, label: a.name }))]}
+                options={[
+                  { value: "", label: "Every arm" },
+                  ...(chosen?.arms ?? []).map((a) => ({ value: a.id, label: armLabel(a) || "Whole class" })),
+                ]}
                 disabled={!chosen || chosen.arms.length < 2}
               />
               <SelectField

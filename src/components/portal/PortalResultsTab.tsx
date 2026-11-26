@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { downloadReportCardHtml } from "@/lib/academics/report-card-export";
 import { ReportCard, type Card } from "@/components/results/ReportCard";
 import { Button } from "@/components/ui/Button";
+import { armLabel, classLabel } from "@/lib/academics/class-label";
 
 interface ReportCardResult {
   id: string;
@@ -107,7 +108,7 @@ export function PortalResultsTab({ reportCards, blockedByUnpaidFees, outstanding
 
   const activeCard = reportCards.find((c) => c.period.id === selectedPeriodId) || reportCards[0];
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const classOf = (c: PortalReportCard) => (c.card?.class ? `${c.card.class.group} ${c.card.class.arm}` : c.classArm.name);
+  const classOf = (c: PortalReportCard) => (c.card?.class ? classLabel(c.card.class.group, c.card.class.arm) : armLabel(c.classArm));
 
   return (
     <div className="space-y-6">
