@@ -1,0 +1,18 @@
+# 0135: no-arms switch on a new class, convert a one-arm class to no arms, delete an unused class
+
+- **Status:** Built; see Tests. No migration.
+
+The maintainer (2026-11-26, screenshot of the Classes tab): "HOW DO I REMOVE ARM FROM A CLASS THAT ALREADY HAS AN ARM, AND CAN WE HAVE THE 'NO ARM' SWITCH BUTTON ON CLASS CREATION, AND WE WANT A CLASS THAT IS NOT CONNECTED TO ANYTHING LIKE A JUST CREATED CLASS TO BE DELETABLE".
+
+## Decisions
+1. **Switch on class creation.** The New class dialog has "This class has no arms" (a `SwitchField`, off by default, only when creating), with an info icon beside it (`classes.noArms`: "A class with no arms is not split into groups, like JSS 2 rather than JSS 2A and JSS 2B. Its pupils go straight into the class, and arms can be added later."). `POST /class-groups` takes `withoutArms: true`, and the class and its hidden default arm are made in ONE transaction (a taken class name leaves no stray arm). Audited as before, plus `withoutArms` on `CLASS_GROUP_CREATED`.
+2. **Remove the arm of a class that has one.** "Use without arms" is now offered for a class with exactly ONE live arm too (not only for none). The arm is **converted**, not deleted: it becomes the class's default arm (`isDefault`, named `_`, capacity dropped), so its pupils, marks, register, timetable, subject assignments and class teacher stay exactly where they are; only its name stops being shown. The arm text written on its enrolments is cleared. A confirmation says so. Audited `CLASS_ARM_MADE_DEFAULT` (before: name, capacity). A class with TWO or more live arms is refused (409, with the count): its pupils would have nowhere to go; the person moves them into one arm and archives the rest first. Repeating is safe.
+3. **Delete a class.** `DELETE /class-groups/[id]` (administrators of the branch; another branch's class is the same 404). Allowed only when nothing is connected to the class: refused (409, naming what) for pupils now or in an earlier session (by arm or by the class name written on an enrolment), marks, staff subject assignments, register permissions, timetable slots, announcements to its arms, promotion records, fee lines, result approval scopes, a scheme of its own, a frozen report-card use, assignments, learning materials and quizzes. What belongs to the class itself goes with it: its arms (the hidden default arm and any arm's class teacher included), its subject list, its result-template and grade-scale choice. The subjects themselves stay. Hard delete, audited `CLASS_GROUP_DELETED` with what it had. The row menu shows "Delete" only while the class has no pupils; the server is the judge of everything else. A confirmation dialog explains that archive keeps a class. Same idea as deleting an unused scheme (task 0128).
+4. The class-teacher line of task 0134 also shows after a conversion (the arm keeps its teacher).
+
+## Not done (said plainly)
+- Two or more arms cannot be merged into none in one click (pupils are not moved for you).
+- Deleting is not offered for a class that has pupils, even if they are only in an earlier session; archive it.
+
+## Tests
+API (`tests/api/class-without-arms.spec.ts`): creation with and without the flag (and the taken-name case), conversion (same arm id, pupil and teacher kept, audit, repeat, two arms refused), deletion (arms and subject list go, the subject stays, audit, a class with real empty arms, a class with a pupil refused and unchanged) and who may. Browser (`tests/e2e/class-without-arms.spec.ts`): the creation switch, the conversion with its confirmation and kept teacher, the deletion with its confirmation (axe on each dialog).

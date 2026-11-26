@@ -445,6 +445,18 @@ export function LayersIcon(props: IconProps) {
   );
 }
 
+/// Layers (arms, task 0132) crossed out: a class used without arms.
+export function LayersOffIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 2 9 4.5-9 4.5-9-4.5z" />
+      <path d="m3 12 9 4.5 9-4.5" />
+      <path d="m3 17.5 9 4.5 9-4.5" />
+      <path d="m3 3 18 18" />
+    </svg>
+  );
+}
+
 export function PrinterIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

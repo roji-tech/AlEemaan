@@ -9,6 +9,8 @@ export const INFO_TIPS = {
   // Academics
   "academics.classes":
     "A class is a year group, and its arms are the groups it is split into, such as A and B. Beside an arm, cap is the most pupils it takes and the last number is its enrolments.",
+  "classes.noArms":
+    "A class with no arms is not split into groups, like JSS 2 rather than JSS 2A and JSS 2B. Its pupils go straight into the class, and arms can be added later.",
   "academics.subjects": "The subjects the branch teaches. Open Subjects on a class to choose which of them that class studies.",
   "academics.schemes":
     "A branch has one default scheme for every class, and a class can have a scheme of its own. The parts and the exam add up to 100.",

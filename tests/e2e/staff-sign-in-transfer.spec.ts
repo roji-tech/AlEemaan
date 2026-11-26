@@ -121,6 +121,24 @@ test("an arm's class teacher is set on the Classes tab and shown there", async (
   await expect(page.getByRole("button", { name: "Class teacher of JSS 1 A: Mrs Amina Yusuf. Change" })).toBeVisible();
 });
 
+test("a class used without arms has its class teacher set from the class row (task 0134)", async ({ page }) => {
+  const { branch } = await setUp(page);
+  const group = await db.classGroup.create({ data: { branchId: branch.id, name: "Reception", sortOrder: 2 } });
+  await db.classArm.create({ data: { branchId: branch.id, classGroupId: group.id, name: "_", isDefault: true } });
+  await page.goto(`/academics?tab=classes&branch=${branch.id}`);
+  const row = page.getByRole("listitem").filter({ hasText: "Reception" }).first();
+  await expect(row.getByRole("list", { name: "Arms of Reception" })).toHaveCount(0); // still no arm chip
+  await row.getByRole("button", { name: "Class teacher of Reception: none yet. Change" }).click();
+  const dialog = page.getByRole("dialog", { name: "Class teacher of Reception" });
+  await expect(dialog).toContainText("take the register for this class");
+  await expectAccessible(page, "the class teacher dialog of a class without arms");
+  await dialog.getByLabel("Class teacher").selectOption({ label: "Mrs Amina Yusuf" });
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Amina Yusuf is the class teacher of Reception.")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Class teacher of Reception: Mrs Amina Yusuf. Change" })).toBeVisible();
+  await expect(row).not.toContainText("_");
+});
+
 test("Export: the subjects as CSV, with the template's header", async ({ page }) => {
   const { branch } = await setUp(page);
   await db.subject.createMany({
@@ -139,7 +157,7 @@ test("Export: the subjects as CSV, with the template's header", async ({ page })
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^subjects-.+-filtered-\d{4}-\d{2}-\d{2}\.csv$/);
   const text = await readFile((await file.path())!, "utf8");
-  expect(text.replace(/^\ufeff/, "").split("\r\n")[0]).toBe("Subject,Code");
+  expect(text.replace(/^\ufeff/, "").split("\r\n")[0]).toBe("Subject,Code,Tags");
   expect(text).toContain("'=SUM(A1)");
   await expect(dialog).toContainText("2 rows saved");
 });

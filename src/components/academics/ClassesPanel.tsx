@@ -8,6 +8,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Dialog } from "@/components/ui/Dialog";
 import { BulkImportDialog } from "@/components/bulk/BulkImportDialog";
 import { InfoTip } from "@/components/ui/InfoTip";
+import type { InfoTipKey } from "@/components/ui/info-tips";
 import { Collection, Item, ItemTile } from "@/components/ui/Collection";
 import { BookOpenIcon, GraduationCapIcon, LayersIcon, PencilIcon, UserIcon, UsersIcon } from "@/components/ui/icons";
 import { TONE } from "@/components/ui/tone";
@@ -26,6 +27,7 @@ import { useClassTemplates } from "@/components/results/useClassTemplates";
 import { classEntity } from "@/lib/bulk/classes";
 import { subjectEntity } from "@/lib/bulk/subjects";
 import { AddFromCatalogDialog, TagChips } from "@/components/academics/SubjectCatalogDialogs";
+import { SwitchField } from "@/components/ui/SwitchField";
 import { armLabel, classLabel, isHiddenArm } from "@/lib/academics/class-label";
 
 // The Academics page's lists and dialogs (Slice P1): classes with their arms and subjects, and the branch's subjects. Presentation only - the academics API
@@ -98,6 +100,12 @@ export function ClassesPanel({
   // Result templates (task 0116): which template each class uses, and the class whose template is being chosen.
   const templates = useClassTemplates(branchId, view === "classes");
   const [templateOf, setTemplateOf] = useState<ClassGroup | null>(null);
+  // A class that has one real arm, asked to be used without arms (task 0135): confirmed first, because the arm's name stops being shown.
+  const [converting, setConverting] = useState<ClassGroup | null>(null);
+  // A class asked to be deleted (task 0135): confirmed first; the server refuses a class anything is connected to and says what.
+  const [deleting, setDeleting] = useState<ClassGroup | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
@@ -152,6 +160,23 @@ export function ClassesPanel({
         ? { variant: "success", text: `${g.name} is now used without arms: its pupils go straight into the class.` }
         : { variant: "error", text: say(reply, "That didn't work.") },
     );
+    await load();
+  }
+  async function confirmConvert() {
+    if (!converting) return;
+    await switchToNoArms(converting);
+    setConverting(null);
+  }
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeletePending(true);
+    setDeleteError(null);
+    const reply = await sendJson(`/api/v1/academics/class-groups/${deleting.id}`, "DELETE");
+    setDeletePending(false);
+    if (!reply.ok) return setDeleteError(say(reply, "That didn't work."));
+    const name = deleting.name;
+    setDeleting(null);
+    setNotice({ variant: "success", text: `${name} deleted.` });
     await load();
   }
   const done = async (text: string) => {
@@ -280,6 +305,10 @@ export function ClassesPanel({
               // A class used without arms has only its hidden default arm: shown as "no arms needed", not as an arm.
               const withoutArms = g.arms.length > 0 && g.arms.every((a) => a.isDefault);
               const shownArms = withoutArms ? [] : g.arms;
+              const defaultArm = withoutArms ? g.arms.find((a) => a.isDefault) : undefined;
+              // "Use without arms" is offered for a class with no arm yet and for one with exactly one arm (task 0135: that arm becomes the class's own group).
+              const liveArms = g.arms.filter((a) => !a.archivedAt);
+              const onlyArm = liveArms.length === 1 && !liveArms[0].isDefault ? liveArms[0] : null;
               const names = g.subjectIds.map(subjectName).filter(Boolean);
               return (
                 <Item
@@ -315,13 +344,13 @@ export function ClassesPanel({
                             ariaLabel: `Add an arm to ${g.name}`,
                             onClick: () => setEditing({ kind: "arm", classGroup: g, item: null }),
                           },
-                          ...(g.arms.length === 0
+                          ...(liveArms.length === 0 || onlyArm
                             ? [
                                 {
                                   id: "noarms",
                                   label: "Use without arms",
                                   ariaLabel: `Use ${g.name} without arms`,
-                                  onClick: () => void switchToNoArms(g),
+                                  onClick: () => (onlyArm ? setConverting(g) : void switchToNoArms(g)),
                                 },
                               ]
                             : []),
@@ -350,6 +379,18 @@ export function ClassesPanel({
                             variant: "ghost",
                             onClick: () => archive(`/api/v1/academics/class-groups/${g.id}`, true, g.name),
                           },
+                          // Only offered while the class has no pupils; the server decides whether anything else is connected to it (task 0135).
+                          ...(pupils === 0
+                            ? [
+                                {
+                                  id: "delete",
+                                  label: "Delete",
+                                  ariaLabel: `Delete ${g.name}`,
+                                  variant: "ghost" as const,
+                                  onClick: () => (setDeleteError(null), setDeleting(g)),
+                                },
+                              ]
+                            : []),
                         ]
                       : undefined
                   }
@@ -378,28 +419,24 @@ export function ClassesPanel({
                                 </span>
                               )}
                               {/* The arm's class teacher (task 0114): shown to everyone, chosen here by an administrator. */}
-                              {branch.canEdit ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditing({ kind: "teacher", classGroup: g, arm: a })}
-                                  aria-label={`Class teacher of ${classLabel(g.name, a)}: ${a.classTeacher ? a.classTeacher.name : "none yet"}. Change`}
-                                  className="relative z-10 mt-1 flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                                >
-                                  <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
-                                  {a.classTeacher ? a.classTeacher.name : "Set class teacher"}
-                                </button>
-                              ) : (
-                                a.classTeacher && (
-                                  <p className="mt-1 flex items-center gap-1.5 px-2 text-xs text-fg-muted">
-                                    <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
-                                    {a.classTeacher.name}
-                                  </p>
-                                )
-                              )}
+                              <ClassTeacherLine
+                                canEdit={branch.canEdit}
+                                classGroup={g}
+                                arm={a}
+                                onChange={() => setEditing({ kind: "teacher", classGroup: g, arm: a })}
+                              />
                             </li>
                           );
                         })}
                       </ul>
+                    ) : defaultArm ? (
+                      // A class used without arms still has a class teacher (task 0134): kept on its hidden default arm, set from the class row.
+                      <ClassTeacherLine
+                        canEdit={branch.canEdit}
+                        classGroup={g}
+                        arm={defaultArm}
+                        onChange={() => setEditing({ kind: "teacher", classGroup: g, arm: defaultArm })}
+                      />
                     ) : undefined
                   }
                 >
@@ -625,6 +662,9 @@ export function ClassesPanel({
         title={editing?.kind === "class" && editing.item ? `Edit ${editing.item.name}` : "New class"}
         label="Class name"
         initial={editing?.kind === "class" ? (editing.item?.name ?? "") : ""}
+        toggle={
+          editing?.kind === "class" && !editing.item ? { label: "This class has no arms", info: "classes.noArms" as const } : undefined
+        }
         extra={{
           label: "Grade label (optional)",
           hint: "For example Grade 7 for JSS 1. Shown beside the class name on the report card.",
@@ -633,11 +673,16 @@ export function ClassesPanel({
         }}
         submitLabel={editing?.kind === "class" && editing.item ? "Save" : "Create class"}
         onClose={() => setEditing(null)}
-        onSubmit={async (name, gradeLabel) => {
+        onSubmit={async (name, gradeLabel, noArms) => {
           const item = editing?.kind === "class" ? editing.item : null;
           const reply = item
             ? await sendJson(`/api/v1/academics/class-groups/${item.id}`, "PATCH", { name, gradeLabel: gradeLabel || null })
-            : await sendJson("/api/v1/academics/class-groups", "POST", { branchId, name, ...(gradeLabel ? { gradeLabel } : {}) });
+            : await sendJson("/api/v1/academics/class-groups", "POST", {
+                branchId,
+                name,
+                ...(gradeLabel ? { gradeLabel } : {}),
+                ...(noArms ? { withoutArms: true } : {}),
+              });
           if (reply.ok) await done(`${name} ${item ? "saved" : "created"}.`);
           return reply;
         }}
@@ -688,6 +733,44 @@ export function ClassesPanel({
           await load();
         }}
       />
+      <Dialog
+        open={converting !== null}
+        onClose={() => setConverting(null)}
+        title={converting ? `Use ${converting.name} without arms?` : "Use without arms"}
+        description={
+          converting
+            ? `${converting.name} has one arm, ${armLabel(converting.arms.find((a) => !a.archivedAt)) || "its arm"}. Its pupils, marks, register and class teacher stay exactly where they are; the arm's name stops being shown and the class works as one group. You can add arms again later.`
+            : undefined
+        }
+      >
+        <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={() => setConverting(null)}>
+            Cancel
+          </Button>
+          <Button onClick={() => void confirmConvert()}>Use without arms</Button>
+        </div>
+      </Dialog>
+      <Dialog
+        open={deleting !== null}
+        onClose={() => (deletePending ? undefined : setDeleting(null))}
+        title={deleting ? `Delete ${deleting.name}?` : "Delete class"}
+        description="This removes the class for good, with its arms and its subject list. It only works while nothing is connected to it (no pupils, marks, register or timetable). To keep a class but stop using it, archive it instead."
+      >
+        {deleteError && <Alert variant="error">{deleteError}</Alert>}
+        <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={() => setDeleting(null)} disabled={deletePending}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => void confirmDelete()}
+            loading={deletePending}
+            aria-label={deleting ? `Delete ${deleting.name} for good` : "Delete"}
+          >
+            {deletePending ? "Deleting…" : "Delete for good"}
+          </Button>
+        </div>
+      </Dialog>
       <ClassTeacherDialog
         key={editing?.kind === "teacher" ? editing.arm.id : "no-arm"}
         branchId={branchId}
@@ -714,6 +797,7 @@ function NameDialog({
   label,
   initial,
   extra,
+  toggle,
   submitLabel,
   onClose,
   onSubmit,
@@ -724,9 +808,11 @@ function NameDialog({
   initial: string;
   /// A second optional text field (the class's grade label, task 0123); its text is the second argument of `onSubmit`.
   extra?: Extra;
+  /// An on/off switch under the fields (the new class's "no arms", task 0135); its state is the third argument of `onSubmit`.
+  toggle?: { label: string; info?: InfoTipKey };
   submitLabel: string;
   onClose: () => void;
-  onSubmit: (name: string, extra: string) => Promise<Reply | null>;
+  onSubmit: (name: string, extra: string, toggled: boolean) => Promise<Reply | null>;
 }) {
   return (
     <Dialog open={open} onClose={onClose} title={title}>
@@ -736,6 +822,7 @@ function NameDialog({
           label={label}
           initial={initial}
           extra={extra}
+          toggle={toggle}
           submitLabel={submitLabel}
           onClose={onClose}
           onSubmit={onSubmit}
@@ -749,6 +836,7 @@ function NameForm({
   label,
   initial,
   extra,
+  toggle,
   submitLabel,
   onClose,
   onSubmit,
@@ -756,10 +844,12 @@ function NameForm({
   label: string;
   initial: string;
   extra?: Extra;
+  toggle?: { label: string; info?: InfoTipKey };
   submitLabel: string;
   onClose: () => void;
-  onSubmit: (name: string, extra: string) => Promise<Reply | null>;
+  onSubmit: (name: string, extra: string, toggled: boolean) => Promise<Reply | null>;
 }) {
+  const [toggled, setToggled] = useState(false);
   const [name, setName] = useState(initial);
   const [second, setSecond] = useState(extra?.initial ?? "");
   const [secondProblem, setSecondProblem] = useState<string | null>(null);
@@ -773,7 +863,7 @@ function NameForm({
     setProblem(null);
     setPending(true);
     setSecondProblem(null);
-    const reply = await onSubmit(trimmed, second.trim());
+    const reply = await onSubmit(trimmed, second.trim(), toggled);
     setPending(false);
     if (reply && !reply.ok) {
       setSecondProblem(problemFor(reply, "gradeLabel") ?? null);
@@ -804,6 +894,12 @@ function NameForm({
           disabled={pending}
           autoComplete="off"
         />
+      )}
+      {toggle && (
+        <div className="flex items-center gap-1">
+          <SwitchField label={toggle.label} checked={toggled} onChange={(e) => setToggled(e.target.checked)} disabled={pending} />
+          {toggle.info && <InfoTip tip={toggle.info} />}
+        </div>
       )}
       <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
         <Button variant="ghost" onClick={onClose} disabled={pending}>
@@ -929,6 +1025,38 @@ type StaffChoice = {
   standing: string;
 };
 
+/// An arm's class teacher on the Classes tab (task 0114): shown to everyone, chosen by an administrator. For a class used without arms (task 0134) it is the class's own teacher, kept on the hidden default arm.
+function ClassTeacherLine({
+  canEdit,
+  classGroup,
+  arm,
+  onChange,
+}: {
+  canEdit: boolean;
+  classGroup: ClassGroup;
+  arm: Arm;
+  onChange: () => void;
+}) {
+  if (!canEdit)
+    return arm.classTeacher ? (
+      <p className="mt-1 flex items-center gap-1.5 px-2 text-xs text-fg-muted">
+        <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
+        {arm.classTeacher.name}
+      </p>
+    ) : null;
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      aria-label={`Class teacher of ${classLabel(classGroup.name, arm)}: ${arm.classTeacher ? arm.classTeacher.name : "none yet"}. Change`}
+      className="relative z-10 mt-1 flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
+      {arm.classTeacher ? arm.classTeacher.name : "Set class teacher"}
+    </button>
+  );
+}
+
 /// Choose an arm's class teacher (task 0114): a live member of staff of the branch, teaching staff first, or nobody. The API checks again (an administrator of the branch, a live record of it).
 function ClassTeacherDialog({
   branchId,
@@ -981,7 +1109,11 @@ function ClassTeacherDialog({
       open
       onClose={onClose}
       title={`Class teacher of ${where}`}
-      description="The class teacher can take the register for this arm. One per arm; choosing another replaces them."
+      description={
+        target.arm.isDefault
+          ? "The class teacher can take the register for this class. One per class; choosing another replaces them."
+          : "The class teacher can take the register for this arm. One per arm; choosing another replaces them."
+      }
     >
       <div className="mt-4 space-y-4">
         {staff === null && !error ? (
