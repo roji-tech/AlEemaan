@@ -160,6 +160,8 @@ model ClassArm {
   name           String
   capacity       Int?
   classTeacherId String?
+  /// The arm a class gets when it is used without arms (task 0132): the pupils, marks and attendance of such a class sit in it, and the Classes tab does not show it as an arm. At most one live one per class.
+  isDefault      Boolean   @default(false)
   archivedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
