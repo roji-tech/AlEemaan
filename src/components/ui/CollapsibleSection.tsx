@@ -34,6 +34,7 @@ export function CollapsibleSection({
   children,
   bodyClassName = "",
   className = "",
+  headingLevel = 2,
 }: {
   id: string;
   title: string;
@@ -44,6 +45,8 @@ export function CollapsibleSection({
   children: ReactNode;
   bodyClassName?: string;
   className?: string;
+  /// 2 for a section of the page, 3 for a part inside another section (smaller type).
+  headingLevel?: 2 | 3;
 }) {
   const uid = useId();
   const [open, setOpen] = useState(true); // the server and the first render agree: open; a remembered fold is applied right after
@@ -57,6 +60,7 @@ export function CollapsibleSection({
     remember(id, !open);
     setOpen(!open);
   };
+  const Heading = headingLevel === 3 ? "h3" : "h2";
   const headingId = `${uid}-heading`;
   const bodyId = `${uid}-body`;
 
@@ -64,7 +68,7 @@ export function CollapsibleSection({
     <section aria-labelledby={headingId} className={className}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 id={headingId} className="text-lg font-semibold tracking-tight text-fg">
+          <Heading id={headingId} className={headingLevel === 3 ? "font-semibold text-fg" : "text-lg font-semibold tracking-tight text-fg"}>
             <button
               type="button"
               onClick={toggle}
@@ -78,7 +82,7 @@ export function CollapsibleSection({
               />
               {title}
             </button>
-          </h2>
+          </Heading>
           {info}
         </div>
         {open && actions}

@@ -13,7 +13,7 @@ import { useCollectionView } from "@/components/ui/useCollectionView";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { Pill } from "@/components/academics/StaffDetails";
 import { ROLE_LABELS } from "@/lib/roles";
-import { expiryText, type Invitation, type RoleName } from "./model";
+import { expiryText, sentText, type Invitation, type RoleName } from "./model";
 import { InvitationHistory } from "./InvitationHistory";
 
 /// The school's OPEN invitations: who was invited, as what, by whom, and how long the link has left, as rows or as cards (the list/grid kit, task 0089; the choice and the page size are
@@ -168,6 +168,7 @@ export function InvitationsList({
                     ]
               }
             >
+              <p className="text-fg-muted">{sentText(invitation)}</p>
               <p className={expired ? "font-medium text-danger-text" : "text-fg-muted"}>{expiryText(invitation.expiresAt)}</p>
             </Item>
           );

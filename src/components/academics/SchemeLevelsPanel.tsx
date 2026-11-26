@@ -78,11 +78,12 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
           {error && <Alert variant="error">{error}</Alert>}
         </div>
         {isSuperAdmin && (
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="font-semibold text-fg">School-wide default</h3>
-              <Button onClick={() => setEditing({ kind: "global", row: null })}>New school-wide scheme</Button>
-            </div>
+          <CollapsibleSection
+            id="grading-levels-school-wide"
+            headingLevel={3}
+            title="School-wide default"
+            actions={<Button onClick={() => setEditing({ kind: "global", row: null })}>New school-wide scheme</Button>}
+          >
             {globals.length === 0 ? (
               <p className="mt-2 rounded-2xl border border-dashed border-line-strong p-5 text-center text-sm text-fg-muted">
                 No school-wide scheme yet.
@@ -111,10 +112,9 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
                 ))}
               </ul>
             )}
-          </div>
+          </CollapsibleSection>
         )}
-        <div>
-          <h3 className="font-semibold text-fg">A scheme for one class</h3>
+        <CollapsibleSection id="grading-levels-class" headingLevel={3} title="A scheme for one class">
           {branches.length > 1 && (
             <div className="mt-2 max-w-sm">
               <label htmlFor="levels-branch" className="mb-1.5 block text-xs font-semibold tracking-wide text-fg-2 uppercase">
@@ -168,7 +168,7 @@ export function SchemeLevelsPanel({ branches, isSuperAdmin }: { branches: Branch
               ))}
             </ul>
           )}
-        </div>
+        </CollapsibleSection>
       </CollapsibleSection>
       <SchemeForm
         key={
