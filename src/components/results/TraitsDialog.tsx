@@ -9,6 +9,7 @@ import { TextField } from "@/components/ui/TextField";
 import { getJson, sendJson } from "@/components/auth/postJson";
 import { say } from "@/components/academics/common";
 import { TRAIT_SCALE, MAX_DAYS } from "@/lib/results/report-traits-rules";
+import { classLabel } from "@/lib/academics/class-label";
 
 // Trait ratings and attendance of one pupil for one term (task 0116), entered from the report card screen: each trait of the pupil's template rated 1 to 5, and the term's attendance numbers
 // (a blank number means "use the register's"). An administrator or the pupil's class teacher may enter; everyone else reads. Presentation only: the API checks who, the template and the lock.
@@ -119,7 +120,7 @@ export function TraitsDialog({
       title={sheet ? `Traits and attendance of ${sheet.student.name}` : "Traits and attendance"}
       description={
         sheet
-          ? `${sheet.period.label}${sheet.class ? ` · ${sheet.class.group} ${sheet.class.arm}` : ""} · template ${sheet.template.name}`
+          ? `${sheet.period.label}${sheet.class ? ` · ${classLabel(sheet.class.group, sheet.class.arm)}` : ""} · template ${sheet.template.name}`
           : undefined
       }
       wide

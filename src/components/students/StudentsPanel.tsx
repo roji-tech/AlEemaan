@@ -1,5 +1,6 @@
 "use client";
 
+import { armLabel, isHiddenArm } from "@/lib/academics/class-label";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
@@ -66,7 +67,7 @@ type Student = {
   currentClass: string | null;
   sessionLabel: string | null;
 };
-type ClassOption = { id: string; name: string; arms: { id: string; name: string }[] };
+type ClassOption = { id: string; name: string; arms: { id: string; name: string; isDefault?: boolean }[] };
 type Paging = { page: number; totalPages: number; total: number };
 type Editing = { kind: "form"; item: Student | null } | null;
 
@@ -351,7 +352,10 @@ export function StudentsPanel({
               label="Arm"
               value={pf.classArmId ?? ""}
               onChange={(e) => setFilter({ ...pf, classArmId: e.target.value || undefined })}
-              options={[{ value: "", label: "Every arm" }, ...chosenClass.arms.map((a) => ({ value: a.id, label: a.name }))]}
+              options={[
+                { value: "", label: "Every arm" },
+                ...chosenClass.arms.map((a) => ({ value: a.id, label: armLabel(a) || "Whole class" })),
+              ]}
             />
           )}
           <SelectField
@@ -740,7 +744,8 @@ function StudentDialog({
   const [askedToComplete, setAskedToComplete] = useState(false);
   const [pending, setPending] = useState(false);
   const set = (key: keyof typeof f, value: string) => setF((all) => ({ ...all, [key]: value }));
-  const arms = classes.find((c) => c.name === f.className)?.arms ?? [];
+  // The class's arms a person can choose: the hidden default arm of a class without arms is not one (the server places the pupil in it when no arm is chosen, task 0133).
+  const arms = (classes.find((c) => c.name === f.className)?.arms ?? []).filter((a) => !isHiddenArm(a));
   // A new pupil, or an existing one with no class yet, can be placed in a class from this form.
   const canPlace = !item || item.currentClass === null;
 

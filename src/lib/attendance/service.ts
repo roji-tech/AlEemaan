@@ -1,3 +1,4 @@
+import { armLabel, isHiddenArm } from "@/lib/academics/class-label";
 import { prisma } from "@/lib/db";
 import { SessionStatus } from "@prisma/client";
 import { isFutureDate, canEditAttendance, calculateAttendanceSummary, AttendanceStatus, type AttendanceCountSummary } from "./rules";
@@ -76,7 +77,8 @@ export async function getBranchRollCall({
       branchId,
       sessionId: activeSession.id,
       className,
-      ...(arm ? { arm } : {}),
+      // The hidden default arm of a class without arms (task 0133) is the whole class: no arm filter.
+      ...(arm && !isHiddenArm(arm) ? { arm } : {}),
       status: "ACTIVE",
       student: LIVE_PUPIL,
     },
@@ -144,7 +146,7 @@ export async function getBranchRollCall({
     data: {
       branchId,
       className,
-      arm: arm ?? null,
+      arm: armLabel(arm) || null,
       date: dateStr,
       students,
       summary,

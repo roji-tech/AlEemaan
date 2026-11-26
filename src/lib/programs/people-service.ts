@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { Prisma, ParticipantKind, ProgramPlaceStatus, StandingState, StandingSubject, type Gender } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { branchAdminMaySuspend, maySuspendSwitch } from "@/lib/standing/settings-service";
@@ -477,7 +478,7 @@ export async function classOptions(actorUserId: string, programId: string): Prom
   return done(
     arms.map((arm) => ({
       id: arm.id,
-      label: `${arm.classGroup.name} ${arm.name}`,
+      label: classLabel(arm.classGroup.name, arm),
       branchId: arm.branchId,
       branchName: names.get(arm.branchId) ?? "",
       pupils: arm._count.enrollments,
@@ -744,7 +745,7 @@ export async function addClass(
       targetType: "Program",
       targetId: program.id,
       after: {
-        arm: `${arm.classGroup.name} ${arm.name}`,
+        arm: classLabel(arm.classGroup.name, arm),
         groupId: input.groupId,
         added: plan.willAdd.length,
         skipped: plan.skipped.length,

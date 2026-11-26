@@ -26,6 +26,7 @@ import { useClassTemplates } from "@/components/results/useClassTemplates";
 import { classEntity } from "@/lib/bulk/classes";
 import { subjectEntity } from "@/lib/bulk/subjects";
 import { AddFromCatalogDialog, TagChips } from "@/components/academics/SubjectCatalogDialogs";
+import { armLabel, classLabel, isHiddenArm } from "@/lib/academics/class-label";
 
 // The Academics page's lists and dialogs (Slice P1): classes with their arms and subjects, and the branch's subjects. Presentation only - the academics API
 // enforces who may read and change what, and every outcome (duplicate name, archived parent, signed out, offline) has its own honest message.
@@ -173,7 +174,7 @@ export function ClassesPanel({
     (g) =>
       (search.trim() === "" ||
         same(g.name, search) ||
-        g.arms.some((a) => same(a.name, search)) ||
+        g.arms.some((a) => !isHiddenArm(a) && same(a.name, search)) ||
         g.subjectIds.some((id) => same(subjectName(id), search))) &&
       (gap === "" || (gap === "noSubjects" ? g.subjectIds.length === 0 : g.arms.length === 0)),
   );
@@ -356,14 +357,14 @@ export function ClassesPanel({
                     shownArms.length > 0 ? (
                       <ul aria-label={`Arms of ${g.name}`} className="flex flex-wrap gap-2">
                         {shownArms.map((a) => {
-                          const label = `${a.name}${a.capacity ? ` · cap ${a.capacity}` : ""} · ${a.enrolments}`;
+                          const label = `${armLabel(a) || "Whole class"}${a.capacity ? ` · cap ${a.capacity}` : ""} · ${a.enrolments}`;
                           return (
                             <li key={a.id}>
                               {branch.canEdit ? (
                                 <button
                                   type="button"
                                   onClick={() => setEditing({ kind: "arm", classGroup: g, item: a })}
-                                  aria-label={`Edit arm ${a.name} of ${g.name}`}
+                                  aria-label={`Edit arm ${armLabel(a) || "Whole class"} of ${g.name}`}
                                   className={`relative z-10 inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${TONE.info.chip}`}
                                 >
                                   {label}
@@ -381,7 +382,7 @@ export function ClassesPanel({
                                 <button
                                   type="button"
                                   onClick={() => setEditing({ kind: "teacher", classGroup: g, arm: a })}
-                                  aria-label={`Class teacher of ${g.name} ${a.name}: ${a.classTeacher ? a.classTeacher.name : "none yet"}. Change`}
+                                  aria-label={`Class teacher of ${classLabel(g.name, a)}: ${a.classTeacher ? a.classTeacher.name : "none yet"}. Change`}
                                   className="relative z-10 mt-1 flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                 >
                                   <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
@@ -959,7 +960,7 @@ function ClassTeacherDialog({
     };
   }, [branchId, target]);
   if (!target) return null;
-  const where = `${target.classGroup.name} ${target.arm.name}`;
+  const where = classLabel(target.classGroup.name, target.arm);
   async function save() {
     setBusy(true);
     setError(null);

@@ -1,6 +1,8 @@
 // The pure arithmetic of a report card (Slice P2c): a subject's percentage, a student's average, and positions in a class. No database, no floats that can drift:
 // everything is an integer count of HUNDREDTHS of a percent (so 66.67% is 6667), converted to a number only at the edge.
 
+import { classLabel } from "@/lib/academics/class-label";
+
 export type Scored = { total: number; max: number };
 
 /// A subject's percentage in hundredths of a percent: 65 out of 100 -> 6500; 7 out of 8 -> 8750. Rounds half up. `null` when the maximum is not positive.
@@ -59,7 +61,7 @@ export function orderBySubjectAdded<T extends { subjectId: string; subject: { na
 /// The class as the report card prints it (task 0123): the class, then its arm when the card shows arms, then the class's grade label in brackets when it has one: "SSS 1 A (Grade 10)",
 /// "SSS 1 (Grade 10)", "SSS 1".
 export function classText(cls: { group: string; arm: string; gradeLabel?: string | null }, withArm: boolean): string {
-  const base = withArm ? `${cls.group} ${cls.arm}` : cls.group;
+  const base = withArm ? classLabel(cls.group, cls.arm) : cls.group;
   const label = cls.gradeLabel?.trim();
   return label ? `${base} (${label})` : base;
 }

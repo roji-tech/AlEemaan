@@ -39,7 +39,7 @@ test("a class with no arms is used without arms: nothing to name, nothing shown 
   await expect(row.getByRole("button", { name: "Use Beginner without arms" })).toHaveCount(0);
   await expectAccessible(page, "the classes tab with a class used without arms");
   const arm = await db.classArm.findFirstOrThrow({ where: { classGroup: { name: "Beginner" } } });
-  expect([arm.name, arm.isDefault]).toEqual(["Main", true]);
+  expect([arm.name, arm.isDefault]).toEqual(["_", true]);
 
   // an arm can still be added: both show, so the pupils of the default arm are not hidden
   await clickAction(row, "Add an arm to Beginner");
@@ -48,5 +48,6 @@ test("a class with no arms is used without arms: nothing to name, nothing shown 
   await expect(page.getByText("Arm A added.")).toBeVisible();
   const arms = row.getByRole("list", { name: "Arms of Beginner" });
   await expect(arms.getByRole("listitem")).toHaveCount(2);
-  await expect(arms).toContainText("Main");
+  await expect(arms).toContainText("Whole class");
+  await expect(arms).not.toContainText("_");
 });

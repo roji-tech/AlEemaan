@@ -130,7 +130,7 @@ test("export: the shown rows are the list's rows on every page, in the template'
     cookie: admin.cookie,
     body: { kind: "staff", branchId: home.id, scope: "shown", ids: [mine.id, theirs.id] },
   });
-  expect(staff.json.data.rows).toEqual([["Teaching staff", "Musa", "Bello", "", "", "", "", "", "", "Yes"]]);
+  expect(staff.json.data.rows).toEqual([["Teaching staff", "Musa", "Bello", "", "", "", "", "", "", "Yes", ""]]);
 });
 
 test("export: at most five per person in a few minutes", async () => {

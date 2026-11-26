@@ -1,3 +1,4 @@
+import { classLabel } from "@/lib/academics/class-label";
 import { EnrollmentStatus, NotificationChannel, NotificationDispatchStatus, Prisma, SessionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { resolveSchoolTimeZone } from "@/lib/question-bank/school-day";
@@ -389,7 +390,7 @@ export async function broadcastMessage(
           address: address.trim(),
           studentId: s.id,
           studentName: `${s.firstName} ${s.lastName}`,
-          classArm: current ? [current.className, current.arm].filter(Boolean).join(" ") : undefined,
+          classArm: current ? classLabel(current.className, current.arm) : undefined,
         });
       }
     }

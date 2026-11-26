@@ -1,5 +1,6 @@
 "use client";
 
+import { classLabel } from "@/lib/academics/class-label";
 import { useEffect, useState, useCallback } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
@@ -322,7 +323,7 @@ export function PromotionHistoryView({ branchId }: { branchId: string }) {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-fg">
-                          {r.targetEnrollment ? [r.targetEnrollment.className, r.targetEnrollment.arm].filter(Boolean).join(" ") : "—"}
+                          {r.targetEnrollment ? classLabel(r.targetEnrollment.className, r.targetEnrollment.arm) : "—"}
                         </td>
                         <td className="px-3 py-2 text-fg-muted">
                           {r.decisionMode === "OVERRIDDEN" ? (

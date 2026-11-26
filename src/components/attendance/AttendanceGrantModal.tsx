@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { getJson, sendJson } from "@/components/auth/postJson";
+import { classLabel } from "@/lib/academics/class-label";
 
 export type AttendanceGrantItem = {
   id: string;
@@ -214,7 +215,7 @@ export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolea
                 <option value="">Select an arm…</option>
                 {arms.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.classGroupName} {a.name}{" "}
+                    {classLabel(a.classGroupName, a)}{" "}
                     {a.classTeacher ? `(Current: ${a.classTeacher.firstName} ${a.classTeacher.lastName})` : "(Unassigned)"}
                   </option>
                 ))}
@@ -286,7 +287,7 @@ export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolea
                 <option value="">Select arm…</option>
                 {arms.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.classGroupName} {a.name}
+                    {classLabel(a.classGroupName, a)}
                   </option>
                 ))}
               </select>
@@ -324,9 +325,7 @@ export function AttendanceGrantModal({ open, onClose, branchId }: { open: boolea
                         {g.staffRecord.firstName} {g.staffRecord.lastName}
                         {g.staffRecord.email && <span className="block text-fg-muted text-[11px]">{g.staffRecord.email}</span>}
                       </td>
-                      <td className="p-3 text-fg">
-                        {g.classArm.classGroup.name} {g.classArm.name}
-                      </td>
+                      <td className="p-3 text-fg">{classLabel(g.classArm.classGroup.name, g.classArm)}</td>
                       <td className="p-3 text-fg-muted">{new Date(g.grantedAt).toLocaleDateString()}</td>
                       <td className="p-3 text-right">
                         <Button

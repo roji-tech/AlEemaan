@@ -1,5 +1,6 @@
 "use client";
 
+import { classLabel } from "@/lib/academics/class-label";
 import React from "react";
 import Link from "next/link";
 
@@ -78,10 +79,10 @@ export function PortalHeader({ students, selectedStudentId, onSelectStudent, onS
               >
                 {students.map((s) => {
                   const enrollment = s.enrollments?.[0];
-                  const classLabel = enrollment ? `${enrollment.className} ${enrollment.arm || ""}` : "";
+                  const classText = enrollment ? classLabel(enrollment.className, enrollment.arm) : "";
                   return (
                     <option key={s.id} value={s.id}>
-                      {s.firstName} {s.lastName} ({s.admissionNo}) {classLabel ? `· ${classLabel}` : ""}
+                      {s.firstName} {s.lastName} ({s.admissionNo}) {classText ? `· ${classText}` : ""}
                     </option>
                   );
                 })}
