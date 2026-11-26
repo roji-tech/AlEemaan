@@ -826,3 +826,7 @@
 ## TASK-0135: No-arms switch, convert a one-arm class to no arms, delete an unused class (requested 2026-11-26)
 
 [Task file](0135-arms-switch-convert-delete-class.md). New class dialog switch "This class has no arms" (`withoutArms`); "Use without arms" converts a class with one arm (arm kept, name hidden); `DELETE /class-groups/[id]` for a class nothing is connected to. No migration.
+
+## TASK-0136: Delete an empty arm (requested 2026-11-27)
+
+[Task file](0136-delete-empty-arm.md). The arm's Edit dialog has Delete while it has no pupils; `DELETE /arms/[id]` refuses an arm anything is connected to and says what. No migration.

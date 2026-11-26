@@ -106,6 +106,10 @@ export function ClassesPanel({
   const [deleting, setDeleting] = useState<ClassGroup | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  // An arm asked to be deleted (task 0136): confirmed first; the server refuses an arm anything is connected to and says what.
+  const [deletingArm, setDeletingArm] = useState<{ classGroup: ClassGroup; arm: Arm } | null>(null);
+  const [armDeleteError, setArmDeleteError] = useState<string | null>(null);
+  const [armDeletePending, setArmDeletePending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
   const [editing, setEditing] = useState<Editing>(autoNew && view === "classes" && branch.canEdit ? { kind: "class", item: null } : null);
@@ -177,6 +181,18 @@ export function ClassesPanel({
     const name = deleting.name;
     setDeleting(null);
     setNotice({ variant: "success", text: `${name} deleted.` });
+    await load();
+  }
+  async function confirmDeleteArm() {
+    if (!deletingArm) return;
+    setArmDeletePending(true);
+    setArmDeleteError(null);
+    const reply = await sendJson(`/api/v1/academics/arms/${deletingArm.arm.id}`, "DELETE");
+    setArmDeletePending(false);
+    if (!reply.ok) return setArmDeleteError(say(reply, "That didn't work."));
+    const where = classLabel(deletingArm.classGroup.name, deletingArm.arm);
+    setDeletingArm(null);
+    setNotice({ variant: "success", text: `${where} deleted.` });
     await load();
   }
   const done = async (text: string) => {
@@ -695,6 +711,19 @@ export function ClassesPanel({
         label="Arm name"
         initial={editing?.kind === "arm" ? (editing.item?.name ?? "") : ""}
         submitLabel={editing?.kind === "arm" && editing.item ? "Save" : "Add arm"}
+        // Delete is offered for an arm with no pupils; the server decides whether anything else is connected to it (task 0136).
+        onDelete={
+          editing?.kind === "arm" && editing.item && editing.item.enrolments === 0 && branch.canEdit
+            ? (() => {
+                const target = { classGroup: editing.classGroup, arm: editing.item };
+                return () => {
+                  setArmDeleteError(null);
+                  setDeletingArm(target);
+                  setEditing(null);
+                };
+              })()
+            : undefined
+        }
         onClose={() => setEditing(null)}
         onSubmit={async (name) => {
           if (editing?.kind !== "arm") return null;
@@ -751,6 +780,27 @@ export function ClassesPanel({
         </div>
       </Dialog>
       <Dialog
+        open={deletingArm !== null}
+        onClose={() => (armDeletePending ? undefined : setDeletingArm(null))}
+        title={deletingArm ? `Delete ${armLabel(deletingArm.arm) || "this arm"} of ${deletingArm.classGroup.name}?` : "Delete arm"}
+        description="This removes the arm for good, with its class teacher. It only works while nothing is connected to it (no pupils, marks, register or timetable). To keep an arm but stop using it, archive it instead."
+      >
+        {armDeleteError && <Alert variant="error">{armDeleteError}</Alert>}
+        <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={() => setDeletingArm(null)} disabled={armDeletePending}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => void confirmDeleteArm()}
+            loading={armDeletePending}
+            aria-label={deletingArm ? `Delete ${classLabel(deletingArm.classGroup.name, deletingArm.arm)} for good` : "Delete"}
+          >
+            {armDeletePending ? "Deleting…" : "Delete for good"}
+          </Button>
+        </div>
+      </Dialog>
+      <Dialog
         open={deleting !== null}
         onClose={() => (deletePending ? undefined : setDeleting(null))}
         title={deleting ? `Delete ${deleting.name}?` : "Delete class"}
@@ -798,6 +848,7 @@ function NameDialog({
   initial,
   extra,
   toggle,
+  onDelete,
   submitLabel,
   onClose,
   onSubmit,
@@ -810,6 +861,8 @@ function NameDialog({
   extra?: Extra;
   /// An on/off switch under the fields (the new class's "no arms", task 0135); its state is the third argument of `onSubmit`.
   toggle?: { label: string; info?: InfoTipKey };
+  /// A "Delete" button beside Cancel (an arm with nothing connected, task 0136); it hands over to the caller's own confirmation.
+  onDelete?: () => void;
   submitLabel: string;
   onClose: () => void;
   onSubmit: (name: string, extra: string, toggled: boolean) => Promise<Reply | null>;
@@ -823,6 +876,7 @@ function NameDialog({
           initial={initial}
           extra={extra}
           toggle={toggle}
+          onDelete={onDelete}
           submitLabel={submitLabel}
           onClose={onClose}
           onSubmit={onSubmit}
@@ -837,6 +891,7 @@ function NameForm({
   initial,
   extra,
   toggle,
+  onDelete,
   submitLabel,
   onClose,
   onSubmit,
@@ -845,6 +900,7 @@ function NameForm({
   initial: string;
   extra?: Extra;
   toggle?: { label: string; info?: InfoTipKey };
+  onDelete?: () => void;
   submitLabel: string;
   onClose: () => void;
   onSubmit: (name: string, extra: string, toggled: boolean) => Promise<Reply | null>;
@@ -902,6 +958,11 @@ function NameForm({
         </div>
       )}
       <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
+        {onDelete && (
+          <Button variant="danger" onClick={onDelete} disabled={pending} className="sm:mr-auto">
+            Delete
+          </Button>
+        )}
         <Button variant="ghost" onClick={onClose} disabled={pending}>
           Cancel
         </Button>
