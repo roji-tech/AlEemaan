@@ -6,6 +6,7 @@ import { useNotice } from "@/components/ui/Toaster";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { Dialog } from "@/components/ui/Dialog";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { SelectField } from "@/components/ui/SelectField";
@@ -156,15 +157,12 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
         }}
       />
 
-      <section aria-labelledby="schemes-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 id="schemes-heading" className="text-lg font-semibold tracking-tight text-fg">
-              Assessment schemes
-            </h2>
-            <InfoTip tip="academics.schemes" />
-          </div>
-          {branch.canEdit && (
+      <CollapsibleSection
+        id="grading-schemes"
+        title="Assessment schemes"
+        info={<InfoTip tip="academics.schemes" />}
+        actions={
+          branch.canEdit && (
             <div className="flex flex-wrap gap-2">
               {noBranchDefault && (
                 <Button
@@ -176,8 +174,9 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
               )}
               <Button onClick={() => setEditing({ kind: "scheme", item: null })}>New scheme</Button>
             </div>
-          )}
-        </div>
+          )
+        }
+      >
         <p className="mt-1 text-sm text-fg-muted">
           How a mark is built: continuous-assessment parts plus the exam. A scheme for one class wins over the branch default.
         </p>
@@ -251,18 +250,14 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
             ))}
           </ul>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section aria-labelledby="scales-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 id="scales-heading" className="text-lg font-semibold tracking-tight text-fg">
-              Grade scales
-            </h2>
-            <InfoTip tip="academics.scales" />
-          </div>
-          {branch.canEdit && <Button onClick={() => setEditing({ kind: "scale", item: null })}>New grade scale</Button>}
-        </div>
+      <CollapsibleSection
+        id="grading-scales"
+        title="Grade scales"
+        info={<InfoTip tip="academics.scales" />}
+        actions={branch.canEdit && <Button onClick={() => setEditing({ kind: "scale", item: null })}>New grade scale</Button>}
+      >
         <p className="mt-1 text-sm text-fg-muted">How a score becomes a letter. The branch uses its default scale.</p>
         {scales === null ? (
           <p className="mt-3 text-sm text-fg-muted" aria-busy="true">
@@ -387,7 +382,7 @@ export function GradingPanel({ branches }: { branches: BranchChoice[] }) {
             ))}
           </ul>
         )}
-      </section>
+      </CollapsibleSection>
 
       <Dialog
         open={deleting !== null}
