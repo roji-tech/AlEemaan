@@ -798,3 +798,7 @@
 ## TASK-0128: Restore archived schemes and scales, edit the school-wide default, make the school-wide scheme usable (requested 2026-11-26)
 
 [Task file](0128-scheme-restore-and-school-wide.md). Archived schemes and grade scales can be shown and restored; the school-wide default scheme can be edited; a branch with no scheme of its own copies the school-wide one with one click (marks entry never read it, which is why the maintainer still got "Set up an assessment scheme"); a scheme connected to nothing can be deleted for good. No migration.
+
+## TASK-0129: Each section of Assessment and grading folds (requested 2026-11-26)
+
+[Task file](0129-collapsible-grading-sections.md). Assessment schemes, Grade scales and Scheme levels each fold away and open again on their heading, by mouse or keyboard, independently, remembered in the browser. UI only, no migration.
